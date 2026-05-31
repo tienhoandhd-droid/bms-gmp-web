@@ -89,7 +89,7 @@ export async function layTongQuan(signal) {
 // ============================================================
 export async function layDanhSachPhong(signal) {
   const { data, error } = await docView('xem_phong_co_kpi',
-    (q) => q.select('ma_phong,ten_phong,khu_vuc,ahu,muc_uu_tien,thieu_du_lieu,ghi_chu,ti_le_dat_1h,muc_canh_bao_phong,cam_bien').order('ma_phong'),
+    (q) => q.select('ma_phong,ten_phong,khu_vuc,ahu,muc_uu_tien,thieu_du_lieu,ghi_chu,ti_le_dat_1h,muc_canh_bao_phong,cam_bien,lan_cuoi_co_du_lieu,tre_phut').order('ma_phong'),
     { signal })
   if (error) return { error, rooms: null }
   const rooms = (data || []).map((r) => ({
@@ -100,6 +100,8 @@ export async function layDanhSachPhong(signal) {
     priority: r.muc_uu_tien || 'P3',
     note: r.ghi_chu || '',
     noData: !!r.thieu_du_lieu,
+    lastSeen: r.lan_cuoi_co_du_lieu || null,        // 'DD/MM HH:MM' bản ghi gần nhất
+    agePhut: r.tre_phut != null ? Number(r.tre_phut) : null,  // số phút kể từ bản ghi gần nhất
     _isLive: true,
     _compliance: r.ti_le_dat_1h != null ? Math.round(r.ti_le_dat_1h) : null,
     _level: mucCanhBaoToLevel(r.muc_canh_bao_phong),
@@ -190,6 +192,30 @@ export async function layCanhBaoHeThong(signal) {
 export async function layChuoiXuHuong(scopeType, scopeId, sensorType, soNgay, signal) {
   const { data, error } = await goiRPC('rpc_lay_chuoi_xu_huong', {
     p_scope_type: scopeType, p_scope_id: scopeId, p_sensor: sensorType || 'ALL', p_so_ngay: soNgay,
+  }, { signal })
+  if (error || !Array.isArray(data)) return { error, series: [] }
+  const series = data.map((r) => ({
+    label: r.label,
+    ts: r.ts != null ? Number(r.ts) : null,
+    comp: r.comp,
+    dq: r.dq != null ? Math.round(r.dq) : null,
+    warnH: r.warnH ?? 0,
+    critH: r.critH ?? 0,
+    alert: +(((r.warnH ?? 0) + (r.critH ?? 0))).toFixed(2),
+    oos: r.oos ?? 0,
+  }))
+  return { error: null, series }
+}
+
+// ============================================================
+// XU HƯỚNG CHI TIẾT (THEO GIỜ / THEO CẢM BIẾN)  ·  RPC: rpc_lay_chuoi_xu_huong_v2
+// donVi: 'GIO' (N giờ gần nhất) | 'NGAY' (N ngày). sensorType: ALL/DP/RH/T.
+// → MẢNG cùng hình dạng layChuoiXuHuong: [{label, ts, comp, dq, warnH, critH, alert, oos}]
+// ============================================================
+export async function layChuoiXuHuongChiTiet(scopeType, scopeId, sensorType, donVi, soDiem, signal) {
+  const { data, error } = await goiRPC('rpc_lay_chuoi_xu_huong_v2', {
+    p_scope_type: scopeType, p_scope_id: scopeId, p_sensor: sensorType || 'ALL',
+    p_don_vi: donVi || 'NGAY', p_so_diem: soDiem,
   }, { signal })
   if (error || !Array.isArray(data)) return { error, series: [] }
   const series = data.map((r) => ({
