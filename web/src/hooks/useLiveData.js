@@ -72,10 +72,10 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
       live.forEach((s) => { byK[s.k] = s })
       const sensors = (room.sensors || []).map((s) => {
         const L = byK[s.k]
-        return L ? { ...s, _live: { cur: L.cur, avg1h: L.avg1h, oos1h: L.oos1h, level: L.level, hourly8: L.hourly8 } } : s
+        return L ? { ...s, _live: { cur: L.cur, avg1h: L.avg1h, oos1h: L.oos1h, oos10: L.oos10, level: L.level, hourly8: L.hourly8 } } : s
       })
       live.forEach((L) => {
-        if (!sensors.some((s) => s.k === L.k)) sensors.push({ k: L.k, min: null, max: null, _live: { cur: L.cur, avg1h: L.avg1h, oos1h: L.oos1h, level: L.level, hourly8: L.hourly8 } })
+        if (!sensors.some((s) => s.k === L.k)) sensors.push({ k: L.k, min: L.min ?? null, max: L.max ?? null, _live: { cur: L.cur, avg1h: L.avg1h, oos1h: L.oos1h, oos10: L.oos10, level: L.level, hourly8: L.hourly8 } })
       })
       const hourlyOOS = []
       sensors.forEach((s) => (s._live?.hourly8 || []).forEach((h, i) => {

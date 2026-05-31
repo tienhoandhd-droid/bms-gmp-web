@@ -130,6 +130,11 @@ export async function layThongKeSensorPhong(maPhong, signal) {
     oos1h: s.oos_1h != null ? Math.round(s.oos_1h) : 0,     // đã là SỐ ĐIỂM/giờ
     dq1h: s.dq_1h,
     level: mucCanhBaoToLevel(s.muc_canh_bao_1h),
+    // #3 — OOS 10 phút cuối + giới hạn dưới/trên + giờ chốt của bản ghi gần nhất
+    oos10: s.oos_10phut_cuoi != null ? Math.round(s.oos_10phut_cuoi) : null,
+    min: s.gioi_han_duoi != null ? Number(s.gioi_han_duoi) : null,
+    max: s.gioi_han_tren != null ? Number(s.gioi_han_tren) : null,
+    lanCuoi: s.lan_cuoi || null,
     hourly8: (s.hourly_8 || []).map((h) => ({ label: h.label, avg: h.avg, oos: h.oos })),
   }))
   return { error: null, sensors }
@@ -237,6 +242,22 @@ export async function layChuoiXuHuongChiTiet(scopeType, scopeId, sensorType, don
 //      delta_7_ngay, rui_ro, danh_gia
 // ============================================================
 export async function layXepHangRuiRo(signal) {
+  // v11: ưu tiên RPC v2 (đọc du_lieu_gio → LUÔN có đủ 4 cấp + dòng TỔNG +
+  //   tỉ lệ đạt 1/3/7 ngày + chuỗi 14 ngày). Nếu chưa nạp file 19 (RPC chưa có)
+  //   → tự lùi về view cũ để web vẫn chạy bình thường.
+  const v2 = await goiRPC('rpc_xep_hang_rui_ro_v2', {}, { signal })
+  if (!v2.error && Array.isArray(v2.data)) {
+    const rows = v2.data.map((r) => ({
+      type: r.scope_type, id: r.scope_id, name: r.ten_scope,
+      area: r.khu_vuc, ahu: r.ahu,
+      compliance: r.comp_moi_nhat, delta7: r.delta_7_ngay, risk: r.rui_ro, danhGia: r.danh_gia,
+      dat1n: r.dat_1n ?? null, dat3n: r.dat_3n ?? null, dat7n: r.dat_7n ?? null,
+      critical7n: r.critical_7n ?? null,
+      chuoi: Array.isArray(r.chuoi) ? r.chuoi.map((p) => ({ label: p.label, comp: p.comp })) : [],
+    }))
+    return { error: null, rows }
+  }
+  // ----- Lùi về view cũ -----
   const { data, error } = await docView('xem_xep_hang_rui_ro',
     (q) => q.select('scope_type,scope_id,ten_scope,khu_vuc,ahu,comp_moi_nhat,delta_7_ngay,rui_ro,danh_gia'),
     { signal })
@@ -245,8 +266,32 @@ export async function layXepHangRuiRo(signal) {
     type: r.scope_type, id: r.scope_id, name: r.ten_scope,
     area: r.khu_vuc, ahu: r.ahu,
     compliance: r.comp_moi_nhat, delta7: r.delta_7_ngay, risk: r.rui_ro, danhGia: r.danh_gia,
+    dat1n: null, dat3n: null, dat7n: null, critical7n: null, chuoi: [],
   }))
   return { error: null, rows }
+}
+
+// ============================================================
+// CHUỖI GIÁ TRỊ TRUNG BÌNH + GIỚI HẠN của 1 PHÒNG · 1 CẢM BIẾN  (#4)
+// RPC: rpc_chuoi_gia_tri_phong(p_ma_phong, p_sensor, p_don_vi, p_so_diem)
+// donVi: 'GIO' (N giờ) | 'NGAY' (N ngày). sensor: DP/RH/T (cụ thể).
+// → MẢNG [{label, ts, avg, lo, hi, vmin, vmax}] để vẽ đường TB + dải GHD–GHT.
+// ============================================================
+export async function layChuoiGiaTriPhong(maPhong, sensor, donVi, soDiem, signal) {
+  const { data, error } = await goiRPC('rpc_chuoi_gia_tri_phong', {
+    p_ma_phong: maPhong, p_sensor: sensor, p_don_vi: donVi || 'GIO', p_so_diem: soDiem,
+  }, { signal })
+  if (error || !Array.isArray(data)) return { error, series: [] }
+  const series = data.map((r) => ({
+    label: r.label,
+    ts: r.ts != null ? Number(r.ts) : null,
+    avg: r.avg != null ? Number(r.avg) : null,
+    lo: r.lo != null ? Number(r.lo) : null,
+    hi: r.hi != null ? Number(r.hi) : null,
+    vmin: r.vmin != null ? Number(r.vmin) : null,
+    vmax: r.vmax != null ? Number(r.vmax) : null,
+  }))
+  return { error: null, series }
 }
 
 // ============================================================
