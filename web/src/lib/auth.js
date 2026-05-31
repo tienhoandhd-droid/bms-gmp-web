@@ -46,9 +46,18 @@ export async function layPhienHienTai() {
 
 export function theoDoiPhien(callback) {
   if (!supabase) return () => {}
-  const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+  // QUAN TRỌNG: callback này KHÔNG được async và KHÔNG được gọi bất kỳ hàm Supabase
+  // nào (kể cả .from().select()) ngay bên trong. Lý do: khi onAuthStateChange chạy,
+  // thư viện Supabase đang GIỮ lock của Auth (Web Locks). Nếu trong callback ta lại
+  // gọi một truy vấn — truy vấn đó cần lấy access_token → lại xin chính lock đó →
+  // DEADLOCK (lock không tái nhập). Hậu quả thực tế: sau khi F5 (đã có phiên lưu
+  // trong localStorage), sự kiện INITIAL_SESSION kích hoạt callback → deadlock →
+  // toàn bộ Auth treo → đăng nhập lại cũng treo, phải xóa dữ liệu web mới thoát.
+  // Cách sửa: callback trả về NGAY (nhả lock), rồi mới tra vai trò ở task riêng.
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
     const email = session?.user?.email
-    callback(email ? await taoNguoiDungTuEmail(email) : null)
+    if (!email) { callback(null); return }
+    setTimeout(() => { taoNguoiDungTuEmail(email).then(callback).catch(() => callback({ email, name: email.split('@')[0], role: 'IPC' })) }, 0)
   })
   return () => data?.subscription?.unsubscribe?.()
 }
