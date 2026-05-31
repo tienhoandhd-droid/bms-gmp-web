@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, luuPhanTichAi, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiGiaTriPhong, luuPhanTichAi, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import AuthGate from "./AuthGate";
 import {
@@ -10,12 +10,13 @@ import {
   TrendingDown, TrendingUp, Gauge, CircleDot, Check, Bell, BellOff, Mail, Cpu,
   Wind, FileBarChart, LayoutDashboard, AlertOctagon, Building2, LineChart as LineIcon,
   ScrollText, Settings as Cog, Wifi, Printer, Plus, Trash2, Search, LogIn, LogOut,
-  User, Eye, SlidersHorizontal, History, Pencil
+  User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus
 } from "lucide-react";
 import {
   ComposedChart, Bar, Line, AreaChart, Area, BarChart, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine
+  Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea
 } from "recharts";
+import logoCpc1hn from "./assets/logo-cpc1hn.png";
 
 /* ============ MÀU NƯỚC — HỆ THỦY ============ */
 const COLOR = { navy: "#1e3a56", ink: "#33506e", teal: "#149e90", sky: "#4f9fd1", coral: "#e2674f", coralDeep: "#cf583f", sand: "#e6b052", softCoral: "#df7d62" };
@@ -40,10 +41,27 @@ const USERS = [
   { email: "hoan.qa@cpc1hn.vn", name: "Hoàn", role: "QA" },
   { email: "admin@cpc1hn.vn", name: "Quản trị", role: "ADMIN" },
 ];
-const ROLE_VI = { IPC: "IPC Hiện trường", MEP: "Cơ điện", LOT: "Trực HSL", QA: "QA Kiểm soát", ADMIN: "Quản trị" };
-const canManageRooms = (role) => ["ADMIN", "QA"].includes(role);
+const ROLE_VI = { IPC: "IPC Hiện trường", MEP: "Cơ điện", LOT: "Trực HSL", QA: "QA Kiểm soát", ADMIN: "Quản trị (IT)", IT: "IT / Quản trị" };
+const FULL_ACCESS = ["QA", "ADMIN", "IT"];                 // QA và IT: xem TẤT CẢ các tab
+const canManageRooms = (role) => FULL_ACCESS.includes(role);
+// PHÂN QUYỀN TAB (yêu cầu #5):
+//   • IPC, Cơ điện (MEP): chỉ Tổng quan + Sự cố (để kích hoạt sự cố liên quan).
+//   • Trực (LOT): Tổng quan + Sự cố + Xu hướng.
+//   • QA, IT (ADMIN): tất cả các tab.
+//   • ĐỔI MẬT KHẨU: mọi vai trò đều có (nút riêng ở góc phải, không phụ thuộc tab).
+const TAB_ROLES = {
+  home:     ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
+  events:   ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
+  trend:    ["LOT", "QA", "ADMIN", "IT"],
+  rooms:    FULL_ACCESS,
+  reports:  FULL_ACCESS,
+  audit:    FULL_ACCESS,
+  settings: FULL_ACCESS,
+};
+// role rỗng = chế độ xem trước cục bộ (demo, chưa Supabase) → hiện mọi tab cho tiện thử.
+const roleCanSeeTab = (role, key) => (!role ? true : (TAB_ROLES[key] || FULL_ACCESS).includes(role));
 
-function CpcLogo() { return <svg viewBox="0 0 120 100" width="40" height="36" aria-label="CPC1"><g transform="translate(60,90)">{[-66, -44, -22, 0, 22, 44, 66].map((a, i) => <path key={i} transform={`rotate(${a})`} d="M -6 0 C -7.5 -42 -3 -66 0 -80 C 3 -66 7.5 -42 6 0 Z" fill="#e1251b" />)}</g></svg>; }
+function CpcLogo({ className = "h-9 w-auto" }) { return <img src={logoCpc1hn} alt="CPC1 Hà Nội" className={`${className} object-contain select-none`} draggable={false} />; }
 
 /* ============ TIỆN ÍCH ============ */
 function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -70,7 +88,7 @@ function sensorStats(roomId, sensor) {
   // LIVE: dùng thống kê thật đã nạp (DB lưu theo giờ → không có độ phân giải 10′)
   if (sensor && sensor._live) {
     const L = sensor._live;
-    return { cur: L.cur, avg1h: L.avg1h, oos1h: L.oos1h ?? 0, err10: null, hourly8: L.hourly8 || [] };
+    return { cur: L.cur, avg1h: L.avg1h, oos1h: L.oos1h ?? 0, err10: (L.oos10 != null ? L.oos10 : null), hourly8: L.hourly8 || [] };
   }
   const arr = rawSeries(roomId, sensor.k);
   const oos = (v) => (sensor.min != null && v < sensor.min) || (sensor.max != null && v > sensor.max);
@@ -203,11 +221,22 @@ function RoomDetailModal({ room, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <div className="w-full max-w-2xl rounded-3xl bg-white ring-1 ring-slate-200 overflow-hidden max-h-[88vh] overflow-y-auto" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-6 pb-4 flex items-start justify-between" style={{ background: "linear-gradient(135deg,#E6F4F1,#fff)" }}><div><h2 className="text-base font-semibold" style={{ color: COLOR.navy }}>{room.id} — {room.name}</h2><p className="text-[11px] text-slate-500">Khu {room.area} · {room.ahu} · {MUC[room.priority]} · gồm {room.sensors.length} loại dữ liệu</p></div><button onClick={onClose} className="rounded-full p-1.5 hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" strokeWidth={1.8} /></button></div>
-        <div className="px-6 py-5 space-y-4">{room.noData ? <p className="text-amber-600 text-sm">Phòng đang thiếu dữ liệu — không có cảm biến hoạt động.</p> : room.sensors.map((s) => { const st = sensorStats(room.id, s); return (
+        <div className="px-6 py-5 space-y-4">{room.noData ? <p className="text-amber-600 text-sm">Phòng đang thiếu dữ liệu — không có cảm biến hoạt động.</p> : room.sensors.map((s) => { const st = sensorStats(room.id, s); const pts = st.hourly8 || []; const mean = pts.length ? +(pts.reduce((a, p) => a + (p.avg ?? 0), 0) / pts.length).toFixed(1) : null; const unit = SENSOR_META[s.k].unit; return (
           <div key={s.k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-4">
-            <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[s.k].label} ({s.k})</p><p className="text-[11px] text-slate-500">Giới hạn: {s.min != null ? `≥ ${s.min}` : ""}{s.max != null ? ` · ≤ ${s.max}` : ""} {SENSOR_META[s.k].unit}</p></div>
-            <div className="grid grid-cols-4 gap-2 mb-2 text-center">{[["Hiện tại", `${st.cur} ${SENSOR_META[s.k].unit}`], ["TB 1h", `${st.avg1h}`], ["OOS 1h", `${st.oos1h}/60`], ["Lỗi 10′", st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-            <div style={{ height: 120 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={st.hourly8} margin={{ top: 6, right: 8, left: -16, bottom: 0 }}><CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={34} domain={["auto", "auto"]} /><Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v) => [`${v} ${SENSOR_META[s.k].unit}`, "TB giờ"]} />{s.min != null && <ReferenceLine y={s.min} stroke={COLOR.coral} strokeDasharray="4 4" />}{s.max != null && <ReferenceLine y={s.max} stroke={COLOR.coral} strokeDasharray="4 4" />}<Area type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} fill={COLOR.teal} fillOpacity={0.12} dot={{ r: 2 }} /></AreaChart></ResponsiveContainer></div>
+            <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[s.k].label} ({s.k})</p><p className="text-[11px] text-slate-500">Giới hạn: {s.min != null ? `≥ ${s.min}` : "—"}{s.max != null ? ` · ≤ ${s.max}` : ""} {unit}</p></div>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center">{[["Hiện tại", `${st.cur ?? "—"} ${unit}`], ["TB 1h", `${st.avg1h ?? "—"}`], ["TB 8h", mean == null ? "—" : `${mean}`], ["OOS 1h", `${st.oos1h}/60`], ["OOS 10′ cuối", st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
+            <div style={{ height: 142 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={pts} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={34} domain={["auto", "auto"]} />
+              <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v) => [`${v} ${unit}`, "TB giờ"]} />
+              {s.min != null && s.max != null && <ReferenceArea y1={s.min} y2={s.max} fill={COLOR.teal} fillOpacity={0.08} stroke="none" />}
+              {s.min != null && <ReferenceLine y={s.min} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${s.min}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
+              {s.max != null && <ReferenceLine y={s.max} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${s.max}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
+              {mean != null && <ReferenceLine y={mean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${mean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
+              <Area type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} fill={COLOR.teal} fillOpacity={0.14} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+            </AreaChart></ResponsiveContainer></div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Khoảng giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình 8h</span><span className="flex items-center gap-1"><span className="w-4 h-0.5 inline-block" style={{ background: COLOR.teal }} /> Giá trị TB theo giờ</span></div>
           </div>
         ); })}</div>
       </div>
@@ -329,6 +358,15 @@ function TrendMainChart({ data, range }) {
 }
 function MiniArea({ data }) { return <div className="w-full" style={{ height: 84 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={data} margin={{ top: 6, right: 4, left: 4, bottom: 0 }}><YAxis hide /><XAxis dataKey="label" hide /><Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 10 }} formatter={(v) => [fmtH(v), "Giờ CB"]} labelFormatter={(l) => l} /><Area type="monotone" dataKey="alert" stroke={COLOR.softCoral} strokeWidth={2} fill={COLOR.softCoral} fillOpacity={0.16} dot={false} /></AreaChart></ResponsiveContainer></div>; }
 
+// Sparkline tỉ lệ đạt theo ngày (cho bảng xếp hạng rủi ro) — chuoi: [{label, comp}]
+function Sparkline({ chuoi }) {
+  if (!chuoi || chuoi.length < 2) return <span className="text-[11px] text-slate-300">—</span>;
+  const last = chuoi[chuoi.length - 1]?.comp;
+  const first = chuoi[0]?.comp;
+  const stroke = (last != null && first != null) ? (last >= first ? COLOR.teal : COLOR.coral) : COLOR.teal;
+  return <div style={{ width: 96, height: 30 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={chuoi} margin={{ top: 3, right: 2, left: 2, bottom: 0 }}><YAxis hide domain={["dataMin - 2", "dataMax + 2"]} /><XAxis dataKey="label" hide /><Tooltip contentStyle={{ borderRadius: 8, border: "none", fontSize: 10 }} formatter={(v) => [fmtPct(v), "Đạt"]} labelFormatter={(l) => l} /><Area type="monotone" dataKey="comp" stroke={stroke} strokeWidth={1.6} fill={stroke} fillOpacity={0.12} dot={false} /></AreaChart></ResponsiveContainer></div>;
+}
+
 function printTrend() {
   try { const node = document.getElementById("trendPrintArea"); if (!node) { window.print(); return; } const win = window.open("", "PRINT", "height=760,width=1040"); if (!win) { window.print(); return; }
     win.document.write(`<html><head><title>Biểu đồ xu hướng GMP</title><style>body{font-family:Inter,'Segoe UI',sans-serif;padding:28px;color:#1e3a56}h1{font-size:16px;margin:0 0 4px}p{font-size:12px;color:#5f7a90;margin:0 0 16px}svg{max-width:100%}</style></head><body><h1>Hệ thống giám sát HVAC phòng sạch GMP — V/Q team QLCL</h1><p>Báo cáo xu hướng · xuất ${new Date().toLocaleString("vi-VN")}</p>${node.innerHTML}</body></html>`);
@@ -336,7 +374,7 @@ function printTrend() {
   } catch (e) { window.print(); }
 }
 
-function TrendPage({ onAI, isLive = false, liveRisk = null, onSaveAI = null }) {
+function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, onSaveAI = null }) {
   const [range, setRange] = useState("30n");
   const [level, setLevel] = useState("TOTAL");
   const [selId, setSelId] = useState("");
@@ -349,17 +387,58 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, onSaveAI = null }) {
   const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90 };
   const [liveSeries, setLiveSeries] = useState({});   // {scopeId: chuỗi 90 ngày ALL} — cho mini-scope & thẻ kỳ
   const [mainSeries, setMainSeries] = useState({});   // {`id|sensor|range`: chuỗi chính (giờ/ngày + đúng cảm biến)}
+  const [roomBand, setRoomBand] = useState({});       // {`room|sensor|range`: chuỗi giá trị TB + giới hạn (phòng)}
 
-  // Vũ trụ scope ở chế độ LIVE — định dạng GIỐNG MASTER để JSX dùng chung
+  // Vũ trụ scope ở chế độ LIVE — DỰNG TỪ DANH SÁCH PHÒNG (luôn có dữ liệu nhờ WF1)
+  //   rồi LÀM GIÀU bằng bảng xếp hạng rủi ro v2 (tỉ lệ đạt 1/3/7 ngày + chuỗi 14 ngày).
+  //   → KHẮC PHỤC lỗi "chưa xem được cấp phòng": phòng/AHU/khu LUÔN xuất hiện,
+  //     không còn phụ thuộc rollup KPI ngày.
   const liveScopes = useMemo(() => {
-    if (!isLive || !liveRisk) return [];
-    const mk = (r) => ({ type: r.type, id: r.id, name: r.name || r.id, area: r.area || undefined, ahu: r.ahu || undefined, risk: r.risk ?? 0, latest: { compliance: r.compliance }, daily: [{ compliance: (r.compliance != null && r.delta7 != null) ? +(r.compliance - r.delta7).toFixed(1) : r.compliance }] });
-    const arr = liveRisk.map(mk);
-    const areas = arr.filter((s) => s.type === "AREA");
-    const totalComp = areas.length ? +(areas.reduce((a, s) => a + (s.latest.compliance || 0), 0) / areas.length).toFixed(1) : null;
-    arr.unshift({ type: "TOTAL", id: "ALL", name: "Toàn hệ thống", risk: 0, latest: { compliance: totalComp }, daily: [{ compliance: totalComp }] });
-    return arr;
-  }, [isLive, liveRisk]);
+    if (!isLive) return [];
+    const rs = liveRooms || [];
+    // Bản đồ làm giàu theo "type:id" từ RPC rủi ro v2 (nếu đã nạp file 19)
+    const riskById = {};
+    (liveRisk || []).forEach((r) => { if (r && r.type && r.id != null) riskById[`${r.type}:${r.id}`] = r; });
+    const enrich = (sc) => {
+      const e = riskById[`${sc.type}:${sc.id}`];
+      if (!e) return sc;
+      return {
+        ...sc,
+        risk: e.risk != null ? e.risk : sc.risk,
+        delta7: e.delta7 != null ? e.delta7 : sc.delta7,
+        dat1n: e.dat1n != null ? e.dat1n : sc.dat1n,
+        dat3n: e.dat3n != null ? e.dat3n : sc.dat3n,
+        dat7n: e.dat7n != null ? e.dat7n : sc.dat7n,
+        chuoi: (e.chuoi && e.chuoi.length) ? e.chuoi : sc.chuoi,
+        latest: { compliance: e.compliance != null ? e.compliance : sc.latest.compliance },
+      };
+    };
+    const mkRoom = (r) => {
+      const comp = r._compliance != null ? r._compliance : null;
+      return { type: "ROOM", id: r.id, name: r.name || r.id, area: r.area || undefined, ahu: r.ahu || undefined,
+        risk: comp != null ? Math.max(0, Math.round(100 - comp)) : 999, delta7: null,
+        dat1n: comp, dat3n: null, dat7n: null, chuoi: [], latest: { compliance: comp }, daily: [{ compliance: comp }] };
+    };
+    const roomScopes = rs.filter((r) => !r.noData).map(mkRoom);
+    const aggBy = (keyOf, type, nameOf) => {
+      const g = {};
+      roomScopes.forEach((s) => { const k = keyOf(s); if (!k) return; (g[k] = g[k] || []).push(s); });
+      return Object.entries(g).map(([k, arr]) => {
+        const vals = arr.map((s) => s.latest.compliance).filter((v) => v != null);
+        const comp = vals.length ? +(vals.reduce((a, v) => a + v, 0) / vals.length).toFixed(1) : null;
+        return { type, id: k, name: nameOf ? nameOf(k) : k, area: type === "AREA" ? k : undefined, ahu: type === "AHU" ? k : undefined,
+          risk: comp != null ? Math.max(0, Math.round(100 - comp)) : 999, delta7: null,
+          dat1n: comp, dat3n: null, dat7n: null, chuoi: [], latest: { compliance: comp }, daily: [{ compliance: comp }] };
+      });
+    };
+    const areaScopes = aggBy((s) => s.area, "AREA");
+    const ahuScopes = aggBy((s) => s.ahu, "AHU");
+    const allVals = roomScopes.map((s) => s.latest.compliance).filter((v) => v != null);
+    const totalComp = allVals.length ? +(allVals.reduce((a, v) => a + v, 0) / allVals.length).toFixed(1) : null;
+    const totalScope = { type: "TOTAL", id: "ALL", name: "Toàn hệ thống", risk: 0, delta7: null,
+      dat1n: totalComp, dat3n: null, dat7n: null, chuoi: [], latest: { compliance: totalComp }, daily: [{ compliance: totalComp }] };
+    return [totalScope, ...areaScopes, ...ahuScopes, ...roomScopes].map(enrich);
+  }, [isLive, liveRooms, liveRisk]);
   const lByType = (t) => liveScopes.filter((s) => s.type === t).sort((a, b) => b.risk - a.risk);
   const lFind = (id) => liveScopes.find((s) => s.id === id);
 
@@ -401,6 +480,24 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, onSaveAI = null }) {
     return () => { huy = true; };
   }, [isLive, activeId, sensor, range]); // eslint-disable-line
 
+  // LIVE: chuỗi GIÁ TRỊ TRUNG BÌNH + giới hạn cho 1 PHÒNG · 1 CẢM BIẾN (#4)
+  //   chỉ tải khi đang xem cấp PHÒNG và đã chọn 1 chỉ tiêu cụ thể (DP/RH/T).
+  const roomBandKey = `${activeId}|${sensor}|${range}`;
+  const wantRoomBand = isLive && activeScope && activeScope.type === "ROOM" && ["DP", "RH", "T"].includes(sensor);
+  useEffect(() => {
+    if (!wantRoomBand) return;
+    if (roomBand[roomBandKey]) return;
+    const donVi = range === "1n" ? "GIO" : "NGAY";
+    const soDiem = range === "1n" ? 24 : (RANGE_DAYS[range] || 30);
+    let huy = false;
+    (async () => {
+      const r = await layChuoiGiaTriPhong(activeId, sensor, donVi, soDiem);
+      if (huy) return;
+      setRoomBand((m) => ({ ...m, [roomBandKey]: (r && r.series) || [] }));
+    })();
+    return () => { huy = true; };
+  }, [wantRoomBand, activeId, sensor, range]); // eslint-disable-line
+
   const demoFull = useMemo(() => isLive ? [] : getSeries(activeScope, sensor, range), [isLive, activeScope, sensor, range]); // eslint-disable-line
   const full = isLive ? (mainSeries[trendKey] || []) : demoFull;
   const minTs = full[0]?.ts, maxTs = full[full.length - 1]?.ts;
@@ -427,16 +524,45 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, onSaveAI = null }) {
   const miniScopes = isLive
     ? [["TOTAL", lByType("TOTAL")[0]], ["AREA", lByType("AREA")[0]], ["AHU", lByType("AHU")[0]], ["ROOM", lByType("ROOM")[0]]].map(([lvl, sc]) => [lvl, sc ? { ...sc, _series: liveSeries[sc.id] || [] } : { id: "—", name: "—", _series: [] }])
     : [["TOTAL", findScope("ALL")], ["AREA", byType("AREA")[0]], ["AHU", byType("AHU")[0]], ["ROOM", byType("ROOM")[0]]];
+  // #4 — Xếp hạng rủi ro: SẮP theo CẤP (Tổng→Khu→AHU→Phòng), trong cấp theo rủi ro giảm dần.
+  const LEVEL_RANK = { TOTAL: 0, AREA: 1, AHU: 2, ROOM: 3 };
   const riskRows = (isLive
-    ? [...lByType("ROOM"), ...lByType("AHU"), ...lByType("AREA")]
-    : [...byType("ROOM"), ...byType("AHU"), ...byType("AREA")]).sort((a, b) => b.risk - a.risk).slice(0, 12);
+    ? liveScopes.slice()
+    : [findScope("ALL"), ...byType("AREA"), ...byType("AHU"), ...byType("ROOM")].map((s) => ({ ...s, latest: s.latest || {} })))
+    .filter(Boolean)
+    .sort((a, b) => (LEVEL_RANK[a.type] - LEVEL_RANK[b.type]) || (b.risk - a.risk) || String(a.id).localeCompare(String(b.id)));
+
+  // #4 — Phân tích kỹ thuật của chuỗi đang xem (cho AI + bảng cạnh biểu đồ)
+  const tech = useMemo(() => {
+    const ys = view.map((r) => r.comp).filter((v) => v != null);
+    const n = ys.length;
+    if (!n) return { n: 0 };
+    const mean = ys.reduce((a, v) => a + v, 0) / n;
+    const variance = ys.reduce((a, v) => a + (v - mean) ** 2, 0) / n;
+    const std = Math.sqrt(variance);
+    // hồi quy tuyến tính theo chỉ số thời gian → độ dốc (%/điểm) + R²
+    let slope = 0, r2 = 0;
+    if (n >= 2) {
+      const xm = (n - 1) / 2;
+      let sxy = 0, sxx = 0, syy = 0;
+      ys.forEach((y, i) => { sxy += (i - xm) * (y - mean); sxx += (i - xm) ** 2; syy += (y - mean) ** 2; });
+      slope = sxx ? sxy / sxx : 0;
+      r2 = (sxx && syy) ? (sxy * sxy) / (sxx * syy) : 0;
+    }
+    const vmin = Math.min(...ys), vmax = Math.max(...ys);
+    const totOos = view.reduce((a, r) => a + (r.oos || 0), 0);
+    const dqAvg = (() => { const d = view.map((r) => r.dq).filter((v) => v != null); return d.length ? d.reduce((a, v) => a + v, 0) / d.length : null; })();
+    return { n, mean, std, slope, r2, vmin, vmax, totOos, dqAvg };
+  }, [view]);
 
   const runAI = () => {
-    const avg = view.length ? view.reduce((a, r) => a + (r.comp || 0), 0) / view.length : 0;
+    const avg = tech.n ? tech.mean : 0;
     const worst = [...view].sort((a, b) => b.alert - a.alert)[0];
     const win = dtFrom || dtTo ? `, ${view[0]?.label}→${view[view.length - 1]?.label}` : "";
     const level = avg < 70 ? 3 : avg < 80 ? 2 : avg < 88 ? 1 : 0;
-    const text = `Trong khoảng ${RANGES.find((r) => r.k === range).label}${win} của ${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label}: tỉ lệ đạt trung bình ${avg.toFixed(1)}%, xu hướng 7 ngày ${fmtDelta(delta7)}, tổng giờ cảnh báo ${fmtH(totalAlert)}${worst ? `, cao điểm ${worst.label} (${fmtH(worst.alert)})` : ""}. Khuyến nghị: ${avg < 80 ? "ưu tiên kiểm tra AHU/cảm biến liên quan, lập CAPA nếu tái diễn." : "duy trì giám sát, chưa cần can thiệp khẩn."}`;
+    const slopeTxt = tech.n >= 2 ? `${tech.slope > 0 ? "tăng" : tech.slope < 0 ? "giảm" : "đi ngang"} ${Math.abs(tech.slope).toFixed(2)}%/${range === "1n" ? "giờ" : "ngày"} (R²=${tech.r2.toFixed(2)})` : "chưa đủ điểm để ước lượng";
+    const rateTxt = `tỉ lệ đạt 1 ngày ${fmtPct(activeScope.dat1n)}, 3 ngày ${fmtPct(activeScope.dat3n)}, 7 ngày ${fmtPct(activeScope.dat7n)}`;
+    const text = `Trong khoảng ${RANGES.find((r) => r.k === range).label}${win} của ${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label}: tỉ lệ đạt trung bình ${avg.toFixed(1)}% (độ lệch chuẩn ${tech.std?.toFixed(1) ?? "—"}%), ${rateTxt}; xu hướng ${slopeTxt}, Δ7 ngày ${fmtDelta(delta7)}, tổng giờ cảnh báo ${fmtH(totalAlert)}${worst ? `, cao điểm ${worst.label} (${fmtH(worst.alert)})` : ""}. Khuyến nghị: ${avg < 80 || tech.slope < -0.5 ? "ưu tiên kiểm tra AHU/cảm biến liên quan, lập CAPA nếu tái diễn." : "duy trì giám sát, chưa cần can thiệp khẩn."}`;
     const payload = { scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor).label, range: RANGES.find((r) => r.k === range).label, text, time: new Date().toLocaleString("vi-VN"), level };
     onAI(payload); setAiResult(payload);
     if (isLive && onSaveAI) onSaveAI({ scopeType: activeScope.type, scopeId: activeScope.id, scopeName: activeScope.name, sensor, days: RANGE_DAYS[range] || 30, text, level });
@@ -444,6 +570,14 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, onSaveAI = null }) {
 
   const Chip = ({ active, onClick, children }) => <button onClick={onClick} className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${active ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={active ? { backgroundColor: COLOR.teal } : {}}>{children}</button>;
   const sel = "rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[12px] text-slate-700 outline-none";
+
+  // #4 — chuỗi giá trị TB + dải giới hạn của phòng (chỉ khi đang chọn 1 phòng + 1 chỉ tiêu DP/RH/T trong LIVE)
+  const bandSeries = (wantRoomBand && roomBand[roomBandKey]) || [];
+  const bandLo = [...bandSeries].reverse().find((p) => p.lo != null)?.lo ?? null;
+  const bandHi = [...bandSeries].reverse().find((p) => p.hi != null)?.hi ?? null;
+  const bandMean = bandSeries.length ? +(bandSeries.reduce((a, p) => a + (p.avg ?? 0), 0) / bandSeries.filter((p) => p.avg != null).length).toFixed(2) : null;
+  const sUnit = SENSOR_META[sensor]?.unit || "";
+  const perTxt = range === "1n" ? "%/giờ" : "%/ngày"; // đơn vị độ dốc theo khoảng xem
 
   return (
     <div className="space-y-5">
@@ -502,6 +636,40 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, onSaveAI = null }) {
       </Card>
 
       <div id="trendPrintArea" className="space-y-5">
+        {wantRoomBand && (
+          <Card className="p-6"><SectionTitle icon={Minus} hint={`${activeScope.name} · ${SENSOR_META[sensor].label} (${sensor}) · giá trị trung bình theo thời gian`}>Giá trị trung bình &amp; dải giới hạn — phòng</SectionTitle>
+            {bandSeries.length === 0 ? (
+              <p className="mt-4 text-[13px] text-amber-600">Đang tải dữ liệu giá trị phòng… (nếu không có, phòng này chưa ghi nhận giá trị {SENSOR_META[sensor].label} trong khoảng đã chọn)</p>
+            ) : (<>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4 mb-2 text-center">{[["Trung bình", bandMean == null ? "—" : `${bandMean} ${sUnit}`], ["GHD", bandLo == null ? "—" : `${bandLo} ${sUnit}`], ["GHT", bandHi == null ? "—" : `${bandHi} ${sUnit}`], ["Số điểm", `${bandSeries.length}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
+              <div style={{ height: 250 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={bandSeries} margin={{ top: 10, right: 14, left: -10, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={range === "1n" ? 2 : range === "90n" ? 11 : range === "30n" ? 4 : 0} />
+                <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={38} domain={["auto", "auto"]} />
+                <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => [`${v} ${sUnit}`, n === "avg" ? "TB" : n === "vmin" ? "Thấp nhất" : n === "vmax" ? "Cao nhất" : n]} />
+                {bandLo != null && bandHi != null && <ReferenceArea y1={bandLo} y2={bandHi} fill={COLOR.teal} fillOpacity={0.08} stroke="none" />}
+                {bandLo != null && <ReferenceLine y={bandLo} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${bandLo}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
+                {bandHi != null && <ReferenceLine y={bandHi} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${bandHi}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
+                <Area type="monotone" dataKey="vmax" stroke="none" fill={COLOR.sky} fillOpacity={0.07} />
+                <Area type="monotone" dataKey="vmin" stroke="none" fill="#fff" fillOpacity={0.0} />
+                <Line type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+              </ComposedChart></ResponsiveContainer></div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Dải giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-4 h-0.5 inline-block" style={{ background: COLOR.teal }} /> Giá trị trung bình</span><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.sky, opacity: 0.4 }} /> Vùng min–max</span></div>
+            </>)}
+          </Card>
+        )}
+        <Card className="p-6"><SectionTitle icon={CircleDot} hint="dữ liệu phân tích kỹ thuật phục vụ AI đánh giá xu hướng">Phân tích kỹ thuật xu hướng</SectionTitle>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4">{[
+            ["Số điểm", tech.n ? `${tech.n}` : "—", "text-slate-600"],
+            ["Tỉ lệ đạt TB", tech.n ? `${tech.mean.toFixed(1)}%` : "—", "text-teal-600"],
+            ["Độ lệch chuẩn", tech.std != null ? `${tech.std.toFixed(1)}%` : "—", "text-sky-600"],
+            ["Độ dốc xu hướng", tech.n >= 2 ? `${tech.slope > 0 ? "+" : ""}${tech.slope.toFixed(2)} ${perTxt}` : "—", deltaTone(tech.slope * 10)],
+            ["R² (độ tin cậy)", tech.n >= 2 ? tech.r2.toFixed(2) : "—", "text-slate-600"],
+            ["Tổng điểm OOS", `${tech.totOos ?? 0}`, "text-rose-600"],
+          ].map(([k, v, c]) => <div key={k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold leading-tight">{k}</p><p className={`text-lg font-light mt-1 tabular-nums ${c}`}>{v}</p></div>)}</div>
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">{[["Đạt 1 ngày", fmtPct(activeScope.dat1n)], ["Đạt 3 ngày", fmtPct(activeScope.dat3n)], ["Đạt 7 ngày", fmtPct(activeScope.dat7n)], ["Min–Max kỳ", tech.n ? `${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%` : "—"]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-2"><p className="text-[9px] uppercase text-slate-400 font-semibold">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
+          <p className="text-[11px] text-slate-400 mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Bấm <b>“AI phân tích &amp; cảnh báo”</b> để tổng hợp thành kết luận và mức cảnh báo.</p>
+        </Card>
         <Card className="p-6"><SectionTitle icon={LineIcon} hint={`${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label} · giờ cảnh báo + tuân thủ`}>Biểu đồ giờ cảnh báo theo thời gian</SectionTitle>
           <div className="mt-4"><TrendMainChart data={view} range={range} /></div>
           <div className="flex flex-wrap gap-4 mt-3 text-[11px] text-slate-500 font-medium"><span className="flex items-center gap-1.5"><span className="w-3 h-2.5 rounded-sm inline-block" style={{ background: COLOR.sand }} /> Warning</span><span className="flex items-center gap-1.5"><span className="w-3 h-2.5 rounded-sm inline-block" style={{ background: COLOR.softCoral }} /> Critical</span><span className="flex items-center gap-1.5"><span className="w-4 h-0.5 inline-block" style={{ background: COLOR.teal }} /> % Tuân thủ</span></div>
@@ -516,8 +684,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, onSaveAI = null }) {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-(RANGE_DAYS[range] || 30)) : getSeries(sc, sensor, range); const lt = d[d.length - 1] || {}; return <div key={lvl} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold" style={{ color: COLOR.navy }}>{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-[10px] px-2 py-0.5 rounded-full text-slate-600 bg-white ring-1 ring-slate-200">{sc.id}</span></div><p className="text-[10px] text-slate-500 mb-1">{sc.name} · {fmtPct(lt.comp)}</p><MiniArea data={d} /></div>; })}</div>
       </Card>
 
-      <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="mới nhất">Xếp hạng rủi ro</SectionTitle>
-        <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", "Đạt", "Δ 7 ngày", "Risk", "Đánh giá"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const d7 = +(r.latest.compliance - r.daily.slice(-8)[0].compliance).toFixed(1); const a = r.latest.compliance < 70 ? ["Cần điều tra ưu tiên", "text-rose-600"] : r.latest.compliance < 88 ? ["Cần chú ý", "text-amber-600"] : ["Tốt", "text-teal-600"]; return <tr key={r.id} className="border-t border-slate-100 hover:bg-sky-50/40"><td className="py-2.5 pr-4 text-slate-500">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4"><span className="font-semibold" style={{ color: COLOR.navy }}>{r.id}</span> <span className="text-slate-500">{r.name}</span></td><td className="py-2.5 pr-4 text-slate-500">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td><td className="py-2.5 pr-4 tabular-nums">{fmtPct(r.latest.compliance)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(d7)}`}>{fmtDelta(d7)}</td><td className="py-2.5 pr-4"><span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: COLOR.coralDeep }}>{r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
+      <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="Tổng → Khu → AHU → Phòng · tỉ lệ đạt 1/3/7 ngày">Xếp hạng rủi ro</SectionTitle>
+        <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", "Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày", "Xu hướng 14n", "Risk", "Đánh giá"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; const a = comp == null ? ["Chờ dữ liệu", "text-slate-400"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-rose-600"] : comp < 88 ? ["Cần chú ý", "text-amber-600"] : ["Tốt", "text-teal-600"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-slate-100 hover:bg-sky-50/40 ${r.type === "TOTAL" ? "bg-teal-50/30" : ""}`}><td className="py-2.5 pr-4 text-slate-500 whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4"><button disabled={!canPick} onClick={() => { if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left ${canPick ? "hover:underline" : ""}`}><span className="font-semibold" style={{ color: COLOR.navy }}>{r.id}</span> <span className="text-slate-500">{r.name}</span></button></td><td className="py-2.5 pr-4 text-slate-500 whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-slate-600">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-slate-600">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td><td className="py-2.5 pr-4"><Sparkline chuoi={r.chuoi} /></td><td className="py-2.5 pr-4"><span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: COLOR.coralDeep }}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
+        <p className="text-[11px] text-slate-400 mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó. Tỉ lệ đạt = trung bình tuân thủ trong 1 / 3 / 7 ngày gần nhất.</p>
       </Card>
     </div>
   );
@@ -691,6 +860,44 @@ function DoiMatKhauCard({ user, isLive }) {
   );
 }
 
+// #5 — Đổi mật khẩu khả dụng cho MỌI vai trò (mở từ nút ở góc phải, không phụ thuộc tab Cài đặt)
+function DoiMatKhauModal({ user, isLive, onClose }) {
+  const [mk1, setMk1] = useState("");
+  const [mk2, setMk2] = useState("");
+  const [dang, setDang] = useState(false);
+  const [ok, setOk] = useState(false);
+  const [loi, setLoi] = useState("");
+  const doi = async () => {
+    setLoi(""); setOk(false);
+    if (mk1.length < 6) { setLoi("Mật khẩu mới tối thiểu 6 ký tự."); return; }
+    if (mk1 !== mk2) { setLoi("Hai mật khẩu nhập không khớp."); return; }
+    if (!isLive) { setLoi("Chỉ đổi được mật khẩu ở chế độ LIVE (đã đăng nhập thật)."); return; }
+    setDang(true);
+    const { error } = await doiMatKhau(mk1);
+    setDang(false);
+    if (error) setLoi(error.message || "Đổi mật khẩu thất bại.");
+    else { setOk(true); setMk1(""); setMk2(""); }
+  };
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-3xl bg-white ring-1 ring-slate-200 overflow-hidden" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 pt-5 pb-4 flex items-start justify-between" style={{ background: "linear-gradient(135deg,#E6F4F1,#fff)" }}>
+          <div className="flex items-center gap-2"><div className="rounded-2xl bg-white p-2 ring-1 ring-teal-100"><KeyRound className="w-5 h-5" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div><div><h2 className="text-sm font-semibold" style={{ color: COLOR.navy }}>Đổi mật khẩu</h2><p className="text-[11px] text-slate-500">{user ? `${user.name} · ${user.email}` : "chưa đăng nhập"}</p></div></div>
+          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" strokeWidth={1.8} /></button>
+        </div>
+        <div className="px-6 py-5 space-y-3">
+          <input type="password" value={mk1} onChange={(e) => setMk1(e.target.value)} placeholder="Mật khẩu mới" autoComplete="new-password" className="w-full rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-300" />
+          <input type="password" value={mk2} onChange={(e) => setMk2(e.target.value)} placeholder="Nhập lại mật khẩu mới" autoComplete="new-password" onKeyDown={(e) => e.key === "Enter" && doi()} className="w-full rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-300" />
+          {loi && <p className="text-[12px] text-rose-600">{loi}</p>}
+          {ok && <p className="text-[12px] text-teal-600">Đã đổi mật khẩu thành công.</p>}
+          <button disabled={dang} onClick={doi} className="w-full text-sm font-semibold text-white rounded-2xl py-2.5 disabled:opacity-60" style={{ background: "linear-gradient(135deg,#1aa899,#149e90)" }}>{dang ? "Đang đổi…" : "Đổi mật khẩu"}</button>
+          <p className="text-[11px] text-slate-400 leading-relaxed">Mật khẩu tối thiểu 6 ký tự. Sau khi đổi, lần đăng nhập sau dùng mật khẩu mới.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "rooms", label: "Phòng", icon: Building2 }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 export default function App() {
@@ -706,7 +913,10 @@ export default function App() {
   const [configHistory, setConfigHistory] = useState([{ t: "08:00 29/5", who: "Quản trị (ADMIN)", change: "Khởi tạo cấu hình hệ thống · 6 phòng" }]);
   const [audit, setAudit] = useState([{ t: "13:05 29/5", who: "Hệ thống", act: "Tạo sự cố", obj: "SC-1042 / C4.R7", detail: "Chênh áp nghiêm trọng" }, { t: "10:18 29/5", who: "Nam (IPC)", act: "Xác nhận bất thường", obj: "SC-1038 / C4.R1", detail: "Kiểm tra thực tế" }]);
   const [ai, setAi] = useState(null);
+  const [pwOpen, setPwOpen] = useState(false);   // #5 — modal đổi mật khẩu (mọi vai trò)
   const role = user?.role; const canManage = canManageRooms(role);
+  // #5 — danh sách tab hiển thị theo vai trò
+  const visibleTabs = useMemo(() => TABS.filter((t) => roleCanSeeTab(role, t.k)), [role]);
 
   // ===== Dữ liệu LIVE từ Supabase (Tổng quan/Sự cố/Nhật ký) =====
   const live = useLiveData(dataSource);
@@ -728,6 +938,9 @@ export default function App() {
   useEffect(() => { if (isLive && live.rooms) setRooms(live.rooms); }, [isLive, live.rooms]);
   useEffect(() => { if (isLive && live.nguong) setCfg(live.nguong); }, [isLive, live.nguong]);
 
+  // #5 — nếu vai trò không được phép xem tab đang mở (vd IPC đang ở Cài đặt khi đăng nhập) → đưa về Tổng quan
+  useEffect(() => { if (role && !roleCanSeeTab(role, tab)) setTab("home"); }, [role, tab]);
+
   // Giờ máy chủ: demo cố định; live dùng giờ thực
   const now = isLive ? new Date().toISOString().replace("T", " ").slice(0, 19) : "2026-05-29 14:08:22";
 
@@ -736,6 +949,14 @@ export default function App() {
   const systemAlerts = (isLive && live.systemAlerts) ? live.systemAlerts.map((a) => ({ ...a, icon: ICON_CANH_BAO(a) })) : SYSTEM_ALERTS;
   const sopRows = (isLive && live.sopRows && live.sopRows.length) ? live.sopRows : SOP;
   const p1Open = incidents.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục").length;
+  // #2 — Tổng quan chỉ hiện phòng ƯU TIÊN 1 & 2 (P1 trước, rồi P2; trong mỗi nhóm xếp theo % đạt tăng dần → phòng kém hiện trước)
+  const phongUuTien = useMemo(() => rooms
+    .filter((r) => r.priority === "P1" || r.priority === "P2")
+    .sort((a, b) => {
+      const pa = a.priority === "P1" ? 0 : 1, pb = b.priority === "P1" ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return (roomCompliance(a) ?? 999) - (roomCompliance(b) ?? 999);
+    }), [rooms]);
 
   const logConfig = (change) => setConfigHistory((h) => [{ t: now.slice(11, 16) + " 29/5", who: user ? `${user.name} (${user.role})` : "(chưa đăng nhập)", change }, ...h]);
   const apMoi = () => live.lamMoi({ nen: true });
@@ -815,7 +1036,7 @@ export default function App() {
       <div className="relative max-w-[1400px] mx-auto px-6 py-6">
         <header className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white p-2 ring-1 ring-slate-200 flex items-center justify-center h-[50px] w-[50px]" style={cardShadow}><CpcLogo /></div>
+            <div className="rounded-2xl bg-white px-3 ring-1 ring-slate-200 flex items-center justify-center h-[50px]" style={cardShadow}><CpcLogo className="h-8 w-auto" /></div>
             <div className="flex flex-col justify-center"><h1 className="text-base sm:text-lg font-bold tracking-tight leading-none" style={{ color: COLOR.navy }}>Hệ thống giám sát HVAC phòng sạch GMP</h1><p className="text-[12px] font-semibold tracking-wide mt-1" style={{ color: COLOR.teal }}>V/Q team — QLCL</p></div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -833,12 +1054,12 @@ export default function App() {
               </div>
             )}
             <HeaderChip><Clock className="w-4 h-4" style={{ color: COLOR.teal }} strokeWidth={1.8} /><div className="leading-tight"><p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Giờ máy chủ · UTC+7</p><p className="text-xs font-semibold tabular-nums" style={{ color: COLOR.ink }}>{now}</p></div></HeaderChip>
-            {user ? <div className="flex items-center gap-2.5 rounded-2xl bg-white pl-2 pr-2 ring-1 ring-slate-200 h-[50px]" style={cardShadow}><div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: "linear-gradient(135deg,#5ec8d8,#149e90)" }}>{user.name[0]}</div><div className="leading-tight"><p className="text-xs font-semibold" style={{ color: COLOR.ink }}>{user.name}</p><p className="text-[10px] font-medium" style={{ color: COLOR.teal }}>{ROLE_VI[user.role]}</p></div><button onClick={() => { setUser(null); if (isLive) authDangXuat(); }} className="ml-1 rounded-lg p-1.5 hover:bg-slate-100 text-slate-400" title="Đăng xuất"><LogOut className="w-4 h-4" strokeWidth={1.8} /></button></div>
+            {user ? <div className="flex items-center gap-2.5 rounded-2xl bg-white pl-2 pr-2 ring-1 ring-slate-200 h-[50px]" style={cardShadow}><div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: "linear-gradient(135deg,#5ec8d8,#149e90)" }}>{user.name[0]}</div><div className="leading-tight"><p className="text-xs font-semibold" style={{ color: COLOR.ink }}>{user.name}</p><p className="text-[10px] font-medium" style={{ color: COLOR.teal }}>{ROLE_VI[user.role] || user.role}</p></div><button onClick={() => setPwOpen(true)} className="ml-1 rounded-lg p-1.5 hover:bg-slate-100 text-slate-400" title="Đổi mật khẩu"><KeyRound className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => { setUser(null); if (isLive) authDangXuat(); }} className="rounded-lg p-1.5 hover:bg-slate-100 text-slate-400" title="Đăng xuất"><LogOut className="w-4 h-4" strokeWidth={1.8} /></button></div>
               : <button onClick={() => setLoginOpen(true)} className="flex items-center gap-2 rounded-2xl px-4 text-sm font-semibold text-white h-[50px]" style={{ background: "linear-gradient(135deg,#1aa899,#149e90)", ...cardShadow }}><LogIn className="w-4 h-4" strokeWidth={1.8} /> Đăng nhập</button>}
           </div>
         </header>
 
-        <nav className="mt-5"><div className="rounded-2xl bg-white/80 backdrop-blur ring-1 ring-slate-200 p-1.5 flex gap-1 overflow-x-auto" style={cardShadow}>{TABS.map((t) => { const Icon = t.icon; const active = tab === t.k; return <button key={t.k} onClick={() => setTab(t.k)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition ${active ? "text-white" : "text-slate-600 hover:bg-slate-100"}`} style={active ? { background: "linear-gradient(135deg,#1aa899,#149e90)", boxShadow: "0 6px 16px -6px rgba(20,158,144,0.55)" } : {}}><Icon className="w-4 h-4" strokeWidth={1.8} /> {t.label}{t.k === "events" && <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={active ? { background: "rgba(255,255,255,0.25)" } : { background: "rgba(226,103,79,0.16)", color: COLOR.coralDeep }}>{p1Open}</span>}</button>; })}</div></nav>
+        <nav className="mt-5"><div className="rounded-2xl bg-white/80 backdrop-blur ring-1 ring-slate-200 p-1.5 flex gap-1 overflow-x-auto" style={cardShadow}>{visibleTabs.map((t) => { const Icon = t.icon; const active = tab === t.k; return <button key={t.k} onClick={() => setTab(t.k)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition ${active ? "text-white" : "text-slate-600 hover:bg-slate-100"}`} style={active ? { background: "linear-gradient(135deg,#1aa899,#149e90)", boxShadow: "0 6px 16px -6px rgba(20,158,144,0.55)" } : {}}><Icon className="w-4 h-4" strokeWidth={1.8} /> {t.label}{t.k === "events" && <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={active ? { background: "rgba(255,255,255,0.25)" } : { background: "rgba(226,103,79,0.16)", color: COLOR.coralDeep }}>{p1Open}</span>}</button>; })}</div></nav>
 
         <main className="mt-6">
           {isLive && (
@@ -858,7 +1079,7 @@ export default function App() {
                 <KpiCard icon={Activity} label="Sự cố Mức 1 mở" value={p1Open} sub="phòng trọng yếu" accent={{ txt: "text-sky-600", bg: "bg-sky-50", glow: "bg-sky-200" }} />
               </div>
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
-                <div><div className="flex items-center justify-between mb-3 px-1"><SectionTitle icon={CircleDot}>Phòng trọng điểm cần theo dõi</SectionTitle><span className="text-[11px] text-slate-500">{rooms.length} phòng</span></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{rooms.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} />)}</div></div>
+                <div><div className="flex items-center justify-between mb-3 px-1"><SectionTitle icon={CircleDot} hint="chỉ ưu tiên 1 & 2">Phòng trọng điểm cần theo dõi</SectionTitle><span className="text-[11px] text-slate-500">{phongUuTien.length} phòng ưu tiên · {rooms.length} tổng</span></div>{phongUuTien.length === 0 ? <Card className="p-6 text-center text-[13px] text-slate-500">Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động.</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongUuTien.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} />)}</div>}</div>
                 <aside className="space-y-5">
                   <Card className="p-5" style={{ background: "linear-gradient(135deg,#E6F4F1,#FFFFFF 60%,#E6F1FA)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Phân tích AI</SectionTitle><span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-full"><TrendingDown className="w-3 h-3" strokeWidth={2} /> Δ 7 ngày −6%</span></div><p className="mt-3 text-[13px] leading-relaxed text-slate-600"><span className="font-semibold" style={{ color: COLOR.navy }}>AHU-K01</span> cần kiểm tra ưu tiên — C4.R7, C4.R1 đều kém, nghi lỗi quạt/filter.</p></Card>
                   <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{systemAlerts.map((a, i) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={i} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-slate-200/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-slate-700 font-medium">{a.text}</p><p className="text-[10px] text-slate-500 mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
@@ -892,7 +1113,7 @@ export default function App() {
             <div className="space-y-5"><SectionTitle icon={Building2}>Quản lý phòng</SectionTitle><RoomManager rooms={rooms} cfg={cfg} canManage={canManage} onAdd={addRoom} onEdit={editRoom} onDelete={deleteRoom} onUpdateLimit={updateLimit} onAddSensor={addSensor} onRemoveSensor={removeSensor} /></div>
           )}
 
-          {tab === "trend" && <TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} onSaveAI={handleSaveAI} />}
+          {tab === "trend" && <TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? live.rooms : null} onSaveAI={handleSaveAI} />}
           {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
 
           {tab === "audit" && (
@@ -920,6 +1141,7 @@ export default function App() {
       {modal && <ApprovalModal incident={modal} user={user} onClose={() => setModal(null)} onCommit={handleCommit} />}
       {roomModal && <RoomDetailModal room={roomModal} onClose={() => setRoomModal(null)} />}
       {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} isLive={isLive} />}
+      {pwOpen && <DoiMatKhauModal user={user} isLive={isLive} onClose={() => setPwOpen(false)} />}
     </div>
   );
 }
