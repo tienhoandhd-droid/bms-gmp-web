@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, luuPhanTichAi, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, luuPhanTichAi, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import AuthGate from "./AuthGate";
 import {
@@ -95,7 +95,7 @@ const SCOPES = [
 const MASTER = SCOPES.map((s) => { const daily = genDaily(s); const last7 = daily.slice(-7); const latest = daily[daily.length - 1]; return { ...s, daily, latest, risk: Math.round((100 - latest.compliance) + last7.reduce((a, r) => a + r.critH, 0)) }; });
 const byType = (t) => MASTER.filter((m) => m.type === t).sort((a, b) => b.risk - a.risk);
 const findScope = (id) => MASTER.find((m) => m.id === id);
-const RANGES = [{ k: "1n", label: "1 ngày", days: 1 }, { k: "7n", label: "7 ngày", days: 7 }, { k: "30n", label: "30 ngày", days: 30 }, { k: "90n", label: "90 ngày", days: 90 }];
+const RANGES = [{ k: "1n", label: "24 giờ", days: 1 }, { k: "7n", label: "7 ngày", days: 7 }, { k: "30n", label: "30 ngày", days: 30 }, { k: "90n", label: "90 ngày", days: 90 }];
 const SENSORS = [{ k: "ALL", label: "Tổng hợp" }, { k: "DP", label: "Chênh áp" }, { k: "RH", label: "Độ ẩm" }, { k: "T", label: "Nhiệt độ" }];
 const SCOPE_LEVELS = [{ k: "TOTAL", label: "Tổng" }, { k: "AREA", label: "Khu vực" }, { k: "AHU", label: "AHU" }, { k: "ROOM", label: "Phòng" }];
 function applySensor(row, sensor) { if (sensor === "ALL") return row; const shift = { DP: -5, RH: 1, T: 4 }[sensor] || 0; const factor = { DP: 1.5, RH: 1.0, T: 0.6 }[sensor] || 1; return { ...row, compliance: +Math.max(30, Math.min(99.4, row.compliance + shift)).toFixed(1), warnH: +(row.warnH * factor).toFixed(2), critH: +(row.critH * factor).toFixed(2) }; }
@@ -167,7 +167,7 @@ function RoomCard({ room, cfg, onDetail, onIncident }) {
   return (
     <Card className="p-5 transition hover:-translate-y-0.5">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0"><div className="flex items-center gap-2"><h3 className="text-[15px] font-semibold truncate" style={{ color: COLOR.navy }}>{room.name}</h3><MucBadge p={room.priority} /></div><p className="text-[11px] text-slate-500 mt-0.5 tracking-wide truncate">{room.id} · Khu {room.area} · {room.ahu}</p></div>
+        <div className="min-w-0"><div className="flex items-center gap-2"><h3 className="text-[15px] font-semibold truncate" style={{ color: COLOR.navy }}>{room.name}</h3><MucBadge p={room.priority} /></div><p className="text-[11px] text-slate-500 mt-0.5 tracking-wide truncate">{room.id} · Khu {room.area} · {room.ahu}</p>{room.lastSeen && (() => { const a = room.agePhut; const tone = a == null ? "text-slate-400 bg-slate-100" : a <= 90 ? "text-teal-700 bg-teal-50" : a <= 240 ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"; const txt = a == null ? "—" : a < 60 ? `${a}′ trước` : `trễ ${(a / 60).toFixed(1)}h`; return <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1 truncate"><Clock className="w-3 h-3 shrink-0" strokeWidth={1.8} /> DL gần nhất: <span className="tabular-nums text-slate-500">{room.lastSeen}</span> <span className={`px-1.5 py-0.5 rounded-full font-semibold ${tone}`}>{txt}</span></p>; })()}</div>
         <div className="text-right shrink-0">{room.noData ? <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Mất dữ liệu</span> : (<><p className={`text-2xl font-light tabular-nums ${failing ? "text-rose-600" : "text-teal-600"}`}>{comp}%</p><p className="text-[10px] text-slate-400">tuân thủ 1h</p></>)}</div>
       </div>
 
@@ -347,7 +347,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, onSaveAI = null }) {
   const [dtTo, setDtTo] = useState("");
   const [aiResult, setAiResult] = useState(null);
   const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90 };
-  const [liveSeries, setLiveSeries] = useState({});   // {scopeId: chuỗi 90 ngày}
+  const [liveSeries, setLiveSeries] = useState({});   // {scopeId: chuỗi 90 ngày ALL} — cho mini-scope & thẻ kỳ
+  const [mainSeries, setMainSeries] = useState({});   // {`id|sensor|range`: chuỗi chính (giờ/ngày + đúng cảm biến)}
 
   // Vũ trụ scope ở chế độ LIVE — định dạng GIỐNG MASTER để JSX dùng chung
   const liveScopes = useMemo(() => {
@@ -366,6 +367,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, onSaveAI = null }) {
   const options = useMemo(() => allOptions.filter((o) => o && (optArea === "ALL" || o.area === optArea) && (!query || `${o.id} ${o.name}`.toLowerCase().includes(query.toLowerCase()))), [allOptions, optArea, query]);
   const activeId = selId && options.some((o) => o.id === selId) ? selId : (options[0] ? options[0].id : "ALL");
   const activeScope = (isLive ? lFind(activeId) : findScope(activeId)) || (isLive ? (liveScopes[0] || { id: "ALL", name: "—", daily: [{}], latest: {} }) : findScope("ALL"));
+  const trendKey = `${activeId}|${sensor}|${range}`;   // khóa cache chuỗi chính
 
   // LIVE: tải chuỗi 90 ngày cho scope đang chọn + 4 scope mini (cache theo id)
   const miniIds = useMemo(() => isLive ? [lByType("TOTAL")[0], lByType("AREA")[0], lByType("AHU")[0], lByType("ROOM")[0]].map((s) => s && s.id).filter(Boolean) : [], [isLive, liveScopes]); // eslint-disable-line
@@ -382,8 +384,25 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, onSaveAI = null }) {
     return () => { huy = true; };
   }, [isLive, activeId, miniIds]); // eslint-disable-line
 
+  // LIVE: chuỗi CHÍNH cho biểu đồ — phụ thuộc scope · cảm biến · khoảng.
+  // range '1n' → THEO GIỜ (24 giờ gần nhất); còn lại → theo ngày. sensor lọc đúng chỉ tiêu.
+  useEffect(() => {
+    if (!isLive || !activeId) return;
+    if (mainSeries[trendKey]) return;                 // đã có cache
+    const donVi = range === "1n" ? "GIO" : "NGAY";
+    const soDiem = range === "1n" ? 24 : (RANGE_DAYS[range] || 30);
+    const sc = lFind(activeId);
+    let huy = false;
+    (async () => {
+      const r = await layChuoiXuHuongChiTiet(sc ? sc.type : "TOTAL", activeId, sensor, donVi, soDiem);
+      if (huy) return;
+      setMainSeries((m) => ({ ...m, [trendKey]: (r && r.series) || [] }));
+    })();
+    return () => { huy = true; };
+  }, [isLive, activeId, sensor, range]); // eslint-disable-line
+
   const demoFull = useMemo(() => isLive ? [] : getSeries(activeScope, sensor, range), [isLive, activeScope, sensor, range]); // eslint-disable-line
-  const full = isLive ? (liveSeries[activeId] || []).slice(-(RANGE_DAYS[range] || 30)) : demoFull;
+  const full = isLive ? (mainSeries[trendKey] || []) : demoFull;
   const minTs = full[0]?.ts, maxTs = full[full.length - 1]?.ts;
   const fromMs = dtFrom ? new Date(dtFrom).getTime() : minTs;
   const toMs = dtTo ? new Date(dtTo).getTime() : maxTs;
