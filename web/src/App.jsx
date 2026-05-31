@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from "react";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
 import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, luuPhanTichAi, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
-import { guiMagicLink, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien } from "./lib/auth";
+import { guiMagicLink, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
+import AuthGate from "./AuthGate";
 import {
   Droplets, Thermometer, Sparkles, ShieldCheck, ShieldAlert, Activity,
   AlertTriangle, CheckCircle2, HelpCircle, Clock, ChevronRight, X, FileText,
@@ -594,6 +595,51 @@ function ReportsPage({ ai, aiRows = null }) {
 }
 
 /* ============ APP ============ */
+
+function DoiMatKhauCard({ user, isLive }) {
+  const [mk1, setMk1] = useState("");
+  const [mk2, setMk2] = useState("");
+  const [dang, setDang] = useState(false);
+  const [ok, setOk] = useState(false);
+  const [loi, setLoi] = useState("");
+  const doi = async () => {
+    setLoi(""); setOk(false);
+    if (mk1.length < 6) { setLoi("Mật khẩu mới tối thiểu 6 ký tự."); return; }
+    if (mk1 !== mk2) { setLoi("Hai mật khẩu nhập không khớp."); return; }
+    if (!isLive) { setLoi("Chỉ đổi được mật khẩu ở chế độ LIVE (đã đăng nhập thật)."); return; }
+    setDang(true);
+    const { error } = await doiMatKhau(mk1);
+    setDang(false);
+    if (error) setLoi(error.message || "Đổi mật khẩu thất bại.");
+    else { setOk(true); setMk1(""); setMk2(""); }
+  };
+  return (
+    <Card className="p-6">
+      <SectionTitle icon={Cog} hint={user ? user.email : "chưa đăng nhập"}>Đổi mật khẩu</SectionTitle>
+      {!user ? (
+        <p className="text-[12px] text-slate-500 mt-2">Đăng nhập để đổi mật khẩu.</p>
+      ) : (
+        <div className="mt-4 space-y-3 max-w-sm">
+          <input type="password" value={mk1} onChange={(e) => setMk1(e.target.value)} placeholder="Mật khẩu mới"
+            autoComplete="new-password"
+            className="w-full rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-300" />
+          <input type="password" value={mk2} onChange={(e) => setMk2(e.target.value)} placeholder="Nhập lại mật khẩu mới"
+            autoComplete="new-password" onKeyDown={(e) => e.key === "Enter" && doi()}
+            className="w-full rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-300" />
+          {loi && <p className="text-[12px] text-rose-600">{loi}</p>}
+          {ok && <p className="text-[12px] text-teal-600">Đã đổi mật khẩu thành công.</p>}
+          <button disabled={dang} onClick={doi}
+            className="text-sm font-semibold text-white rounded-2xl py-2.5 px-5 disabled:opacity-60"
+            style={{ background: "linear-gradient(135deg,#1aa899,#149e90)" }}>
+            {dang ? "Đang đổi…" : "Đổi mật khẩu"}
+          </button>
+          <p className="text-[11px] text-slate-400 leading-relaxed">Mật khẩu tối thiểu 6 ký tự. Sau khi đổi, lần đăng nhập sau dùng mật khẩu mới.</p>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "rooms", label: "Phòng", icon: Building2 }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 export default function App() {
@@ -704,6 +750,14 @@ export default function App() {
   };
   const openRoomIncident = (room) => { const inc = incidents.find((i) => i.room === room.id && i.status !== "Đã khắc phục"); if (inc) openApproval(inc); else setRoomModal(room); };
 
+  // ===== CỔNG ĐĂNG NHẬP (câu 3): chỉ đăng nhập mới dùng được web =====
+  // Chặn toàn trang khi: đang LIVE + hệ thống bật web_yeu_cau_dang_nhap + chưa đăng nhập.
+  // "Xem thử demo" cho phép tạm bỏ chặn về chế độ demo (không có dữ liệu thật).
+  const canChanDangNhap = isLive && live.batBuocDangNhap && !user;
+  if (canChanDangNhap) {
+    return <AuthGate />;
+  }
+
   return (
     <div className="min-h-screen" style={{ background: PAGE_BG, color: COLOR.ink, fontFamily: "'Inter','Montserrat',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif" }}>
       <div className="pointer-events-none fixed inset-0 overflow-hidden"><div className="absolute -top-40 -left-24 w-[28rem] h-[28rem] rounded-full bg-sky-200 opacity-15 blur-3xl" /><div className="absolute top-32 right-0 w-96 h-96 rounded-full bg-teal-200 opacity-10 blur-3xl" /><div className="absolute bottom-0 left-1/4 w-[30rem] h-[30rem] rounded-full bg-cyan-100 opacity-20 blur-3xl" /></div>
@@ -801,6 +855,7 @@ export default function App() {
               <Card className="p-6"><SectionTitle icon={SlidersHorizontal} hint="hành động · cảnh báo · chú ý">Nguyên tắc cảnh báo</SectionTitle><p className="text-[12px] text-slate-500 mt-2">Số điểm vượt giới hạn trong 1 giờ (x/60) quyết định mức; số điểm lỗi 10′ gần nhất (x/10) phân biệt <b>Cảnh báo</b> với <b>Hành động</b>.</p><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">{[["Chú ý khi OOS 1h ≥", "notice", "/60"], ["Cảnh báo khi OOS 1h ≥", "warn", "/60"], ["Nâng lên Hành động khi lỗi 10′ ≥", "action", "/10"]].map(([lbl, key, suf]) => <div key={key} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4"><label className="text-[11px] uppercase text-slate-500 font-semibold">{lbl}</label><div className="flex items-center gap-2 mt-2"><input type="number" min="0" value={cfg[key]} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, [key]: Number(e.target.value) })} onBlur={() => saveCfg(cfg)} className="w-20 rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm disabled:bg-slate-100" /><span className="text-sm text-slate-400">{suf} điểm</span></div></div>)}</div>{!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh.</p>}</Card>
               <Card className="p-6"><SectionTitle icon={History}>Lịch sử thay đổi cấu hình</SectionTitle><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Thay đổi"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{configHistory.map((c, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 text-slate-500 tabular-nums">{c.t}</td><td className="py-2.5 pr-4 text-slate-600">{c.who}</td><td className="py-2.5 pr-4 text-slate-700">{c.change}</td></tr>)}</tbody></table></div><p className="text-[11px] text-slate-400 mt-3">Thêm/sửa cảm biến & giới hạn thực hiện tại tab <b>Phòng → Quản lý phòng</b>.</p></Card>
               <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối Supabase</SectionTitle><div className="space-y-3 mt-4 text-sm">{(() => { const conn = !HAS_SUPABASE ? ["chưa cấu hình", "text-slate-600 bg-slate-100"] : !isLive ? ["DEMO", "text-amber-700 bg-amber-100"] : live.loi ? ["lỗi kết nối", "text-rose-700 bg-rose-100"] : live.dangTai ? ["đang tải…", "text-sky-700 bg-sky-100"] : ["đã kết nối", "text-teal-700 bg-teal-100"]; const keyState = HAS_SUPABASE ? ["đã nạp", "text-teal-700 bg-teal-100"] : ["thiếu .env", "text-rose-700 bg-rose-100"]; const rows = [{ k: "Nguồn dữ liệu", v: isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu", s: conn }, { k: "Khóa môi trường", v: HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập", s: keyState }, { k: "Cập nhật gần nhất", v: live.capNhatLuc ? live.capNhatLuc.toLocaleString("vi-VN") : "—", s: conn }]; return rows.map((r, i) => <div key={i} className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0"><span className="text-slate-500 w-44">{r.k}</span><code className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded-lg ring-1 ring-slate-200 flex-1">{r.v}</code><span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.s[1]}`}>{r.s[0]}</span></div>); })()}</div>{isLive && live.loi && <p className="text-[11px] text-rose-600 mt-3">Chi tiết lỗi: {live.loi.thong_bao || live.loi.message || "không xác định"}</p>}</Card>
+              <DoiMatKhauCard user={user} isLive={isLive} />
             </div>
           )}
         </main>
