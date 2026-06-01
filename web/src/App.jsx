@@ -1036,7 +1036,7 @@ export default function App() {
       <div className="relative max-w-[1400px] mx-auto px-6 py-6">
         <header className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white px-3 ring-1 ring-slate-200 flex items-center justify-center h-[50px]" style={cardShadow}><CpcLogo className="h-8 w-auto" /></div>
+            <div className="rounded-2xl bg-white px-2.5 ring-1 ring-slate-200 flex items-center justify-center h-[50px] w-[50px] shrink-0" style={cardShadow}><CpcLogo className="h-10 w-10" /></div>
             <div className="flex flex-col justify-center"><h1 className="text-base sm:text-lg font-bold tracking-tight leading-none" style={{ color: COLOR.navy }}>Hệ thống giám sát HVAC phòng sạch GMP</h1><p className="text-[12px] font-semibold tracking-wide mt-1" style={{ color: COLOR.teal }}>V/Q team — QLCL</p></div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -1065,7 +1065,7 @@ export default function App() {
           {isLive && (
             <div className="mb-4 flex items-start gap-2 rounded-2xl bg-teal-50 ring-1 ring-teal-100 px-4 py-2.5 text-[12px] text-slate-600">
               <Wifi className="w-4 h-4 mt-0.5 text-teal-600 shrink-0" strokeWidth={1.8} />
-              <span>Đang đọc/ghi dữ liệu thật từ Supabase cho <b>tất cả các tab</b> (Tổng quan · Sự cố · Phòng · Xu hướng · Báo cáo · Nhật ký). Dữ liệu <b>Xu hướng / Rủi ro / Báo cáo AI</b> dựa trên KPI tổng hợp theo ngày — sẽ đầy đủ dần khi WF rollup (Pha 3) chạy hoặc gọi <code>rpc_tinh_kpi_ngay</code>.{live.loi && <span className="text-rose-600"> · Lỗi tải: {live.loi.thong_bao || live.loi.message || "kết nối"}</span>}{live.capNhatLuc && !live.loi && <span className="text-slate-400"> · Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</span>
+              <span>Đang đọc/ghi dữ liệu thật từ Supabase cho <b>tất cả các tab</b> (Tổng quan · Sự cố · Phòng · Xu hướng · Báo cáo · Nhật ký). <b>Xu hướng &amp; Rủi ro</b> tính trực tiếp từ dữ liệu theo giờ (luôn có sẵn); riêng <b>Báo cáo AI</b> tổng hợp theo ngày sẽ đầy đủ dần khi WF rollup chạy.{live.loi && <span className="text-rose-600"> · Lỗi tải: {live.loi.thong_bao || live.loi.message || "kết nối"}</span>}{live.capNhatLuc && !live.loi && <span className="text-slate-400"> · Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</span>
             </div>
           )}
           {tab === "home" && (

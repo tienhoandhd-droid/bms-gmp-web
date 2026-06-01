@@ -4,8 +4,9 @@
 // Vai trò xác định theo email trong bảng nguoi_dung.
 // ============================================================
 import React, { useState } from "react";
-import { LogIn, ShieldCheck } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { dangNhapMatKhau } from "./lib/auth";
+import logoCpc1hn from "./assets/logo-cpc1hn.png";
 
 const NAVY = "#1e3a56", TEAL = "#149e90";
 
@@ -33,7 +34,7 @@ export default function AuthGate() {
         style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.4)" }}>
         <div className="px-7 pt-7 pb-5" style={{ background: "linear-gradient(135deg,#E6F4F1,#fff)" }}>
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white p-2.5 ring-1 ring-teal-100"><ShieldCheck className="w-6 h-6" style={{ color: TEAL }} strokeWidth={1.8} /></div>
+            <div className="rounded-2xl bg-white p-2 ring-1 ring-teal-100 flex items-center justify-center h-[52px] w-[52px] shrink-0"><img src={logoCpc1hn} alt="CPC1 Hà Nội" className="h-11 w-11 object-contain select-none" draggable={false} /></div>
             <div>
               <h1 className="text-base font-bold" style={{ color: NAVY }}>Giám sát HVAC phòng sạch GMP</h1>
               <p className="text-[12px] font-semibold" style={{ color: TEAL }}>V/Q team — QLCL</p>

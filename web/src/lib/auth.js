@@ -5,12 +5,17 @@
 import { supabase } from './bmsClient'
 
 // Đăng nhập bằng email + mật khẩu (PROD)
+// Tự phục hồi: nếu phiên cũ trong trình duyệt bị hỏng/kẹt khiến lần đăng nhập đầu
+// thất bại (lỗi storage/lock/JSON), tự DỌN phiên cục bộ rồi thử lại 1 lần →
+// người dùng KHÔNG cần xóa cookie/dữ liệu trang thủ công.
 export async function dangNhapMatKhau(email, matKhau) {
   if (!supabase) return { error: { message: 'Chưa cấu hình Supabase.' } }
-  const { error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password: matKhau,
-  })
+  const cred = { email: email.trim(), password: matKhau }
+  let { error } = await supabase.auth.signInWithPassword(cred)
+  if (error && /lock|storage|localStorage|JSON|unexpected|navigator/i.test(error.message || '')) {
+    try { await supabase.auth.signOut({ scope: 'local' }) } catch { /* bỏ qua */ }
+    ;({ error } = await supabase.auth.signInWithPassword(cred))
+  }
   return { error }
 }
 
@@ -38,10 +43,22 @@ export async function doiMatKhau(matKhauMoi) {
 
 export async function layPhienHienTai() {
   if (!supabase) return null
-  const { data } = await supabase.auth.getSession()
-  const email = data?.session?.user?.email
-  if (!email) return null
-  return await taoNguoiDungTuEmail(email)
+  try {
+    // Chống KẸT: nếu getSession treo (khóa storage bị giữ) → coi như chưa có phiên sau 8s.
+    const phien = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((resolve) => setTimeout(() => resolve({ data: { session: null }, error: { message: 'timeout' } }), 8000)),
+    ])
+    if (phien?.error) throw phien.error
+    const email = phien?.data?.session?.user?.email
+    if (!email) return null
+    return await taoNguoiDungTuEmail(email)
+  } catch {
+    // Phiên lưu trong trình duyệt hỏng/kẹt → tự DỌN để lần đăng nhập sau sạch sẽ,
+    // KHÔNG cần người dùng tự xóa cookie/dữ liệu trang.
+    try { await supabase.auth.signOut({ scope: 'local' }) } catch { /* bỏ qua */ }
+    return null
+  }
 }
 
 export function theoDoiPhien(callback) {
