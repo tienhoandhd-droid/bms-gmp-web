@@ -20,10 +20,17 @@ export const supabase = HAS_SUPABASE
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        // UI chỉ đăng nhập bằng EMAIL + MẬT KHẨU → KHÔNG cần dò token trong URL.
+        // Bật detectSessionInUrl + PKCE trên GitHub Pages dễ gây kẹt/đăng-xuất khi F5
+        // (cố đổi 'code' không tồn tại → ghi/đè localStorage hỏng). Tắt cho ổn định.
+        // (Nếu sau này bật lại magic-link, đặt detectSessionInUrl: true ở trang callback.)
+        detectSessionInUrl: false,
         flowType: 'pkce',
+        // Chỉ định kho lưu rõ ràng + khóa riêng → nạp lại phiên ổn định, dễ chẩn đoán.
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        storageKey: 'aquabms-auth',
       },
-      global: { headers: { 'x-app': 'bms-gmp-v10' } },
+      global: { headers: { 'x-app': 'bms-gmp-v11' } },
     })
   : null
 
