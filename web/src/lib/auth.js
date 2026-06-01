@@ -44,19 +44,13 @@ export async function doiMatKhau(matKhauMoi) {
 export async function layPhienHienTai() {
   if (!supabase) return null
   try {
-    // Chống KẸT: nếu getSession treo (khóa storage bị giữ) → coi như chưa có phiên sau 8s.
-    const phien = await Promise.race([
-      supabase.auth.getSession(),
-      new Promise((resolve) => setTimeout(() => resolve({ data: { session: null }, error: { message: 'timeout' } }), 8000)),
-    ])
-    if (phien?.error) throw phien.error
-    const email = phien?.data?.session?.user?.email
+    const { data } = await supabase.auth.getSession()
+    const email = data?.session?.user?.email
     if (!email) return null
     return await taoNguoiDungTuEmail(email)
   } catch {
-    // Phiên lưu trong trình duyệt hỏng/kẹt → tự DỌN để lần đăng nhập sau sạch sẽ,
-    // KHÔNG cần người dùng tự xóa cookie/dữ liệu trang.
-    try { await supabase.auth.signOut({ scope: 'local' }) } catch { /* bỏ qua */ }
+    // KHÔNG xóa phiên ở đây — nếu không sẽ tự đăng xuất nhầm khi F5
+    // (getSession chậm/lỗi tạm thời vẫn giữ token; theoDoiPhien sẽ khôi phục).
     return null
   }
 }

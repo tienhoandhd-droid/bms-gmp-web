@@ -914,6 +914,7 @@ export default function App() {
   const [audit, setAudit] = useState([{ t: "13:05 29/5", who: "Hệ thống", act: "Tạo sự cố", obj: "SC-1042 / C4.R7", detail: "Chênh áp nghiêm trọng" }, { t: "10:18 29/5", who: "Nam (IPC)", act: "Xác nhận bất thường", obj: "SC-1038 / C4.R1", detail: "Kiểm tra thực tế" }]);
   const [ai, setAi] = useState(null);
   const [pwOpen, setPwOpen] = useState(false);   // #5 — modal đổi mật khẩu (mọi vai trò)
+  const [xemTatCaPhong, setXemTatCaPhong] = useState(false);   // Overview: ưu tiên 1&2 (mặc định) ↔ tất cả phòng
   const role = user?.role; const canManage = canManageRooms(role);
   // #5 — danh sách tab hiển thị theo vai trò
   const visibleTabs = useMemo(() => TABS.filter((t) => roleCanSeeTab(role, t.k)), [role]);
@@ -957,6 +958,14 @@ export default function App() {
       if (pa !== pb) return pa - pb;
       return (roomCompliance(a) ?? 999) - (roomCompliance(b) ?? 999);
     }), [rooms]);
+  // Tùy chọn: xem TẤT CẢ phòng (sắp theo mức ưu tiên P1→P3, trong mỗi mức xếp % đạt tăng dần)
+  const RANK_UT = { P1: 0, P2: 1, P3: 2 };
+  const phongTatCa = useMemo(() => [...rooms].sort((a, b) => {
+    const ra = RANK_UT[a.priority] ?? 9, rb = RANK_UT[b.priority] ?? 9;
+    if (ra !== rb) return ra - rb;
+    return (roomCompliance(a) ?? 999) - (roomCompliance(b) ?? 999);
+  }), [rooms]);
+  const phongHienThi = xemTatCaPhong ? phongTatCa : phongUuTien;
 
   const logConfig = (change) => setConfigHistory((h) => [{ t: now.slice(11, 16) + " 29/5", who: user ? `${user.name} (${user.role})` : "(chưa đăng nhập)", change }, ...h]);
   const apMoi = () => live.lamMoi({ nen: true });
@@ -1079,7 +1088,7 @@ export default function App() {
                 <KpiCard icon={Activity} label="Sự cố Mức 1 mở" value={p1Open} sub="phòng trọng yếu" accent={{ txt: "text-sky-600", bg: "bg-sky-50", glow: "bg-sky-200" }} />
               </div>
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
-                <div><div className="flex items-center justify-between mb-3 px-1"><SectionTitle icon={CircleDot} hint="chỉ ưu tiên 1 & 2">Phòng trọng điểm cần theo dõi</SectionTitle><span className="text-[11px] text-slate-500">{phongUuTien.length} phòng ưu tiên · {rooms.length} tổng</span></div>{phongUuTien.length === 0 ? <Card className="p-6 text-center text-[13px] text-slate-500">Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động.</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongUuTien.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} />)}</div>}</div>
+                <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden text-[11px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={!xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Tất cả</button></div><span className="text-[11px] text-slate-500">{phongHienThi.length}/{rooms.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-slate-500">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongHienThi.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} />)}</div>}</div>
                 <aside className="space-y-5">
                   <Card className="p-5" style={{ background: "linear-gradient(135deg,#E6F4F1,#FFFFFF 60%,#E6F1FA)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Phân tích AI</SectionTitle><span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-full"><TrendingDown className="w-3 h-3" strokeWidth={2} /> Δ 7 ngày −6%</span></div><p className="mt-3 text-[13px] leading-relaxed text-slate-600"><span className="font-semibold" style={{ color: COLOR.navy }}>AHU-K01</span> cần kiểm tra ưu tiên — C4.R7, C4.R1 đều kém, nghi lỗi quạt/filter.</p></Card>
                   <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{systemAlerts.map((a, i) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={i} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-slate-200/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-slate-700 font-medium">{a.text}</p><p className="text-[10px] text-slate-500 mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
