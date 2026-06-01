@@ -33,9 +33,21 @@ export async function dangXuat() {
   if (supabase) await supabase.auth.signOut()
 }
 
-// Đổi mật khẩu của tài khoản đang đăng nhập
-export async function doiMatKhau(matKhauMoi) {
+// Đổi mật khẩu của tài khoản đang đăng nhập.
+// #10 — Xác thực MẬT KHẨU HIỆN TẠI trước khi đổi: thử đăng nhập lại bằng mật khẩu cũ
+// (Supabase không có API "verify password" riêng, nên dùng signInWithPassword để kiểm chứng).
+// Nếu sai → trả lỗi rõ ràng, KHÔNG đổi. Đúng → mới updateUser sang mật khẩu mới.
+export async function doiMatKhau(matKhauHienTai, matKhauMoi) {
   if (!supabase) return { error: { message: 'Chưa cấu hình Supabase.' } }
+  // Lấy email phiên hiện tại để re-auth
+  let email = null
+  try { const { data } = await supabase.auth.getUser(); email = data?.user?.email || null } catch { /* bỏ qua */ }
+  if (!email) return { error: { message: 'Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.' } }
+  if (!matKhauHienTai) return { error: { message: 'Vui lòng nhập mật khẩu hiện tại.' } }
+  // Kiểm chứng mật khẩu hiện tại
+  const { error: errVerify } = await supabase.auth.signInWithPassword({ email, password: matKhauHienTai })
+  if (errVerify) return { error: { message: 'Mật khẩu hiện tại không đúng.' } }
+  // Đổi sang mật khẩu mới
   const { error } = await supabase.auth.updateUser({ password: matKhauMoi })
   return { error }
 }
