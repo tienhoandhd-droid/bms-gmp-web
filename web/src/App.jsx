@@ -84,12 +84,15 @@ function rawSeries(roomId, k) {
   for (let i = 479; i >= 0; i--) { const t = now - i * 60000; const drift = Math.sin((479 - i) / 50) * amp * 0.6; arr.push({ t, v: +(center + drift + (rand() - 0.5) * amp).toFixed(1) }); }
   RAW.set(key, arr); return arr;
 }
-function sensorStats(roomId, sensor) {
+function sensorStats(roomId, sensor, isLive = false) {
   // LIVE: dùng thống kê thật đã nạp (DB lưu theo giờ → không có độ phân giải 10′)
   if (sensor && sensor._live) {
     const L = sensor._live;
     return { cur: L.cur, avg1h: L.avg1h, oos1h: L.oos1h ?? 0, err10: (L.oos10 != null ? L.oos10 : null), hourly8: L.hourly8 || [] };
   }
+  // LIVE mà cảm biến KHÔNG có dữ liệu thật (cấu hình cam_bien có nhưng FMS chưa gửi)
+  // → TUYỆT ĐỐI không bịa số demo (đây là lỗi "hiển thị nhầm nhiệt độ/độ ẩm").
+  if (isLive) return { cur: null, avg1h: null, oos1h: null, err10: null, hourly8: [], khongCoDL: true };
   const arr = rawSeries(roomId, sensor.k);
   const oos = (v) => (sensor.min != null && v < sensor.min) || (sensor.max != null && v > sensor.max);
   const last60 = arr.slice(-60), last10 = arr.slice(-10); const hourly8 = [];
@@ -194,13 +197,15 @@ function RoomCard({ room, cfg, onDetail, onIncident }) {
       {!room.noData && (
         <div className="mt-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 overflow-hidden">
           <div className="grid grid-cols-5 px-3 py-1.5 text-[9px] uppercase tracking-wide text-slate-400 font-semibold border-b border-slate-200/70"><span>Chỉ tiêu</span><span className="text-center">Hiện tại</span><span className="text-center">TB 1h</span><span className="text-center">OOS 1h</span><span className="text-center">10′</span></div>
-          {room.sensors.map((s) => { const st = sensorStats(room.id, s); const sm = LEVELS[(s._live && s._live.level != null) ? s._live.level : sensorLevel(st, cfg)]; return (
+          {room.sensors.map((s) => { const st = sensorStats(room.id, s, room._isLive); const noDL = st.khongCoDL; const lvl = noDL ? -1 : ((s._live && s._live.level != null) ? s._live.level : sensorLevel(st, cfg)); const dotCls = noDL ? "bg-slate-300" : LEVELS[lvl].dot; return (
             <div key={s.k} className="grid grid-cols-5 items-center px-3 py-2 text-[12px] border-b border-slate-200/50 last:border-0">
-              <span className="flex items-center gap-1.5 text-slate-600 font-medium">{s.k}<span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} /></span>
+              <span className="flex items-center gap-1.5 text-slate-600 font-medium">{s.k}<span className={`w-1.5 h-1.5 rounded-full ${dotCls}`} /></span>
+              {noDL ? <span className="col-span-4 text-center text-[11px] text-slate-400 italic">chưa có dữ liệu</span> : (<>
               <span className="text-center tabular-nums font-semibold" style={{ color: COLOR.navy }}>{st.cur}<span className="text-[9px] text-slate-400">{SENSOR_META[s.k].unit}</span></span>
               <span className="text-center tabular-nums text-slate-500">{st.avg1h}</span>
               <span className={`text-center tabular-nums font-medium ${st.oos1h >= cfg.warn ? "text-amber-600" : st.oos1h >= cfg.notice ? "text-sky-600" : "text-slate-400"}`}>{st.oos1h}/60</span>
               <span className={`text-center tabular-nums font-medium ${st.err10 != null && st.err10 >= cfg.action ? "text-rose-600" : "text-slate-400"}`}>{st.err10 == null ? "—" : `${st.err10}/10`}</span>
+              </>)}
             </div>
           ); })}
         </div>
@@ -221,11 +226,11 @@ function RoomDetailModal({ room, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <div className="w-full max-w-2xl rounded-3xl bg-white ring-1 ring-slate-200 overflow-hidden max-h-[88vh] overflow-y-auto" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-6 pb-4 flex items-start justify-between" style={{ background: "linear-gradient(135deg,#E6F4F1,#fff)" }}><div><h2 className="text-base font-semibold" style={{ color: COLOR.navy }}>{room.id} — {room.name}</h2><p className="text-[11px] text-slate-500">Khu {room.area} · {room.ahu} · {MUC[room.priority]} · gồm {room.sensors.length} loại dữ liệu</p></div><button onClick={onClose} className="rounded-full p-1.5 hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" strokeWidth={1.8} /></button></div>
-        <div className="px-6 py-5 space-y-4">{room.noData ? <p className="text-amber-600 text-sm">Phòng đang thiếu dữ liệu — không có cảm biến hoạt động.</p> : room.sensors.map((s) => { const st = sensorStats(room.id, s); const pts = st.hourly8 || []; const mean = pts.length ? +(pts.reduce((a, p) => a + (p.avg ?? 0), 0) / pts.length).toFixed(1) : null; const unit = SENSOR_META[s.k].unit; return (
+        <div className="px-6 py-5 space-y-4">{room.noData ? <p className="text-amber-600 text-sm">Phòng đang thiếu dữ liệu — không có cảm biến hoạt động.</p> : room.sensors.map((s) => { const st = sensorStats(room.id, s, room._isLive); const noDL = st.khongCoDL; const pts = st.hourly8 || []; const mean = pts.length ? +(pts.reduce((a, p) => a + (p.avg ?? 0), 0) / pts.length).toFixed(1) : null; const unit = SENSOR_META[s.k].unit; return (
           <div key={s.k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-4">
             <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[s.k].label} ({s.k})</p><p className="text-[11px] text-slate-500">Giới hạn: {s.min != null ? `≥ ${s.min}` : "—"}{s.max != null ? ` · ≤ ${s.max}` : ""} {unit}</p></div>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center">{[["Hiện tại", `${st.cur ?? "—"} ${unit}`], ["TB 1h", `${st.avg1h ?? "—"}`], ["TB 8h", mean == null ? "—" : `${mean}`], ["OOS 1h", `${st.oos1h}/60`], ["OOS 10′ cuối", st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-            <div style={{ height: 142 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={pts} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center">{[["Hiện tại", `${st.cur ?? "—"} ${unit}`], ["TB 1h", `${st.avg1h ?? "—"}`], ["TB 8h", mean == null ? "—" : `${mean}`], ["OOS 1h", st.oos1h == null ? "—" : `${st.oos1h}/60`], ["OOS 10′ cuối", st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
+            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : <div style={{ height: 142 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={pts} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={34} domain={["auto", "auto"]} />
@@ -235,8 +240,8 @@ function RoomDetailModal({ room, onClose }) {
               {s.max != null && <ReferenceLine y={s.max} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${s.max}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
               {mean != null && <ReferenceLine y={mean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${mean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
               <Area type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} fill={COLOR.teal} fillOpacity={0.14} dot={{ r: 2 }} activeDot={{ r: 4 }} />
-            </AreaChart></ResponsiveContainer></div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Khoảng giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình 8h</span><span className="flex items-center gap-1"><span className="w-4 h-0.5 inline-block" style={{ background: COLOR.teal }} /> Giá trị TB theo giờ</span></div>
+            </AreaChart></ResponsiveContainer></div>}
+            {!noDL && <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Khoảng giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình 8h</span><span className="flex items-center gap-1"><span className="w-4 h-0.5 inline-block" style={{ background: COLOR.teal }} /> Giá trị TB theo giờ</span></div>}
           </div>
         ); })}</div>
       </div>
