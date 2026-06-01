@@ -27,11 +27,13 @@ const STATUS = { normal: { txt: "text-teal-600", bg: "bg-teal-50", dot: "bg-teal
 const PRIORITY = { P1: "bg-rose-50 text-rose-600 ring-1 ring-rose-200", P2: "bg-amber-50 text-amber-600 ring-1 ring-amber-200", P3: "bg-sky-50 text-sky-600 ring-1 ring-sky-200" };
 const MUC = { P1: "Mức 1", P2: "Mức 2", P3: "Mức 3" };
 const LEVELS = [
-  { key: "normal", label: "Bình thường", txt: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200", dot: "bg-teal-400" },
-  { key: "notice", label: "Chú ý", txt: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200", dot: "bg-sky-400" },
+  { key: "normal", label: "Kiểm soát tốt", txt: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200", dot: "bg-teal-400" },
+  { key: "notice", label: "Cần chú ý", txt: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200", dot: "bg-sky-400" },
   { key: "warning", label: "Cảnh báo", txt: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200", dot: "bg-amber-400" },
   { key: "action", label: "Hành động", txt: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200", dot: "bg-rose-500" },
 ];
+// Thứ tự ưu tiên theo dõi: phòng nguy cơ cao nhất (Hành động) xếp trước. -1 = mất dữ liệu.
+const LEVEL_PRIORITY = (lvl) => (lvl == null || lvl < 0 ? -0.5 : lvl);
 
 /* ============ NGƯỜI DÙNG & PHÂN QUYỀN ============ */
 const USERS = [
@@ -72,6 +74,8 @@ const fmtDelta = (v) => (v == null || isNaN(v) ? "—" : `${v > 0 ? "+" : ""}${(
 const deltaTone = (v) => (v == null ? "text-slate-400" : v >= 5 ? "text-teal-600" : v <= -5 ? "text-rose-600" : "text-slate-400");
 const pad = (n) => String(n).padStart(2, "0");
 const toLocalInput = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+// Giờ hiện tại theo múi giờ VN (UTC+7) — "YYYY-MM-DD HH:MM:SS", độc lập với múi giờ trình duyệt.
+const vnNow = () => new Date().toLocaleString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" }).replace(/\u202f/g, " ");
 
 /* ============ TELEMETRY 8H ============ */
 const RAW = new Map();
@@ -99,7 +103,13 @@ function sensorStats(roomId, sensor, isLive = false) {
   for (let h = 0; h < 8; h++) { const c = arr.slice(h * 60, (h + 1) * 60); const lab = new Date(c[0].t); hourly8.push({ label: `${pad(lab.getHours())}:00`, avg: +(c.reduce((a, p) => a + p.v, 0) / c.length).toFixed(1), oos: c.filter((p) => oos(p.v)).length }); }
   return { cur: arr[arr.length - 1].v, avg1h: +(last60.reduce((a, p) => a + p.v, 0) / 60).toFixed(1), oos1h: last60.filter((p) => oos(p.v)).length, err10: last10.filter((p) => oos(p.v)).length, hourly8 };
 }
-function sensorLevel(stat, cfg) { let l = stat.oos1h >= cfg.warn ? 2 : stat.oos1h >= cfg.notice ? 1 : 0; if (l >= 2 && stat.err10 >= cfg.action) l = 3; return l; }
+function sensorLevel(stat, cfg) {
+  // 4 mức theo quy tắc: OOS 1h > nguong_canh_bao → CẢNH BÁO; nếu thêm 10′ cuối ≥ nguong_hanh_dong → HÀNH ĐỘNG.
+  // 10 ≤ OOS 1h ≤ 20 (nguong_chu_y..nguong_canh_bao) → CẦN CHÚ Ý; < nguong_chu_y → KIỂM SOÁT TỐT.
+  let l = stat.oos1h > cfg.warn ? 2 : stat.oos1h >= cfg.notice ? 1 : 0;
+  if (l >= 2 && stat.err10 != null && stat.err10 >= cfg.action) l = 3;
+  return l;
+}
 function roomLevel(room, cfg) { if (room.noData) return -1; if (room._isLive) return room._level == null ? -1 : room._level; let lvl = 0; room.sensors.forEach((s) => { lvl = Math.max(lvl, sensorLevel(sensorStats(room.id, s), cfg)); }); return lvl; }
 function roomCompliance(room) { if (room.noData || !room.sensors.length) return null; if (room._isLive) return room._compliance; const m = Math.max(...room.sensors.map((s) => sensorStats(room.id, s).oos1h / 60)); return Math.round(100 - m * 100); }
 function roomHourlyOOS(room) { if (room.noData || !room.sensors.length) return []; if (room._isLive) return room._hourlyOOS || []; const base = sensorStats(room.id, room.sensors[0]).hourly8.map((h) => ({ label: h.label, oos: 0 })); room.sensors.forEach((s) => sensorStats(room.id, s).hourly8.forEach((h, i) => { if (base[i]) base[i].oos += h.oos; })); return base; }
@@ -173,22 +183,32 @@ function Card({ children, className = "", style = {} }) { return <div className=
 function SectionTitle({ icon: Icon, children, hint }) { return <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: COLOR.navy }}><Icon className="w-4 h-4" style={{ color: COLOR.teal }} strokeWidth={1.8} />{children}{hint && <span className="text-[11px] font-normal text-slate-400">— {hint}</span>}</h3>; }
 function MucBadge({ p, stack }) { const n = p[1]; return stack ? <span className={`inline-flex flex-col items-center justify-center leading-tight px-2.5 py-1 rounded-lg ${PRIORITY[p]}`}><span className="text-[9px] font-semibold uppercase tracking-wide">Mức</span><span className="text-[14px] font-bold">{n}</span></span> : <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${PRIORITY[p]}`}>{MUC[p]}</span>; }
 function HeaderChip({ children, ring = "ring-slate-200" }) { return <div className={`flex items-center gap-2.5 rounded-2xl bg-white px-4 ring-1 ${ring} h-[50px]`} style={cardShadow}>{children}</div>; }
-function KpiCard({ icon: Icon, label, value, total, sub, accent }) {
+// Đồng hồ máy chủ UTC+7 tự cập nhật mỗi giây (tách riêng để không render lại toàn trang).
+function ServerClock({ live }) {
+  const [t, setT] = useState(live ? vnNow() : "2026-05-29 14:08:22");
+  useEffect(() => { if (!live) return; const id = setInterval(() => setT(vnNow()), 1000); return () => clearInterval(id); }, [live]);
+  return <span className="text-xs font-semibold tabular-nums" style={{ color: COLOR.ink }}>{t}</span>;
+}
+function KpiCard({ icon: Icon, label, value, total, sub, accent, onClick }) {
+  const clickable = typeof onClick === "function";
   return (
-    <Card className="relative p-6 overflow-hidden"><div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${accent.glow} blur-2xl opacity-40`} />
+    <Card className={`relative p-6 overflow-hidden ${clickable ? "cursor-pointer transition hover:-translate-y-0.5 hover:ring-teal-200" : ""}`}>
+      {clickable ? <button onClick={onClick} className="absolute inset-0 z-10" aria-label={`Xem danh sách: ${label}`} /> : null}
+      <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${accent.glow} blur-2xl opacity-40`} />
       <div className="relative flex items-start justify-between"><div><p className="text-[11px] uppercase tracking-[0.1em] text-slate-500 font-semibold">{label}</p><p className="mt-3 text-5xl font-light tabular-nums leading-none" style={{ color: COLOR.navy }}>{value}{total != null && <span className="text-xl text-slate-300 font-light">/{total}</span>}</p><p className={`mt-2 text-xs font-medium ${accent.txt}`}>{sub}</p></div><div className={`rounded-2xl p-2.5 ${accent.bg}`}><Icon className={`w-5 h-5 ${accent.txt}`} strokeWidth={1.8} /></div></div>
+      {clickable && <div className="relative mt-2 flex items-center gap-1 text-[10px] font-medium text-slate-400"><Eye className="w-3 h-3" strokeWidth={1.8} /> bấm để xem danh sách phòng</div>}
     </Card>
   );
 }
 function OOSMini({ data }) { return <div className="w-full" style={{ height: 70 }}><ResponsiveContainer width="100%" height="100%"><BarChart data={data} margin={{ top: 6, right: 2, left: 2, bottom: 0 }}><YAxis hide /><XAxis dataKey="label" tick={{ fontSize: 8, fill: "#90a8bd" }} axisLine={false} tickLine={false} interval={1} /><Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 10 }} formatter={(v) => [`${v} điểm OOS`, "Lỗi/giờ"]} labelFormatter={(l) => `Giờ ${l}`} /><Bar dataKey="oos" fill={COLOR.softCoral} radius={[3, 3, 0, 0]} maxBarSize={16} /></BarChart></ResponsiveContainer></div>; }
 
 /* ===== THẺ PHÒNG ===== */
-function RoomCard({ room, cfg, onDetail, onIncident }) {
+function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
   const lvl = roomLevel(room, cfg); const comp = roomCompliance(room); const failing = comp != null && comp < 80; const lm = lvl < 0 ? null : LEVELS[lvl];
   return (
     <Card className="p-5 transition hover:-translate-y-0.5">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0"><div className="flex items-center gap-2"><h3 className="text-[15px] font-semibold truncate" style={{ color: COLOR.navy }}>{room.name}</h3><MucBadge p={room.priority} /></div><p className="text-[11px] text-slate-500 mt-0.5 tracking-wide truncate">{room.id} · Khu {room.area} · {room.ahu}</p>{room.lastSeen && (() => { const a = room.agePhut; const tone = a == null ? "text-slate-400 bg-slate-100" : a <= 90 ? "text-teal-700 bg-teal-50" : a <= 240 ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"; const txt = a == null ? "—" : a < 60 ? `${a}′ trước` : `trễ ${(a / 60).toFixed(1)}h`; return <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1 truncate"><Clock className="w-3 h-3 shrink-0" strokeWidth={1.8} /> DL gần nhất: <span className="tabular-nums text-slate-500">{room.lastSeen}</span> <span className={`px-1.5 py-0.5 rounded-full font-semibold ${tone}`}>{txt}</span></p>; })()}</div>
+        <div className="min-w-0"><div className="flex items-center gap-2"><h3 className="text-[15px] font-semibold truncate" style={{ color: COLOR.navy }}>{room.name}</h3><MucBadge p={room.priority} /></div><p className="text-[11px] text-slate-500 mt-0.5 tracking-wide truncate">{room.id} · Khu {room.area} · {room.ahu}</p>{room.lastSeen && (() => { const a = room.agePhut; const tone = a == null ? "text-slate-400 bg-slate-100" : a <= 90 ? "text-teal-700 bg-teal-50" : a <= 240 ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"; const txt = a == null ? "—" : a === 0 ? "mới nhất" : a < 60 ? `${a}′ trước` : `trễ ${(a / 60).toFixed(1)}h`; return <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1 truncate"><Clock className="w-3 h-3 shrink-0" strokeWidth={1.8} /> Dữ liệu giờ: <span className="tabular-nums text-slate-500">{room.lastSeen}</span> <span className={`px-1.5 py-0.5 rounded-full font-semibold ${tone}`}>{txt}</span></p>; })()}</div>
         <div className="text-right shrink-0">{room.noData ? <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Mất dữ liệu</span> : comp == null ? <span className="inline-flex items-center gap-1 text-slate-400 text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Chưa có DL</span> : (<><p className={`text-2xl font-light tabular-nums ${failing ? "text-rose-600" : "text-teal-600"}`}>{comp}%</p><p className="text-[10px] text-slate-400">tuân thủ 1h</p></>)}</div>
       </div>
 
@@ -214,8 +234,9 @@ function RoomCard({ room, cfg, onDetail, onIncident }) {
       {!room.noData && (() => { const oos8 = roomHourlyOOS(room); const tong8 = oos8.reduce((a, h) => a + (h.oos || 0), 0); return <div className="mt-3"><div className="flex items-center justify-between"><span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Điểm OOS theo giờ — 8h</span>{oos8.length > 0 && tong8 === 0 && <span className="text-[10px] text-teal-600 font-medium">0 điểm OOS · đạt</span>}</div>{oos8.length === 0 ? <p className="text-[11px] text-slate-400 italic py-3 text-center">chưa có dữ liệu 8h</p> : <OOSMini data={oos8} />}</div>; })()}
       {room.note && <p className="mt-3 text-[11px] text-slate-500 bg-sky-50/60 ring-1 ring-sky-100 rounded-xl px-3 py-2">📝 {room.note}</p>}
       <div className="mt-3 flex gap-2">
-        <button onClick={() => onDetail(room)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-xl py-2 ring-1 ring-sky-200 transition"><Eye className="w-3.5 h-3.5" strokeWidth={1.8} /> Chi tiết</button>
-        {failing && <button onClick={() => onIncident(room)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl py-2 ring-1 ring-rose-200 transition">Xem sự cố <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.8} /></button>}
+        <button onClick={() => onDetail(room)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-xl py-2 ring-1 ring-sky-200 transition"><Eye className="w-3.5 h-3.5" strokeWidth={1.8} /> Chi tiết &amp; biểu đồ</button>
+        {incident ? <button onClick={() => onIncident(room)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl py-2 ring-1 ring-rose-200 transition" title={`Sự cố ${incident.id} · ${incident.status}`}><AlertOctagon className="w-3.5 h-3.5" strokeWidth={1.8} /> Sự cố {incident.id} <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.8} /></button>
+          : failing ? <span className="flex-1 flex items-center justify-center gap-1.5 text-[11px] text-amber-600 bg-amber-50 rounded-xl py-2 ring-1 ring-amber-200"><AlertTriangle className="w-3.5 h-3.5" strokeWidth={1.8} /> Không đạt — chưa mở sự cố</span> : null}
       </div>
     </Card>
   );
@@ -230,20 +251,80 @@ function RoomDetailModal({ room, onClose }) {
           <div key={s.k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-4">
             <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[s.k].label} ({s.k})</p><p className="text-[11px] text-slate-500">Giới hạn: {s.min != null ? `≥ ${s.min}` : "—"}{s.max != null ? ` · ≤ ${s.max}` : ""} {unit}</p></div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center">{[["Hiện tại", `${st.cur ?? "—"} ${unit}`], ["TB 1h", `${st.avg1h ?? "—"}`], ["TB 8h", mean == null ? "—" : `${mean}`], ["OOS 1h", st.oos1h == null ? "—" : `${st.oos1h}/60`], ["OOS 10′ cuối", st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : <div style={{ height: 142 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={pts} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
+            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : <div style={{ height: 168 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={pts} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={34} domain={["auto", "auto"]} />
-              <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v) => [`${v} ${unit}`, "TB giờ"]} />
-              {s.min != null && s.max != null && <ReferenceArea y1={s.min} y2={s.max} fill={COLOR.teal} fillOpacity={0.08} stroke="none" />}
+              <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => [v == null ? "—" : `${v} ${unit}`, n === "avg" ? "TB giờ" : n === "_band" ? "Min–Max" : n]} />
+              {s.min != null && s.max != null && <ReferenceArea y1={s.min} y2={s.max} fill={COLOR.teal} fillOpacity={0.10} stroke="none" />}
+              {pts.some((p) => p.vmin != null && p.vmax != null) && <Area type="monotone" dataKey={(d) => (d.vmin != null && d.vmax != null ? [d.vmin, d.vmax] : null)} name="_band" stroke="none" fill={COLOR.sky} fillOpacity={0.14} connectNulls isAnimationActive={false} />}
               {s.min != null && <ReferenceLine y={s.min} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${s.min}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
               {s.max != null && <ReferenceLine y={s.max} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${s.max}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
               {mean != null && <ReferenceLine y={mean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${mean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
-              <Area type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} fill={COLOR.teal} fillOpacity={0.14} dot={{ r: 2 }} activeDot={{ r: 4 }} />
-            </AreaChart></ResponsiveContainer></div>}
-            {!noDL && <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Khoảng giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình 8h</span><span className="flex items-center gap-1"><span className="w-4 h-0.5 inline-block" style={{ background: COLOR.teal }} /> Giá trị TB theo giờ</span></div>}
+              <Line type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} isAnimationActive={false}
+                dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (s.min != null && payload.avg < s.min) || (s.max != null && payload.avg > s.max); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={3} fill={oob ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={1} />; }}
+                activeDot={{ r: 4 }} />
+            </ComposedChart></ResponsiveContainer></div>}
+            {!noDL && <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Khoảng đạt (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.sky, opacity: 0.45 }} /> Dải min–max theo giờ</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> trong khoảng</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> ngoài khoảng</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình 8h</span></div>}
           </div>
         ); })}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ===== #3 — DANH SÁCH PHÒNG THEO Ô KPI (bấm ô → biết phòng nào) ===== */
+function KpiListModal({ kind, groups, incidents, cfg, onClose, onPickRoom, onPickIncident, onGotoIncidents }) {
+  const META = {
+    dat:   { title: "Phòng đạt", desc: "Tuân thủ ≥ 80% trong 1 giờ gần nhất", color: COLOR.teal, grad: "#E6F4F1", Icon: CheckCircle2 },
+    khong: { title: "Phòng không đạt", desc: "Tuân thủ < 80% — nên kiểm tra ngay", color: COLOR.coralDeep, grad: "#FBE9E4", Icon: AlertTriangle },
+    thieu: { title: "Thiếu dữ liệu", desc: "Mất tín hiệu hoặc dữ liệu quá cũ — không coi là đạt", color: COLOR.sand, grad: "#FBF1DE", Icon: HelpCircle },
+    p1:    { title: "Sự cố Mức 1 đang mở", desc: "Phòng trọng yếu — xử lý ưu tiên cao nhất", color: COLOR.sky, grad: "#E6F1FA", Icon: Activity },
+  }[kind];
+  const isP1 = kind === "p1";
+  const rooms = isP1 ? [] : (groups[kind] || []);
+  const ageTone = (a) => a == null ? "text-slate-400 bg-slate-100" : a <= 90 ? "text-teal-700 bg-teal-50" : a <= 240 ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50";
+  const ageTxt = (a) => a == null ? "—" : a === 0 ? "mới nhất" : a < 60 ? `${a}′ trước` : `trễ ${(a / 60).toFixed(1)}h`;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
+      <div className="w-full max-w-lg rounded-3xl bg-white ring-1 ring-slate-200 overflow-hidden max-h-[85vh] flex flex-col" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 pt-5 pb-4 flex items-start justify-between" style={{ background: `linear-gradient(135deg,${META.grad},#fff)` }}>
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl p-2.5" style={{ background: "#fff", boxShadow: "0 4px 14px -6px rgba(30,58,86,0.3)" }}><META.Icon className="w-5 h-5" style={{ color: META.color }} strokeWidth={1.9} /></div>
+            <div><h2 className="text-base font-semibold" style={{ color: COLOR.navy }}>{META.title}</h2><p className="text-[11px] text-slate-500 mt-0.5 max-w-xs">{META.desc}</p></div>
+          </div>
+          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-white/70 text-slate-400"><X className="w-4 h-4" strokeWidth={1.8} /></button>
+        </div>
+        <div className="px-5 py-4 overflow-y-auto">
+          {isP1 ? (
+            incidents.length === 0 ? <p className="text-center text-[13px] text-slate-500 py-8">Không có sự cố Mức 1 nào đang mở. 🎉</p> : (
+              <div className="space-y-2">
+                {incidents.map((i) => (
+                  <button key={i.id} onClick={() => onPickIncident(i)} className="w-full text-left rounded-2xl ring-1 ring-slate-200 hover:ring-sky-300 hover:bg-sky-50/50 px-4 py-3 transition flex items-center justify-between gap-3">
+                    <div className="min-w-0"><div className="flex items-center gap-2"><span className="text-[13px] font-semibold" style={{ color: COLOR.navy }}>{i.id}</span><span className="text-[10px] px-2 py-0.5 rounded-full font-semibold text-rose-700 bg-rose-50 ring-1 ring-rose-200">Mức 1</span></div><p className="text-[11px] text-slate-500 mt-0.5 truncate">{i.room} · {i.sensor || "—"} · {i.status}</p></div>
+                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" strokeWidth={1.8} />
+                  </button>
+                ))}
+                <button onClick={onGotoIncidents} className="w-full mt-1 rounded-2xl py-2.5 text-[12px] font-semibold text-white transition" style={{ background: COLOR.teal }}>Mở trang Sự cố để xử lý →</button>
+              </div>
+            )
+          ) : (
+            rooms.length === 0 ? <p className="text-center text-[13px] text-slate-500 py-8">Không có phòng nào trong nhóm này.</p> : (
+              <div className="space-y-2">
+                {rooms.map((r) => { const comp = roomCompliance(r); const lvl = roomLevel(r, cfg); const lm = lvl < 0 ? null : LEVELS[lvl]; return (
+                  <button key={r.id} onClick={() => onPickRoom(r)} className="w-full text-left rounded-2xl ring-1 ring-slate-200 hover:ring-teal-300 hover:bg-teal-50/40 px-4 py-3 transition flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2"><span className="text-[13px] font-semibold truncate" style={{ color: COLOR.navy }}>{r.name}</span><MucBadge p={r.priority} /></div>
+                      <p className="text-[11px] text-slate-500 mt-0.5 truncate">{r.id} · Khu {r.area} · {r.ahu}</p>
+                      <div className="flex items-center gap-1.5 mt-1">{lm && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${lm.bg} ${lm.txt} ring-1 ${lm.ring}`}>{lm.label}</span>}{r.lastSeen && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${ageTone(r.agePhut)}`}>{ageTxt(r.agePhut)}</span>}</div>
+                    </div>
+                    <div className="text-right shrink-0">{comp == null ? <span className="text-[11px] text-slate-400 font-semibold">— %</span> : <p className={`text-xl font-light tabular-nums ${comp < 80 ? "text-rose-600" : "text-teal-600"}`}>{comp}%</p>}<ChevronRight className="w-4 h-4 text-slate-300 ml-auto mt-0.5" strokeWidth={1.8} /></div>
+                  </button>
+                ); })}
+              </div>
+            )
+          )}
+        </div>
       </div>
     </div>
   );
@@ -622,13 +703,6 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
           <button onClick={runAI} className="text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5" style={{ backgroundColor: COLOR.teal }}><Sparkles className="w-3.5 h-3.5" strokeWidth={1.8} /> AI phân tích & cảnh báo</button>
         </div>
       </Card>
-      {aiResult && (() => { const al = [{ l: "Bình thường", c: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200" }, { l: "Chú ý", c: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200" }, { l: "Cảnh báo", c: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200" }, { l: "Hành động", c: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200" }][aiResult.level]; return (
-        <Card className={`p-5 ring-1 ${al.ring}`}>
-          <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Kết quả AI phân tích & cảnh báo</SectionTitle><span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Mức cảnh báo: {al.l}</span></div>
-          <p className="mt-3 text-[13px] leading-relaxed text-slate-600">{aiResult.text}</p>
-          <p className="mt-2 text-[11px] text-slate-400">Đã lưu vào tab <b>Báo cáo</b> để gửi email · {aiResult.time}</p>
-        </Card>
-      ); })()}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard icon={CheckCircle2} label="Tỉ lệ đạt hiện tại" value={fmtPct(latest.comp)} sub={`${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label}`} accent={{ txt: "text-teal-600", bg: "bg-teal-50", glow: "bg-teal-200" }} />
         <KpiCard icon={Wifi} label="Độ đầy đủ dữ liệu" value={`${latest.dq || "—"}%`} sub="dùng để kết luận" accent={{ txt: "text-sky-600", bg: "bg-sky-50", glow: "bg-sky-200" }} />
@@ -641,6 +715,13 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
       </Card>
 
       <div id="trendPrintArea" className="space-y-5">
+        {aiResult && (() => { const al = [{ l: "Kiểm soát tốt", c: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200" }, { l: "Cần chú ý", c: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200" }, { l: "Cảnh báo", c: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200" }, { l: "Hành động", c: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200" }][aiResult.level]; return (
+          <Card className={`p-5 ring-1 ${al.ring}`}>
+            <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Kết quả AI phân tích &amp; cảnh báo</SectionTitle><span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Mức cảnh báo: {al.l}</span></div>
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-600">{aiResult.text}</p>
+            <p className="mt-2 text-[11px] text-slate-400">Đã lưu vào tab <b>Báo cáo</b> để gửi email · {aiResult.time}</p>
+          </Card>
+        ); })()}
         {wantRoomBand && (
           <Card className="p-6"><SectionTitle icon={Minus} hint={`${activeScope.name} · ${SENSOR_META[sensor].label} (${sensor}) · giá trị trung bình theo thời gian`}>Giá trị trung bình &amp; dải giới hạn — phòng</SectionTitle>
             {bandSeries.length === 0 ? (
@@ -657,9 +738,12 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
                 {bandHi != null && <ReferenceLine y={bandHi} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${bandHi}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
                 <Area type="monotone" dataKey="vmax" stroke="none" fill={COLOR.sky} fillOpacity={0.07} />
                 <Area type="monotone" dataKey="vmin" stroke="none" fill="#fff" fillOpacity={0.0} />
-                <Line type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                {bandMean != null && <ReferenceLine y={bandMean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${bandMean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
+                <Line type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} isAnimationActive={false}
+                  dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (bandLo != null && payload.avg < bandLo) || (bandHi != null && payload.avg > bandHi); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={2.8} fill={oob ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={0.8} />; }}
+                  activeDot={{ r: 4 }} />
               </ComposedChart></ResponsiveContainer></div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Dải giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-4 h-0.5 inline-block" style={{ background: COLOR.teal }} /> Giá trị trung bình</span><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.sky, opacity: 0.4 }} /> Vùng min–max</span></div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Dải giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình kỳ</span><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.sky, opacity: 0.4 }} /> Vùng min–max</span></div>
             </>)}
           </Card>
         )}
@@ -675,14 +759,31 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">{[["Đạt 1 ngày", fmtPct(activeScope.dat1n)], ["Đạt 3 ngày", fmtPct(activeScope.dat3n)], ["Đạt 7 ngày", fmtPct(activeScope.dat7n)], ["Min–Max kỳ", tech.n ? `${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%` : "—"]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-2"><p className="text-[9px] uppercase text-slate-400 font-semibold">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
           <p className="text-[11px] text-slate-400 mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Bấm <b>“AI phân tích &amp; cảnh báo”</b> để tổng hợp thành kết luận và mức cảnh báo.</p>
         </Card>
-        <Card className="p-6"><SectionTitle icon={LineIcon} hint={`${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label} · giờ cảnh báo + tuân thủ`}>Biểu đồ giờ cảnh báo theo thời gian</SectionTitle>
-          <div className="mt-4"><TrendMainChart data={view} range={range} /></div>
-          <div className="flex flex-wrap gap-4 mt-3 text-[11px] text-slate-500 font-medium"><span className="flex items-center gap-1.5"><span className="w-3 h-2.5 rounded-sm inline-block" style={{ background: COLOR.sand }} /> Warning</span><span className="flex items-center gap-1.5"><span className="w-3 h-2.5 rounded-sm inline-block" style={{ background: COLOR.softCoral }} /> Critical</span><span className="flex items-center gap-1.5"><span className="w-4 h-0.5 inline-block" style={{ background: COLOR.teal }} /> % Tuân thủ</span></div>
+        <Card className="p-6"><SectionTitle icon={LineIcon} hint={`${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label} · biểu đồ cá thể theo ${range === "1n" ? "giờ" : "ngày"}`}>% đạt theo thời gian</SectionTitle>
+          <div className="mt-4" style={{ height: 260 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={view} margin={{ top: 10, right: 14, left: -8, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={range === "1n" ? 2 : range === "90n" ? 11 : range === "30n" ? 4 : 0} />
+            <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={38} domain={[(dmin) => Math.max(0, Math.floor(dmin - 5)), 100]} />
+            <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v) => [fmtPct(v), "% đạt"]} />
+            <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "ngưỡng 80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
+            <Line type="monotone" dataKey="comp" stroke={COLOR.teal} strokeWidth={2.2} isAnimationActive={false}
+              dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const low = payload.comp != null && payload.comp < 80; return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={2.8} fill={low ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={0.8} />; }}
+              activeDot={{ r: 4 }} />
+          </ComposedChart></ResponsiveContainer></div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> &lt; 80% (điểm đỏ)</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
         </Card>
-        <Card className="p-6"><SectionTitle icon={AlertOctagon} hint={`${SENSORS.find((s) => s.k === sensor).label} · số điểm vượt giới hạn`}>Giá trị OOS theo thời gian</SectionTitle>
-          <div className="mt-4" style={{ height: 240 }}><ResponsiveContainer width="100%" height="100%"><BarChart data={view} margin={{ top: 10, right: 12, left: -12, bottom: 4 }}><CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={range === "90n" ? 11 : range === "30n" ? 4 : 0} /><YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={36} allowDecimals={false} /><Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v) => [`${v} điểm OOS`, "Vượt giới hạn"]} cursor={{ fill: "rgba(223,125,98,0.08)" }} /><Bar dataKey="oos" fill={COLOR.softCoral} radius={[4, 4, 0, 0]} maxBarSize={22} /></BarChart></ResponsiveContainer></div>
-          <p className="text-[11px] text-slate-400 mt-2">Số điểm nằm ngoài giới hạn theo {range === "1n" ? "giờ" : "ngày"} cho {SENSORS.find((s) => s.k === sensor).label}.</p>
+        {activeScope.type === "ROOM" && (
+        <Card className="p-6"><SectionTitle icon={AlertOctagon} hint={`${SENSORS.find((s) => s.k === sensor).label} · % điểm vượt giới hạn theo ${range === "1n" ? "giờ" : "ngày"}`}>% OOS theo thời gian — phòng</SectionTitle>
+          <div className="mt-4" style={{ height: 240 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={view} margin={{ top: 10, right: 14, left: -10, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={range === "1n" ? 2 : range === "90n" ? 11 : range === "30n" ? 4 : 0} />
+            <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={38} domain={[0, "auto"]} />
+            <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v) => [`${(+v).toFixed(1)}%`, "% OOS"]} />
+            <Area type="monotone" dataKey={(d) => (d.comp != null ? +(100 - d.comp).toFixed(1) : null)} name="oospct" stroke={COLOR.softCoral} strokeWidth={2} fill={COLOR.softCoral} fillOpacity={0.14} isAnimationActive={false} dot={{ r: 2 }} activeDot={{ r: 4 }} connectNulls />
+          </ComposedChart></ResponsiveContainer></div>
+          <p className="text-[11px] text-slate-400 mt-2">% điểm nằm ngoài giới hạn (= 100% − % đạt) theo {range === "1n" ? "giờ" : "ngày"} cho {SENSORS.find((s) => s.k === sensor).label}.</p>
         </Card>
+        )}
       </div>
 
       <Card className="p-6"><SectionTitle icon={CircleDot} hint="rủi ro cao nhất mỗi cấp">Xu hướng theo cấp</SectionTitle>
@@ -791,7 +892,7 @@ function SucKhoeWidget({ sk, dangTai }) {
     return (
       <HeaderChip>
         <Activity className="w-4 h-4 text-slate-400" strokeWidth={1.8} />
-        <div className="leading-tight"><p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Sức khỏe dữ liệu</p><p className="text-xs font-semibold text-slate-400">{dangTai ? "đang kiểm tra…" : "—"}</p></div>
+        <div className="leading-tight"><p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Trạng thái</p><p className="text-xs font-semibold text-slate-400">{dangTai ? "đang kiểm tra…" : "—"}</p></div>
       </HeaderChip>
     );
   }
@@ -814,7 +915,7 @@ function SucKhoeWidget({ sk, dangTai }) {
       <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />
       <Icon className={`w-4 h-4 ${txt}`} strokeWidth={1.8} />
       <div className="leading-tight">
-        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Sức khỏe dữ liệu</p>
+        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Trạng thái</p>
         <p className={`text-xs font-semibold ${txt}`}>{mat ? "MẤT DỮ LIỆU" : `Dữ liệu mới · trễ ${treTxt}`}</p>
       </div>
     </div>
@@ -822,6 +923,7 @@ function SucKhoeWidget({ sk, dangTai }) {
 }
 
 function DoiMatKhauCard({ user, isLive }) {
+  const [mkCu, setMkCu] = useState("");
   const [mk1, setMk1] = useState("");
   const [mk2, setMk2] = useState("");
   const [dang, setDang] = useState(false);
@@ -829,14 +931,16 @@ function DoiMatKhauCard({ user, isLive }) {
   const [loi, setLoi] = useState("");
   const doi = async () => {
     setLoi(""); setOk(false);
+    if (!mkCu) { setLoi("Vui lòng nhập mật khẩu hiện tại."); return; }
     if (mk1.length < 6) { setLoi("Mật khẩu mới tối thiểu 6 ký tự."); return; }
+    if (mk1 === mkCu) { setLoi("Mật khẩu mới phải khác mật khẩu hiện tại."); return; }
     if (mk1 !== mk2) { setLoi("Hai mật khẩu nhập không khớp."); return; }
     if (!isLive) { setLoi("Chỉ đổi được mật khẩu ở chế độ LIVE (đã đăng nhập thật)."); return; }
     setDang(true);
-    const { error } = await doiMatKhau(mk1);
+    const { error } = await doiMatKhau(mkCu, mk1);
     setDang(false);
     if (error) setLoi(error.message || "Đổi mật khẩu thất bại.");
-    else { setOk(true); setMk1(""); setMk2(""); }
+    else { setOk(true); setMkCu(""); setMk1(""); setMk2(""); }
   };
   return (
     <Card className="p-6">
@@ -845,6 +949,10 @@ function DoiMatKhauCard({ user, isLive }) {
         <p className="text-[12px] text-slate-500 mt-2">Đăng nhập để đổi mật khẩu.</p>
       ) : (
         <div className="mt-4 space-y-3 max-w-sm">
+          <input type="password" value={mkCu} onChange={(e) => setMkCu(e.target.value)} placeholder="Mật khẩu hiện tại"
+            autoComplete="current-password"
+            className="w-full rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-300" />
+          <div className="h-px bg-slate-100 my-1" />
           <input type="password" value={mk1} onChange={(e) => setMk1(e.target.value)} placeholder="Mật khẩu mới"
             autoComplete="new-password"
             className="w-full rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-300" />
@@ -858,7 +966,7 @@ function DoiMatKhauCard({ user, isLive }) {
             style={{ background: "linear-gradient(135deg,#1aa899,#149e90)" }}>
             {dang ? "Đang đổi…" : "Đổi mật khẩu"}
           </button>
-          <p className="text-[11px] text-slate-400 leading-relaxed">Mật khẩu tối thiểu 6 ký tự. Sau khi đổi, lần đăng nhập sau dùng mật khẩu mới.</p>
+          <p className="text-[11px] text-slate-400 leading-relaxed">Cần xác thực mật khẩu hiện tại. Mật khẩu mới tối thiểu 6 ký tự; lần đăng nhập sau dùng mật khẩu mới.</p>
         </div>
       )}
     </Card>
@@ -867,6 +975,7 @@ function DoiMatKhauCard({ user, isLive }) {
 
 // #5 — Đổi mật khẩu khả dụng cho MỌI vai trò (mở từ nút ở góc phải, không phụ thuộc tab Cài đặt)
 function DoiMatKhauModal({ user, isLive, onClose }) {
+  const [mkCu, setMkCu] = useState("");
   const [mk1, setMk1] = useState("");
   const [mk2, setMk2] = useState("");
   const [dang, setDang] = useState(false);
@@ -874,14 +983,16 @@ function DoiMatKhauModal({ user, isLive, onClose }) {
   const [loi, setLoi] = useState("");
   const doi = async () => {
     setLoi(""); setOk(false);
+    if (!mkCu) { setLoi("Vui lòng nhập mật khẩu hiện tại."); return; }
     if (mk1.length < 6) { setLoi("Mật khẩu mới tối thiểu 6 ký tự."); return; }
+    if (mk1 === mkCu) { setLoi("Mật khẩu mới phải khác mật khẩu hiện tại."); return; }
     if (mk1 !== mk2) { setLoi("Hai mật khẩu nhập không khớp."); return; }
     if (!isLive) { setLoi("Chỉ đổi được mật khẩu ở chế độ LIVE (đã đăng nhập thật)."); return; }
     setDang(true);
-    const { error } = await doiMatKhau(mk1);
+    const { error } = await doiMatKhau(mkCu, mk1);
     setDang(false);
     if (error) setLoi(error.message || "Đổi mật khẩu thất bại.");
-    else { setOk(true); setMk1(""); setMk2(""); }
+    else { setOk(true); setMkCu(""); setMk1(""); setMk2(""); }
   };
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
@@ -891,12 +1002,14 @@ function DoiMatKhauModal({ user, isLive, onClose }) {
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" strokeWidth={1.8} /></button>
         </div>
         <div className="px-6 py-5 space-y-3">
+          <input type="password" value={mkCu} onChange={(e) => setMkCu(e.target.value)} placeholder="Mật khẩu hiện tại" autoComplete="current-password" className="w-full rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-300" />
+          <div className="h-px bg-slate-100" />
           <input type="password" value={mk1} onChange={(e) => setMk1(e.target.value)} placeholder="Mật khẩu mới" autoComplete="new-password" className="w-full rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-300" />
           <input type="password" value={mk2} onChange={(e) => setMk2(e.target.value)} placeholder="Nhập lại mật khẩu mới" autoComplete="new-password" onKeyDown={(e) => e.key === "Enter" && doi()} className="w-full rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-300" />
           {loi && <p className="text-[12px] text-rose-600">{loi}</p>}
           {ok && <p className="text-[12px] text-teal-600">Đã đổi mật khẩu thành công.</p>}
           <button disabled={dang} onClick={doi} className="w-full text-sm font-semibold text-white rounded-2xl py-2.5 disabled:opacity-60" style={{ background: "linear-gradient(135deg,#1aa899,#149e90)" }}>{dang ? "Đang đổi…" : "Đổi mật khẩu"}</button>
-          <p className="text-[11px] text-slate-400 leading-relaxed">Mật khẩu tối thiểu 6 ký tự. Sau khi đổi, lần đăng nhập sau dùng mật khẩu mới.</p>
+          <p className="text-[11px] text-slate-400 leading-relaxed">Cần xác thực mật khẩu hiện tại. Mật khẩu mới tối thiểu 6 ký tự; lần đăng nhập sau dùng mật khẩu mới.</p>
         </div>
       </div>
     </div>
@@ -911,7 +1024,7 @@ export default function App() {
   const LIVE_MAC_DINH = DEFAULT_DATA_SOURCE === "live";   // LIVE → KHÔNG nhồi dữ liệu demo (tránh "thông tin không khớp")
   const [rooms, setRooms] = useState(LIVE_MAC_DINH ? [] : INITIAL_ROOMS);
   const [incidents, setIncidents] = useState(LIVE_MAC_DINH ? [] : INCIDENTS0);
-  const [cfg, setCfg] = useState({ notice: 1, warn: 12, action: 5 });
+  const [cfg, setCfg] = useState({ notice: 10, warn: 20, action: 4 }); // #4 — DEMO; chế độ LIVE đọc từ DB (cau_hinh)
   const [user, setUser] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [modal, setModal] = useState(null);
@@ -920,6 +1033,7 @@ export default function App() {
   const [audit, setAudit] = useState(LIVE_MAC_DINH ? [] : [{ t: "13:05 29/5", who: "Hệ thống", act: "Tạo sự cố", obj: "SC-1042 / C4.R7", detail: "Chênh áp nghiêm trọng" }, { t: "10:18 29/5", who: "Nam (IPC)", act: "Xác nhận bất thường", obj: "SC-1038 / C4.R1", detail: "Kiểm tra thực tế" }]);
   const [ai, setAi] = useState(null);
   const [pwOpen, setPwOpen] = useState(false);   // #5 — modal đổi mật khẩu (mọi vai trò)
+  const [kpiModal, setKpiModal] = useState(null); // #3 — modal danh sách phòng theo ô KPI ('dat'|'khong'|'thieu'|'p1')
   const [xemTatCaPhong, setXemTatCaPhong] = useState(false);   // Overview: ưu tiên 1&2 (mặc định) ↔ tất cả phòng
   const role = user?.role; const canManage = canManageRooms(role);
   // #5 — danh sách tab hiển thị theo vai trò
@@ -945,32 +1059,58 @@ export default function App() {
   useEffect(() => { if (isLive && live.rooms) setRooms(live.rooms); }, [isLive, live.rooms]);
   useEffect(() => { if (isLive && live.nguong) setCfg(live.nguong); }, [isLive, live.nguong]);
 
+  // #1 KHẮC PHỤC "phải F5 mới hiện dữ liệu" đã chuyển vào useLiveData:
+  // hook tự nạp lại NGAY khi Supabase phát INITIAL_SESSION/SIGNED_IN (phiên sẵn sàng),
+  // nên không còn phụ thuộc thời điểm của React ở đây nữa.
+
   // #5 — nếu vai trò không được phép xem tab đang mở (vd IPC đang ở Cài đặt khi đăng nhập) → đưa về Tổng quan
   useEffect(() => { if (role && !roleCanSeeTab(role, tab)) setTab("home"); }, [role, tab]);
 
-  // Giờ máy chủ: demo cố định; live dùng giờ thực
-  const now = isLive ? new Date().toISOString().replace("T", " ").slice(0, 19) : "2026-05-29 14:08:22";
+  // Giờ máy chủ UTC+7: trước đây dùng toISOString() (UTC) nên lệch -7h so với nhãn "UTC+7".
+  // Định dạng theo đúng múi giờ Asia/Ho_Chi_Minh, không phụ thuộc múi giờ trình duyệt.
+  const now = isLive ? vnNow() : "2026-05-29 14:08:22";
 
   const demoKpis = useMemo(() => ({ dat: rooms.filter((r) => { const c = roomCompliance(r); return !r.noData && c >= 80; }).length, khongDat: rooms.filter((r) => { const c = roomCompliance(r); return !r.noData && c < 80; }).length, thieuDL: rooms.filter((r) => r.noData).length, tong: rooms.length }), [rooms]);
   const kpis = isLive ? (live.kpis || { dat: 0, khongDat: 0, thieuDL: 0, tong: 0 }) : demoKpis;
   const systemAlerts = (isLive && live.systemAlerts) ? live.systemAlerts.map((a) => ({ ...a, icon: ICON_CANH_BAO(a) })) : SYSTEM_ALERTS;
   const sopRows = (isLive && live.sopRows && live.sopRows.length) ? live.sopRows : SOP;
   const p1Open = incidents.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục").length;
-  // #2 — Tổng quan chỉ hiện phòng ƯU TIÊN 1 & 2 (P1 trước, rồi P2; trong mỗi nhóm xếp theo % đạt tăng dần → phòng kém hiện trước)
-  const phongUuTien = useMemo(() => rooms
-    .filter((r) => r.priority === "P1" || r.priority === "P2")
-    .sort((a, b) => {
-      const pa = a.priority === "P1" ? 0 : 1, pb = b.priority === "P1" ? 0 : 1;
-      if (pa !== pb) return pa - pb;
-      return (roomCompliance(a) ?? 999) - (roomCompliance(b) ?? 999);
-    }), [rooms]);
-  // Tùy chọn: xem TẤT CẢ phòng (sắp theo mức ưu tiên P1→P3, trong mỗi mức xếp % đạt tăng dần)
-  const RANK_UT = { P1: 0, P2: 1, P3: 2 };
-  const phongTatCa = useMemo(() => [...rooms].sort((a, b) => {
-    const ra = RANK_UT[a.priority] ?? 9, rb = RANK_UT[b.priority] ?? 9;
-    if (ra !== rb) return ra - rb;
-    return (roomCompliance(a) ?? 999) - (roomCompliance(b) ?? 999);
-  }), [rooms]);
+  // #3 — Phân loại phòng để bấm vào ô KPI biết "phòng nào". Quy tắc khớp với view xem_tong_quan:
+  //   thiếu DL = mất dữ liệu / chưa có % / dữ liệu quá cũ (trễ > ngưỡng giờ); còn lại đạt khi ≥80%.
+  const FRESH_MIN = (isLive && live.sucKhoe?.nguongGio != null ? live.sucKhoe.nguongGio : 2) * 60;
+  const phanLoaiPhong = (r) => {
+    const comp = roomCompliance(r);
+    if (r.noData || comp == null || (r.agePhut != null && r.agePhut > FRESH_MIN)) return "thieu";
+    return comp >= 80 ? "dat" : "khong";
+  };
+  const nhomPhong = useMemo(() => {
+    const g = { dat: [], khong: [], thieu: [] };
+    rooms.forEach((r) => g[phanLoaiPhong(r)].push(r));
+    const sx = (a, b) => (roomCompliance(a) ?? -1) - (roomCompliance(b) ?? -1);
+    g.dat.sort((a, b) => (roomCompliance(b) ?? 0) - (roomCompliance(a) ?? 0)); // đạt: cao→thấp
+    g.khong.sort(sx); g.thieu.sort((a, b) => (a.id < b.id ? -1 : 1));          // không đạt: thấp→cao
+    return g;
+  }, [rooms, isLive, FRESH_MIN]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Phòng "trọng yếu" gắn với sự cố Mức 1 (P1) đang mở — để link từ ô "Sự cố Mức 1 mở"
+  const suCoP1 = incidents.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục");
+  // #9 — "Phòng trọng điểm" xếp theo NGUY CƠ để tập trung theo dõi:
+  //   Hành động (3) → Cảnh báo (2) → Cần chú ý (1) → Kiểm soát tốt (0) → thiếu DL (cuối).
+  //   Cùng mức cảnh báo thì phòng có % đạt thấp hơn lên trước.
+  const sapTheoNguyCo = (a, b) => {
+    const la = LEVEL_PRIORITY(roomLevel(a, cfg)), lb = LEVEL_PRIORITY(roomLevel(b, cfg));
+    if (la !== lb) return lb - la;                                  // mức cao → lên đầu
+    return (roomCompliance(a) ?? 999) - (roomCompliance(b) ?? 999); // cùng mức: % đạt thấp lên trước
+  };
+  // "Ưu tiên 1 & 2": lọc P1/P2 nhưng vẫn xếp theo nguy cơ
+  const phongUuTien = useMemo(
+    () => rooms.filter((r) => r.priority === "P1" || r.priority === "P2").sort(sapTheoNguyCo),
+    [rooms, cfg] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  // "Tất cả": mọi phòng, cũng xếp theo nguy cơ
+  const phongTatCa = useMemo(
+    () => [...rooms].sort(sapTheoNguyCo),
+    [rooms, cfg] // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const phongHienThi = xemTatCaPhong ? phongTatCa : phongUuTien;
 
   const logConfig = (change) => setConfigHistory((h) => [{ t: now.slice(11, 16) + " 29/5", who: user ? `${user.name} (${user.role})` : "(chưa đăng nhập)", change }, ...h]);
@@ -1050,12 +1190,17 @@ export default function App() {
 
       <div className="relative max-w-[1400px] mx-auto px-6 py-6">
         <header className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="rounded-2xl bg-white px-2.5 ring-1 ring-slate-200 flex items-center justify-center h-[50px] w-[50px] shrink-0" style={cardShadow}><CpcLogo className="h-10 w-10" /></div>
-            <div className="flex flex-col justify-center"><h1 className="text-base sm:text-lg font-bold tracking-tight leading-none" style={{ color: COLOR.navy }}>Hệ thống giám sát HVAC phòng sạch GMP</h1><p className="text-[12px] font-semibold tracking-wide mt-1" style={{ color: COLOR.teal }}>V/Q team — QLCL</p></div>
+            <div className="flex flex-col justify-center min-w-0"><h1 className="text-base sm:text-lg font-bold tracking-tight leading-tight truncate" style={{ color: COLOR.navy }}>Hệ thống giám sát HVAC phòng sạch GMP</h1><p className="text-[12px] font-semibold tracking-wide mt-0.5" style={{ color: COLOR.teal }}>V/Q team — QLCL</p></div>
           </div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <HeaderChip ring="ring-amber-200"><ShieldAlert className="w-4 h-4 text-amber-600" strokeWidth={1.8} /><div className="leading-tight"><p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Toàn vẹn dữ liệu</p><p className="text-xs font-semibold text-amber-600">{kpis.thieuDL} phòng thiếu DL</p></div></HeaderChip>
+          <div className="flex items-center gap-2.5 flex-wrap justify-end ml-auto">
+            {(() => { const ok = (kpis.thieuDL || 0) === 0; return (
+              <div className={`hidden md:flex items-center gap-2.5 rounded-2xl bg-white px-4 ring-1 h-[50px] ${ok ? "ring-teal-200" : "ring-amber-200"}`} style={cardShadow}>
+                {ok ? <ShieldCheck className="w-4 h-4 text-teal-600" strokeWidth={1.8} /> : <ShieldAlert className="w-4 h-4 text-amber-600" strokeWidth={1.8} />}
+                <div className="leading-tight"><p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Toàn vẹn dữ liệu</p><p className={`text-xs font-semibold ${ok ? "text-teal-600" : "text-amber-600"}`}>{ok ? "Đầy đủ" : `${kpis.thieuDL} phòng thiếu DL`}</p></div>
+              </div>
+            ); })()}
             {isLive && <SucKhoeWidget sk={live.sucKhoe} dangTai={live.dangTai} />}
             {HAS_SUPABASE ? (
               <div className="flex items-center gap-2.5 rounded-2xl bg-white px-4 ring-1 h-[50px]" style={{ ...cardShadow, borderColor: COLOR.teal }} title="Đang đọc/ghi dữ liệu thật từ Supabase">
@@ -1068,7 +1213,7 @@ export default function App() {
                 <div className="leading-tight text-left"><p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Nguồn dữ liệu</p><p className="text-xs font-semibold text-amber-600">Chưa cấu hình</p></div>
               </div>
             )}
-            <HeaderChip><Clock className="w-4 h-4" style={{ color: COLOR.teal }} strokeWidth={1.8} /><div className="leading-tight"><p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Giờ máy chủ · UTC+7</p><p className="text-xs font-semibold tabular-nums" style={{ color: COLOR.ink }}>{now}</p></div></HeaderChip>
+            <HeaderChip><Clock className="w-4 h-4" style={{ color: COLOR.teal }} strokeWidth={1.8} /><div className="leading-tight"><p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Giờ máy chủ · UTC+7</p><ServerClock live={isLive} /></div></HeaderChip>
             {user ? <div className="flex items-center gap-2.5 rounded-2xl bg-white pl-2 pr-2 ring-1 ring-slate-200 h-[50px]" style={cardShadow}><div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: "linear-gradient(135deg,#5ec8d8,#149e90)" }}>{user.name[0]}</div><div className="leading-tight"><p className="text-xs font-semibold" style={{ color: COLOR.ink }}>{user.name}</p><p className="text-[10px] font-medium" style={{ color: COLOR.teal }}>{ROLE_VI[user.role] || user.role}</p></div><button onClick={() => setPwOpen(true)} className="ml-1 rounded-lg p-1.5 hover:bg-slate-100 text-slate-400" title="Đổi mật khẩu"><KeyRound className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => { setUser(null); if (isLive) authDangXuat(); }} className="rounded-lg p-1.5 hover:bg-slate-100 text-slate-400" title="Đăng xuất"><LogOut className="w-4 h-4" strokeWidth={1.8} /></button></div>
               : <button onClick={() => setLoginOpen(true)} className="flex items-center gap-2 rounded-2xl px-4 text-sm font-semibold text-white h-[50px]" style={{ background: "linear-gradient(135deg,#1aa899,#149e90)", ...cardShadow }}><LogIn className="w-4 h-4" strokeWidth={1.8} /> Đăng nhập</button>}
           </div>
@@ -1088,13 +1233,13 @@ export default function App() {
               <Card className="px-7 py-6 overflow-hidden" style={{ background: "linear-gradient(135deg,#E6F4F1,#FFFFFF 55%,#E6F1FA)" }}><p className="text-[11px] uppercase tracking-[0.2em] font-semibold" style={{ color: COLOR.teal }}>Tri thức · Tuân thủ · Toàn vẹn dữ liệu</p><h2 className="mt-1 text-2xl font-semibold" style={{ color: COLOR.navy }}>Giám sát chênh áp · độ ẩm · nhiệt độ theo thời gian thực</h2><div className="mt-4 flex gap-2 flex-wrap text-xs">{[`${kpis.tong} phòng giám sát`, "3 khu: C1 · C4 · Q2", "8 AHU", "Cập nhật mỗi giờ"].map((p) => <span key={p} className="bg-white ring-1 ring-slate-200 text-slate-600 px-3 py-1.5 rounded-full font-medium">{p}</span>)}</div>{!user && <div className="mt-4 inline-flex items-center gap-2 text-xs text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-3 py-1.5 rounded-xl font-medium"><LogIn className="w-3.5 h-3.5" strokeWidth={1.8} /> Đăng nhập để thao tác theo phân quyền.</div>}</Card>
               <div className="flex items-center justify-between px-1"><SectionTitle icon={Clock} hint="cập nhật theo giờ">Tổng quan trạng thái — 1 giờ gần nhất</SectionTitle></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard icon={CheckCircle2} label="Phòng đạt" value={kpis.dat} total={kpis.tong} sub="tuân thủ ≥ 80% (1h)" accent={{ txt: "text-teal-600", bg: "bg-teal-50", glow: "bg-teal-200" }} />
-                <KpiCard icon={AlertTriangle} label="Phòng không đạt" value={kpis.khongDat} total={kpis.tong} sub="tuân thủ < 80%" accent={{ txt: "text-rose-600", bg: "bg-rose-50", glow: "bg-rose-200" }} />
-                <KpiCard icon={HelpCircle} label="Thiếu dữ liệu" value={kpis.thieuDL} total={kpis.tong} sub="không coi là đạt" accent={{ txt: "text-amber-600", bg: "bg-amber-50", glow: "bg-amber-200" }} />
-                <KpiCard icon={Activity} label="Sự cố Mức 1 mở" value={p1Open} sub="phòng trọng yếu" accent={{ txt: "text-sky-600", bg: "bg-sky-50", glow: "bg-sky-200" }} />
+                <KpiCard icon={CheckCircle2} label="Phòng đạt" value={kpis.dat} total={kpis.tong} sub="tuân thủ ≥ 80% (1h)" accent={{ txt: "text-teal-600", bg: "bg-teal-50", glow: "bg-teal-200" }} onClick={() => setKpiModal("dat")} />
+                <KpiCard icon={AlertTriangle} label="Phòng không đạt" value={kpis.khongDat} total={kpis.tong} sub="tuân thủ < 80%" accent={{ txt: "text-rose-600", bg: "bg-rose-50", glow: "bg-rose-200" }} onClick={() => setKpiModal("khong")} />
+                <KpiCard icon={HelpCircle} label="Thiếu dữ liệu" value={kpis.thieuDL} total={kpis.tong} sub="không coi là đạt" accent={{ txt: "text-amber-600", bg: "bg-amber-50", glow: "bg-amber-200" }} onClick={() => setKpiModal("thieu")} />
+                <KpiCard icon={Activity} label="Sự cố Mức 1 mở" value={p1Open} sub="phòng trọng yếu" accent={{ txt: "text-sky-600", bg: "bg-sky-50", glow: "bg-sky-200" }} onClick={() => setKpiModal("p1")} />
               </div>
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
-                <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden text-[11px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={!xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Tất cả</button></div><span className="text-[11px] text-slate-500">{phongHienThi.length}/{rooms.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-slate-500">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongHienThi.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} />)}</div>}</div>
+                <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden text-[11px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={!xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Tất cả</button></div><span className="text-[11px] text-slate-500">{phongHienThi.length}/{rooms.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-slate-500">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongHienThi.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incidents.find((i) => i.room === r.id && i.status !== "Đã khắc phục") || null} />)}</div>}</div>
                 <aside className="space-y-5">
                   {isLive ? (
                   <Card className="p-5" style={{ background: "linear-gradient(135deg,#E6F4F1,#FFFFFF 60%,#E6F1FA)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Tóm tắt hệ thống</SectionTitle>{live.capNhatLuc && !live.loi && <span className="text-[10px] text-slate-400">Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</div><p className="mt-3 text-[13px] leading-relaxed text-slate-600">{live.kpis ? <>Đang giám sát <b style={{ color: COLOR.navy }}>{kpis.tong}</b> phòng: <span className="text-teal-700 font-semibold">{kpis.dat} đạt</span> · <span className="text-rose-600 font-semibold">{kpis.khongDat} không đạt</span> · <span className="text-amber-600 font-semibold">{kpis.thieuDL} thiếu DL</span>. {p1Open > 0 ? <><b className="text-rose-600">{p1Open}</b> sự cố Mức 1 đang mở — ưu tiên xử lý.</> : "Không có sự cố Mức 1 đang mở."}</> : (live.loi ? "Không tải được dữ liệu — kiểm tra kết nối/đăng nhập." : "Đang tải dữ liệu…")}</p><p className="mt-2 text-[11px] text-slate-400">Phân tích AI chi tiết ở tab Báo cáo · Xu hướng GMP.</p></Card>
@@ -1110,7 +1255,15 @@ export default function App() {
           {tab === "events" && (
             <div className="space-y-5">
               <SectionTitle icon={AlertOctagon} hint={user ? `vai trò: ${ROLE_VI[role]}` : "đăng nhập để thao tác"}>Sự cố đang xử lý</SectionTitle>
-              <Card className="p-2 sm:p-4"><div className="overflow-x-auto"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
+              <Card className="p-2 sm:p-4">{incidents.length === 0 ? (
+                <div className="px-5 py-10 text-center">
+                  <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div>
+                  <p className="mt-3 text-[14px] font-semibold" style={{ color: COLOR.navy }}>Chưa có sự cố nào đang mở</p>
+                  <p className="mt-1.5 text-[12px] text-slate-500 max-w-md mx-auto leading-relaxed">Sự cố được <b>tự động tạo</b> khi luồng n8n (WF1) phát hiện mức <b className="text-amber-600">Cảnh báo</b> hoặc <b className="text-rose-600">Hành động</b> từ dữ liệu theo giờ và ghi vào Supabase. Danh sách trống nghĩa là tất cả phòng đang trong ngưỡng — hoặc chưa có dữ liệu kích hoạt.</p>
+                  {isLive && <p className="mt-3 text-[11px] text-slate-400 max-w-md mx-auto">Nếu bạn chắc chắn đang có cảnh báo mà vẫn trống, kiểm tra: WF1 có đang chạy theo lịch · ngưỡng trong <b>Cài đặt</b> · và bạn đã <b>đăng nhập</b> đúng vai trò để xem.</p>}
+                </div>
+              ) : (
+              <div className="overflow-x-auto"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
                 <tbody>{incidents.map((inc) => { const flow = STATUS_FLOW[inc.status]; const allowed = user && (role === "ADMIN" || (flow && flow.roles.includes(role))); return (
                   <tr key={inc.id} className={`border-t border-slate-100 hover:bg-sky-50/40 transition ${inc.silenced ? "opacity-60" : ""}`}>
                     <td className="py-3 px-3 font-semibold" style={{ color: COLOR.navy }}>{inc.id}</td>
@@ -1123,7 +1276,7 @@ export default function App() {
                     <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Dừng CB</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đã dừng" : "—"}</span>}</td>
                     <td className="py-3 px-3">{!flow ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : allowed ? <button onClick={() => openApproval(inc)} className={`text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 transition flex items-center gap-1.5 ${flow.color}`}>{flow.label} <ChevronRight className="w-3 h-3" strokeWidth={2} /></button> : <span className="text-[11px] text-slate-400">Chờ {flow.roles.map((r) => ROLE_VI[r]).join("/")}</span>}</td>
                   </tr>
-                ); })}</tbody></table></div></Card>
+                ); })}</tbody></table></div>)}</Card>
               <p className="text-[11px] text-slate-500 text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
             </div>
           )}
@@ -1138,7 +1291,8 @@ export default function App() {
           {tab === "audit" && (
             <div className="space-y-5">
               <SectionTitle icon={ScrollText} hint="ALCOA+">Nhật ký truy vết & SOP</SectionTitle>
-              <Card className="p-6"><SectionTitle icon={FileText}>Nhật ký audit</SectionTitle><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Hành động", "Đối tượng", "Chi tiết"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{audit.map((a, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 text-slate-500 tabular-nums">{a.t}</td><td className="py-2.5 pr-4 text-slate-600">{a.who}</td><td className="py-2.5 pr-4 text-slate-700">{a.act}</td><td className="py-2.5 pr-4 font-semibold" style={{ color: COLOR.navy }}>{a.obj}</td><td className="py-2.5 pr-4 text-slate-500">{a.detail}</td></tr>)}</tbody></table></div></Card>
+              <Card className="p-6"><SectionTitle icon={FileText} hint="thao tác web + ghi từ Supabase">Nhật ký audit</SectionTitle><p className="text-[11px] text-slate-500 mt-1.5">Tổng hợp <b>thao tác trên web</b> (phê duyệt sự cố, dừng cảnh báo…) và các sự kiện ghi tại <b>Supabase</b>. Mọi thay đổi đều lưu vết theo ALCOA+.</p><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Hành động", "Đối tượng", "Chi tiết"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{audit.length === 0 ? <tr><td colSpan={5} className="py-6 text-center text-slate-400 text-[12px]">Chưa có bản ghi audit.</td></tr> : audit.map((a, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 text-slate-500 tabular-nums">{a.t}</td><td className="py-2.5 pr-4 text-slate-600">{a.who}</td><td className="py-2.5 pr-4 text-slate-700">{a.act}</td><td className="py-2.5 pr-4 font-semibold" style={{ color: COLOR.navy }}>{a.obj}</td><td className="py-2.5 pr-4 text-slate-500">{a.detail}</td></tr>)}</tbody></table></div></Card>
+              <Card className="p-6"><SectionTitle icon={History} hint="cấu hình ngưỡng · phòng · cảm biến">Thay đổi cấu hình & dữ liệu gốc</SectionTitle><p className="text-[11px] text-slate-500 mt-1.5">Các thay đổi cấu hình ghi tại Supabase (sửa ngưỡng cảnh báo, thêm/bớt phòng & cảm biến, chỉnh giới hạn) — kể cả khi sửa trực tiếp trên database, đều hiển thị tại đây.</p><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Thay đổi"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{configHistory.length === 0 ? <tr><td colSpan={3} className="py-6 text-center text-slate-400 text-[12px]">Chưa có thay đổi cấu hình.</td></tr> : configHistory.map((c, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 text-slate-500 tabular-nums">{c.t}</td><td className="py-2.5 pr-4 text-slate-600">{c.who}</td><td className="py-2.5 pr-4 text-slate-700">{c.change}</td></tr>)}</tbody></table></div></Card>
               <Card className="p-6"><SectionTitle icon={ShieldCheck} hint="phục vụ thanh tra">SOP & Deviation / CAPA</SectionTitle><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["SOP", "Áp dụng cho", "Deviation", "CAPA"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{sopRows.map((s, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 font-semibold" style={{ color: COLOR.navy }}>{s.sop}</td><td className="py-2.5 pr-4 text-slate-600">{s.apply}</td><td className="py-2.5 pr-4 text-slate-600">{s.dev}</td><td className="py-2.5 pr-4 text-slate-600">{s.capa}</td></tr>)}</tbody></table></div></Card>
             </div>
           )}
@@ -1146,7 +1300,16 @@ export default function App() {
           {tab === "settings" && (
             <div className="space-y-5">
               <SectionTitle icon={Cog}>Cài đặt</SectionTitle>
-              <Card className="p-6"><SectionTitle icon={SlidersHorizontal} hint="hành động · cảnh báo · chú ý">Nguyên tắc cảnh báo</SectionTitle><p className="text-[12px] text-slate-500 mt-2">Số điểm vượt giới hạn trong 1 giờ (x/60) quyết định mức; số điểm lỗi 10′ gần nhất (x/10) phân biệt <b>Cảnh báo</b> với <b>Hành động</b>.</p><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">{[["Chú ý khi OOS 1h ≥", "notice", "/60"], ["Cảnh báo khi OOS 1h ≥", "warn", "/60"], ["Nâng lên Hành động khi lỗi 10′ ≥", "action", "/10"]].map(([lbl, key, suf]) => <div key={key} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4"><label className="text-[11px] uppercase text-slate-500 font-semibold">{lbl}</label><div className="flex items-center gap-2 mt-2"><input type="number" min="0" value={cfg[key]} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, [key]: Number(e.target.value) })} onBlur={() => saveCfg(cfg)} className="w-20 rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm disabled:bg-slate-100" /><span className="text-sm text-slate-400">{suf} điểm</span></div></div>)}</div>{!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh.</p>}</Card>
+              <Card className="p-6"><SectionTitle icon={SlidersHorizontal} hint="kiểm soát tốt · chú ý · cảnh báo · hành động">Nguyên tắc cảnh báo (4 mức)</SectionTitle><p className="text-[12px] text-slate-500 mt-2">Mỗi giờ chấm tối đa <b>60 điểm</b>. Số điểm vượt giới hạn trong 1 giờ (OOS 1h, x/60) quyết định mức; số điểm lỗi <b>10 phút cuối</b> (x/10) dùng để nâng <b>Cảnh báo → Hành động</b>.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mt-4">
+                  {[
+                    { c: COLOR.teal, bg: "bg-teal-50", ring: "ring-teal-200", txt: "text-teal-700", t: "Kiểm soát tốt", d: `OOS 1h < ${cfg.notice}/60` },
+                    { c: COLOR.sky, bg: "bg-sky-50", ring: "ring-sky-200", txt: "text-sky-700", t: "Cần chú ý", d: `${cfg.notice}–${cfg.warn}/60 điểm OOS 1h` },
+                    { c: COLOR.sand, bg: "bg-amber-50", ring: "ring-amber-200", txt: "text-amber-700", t: "Cảnh báo", d: `OOS 1h > ${cfg.warn}/60 và lỗi 10′ < ${cfg.action}/10` },
+                    { c: COLOR.coralDeep, bg: "bg-rose-50", ring: "ring-rose-200", txt: "text-rose-700", t: "Hành động", d: `OOS 1h > ${cfg.warn}/60 và lỗi 10′ ≥ ${cfg.action}/10` },
+                  ].map((m) => <div key={m.t} className={`rounded-2xl ${m.bg} ring-1 ${m.ring} p-3`}><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: m.c }} /><span className={`text-[12px] font-semibold ${m.txt}`}>{m.t}</span></div><p className="text-[11px] text-slate-600 mt-1.5 leading-snug">{m.d}</p></div>)}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">{[["Ngưỡng CHÚ Ý — OOS 1h ≥", "notice", "/60"], ["Ngưỡng CẢNH BÁO — OOS 1h >", "warn", "/60"], ["Ngưỡng HÀNH ĐỘNG — lỗi 10′ ≥", "action", "/10"]].map(([lbl, key, suf]) => <div key={key} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4"><label className="text-[11px] uppercase text-slate-500 font-semibold">{lbl}</label><div className="flex items-center gap-2 mt-2"><input type="number" min="0" value={cfg[key]} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, [key]: Number(e.target.value) })} onBlur={() => saveCfg(cfg)} className="w-20 rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm disabled:bg-slate-100" /><span className="text-sm text-slate-400">{suf} điểm</span></div></div>)}</div>{!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh.</p>}</Card>
               <Card className="p-6"><SectionTitle icon={History}>Lịch sử thay đổi cấu hình</SectionTitle><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Thay đổi"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{configHistory.map((c, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 text-slate-500 tabular-nums">{c.t}</td><td className="py-2.5 pr-4 text-slate-600">{c.who}</td><td className="py-2.5 pr-4 text-slate-700">{c.change}</td></tr>)}</tbody></table></div><p className="text-[11px] text-slate-400 mt-3">Thêm/sửa cảm biến & giới hạn thực hiện tại tab <b>Phòng → Quản lý phòng</b>.</p></Card>
               <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối Supabase</SectionTitle><div className="space-y-3 mt-4 text-sm">{(() => { const conn = !HAS_SUPABASE ? ["chưa cấu hình", "text-slate-600 bg-slate-100"] : !isLive ? ["DEMO", "text-amber-700 bg-amber-100"] : live.loi ? ["lỗi kết nối", "text-rose-700 bg-rose-100"] : live.dangTai ? ["đang tải…", "text-sky-700 bg-sky-100"] : ["đã kết nối", "text-teal-700 bg-teal-100"]; const keyState = HAS_SUPABASE ? ["đã nạp", "text-teal-700 bg-teal-100"] : ["thiếu .env", "text-rose-700 bg-rose-100"]; const rows = [{ k: "Nguồn dữ liệu", v: isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu", s: conn }, { k: "Khóa môi trường", v: HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập", s: keyState }, { k: "Cập nhật gần nhất", v: live.capNhatLuc ? live.capNhatLuc.toLocaleString("vi-VN") : "—", s: conn }]; return rows.map((r, i) => <div key={i} className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0"><span className="text-slate-500 w-44">{r.k}</span><code className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded-lg ring-1 ring-slate-200 flex-1">{r.v}</code><span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.s[1]}`}>{r.s[0]}</span></div>); })()}</div>{isLive && live.loi && <p className="text-[11px] text-rose-600 mt-3">Chi tiết lỗi: {live.loi.thong_bao || live.loi.message || "không xác định"}</p>}</Card>
               <DoiMatKhauCard user={user} isLive={isLive} />
@@ -1159,6 +1322,11 @@ export default function App() {
 
       {modal && <ApprovalModal incident={modal} user={user} onClose={() => setModal(null)} onCommit={handleCommit} />}
       {roomModal && <RoomDetailModal room={roomModal} onClose={() => setRoomModal(null)} />}
+      {kpiModal && <KpiListModal kind={kpiModal} groups={nhomPhong} incidents={suCoP1} cfg={cfg}
+        onClose={() => setKpiModal(null)}
+        onPickRoom={(r) => { setKpiModal(null); setRoomModal(r); }}
+        onPickIncident={(i) => { setKpiModal(null); openApproval(i); }}
+        onGotoIncidents={() => { setKpiModal(null); setTab("events"); }} />}
       {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} isLive={isLive} />}
       {pwOpen && <DoiMatKhauModal user={user} isLive={isLive} onClose={() => setPwOpen(false)} />}
     </div>
