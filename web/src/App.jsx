@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiGiaTriPhong, luuPhanTichAi, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, luuPhanTichAi, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import AuthGate from "./AuthGate";
 import {
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import {
   ComposedChart, Bar, Line, AreaChart, Area, BarChart, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea
+  Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea, Legend
 } from "recharts";
 import logoCpc1hn from "./assets/logo-cpc1hn.png";
 
@@ -208,7 +208,7 @@ function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
   return (
     <Card className="p-5 transition hover:-translate-y-0.5">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0"><div className="flex items-center gap-2"><h3 className="text-[15px] font-semibold truncate" style={{ color: COLOR.navy }}>{room.name}</h3><MucBadge p={room.priority} /></div><p className="text-[11px] text-slate-500 mt-0.5 tracking-wide truncate">{room.id} · Khu {room.area} · {room.ahu}</p>{room.lastSeen && (() => { const a = room.agePhut; const tone = a == null ? "text-slate-400 bg-slate-100" : a <= 90 ? "text-teal-700 bg-teal-50" : a <= 240 ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"; const txt = a == null ? "—" : a === 0 ? "mới nhất" : a < 60 ? `${a}′ trước` : `trễ ${(a / 60).toFixed(1)}h`; return <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1 truncate"><Clock className="w-3 h-3 shrink-0" strokeWidth={1.8} /> Dữ liệu giờ: <span className="tabular-nums text-slate-500">{room.lastSeen}</span> <span className={`px-1.5 py-0.5 rounded-full font-semibold ${tone}`}>{txt}</span></p>; })()}</div>
+        <div className="min-w-0"><div className="flex items-center gap-2"><h3 className="text-[15px] font-semibold truncate" style={{ color: COLOR.navy }}>{room.name}</h3><MucBadge p={room.priority} /></div><p className="text-[11px] text-slate-500 mt-0.5 tracking-wide truncate">{room.id} · Khu {room.area} · {room.ahu}</p>{room.lastSeen && (() => { const a = room.agePhut; const tone = a == null ? "text-slate-400 bg-slate-100" : a <= 75 ? "text-teal-700 bg-teal-50" : a <= 150 ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"; const txt = a == null ? "—" : a < 60 ? `${a}′ trước` : `${(a / 60).toFixed(1)}h trước`; return <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1 flex-wrap"><Clock className="w-3 h-3 shrink-0" strokeWidth={1.8} /> Cập nhật lúc <span className="tabular-nums text-slate-600 font-medium">{room.lastSeen}</span>{room.window && <span className="text-slate-400">· khung {room.window}</span>} <span className={`px-1.5 py-0.5 rounded-full font-semibold ${tone}`}>{txt}</span></p>; })()}</div>
         <div className="text-right shrink-0">{room.noData ? <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Mất dữ liệu</span> : comp == null ? <span className="inline-flex items-center gap-1 text-slate-400 text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Chưa có DL</span> : (<><p className={`text-2xl font-light tabular-nums ${failing ? "text-rose-600" : "text-teal-600"}`}>{comp}%</p><p className="text-[10px] text-slate-400">tuân thủ 1h</p></>)}</div>
       </div>
 
@@ -251,10 +251,10 @@ function RoomDetailModal({ room, onClose }) {
           <div key={s.k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-4">
             <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[s.k].label} ({s.k})</p><p className="text-[11px] text-slate-500">Giới hạn: {s.min != null ? `≥ ${s.min}` : "—"}{s.max != null ? ` · ≤ ${s.max}` : ""} {unit}</p></div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center">{[["Hiện tại", `${st.cur ?? "—"} ${unit}`], ["TB 1h", `${st.avg1h ?? "—"}`], ["TB 8h", mean == null ? "—" : `${mean}`], ["OOS 1h", st.oos1h == null ? "—" : `${st.oos1h}/60`], ["OOS 10′ cuối", st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : <div style={{ height: 168 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={pts} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
+            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : <div style={{ height: 182 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={pts} margin={{ top: 8, right: 14, left: 2, bottom: 0 }}>
               <CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={34} domain={["auto", "auto"]} />
+              <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={["auto", "auto"]} tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
               <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => [v == null ? "—" : `${v} ${unit}`, n === "avg" ? "TB giờ" : n === "_band" ? "Min–Max" : n]} />
               {s.min != null && s.max != null && <ReferenceArea y1={s.min} y2={s.max} fill={COLOR.teal} fillOpacity={0.10} stroke="none" />}
               {pts.some((p) => p.vmin != null && p.vmax != null) && <Area type="monotone" dataKey={(d) => (d.vmin != null && d.vmax != null ? [d.vmin, d.vmax] : null)} name="_band" stroke="none" fill={COLOR.sky} fillOpacity={0.14} connectNulls isAnimationActive={false} />}
@@ -417,6 +417,20 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onEdit, onDelete, onUpdateL
 }
 
 /* ===== XU HƯỚNG ===== */
+// Thống kê hồi quy tuyến tính cho 1 chuỗi số: trung bình, độ lệch chuẩn, độ dốc/điểm, R², min, max
+function regStat(ys) {
+  const n = ys.length;
+  if (!n) return { n: 0 };
+  const mean = ys.reduce((a, v) => a + v, 0) / n;
+  const std = Math.sqrt(ys.reduce((a, v) => a + (v - mean) ** 2, 0) / n);
+  let slope = 0, r2 = 0;
+  if (n >= 2) {
+    const xm = (n - 1) / 2; let sxy = 0, sxx = 0, syy = 0;
+    ys.forEach((y, i) => { sxy += (i - xm) * (y - mean); sxx += (i - xm) ** 2; syy += (y - mean) ** 2; });
+    slope = sxx ? sxy / sxx : 0; r2 = (sxx && syy) ? (sxy * sxy) / (sxx * syy) : 0;
+  }
+  return { n, mean, std, slope, r2, vmin: Math.min(...ys), vmax: Math.max(...ys) };
+}
 function TrendTooltip({ active, payload, label }) {
   if (!active || !payload || !payload.length) return null; const d = payload[0].payload;
   return <div className="rounded-2xl bg-white px-3.5 py-2.5 ring-1 ring-slate-200" style={{ boxShadow: "0 10px 30px -8px rgba(35,80,110,0.4)" }}><p className="text-xs font-semibold mb-1.5" style={{ color: COLOR.navy }}>{label}</p><div className="space-y-1 text-[11px]"><p className="flex justify-between gap-4"><span className="text-slate-500">Tổng giờ cảnh báo</span><span className="font-semibold tabular-nums">{fmtH(d.alert)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.sand }}>● Warning</span><span className="tabular-nums">{fmtH(d.warnH)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.softCoral }}>● Critical</span><span className="tabular-nums">{fmtH(d.critH)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.teal }}>― Tuân thủ</span><span className="tabular-nums">{fmtPct(d.comp)}</span></p></div></div>;
@@ -466,14 +480,18 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
   const [selId, setSelId] = useState("");
   const [sensor, setSensor] = useState("ALL");
   const [optArea, setOptArea] = useState("ALL");
+  const [optAhu, setOptAhu] = useState("ALL");
   const [query, setQuery] = useState("");
   const [dtFrom, setDtFrom] = useState("");
   const [dtTo, setDtTo] = useState("");
+  const [dtFromDraft, setDtFromDraft] = useState("");
+  const [dtToDraft, setDtToDraft] = useState("");
   const [aiResult, setAiResult] = useState(null);
   const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90 };
   const [liveSeries, setLiveSeries] = useState({});   // {scopeId: chuỗi 90 ngày ALL} — cho mini-scope & thẻ kỳ
   const [mainSeries, setMainSeries] = useState({});   // {`id|sensor|range`: chuỗi chính (giờ/ngày + đúng cảm biến)}
   const [roomBand, setRoomBand] = useState({});       // {`room|sensor|range`: chuỗi giá trị TB + giới hạn (phòng)}
+  const [multiSensor, setMultiSensor] = useState({}); // {`room|range`: [{k, series}]} — vẽ ĐỦ DP/RH/T của 1 phòng
 
   // Vũ trụ scope ở chế độ LIVE — DỰNG TỪ DANH SÁCH PHÒNG (luôn có dữ liệu nhờ WF1)
   //   rồi LÀM GIÀU bằng bảng xếp hạng rủi ro v2 (tỉ lệ đạt 1/3/7 ngày + chuỗi 14 ngày).
@@ -528,8 +546,23 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
   const lByType = (t) => liveScopes.filter((s) => s.type === t).sort((a, b) => b.risk - a.risk);
   const lFind = (id) => liveScopes.find((s) => s.id === id);
 
+  // Danh sách Khu / AHU lấy TỪ DỮ LIỆU thật (không hardcode) — #2
+  const areaList = useMemo(() => {
+    const src = isLive ? (liveRooms || []) : MASTER.filter((m) => m.type === "ROOM");
+    return [...new Set(src.map((r) => r.area).filter(Boolean))].sort();
+  }, [isLive, liveRooms]);
+  const ahuList = useMemo(() => {
+    let src = isLive ? (liveRooms || []) : MASTER.filter((m) => m.type === "ROOM");
+    if (optArea !== "ALL") src = src.filter((r) => r.area === optArea);
+    return [...new Set(src.map((r) => r.ahu).filter(Boolean))].sort();
+  }, [isLive, liveRooms, optArea]);
+
   const allOptions = useMemo(() => isLive ? (level === "TOTAL" ? lByType("TOTAL") : lByType(level)) : (level === "TOTAL" ? [findScope("ALL")] : byType(level)), [isLive, level, liveScopes]); // eslint-disable-line
-  const options = useMemo(() => allOptions.filter((o) => o && (optArea === "ALL" || o.area === optArea) && (!query || `${o.id} ${o.name}`.toLowerCase().includes(query.toLowerCase()))), [allOptions, optArea, query]);
+  const options = useMemo(() => allOptions.filter((o) => o
+    && (optArea === "ALL" || o.area === optArea)
+    && (optAhu === "ALL" || o.ahu === optAhu)
+    && (!query || `${o.id} ${o.name}`.toLowerCase().includes(query.toLowerCase()))
+  ), [allOptions, optArea, optAhu, query]);
   const activeId = selId && options.some((o) => o.id === selId) ? selId : (options[0] ? options[0].id : "ALL");
   const activeScope = (isLive ? lFind(activeId) : findScope(activeId)) || (isLive ? (liveScopes[0] || { id: "ALL", name: "—", daily: [{}], latest: {} }) : findScope("ALL"));
   const trendKey = `${activeId}|${sensor}|${range}`;   // khóa cache chuỗi chính
@@ -550,12 +583,12 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
   }, [isLive, activeId, miniIds]); // eslint-disable-line
 
   // LIVE: chuỗi CHÍNH cho biểu đồ — phụ thuộc scope · cảm biến · khoảng.
-  // range '1n' → THEO GIỜ (24 giờ gần nhất); còn lại → theo ngày. sensor lọc đúng chỉ tiêu.
+  // #3: 24 giờ & 7 ngày → THEO GIỜ; chỉ 30 ngày & 90 ngày → theo NGÀY.
   useEffect(() => {
     if (!isLive || !activeId) return;
     if (mainSeries[trendKey]) return;                 // đã có cache
-    const donVi = range === "1n" ? "GIO" : "NGAY";
-    const soDiem = range === "1n" ? 24 : (RANGE_DAYS[range] || 30);
+    const donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
+    const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
     const sc = lFind(activeId);
     let huy = false;
     (async () => {
@@ -573,8 +606,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
   useEffect(() => {
     if (!wantRoomBand) return;
     if (roomBand[roomBandKey]) return;
-    const donVi = range === "1n" ? "GIO" : "NGAY";
-    const soDiem = range === "1n" ? 24 : (RANGE_DAYS[range] || 30);
+    const donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
+    const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
     let huy = false;
     (async () => {
       const r = await layChuoiGiaTriPhong(activeId, sensor, donVi, soDiem);
@@ -584,13 +617,51 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
     return () => { huy = true; };
   }, [wantRoomBand, activeId, sensor, range]); // eslint-disable-line
 
-  const demoFull = useMemo(() => isLive ? [] : getSeries(activeScope, sensor, range), [isLive, activeScope, sensor, range]); // eslint-disable-line
+  // #3 — chuỗi ĐA CẢM BIẾN cho 1 PHÒNG (vẽ đủ DP/RH/T). Tải khi đang xem cấp PHÒNG.
+  const multiKey = `${activeId}|${range}`;
+  const wantMulti = isLive && activeScope && activeScope.type === "ROOM";
+  useEffect(() => {
+    if (!wantMulti) return;
+    if (multiSensor[multiKey]) return;
+    const donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
+    const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
+    let huy = false;
+    (async () => {
+      const r = await layChuoiXuHuongDaSensor("ROOM", activeId, donVi, soDiem);
+      if (huy) return;
+      setMultiSensor((m) => ({ ...m, [multiKey]: (r && r.perSensor) || [] }));
+    })();
+    return () => { huy = true; };
+  }, [wantMulti, activeId, range]); // eslint-disable-line
+
+  // Gộp chuỗi đa cảm biến theo mốc thời gian → {ts,label,comp_DP,oos_DP,comp_RH,...}
+  const multiMerged = useMemo(() => {
+    if (!wantMulti) return [];
+    const ps = multiSensor[multiKey] || [];
+    const byTs = new Map();
+    ps.forEach((g) => (g.series || []).forEach((p) => {
+      const cur = byTs.get(p.ts) || { ts: p.ts, label: p.label };
+      cur[`comp_${g.k}`] = p.comp; cur[`oos_${g.k}`] = p.oos;
+      byTs.set(p.ts, cur);
+    }));
+    return [...byTs.values()].sort((a, b) => a.ts - b.ts);
+  }, [wantMulti, multiSensor, multiKey]);
+  const sensorsPresent = useMemo(() => (wantMulti ? (multiSensor[multiKey] || []).map((g) => g.k) : []), [wantMulti, multiSensor, multiKey]);
   const full = isLive ? (mainSeries[trendKey] || []) : demoFull;
   const minTs = full[0]?.ts, maxTs = full[full.length - 1]?.ts;
   const fromMs = dtFrom ? new Date(dtFrom).getTime() : minTs;
   const toMs = dtTo ? new Date(dtTo).getTime() : maxTs;
   const series = full.filter((r) => r.ts >= Math.min(fromMs, toMs) && r.ts <= Math.max(fromMs, toMs));
   const view = series.length ? series : full;
+  const isHourly = range === "1n" || range === "7n";   // #3: 24 giờ & 7 ngày theo GIỜ
+  const xTick = (n) => Math.max(0, Math.floor(n / 12));  // ~12 mốc trục X cho dễ đọc
+  // #3 — chuỗi đa cảm biến đã lọc theo cùng cửa sổ thời gian
+  const viewMulti = useMemo(() => {
+    if (!wantMulti || !multiMerged.length) return [];
+    const f = multiMerged.filter((r) => r.ts >= Math.min(fromMs, toMs) && r.ts <= Math.max(fromMs, toMs));
+    return f.length ? f : multiMerged;
+  }, [wantMulti, multiMerged, fromMs, toMs]);
+  const showMulti = wantMulti && sensor === "ALL" && viewMulti.length > 0 && sensorsPresent.length > 0;
 
   const latest = view[view.length - 1] || {};
   const prev = view[view.length - 2] || {};
@@ -621,34 +692,57 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
   // #4 — Phân tích kỹ thuật của chuỗi đang xem (cho AI + bảng cạnh biểu đồ)
   const tech = useMemo(() => {
     const ys = view.map((r) => r.comp).filter((v) => v != null);
-    const n = ys.length;
-    if (!n) return { n: 0 };
-    const mean = ys.reduce((a, v) => a + v, 0) / n;
-    const variance = ys.reduce((a, v) => a + (v - mean) ** 2, 0) / n;
-    const std = Math.sqrt(variance);
-    // hồi quy tuyến tính theo chỉ số thời gian → độ dốc (%/điểm) + R²
-    let slope = 0, r2 = 0;
-    if (n >= 2) {
-      const xm = (n - 1) / 2;
-      let sxy = 0, sxx = 0, syy = 0;
-      ys.forEach((y, i) => { sxy += (i - xm) * (y - mean); sxx += (i - xm) ** 2; syy += (y - mean) ** 2; });
-      slope = sxx ? sxy / sxx : 0;
-      r2 = (sxx && syy) ? (sxy * sxy) / (sxx * syy) : 0;
-    }
-    const vmin = Math.min(...ys), vmax = Math.max(...ys);
+    const s = regStat(ys);
+    if (!s.n) return { n: 0 };
     const totOos = view.reduce((a, r) => a + (r.oos || 0), 0);
     const dqAvg = (() => { const d = view.map((r) => r.dq).filter((v) => v != null); return d.length ? d.reduce((a, v) => a + v, 0) / d.length : null; })();
-    return { n, mean, std, slope, r2, vmin, vmax, totOos, dqAvg };
+    return { ...s, totOos, dqAvg };
   }, [view]);
 
   const runAI = () => {
-    const avg = tech.n ? tech.mean : 0;
-    const worst = [...view].sort((a, b) => b.alert - a.alert)[0];
-    const win = dtFrom || dtTo ? `, ${view[0]?.label}→${view[view.length - 1]?.label}` : "";
+    const donViLbl = isHourly ? "giờ" : "ngày";
+    const perTxt2 = isHourly ? "%/giờ" : "%/ngày";
+    if (!tech.n) {
+      const p = { scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor).label, range: RANGES.find((r) => r.k === range).label, text: "Chưa có đủ dữ liệu trong khoảng đã chọn để phân tích. Hãy mở rộng khoảng thời gian hoặc kiểm tra kết nối FMS/WF1.", time: new Date().toLocaleString("vi-VN"), level: 0 };
+      onAI(p); setAiResult(p); return;
+    }
+    const avg = tech.mean;
     const level = avg < 70 ? 3 : avg < 80 ? 2 : avg < 88 ? 1 : 0;
-    const slopeTxt = tech.n >= 2 ? `${tech.slope > 0 ? "tăng" : tech.slope < 0 ? "giảm" : "đi ngang"} ${Math.abs(tech.slope).toFixed(2)}%/${range === "1n" ? "giờ" : "ngày"} (R²=${tech.r2.toFixed(2)})` : "chưa đủ điểm để ước lượng";
-    const rateTxt = `tỉ lệ đạt 1 ngày ${fmtPct(activeScope.dat1n)}, 3 ngày ${fmtPct(activeScope.dat3n)}, 7 ngày ${fmtPct(activeScope.dat7n)}`;
-    const text = `Trong khoảng ${RANGES.find((r) => r.k === range).label}${win} của ${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label}: tỉ lệ đạt trung bình ${avg.toFixed(1)}% (độ lệch chuẩn ${tech.std?.toFixed(1) ?? "—"}%), ${rateTxt}; xu hướng ${slopeTxt}, Δ7 ngày ${fmtDelta(delta7)}, tổng giờ cảnh báo ${fmtH(totalAlert)}${worst ? `, cao điểm ${worst.label} (${fmtH(worst.alert)})` : ""}. Khuyến nghị: ${avg < 80 || tech.slope < -0.5 ? "ưu tiên kiểm tra AHU/cảm biến liên quan, lập CAPA nếu tái diễn." : "duy trì giám sát, chưa cần can thiệp khẩn."}`;
+    const win = (dtFrom || dtTo) ? ` (lọc ${view[0]?.label}→${view[view.length - 1]?.label})` : "";
+    const worst = [...view].sort((a, b) => (b.oos || 0) - (a.oos || 0) || (a.comp ?? 999) - (b.comp ?? 999))[0];
+    const slopeTxt = tech.n >= 2 ? `${tech.slope > 0 ? "tăng" : tech.slope < 0 ? "giảm" : "đi ngang"} ${Math.abs(tech.slope).toFixed(2)} ${perTxt2} (R²=${tech.r2.toFixed(2)}, ${tech.r2 >= 0.5 ? "xu hướng rõ" : "biến động ngẫu nhiên"})` : "chưa đủ điểm để ước lượng";
+    const dqTxt = tech.dqAvg != null ? `${tech.dqAvg.toFixed(0)}%` : "—";
+    const dqWarn = tech.dqAvg != null && tech.dqAvg < 80 ? ` — ⚠ độ đầy đủ dữ liệu thấp làm giảm độ tin cậy kết luận` : "";
+    const rateTxt = `đạt 1 ngày ${fmtPct(activeScope.dat1n)} · 3 ngày ${fmtPct(activeScope.dat3n)} · 7 ngày ${fmtPct(activeScope.dat7n)}`;
+
+    // Phân tích TỪNG cảm biến (khi đang xem phòng và có dữ liệu đa cảm biến)
+    const perSensorLines = [];
+    if (showMulti) {
+      sensorsPresent.forEach((k) => {
+        const ys = viewMulti.map((r) => r[`comp_${k}`]).filter((v) => v != null);
+        const st = regStat(ys);
+        if (!st.n) return;
+        const oosTot = viewMulti.reduce((a, r) => a + (r[`oos_${k}`] || 0), 0);
+        const dir = st.slope > 0.05 ? "đang cải thiện" : st.slope < -0.05 ? "đang xấu đi" : "đi ngang";
+        const tin = st.r2 >= 0.5 ? "rõ" : "chưa rõ";
+        perSensorLines.push(`• ${SENSOR_META[k]?.label || k}: đạt TB ${st.mean.toFixed(1)}% (${st.vmin.toFixed(0)}–${st.vmax.toFixed(0)}%), dốc ${st.slope > 0 ? "+" : ""}${st.slope.toFixed(2)} ${perTxt2} [R²=${st.r2.toFixed(2)}, ${tin}] → ${dir}; ${oosTot} điểm OOS.`);
+      });
+    }
+    const khuyenNghi = (avg < 80 || tech.slope < -0.5)
+      ? `IPC: kiểm tra hiện trường ${activeScope.name} (cửa/chốt liên động, chênh áp thực, chế độ phòng). Cơ điện: soát AHU${activeScope.ahu ? " " + activeScope.ahu : ""} — lưu lượng, cấp lọc, van/biến tần, rò khí. QA: xem xét mở/đánh giá CAPA nếu tái diễn, rà soát rủi ro liên đới.`
+      : `Duy trì giám sát thường quy; chưa cần can thiệp khẩn. QA tiếp tục theo dõi các ${donViLbl} tới.`;
+    const i = (a, b) => (showMulti ? a : b); // đánh số mục (có/không có phần đa cảm biến)
+    const text = [
+      `Phân tích ${activeScope.name} · ${showMulti ? `đủ cảm biến (${sensorsPresent.join("/")})` : SENSORS.find((s) => s.k === sensor).label} · khoảng ${RANGES.find((r) => r.k === range).label}${win} · ${tech.n} điểm theo ${donViLbl}.`,
+      `1) Tổng quan: tỉ lệ đạt trung bình ${avg.toFixed(1)}% (dao động ${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%, độ lệch chuẩn ${tech.std.toFixed(1)}%); ${rateTxt}.`,
+      showMulti && perSensorLines.length ? `2) Theo từng cảm biến:\n${perSensorLines.join("\n")}` : "",
+      `${i("3", "2")}) Xu hướng tổng: ${slopeTxt}; Δ7 ${donViLbl} ${fmtDelta(delta7)}.`,
+      `${i("4", "3")}) OOS: tổng ${tech.totOos} điểm ngoài giới hạn${worst ? `; cao điểm tại ${worst.label} (đạt ${fmtPct(worst.comp)}, ${worst.oos || 0} điểm OOS)` : ""}.`,
+      `${i("5", "4")}) Chất lượng dữ liệu: ${dqTxt}${dqWarn}.`,
+      `${i("6", "5")}) Khuyến nghị: ${khuyenNghi}`,
+      `AI chỉ hỗ trợ phân tích xu hướng; quyết định GMP do IPC/QA phê duyệt.`,
+    ].filter(Boolean).join("\n");
+
     const payload = { scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor).label, range: RANGES.find((r) => r.k === range).label, text, time: new Date().toLocaleString("vi-VN"), level };
     onAI(payload); setAiResult(payload);
     if (isLive && onSaveAI) onSaveAI({ scopeType: activeScope.type, scopeId: activeScope.id, scopeName: activeScope.name, sensor, days: RANGE_DAYS[range] || 30, text, level });
@@ -663,7 +757,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
   const bandHi = [...bandSeries].reverse().find((p) => p.hi != null)?.hi ?? null;
   const bandMean = bandSeries.length ? +(bandSeries.reduce((a, p) => a + (p.avg ?? 0), 0) / bandSeries.filter((p) => p.avg != null).length).toFixed(2) : null;
   const sUnit = SENSOR_META[sensor]?.unit || "";
-  const perTxt = range === "1n" ? "%/giờ" : "%/ngày"; // đơn vị độ dốc theo khoảng xem
+  const perTxt = (range === "1n" || range === "7n") ? "%/giờ" : "%/ngày"; // đơn vị độ dốc theo khoảng xem
 
   return (
     <div className="space-y-5">
@@ -674,24 +768,43 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
 
       <Card className="p-5">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Khoảng</span>{RANGES.map((r) => <Chip key={r.k} active={range === r.k} onClick={() => { setRange(r.k); setDtFrom(""); setDtTo(""); }}>{r.label}</Chip>)}</div>
-          <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Cấp xem</span>{SCOPE_LEVELS.map((s) => <Chip key={s.k} active={level === s.k} onClick={() => { setLevel(s.k); setSelId(""); setQuery(""); setOptArea("ALL"); }}>{s.label}</Chip>)}</div>
+          <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Khoảng</span>{RANGES.map((r) => <Chip key={r.k} active={range === r.k} onClick={() => { setRange(r.k); setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }}>{r.label}</Chip>)}</div>
+          <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Cấp xem</span>{SCOPE_LEVELS.map((s) => <Chip key={s.k} active={level === s.k} onClick={() => { setLevel(s.k); setSelId(""); setQuery(""); setOptArea("ALL"); setOptAhu("ALL"); }}>{s.label}</Chip>)}</div>
           <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Chỉ tiêu</span>{SENSORS.map((s) => <Chip key={s.k} active={sensor === s.k} onClick={() => setSensor(s.k)}>{s.label}</Chip>)}</div>
         </div>
-        <div className="mt-3 flex items-center gap-2 flex-wrap rounded-2xl bg-sky-50/50 ring-1 ring-sky-100 px-3 py-2.5">
-          <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Từ ngày–giờ</span>
-          <input type="datetime-local" value={dtFrom} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtFrom(e.target.value)} className={sel} />
-          <span className="text-[12px] text-slate-500">đến</span>
-          <input type="datetime-local" value={dtTo} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtTo(e.target.value)} className={sel} />
-          {(dtFrom || dtTo) && <button onClick={() => { setDtFrom(""); setDtTo(""); }} className="text-[11px] text-slate-500 underline">Đặt lại</button>}
-          <span className="text-[11px] text-slate-400 ml-1">Đang xem {view.length}/{full.length} điểm{range === "1n" ? " (theo giờ)" : " (theo ngày)"}</span>
+        {/* Lọc nhanh + chọn khoảng thời gian (có nút Áp dụng) — #2 */}
+        <div className="mt-3 rounded-2xl bg-sky-50/50 ring-1 ring-sky-100 px-3 py-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Lọc nhanh</span>
+            {(isHourly
+              ? [["6 giờ qua", 6], ["12 giờ qua", 12], ["24 giờ qua", 24]]
+              : [["7 ngày qua", 7 * 24], ["14 ngày qua", 14 * 24], ["30 ngày qua", 30 * 24]]
+            ).map(([lab, hrs]) => <Chip key={lab} active={false} onClick={() => { if (!maxTs) return; const f = maxTs - hrs * 3600000; const fs = toLocalInput(f), ts2 = toLocalInput(maxTs); setDtFrom(fs); setDtTo(ts2); setDtFromDraft(fs); setDtToDraft(ts2); }}>{lab}</Chip>)}
+            <Chip active={!dtFrom && !dtTo} onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }}>Toàn khoảng</Chip>
+          </div>
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Từ → đến</span>
+            <input type="datetime-local" value={dtFromDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtFromDraft(e.target.value)} className={sel} />
+            <span className="text-[12px] text-slate-500">đến</span>
+            <input type="datetime-local" value={dtToDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtToDraft(e.target.value)} className={sel} />
+            <button onClick={() => { setDtFrom(dtFromDraft); setDtTo(dtToDraft); }} className="text-[12px] font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: COLOR.teal }}><Search className="w-3.5 h-3.5" strokeWidth={1.8} /> Áp dụng</button>
+            {(dtFrom || dtTo || dtFromDraft || dtToDraft) && <button onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }} className="text-[11px] text-slate-500 underline">Đặt lại</button>}
+            <span className="text-[11px] text-slate-400 ml-1">Đang xem {view.length}/{full.length} điểm{isHourly ? " (theo giờ)" : " (theo ngày)"}</span>
+          </div>
         </div>
         {level !== "TOTAL" && (
-          <div className="mt-3 rounded-2xl bg-sky-50/60 ring-1 ring-sky-100 p-3.5 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Lọc khu</span>{["ALL", ...AREAS].map((a) => <Chip key={a} active={optArea === a} onClick={() => { setOptArea(a); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
-            <div className="flex items-center gap-2 flex-1 min-w-[200px] rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2"><Search className="w-3.5 h-3.5 text-slate-400" strokeWidth={1.8} /><input value={query} onChange={(e) => { setQuery(e.target.value); setSelId(""); }} placeholder="Tìm mã / tên…" className="w-full text-[13px] text-slate-700 outline-none bg-transparent" /></div>
-            <select value={activeId} onChange={(e) => setSelId(e.target.value)} className={sel + " min-w-[240px]"}>{options.length === 0 ? <option>Không có kết quả</option> : options.map((o) => <option key={o.id} value={o.id}>{o.id} — {o.name} · {fmtPct(o.latest.compliance)} · risk {o.risk}</option>)}</select>
-            <span className="text-[11px] text-slate-500">{options.length} đối tượng</span>
+          <div className="mt-3 rounded-2xl bg-sky-50/60 ring-1 ring-sky-100 p-3.5 space-y-3">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Lọc khu</span>{["ALL", ...areaList].map((a) => <Chip key={a} active={optArea === a} onClick={() => { setOptArea(a); setOptAhu("ALL"); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
+              {(level === "ROOM" || level === "AHU") && ahuList.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Lọc AHU</span>{["ALL", ...ahuList].map((a) => <Chip key={a} active={optAhu === a} onClick={() => { setOptAhu(a); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="flex items-center gap-2 flex-1 min-w-[220px] rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2"><Search className="w-3.5 h-3.5 text-slate-400" strokeWidth={1.8} /><input value={query} onChange={(e) => { setQuery(e.target.value); setSelId(""); }} placeholder={`Tìm ${level === "ROOM" ? "phòng" : level === "AHU" ? "AHU" : "khu"} theo mã / tên…`} className="w-full text-[13px] text-slate-700 outline-none bg-transparent" />{query && <button onClick={() => setQuery("")} className="text-slate-300 hover:text-slate-500"><X className="w-3.5 h-3.5" strokeWidth={1.8} /></button>}</div>
+              <select value={activeId} onChange={(e) => setSelId(e.target.value)} className={sel + " min-w-[240px]"}>{options.length === 0 ? <option>Không có kết quả</option> : options.map((o) => <option key={o.id} value={o.id}>{o.id} — {o.name}{o.latest && o.latest.compliance != null ? ` · ${fmtPct(o.latest.compliance)}` : ""}</option>)}</select>
+              <span className="text-[11px] text-slate-500">{options.length} đối tượng</span>
+            </div>
           </div>
         )}
       </Card>
@@ -718,7 +831,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
         {aiResult && (() => { const al = [{ l: "Kiểm soát tốt", c: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200" }, { l: "Cần chú ý", c: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200" }, { l: "Cảnh báo", c: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200" }, { l: "Hành động", c: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200" }][aiResult.level]; return (
           <Card className={`p-5 ring-1 ${al.ring}`}>
             <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Kết quả AI phân tích &amp; cảnh báo</SectionTitle><span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Mức cảnh báo: {al.l}</span></div>
-            <p className="mt-3 text-[13px] leading-relaxed text-slate-600">{aiResult.text}</p>
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-600 whitespace-pre-line">{aiResult.text}</p>
             <p className="mt-2 text-[11px] text-slate-400">Đã lưu vào tab <b>Báo cáo</b> để gửi email · {aiResult.time}</p>
           </Card>
         ); })()}
@@ -728,10 +841,10 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
               <p className="mt-4 text-[13px] text-amber-600">Đang tải dữ liệu giá trị phòng… (nếu không có, phòng này chưa ghi nhận giá trị {SENSOR_META[sensor].label} trong khoảng đã chọn)</p>
             ) : (<>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4 mb-2 text-center">{[["Trung bình", bandMean == null ? "—" : `${bandMean} ${sUnit}`], ["GHD", bandLo == null ? "—" : `${bandLo} ${sUnit}`], ["GHT", bandHi == null ? "—" : `${bandHi} ${sUnit}`], ["Số điểm", `${bandSeries.length}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-              <div style={{ height: 250 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={bandSeries} margin={{ top: 10, right: 14, left: -10, bottom: 4 }}>
+              <div style={{ height: 250 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={bandSeries} margin={{ top: 10, right: 14, left: -2, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={range === "1n" ? 2 : range === "90n" ? 11 : range === "30n" ? 4 : 0} />
-                <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={38} domain={["auto", "auto"]} />
+                <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTick(bandSeries.length)} />
+                <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={["auto", "auto"]} tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
                 <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => [`${v} ${sUnit}`, n === "avg" ? "TB" : n === "vmin" ? "Thấp nhất" : n === "vmax" ? "Cao nhất" : n]} />
                 {bandLo != null && bandHi != null && <ReferenceArea y1={bandLo} y2={bandHi} fill={COLOR.teal} fillOpacity={0.08} stroke="none" />}
                 {bandLo != null && <ReferenceLine y={bandLo} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${bandLo}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
@@ -759,31 +872,34 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">{[["Đạt 1 ngày", fmtPct(activeScope.dat1n)], ["Đạt 3 ngày", fmtPct(activeScope.dat3n)], ["Đạt 7 ngày", fmtPct(activeScope.dat7n)], ["Min–Max kỳ", tech.n ? `${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%` : "—"]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-2"><p className="text-[9px] uppercase text-slate-400 font-semibold">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
           <p className="text-[11px] text-slate-400 mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Bấm <b>“AI phân tích &amp; cảnh báo”</b> để tổng hợp thành kết luận và mức cảnh báo.</p>
         </Card>
-        <Card className="p-6"><SectionTitle icon={LineIcon} hint={`${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label} · biểu đồ cá thể theo ${range === "1n" ? "giờ" : "ngày"}`}>% đạt theo thời gian</SectionTitle>
-          <div className="mt-4" style={{ height: 260 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={view} margin={{ top: 10, right: 14, left: -8, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={range === "1n" ? 2 : range === "90n" ? 11 : range === "30n" ? 4 : 0} />
-            <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={38} domain={[(dmin) => Math.max(0, Math.floor(dmin - 5)), 100]} />
-            <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v) => [fmtPct(v), "% đạt"]} />
-            <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "ngưỡng 80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
-            <Line type="monotone" dataKey="comp" stroke={COLOR.teal} strokeWidth={2.2} isAnimationActive={false}
-              dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const low = payload.comp != null && payload.comp < 80; return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={2.8} fill={low ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={0.8} />; }}
-              activeDot={{ r: 4 }} />
-          </ComposedChart></ResponsiveContainer></div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> &lt; 80% (điểm đỏ)</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
+        <Card className="p-6"><SectionTitle icon={LineIcon} hint={showMulti ? `${activeScope.name} · đủ cảm biến (${sensorsPresent.join("/")}) · theo ${isHourly ? "giờ" : "ngày"}` : `${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label} · theo ${isHourly ? "giờ" : "ngày"}`}>% đạt theo thời gian{showMulti ? " — theo từng cảm biến" : ""}</SectionTitle>
+          <p className="text-[11px] text-slate-400 mt-1">Mỗi điểm: % đạt = 100% − % ngoài giới hạn (OOS) — gộp chung một biểu đồ. Đường dưới mốc 80% là kỳ cần chú ý.</p>
+          {showMulti ? (
+            <div className="mt-3" style={{ height: 280 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={viewMulti} margin={{ top: 10, right: 14, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTick(viewMulti.length)} />
+              <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={[(dmin) => Math.max(0, Math.floor(dmin - 5)), 100]} tickFormatter={(v) => `${v}%`} />
+              <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => { const k = String(n).replace("comp_", ""); const lab = SENSOR_META[k]?.label || k; return [`${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`, lab]; }} />
+              <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
+              {sensorsPresent.includes("DP") && <Line type="monotone" dataKey="comp_DP" name="Chênh áp" stroke={COLOR.teal} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} connectNulls />}
+              {sensorsPresent.includes("RH") && <Line type="monotone" dataKey="comp_RH" name="Độ ẩm" stroke={COLOR.sky} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} connectNulls />}
+              {sensorsPresent.includes("T") && <Line type="monotone" dataKey="comp_T" name="Nhiệt độ" stroke={COLOR.sand} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} connectNulls />}
+              <Legend wrapperStyle={{ fontSize: 11 }} iconType="plainline" />
+            </ComposedChart></ResponsiveContainer></div>
+          ) : (
+            <div className="mt-3" style={{ height: 280 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={view} margin={{ top: 10, right: 14, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTick(view.length)} />
+              <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={[(dmin) => Math.max(0, Math.floor(dmin - 5)), 100]} tickFormatter={(v) => `${v}%`} />
+              <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v) => [`${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`, "% đạt"]} />
+              <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "ngưỡng 80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
+              <Line type="monotone" dataKey="comp" stroke={COLOR.teal} strokeWidth={2.2} isAnimationActive={false}
+                dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const low = payload.comp != null && payload.comp < 80; return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={2.6} fill={low ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={0.8} />; }}
+                activeDot={{ r: 4 }} />
+            </ComposedChart></ResponsiveContainer></div>
+          )}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500">{showMulti ? sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: k === "DP" ? COLOR.teal : k === "RH" ? COLOR.sky : COLOR.sand }} /> {SENSOR_META[k]?.label || k}</span>) : (<><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> &lt; 80% (điểm đỏ)</span></>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
         </Card>
-        {activeScope.type === "ROOM" && (
-        <Card className="p-6"><SectionTitle icon={AlertOctagon} hint={`${SENSORS.find((s) => s.k === sensor).label} · % điểm vượt giới hạn theo ${range === "1n" ? "giờ" : "ngày"}`}>% OOS theo thời gian — phòng</SectionTitle>
-          <div className="mt-4" style={{ height: 240 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={view} margin={{ top: 10, right: 14, left: -10, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={range === "1n" ? 2 : range === "90n" ? 11 : range === "30n" ? 4 : 0} />
-            <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={38} domain={[0, "auto"]} />
-            <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v) => [`${(+v).toFixed(1)}%`, "% OOS"]} />
-            <Area type="monotone" dataKey={(d) => (d.comp != null ? +(100 - d.comp).toFixed(1) : null)} name="oospct" stroke={COLOR.softCoral} strokeWidth={2} fill={COLOR.softCoral} fillOpacity={0.14} isAnimationActive={false} dot={{ r: 2 }} activeDot={{ r: 4 }} connectNulls />
-          </ComposedChart></ResponsiveContainer></div>
-          <p className="text-[11px] text-slate-400 mt-2">% điểm nằm ngoài giới hạn (= 100% − % đạt) theo {range === "1n" ? "giờ" : "ngày"} cho {SENSORS.find((s) => s.k === sensor).label}.</p>
-        </Card>
-        )}
       </div>
 
       <Card className="p-6"><SectionTitle icon={CircleDot} hint="rủi ro cao nhất mỗi cấp">Xu hướng theo cấp</SectionTitle>

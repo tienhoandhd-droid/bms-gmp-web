@@ -89,7 +89,7 @@ export async function layTongQuan(signal) {
 // ============================================================
 export async function layDanhSachPhong(signal) {
   const { data, error } = await docView('xem_phong_co_kpi',
-    (q) => q.select('ma_phong,ten_phong,khu_vuc,ahu,muc_uu_tien,thieu_du_lieu,ghi_chu,ti_le_dat_1h,muc_canh_bao_phong,cam_bien,lan_cuoi_co_du_lieu,tre_phut').order('ma_phong'),
+    (q) => q.select('ma_phong,ten_phong,khu_vuc,ahu,muc_uu_tien,thieu_du_lieu,ghi_chu,ti_le_dat_1h,muc_canh_bao_phong,cam_bien,lan_cuoi_co_du_lieu,cua_so_gio,tre_phut').order('ma_phong'),
     { signal })
   if (error) return { error, rooms: null }
   const rooms = (data || []).map((r) => ({
@@ -100,8 +100,9 @@ export async function layDanhSachPhong(signal) {
     priority: r.muc_uu_tien || 'P3',
     note: r.ghi_chu || '',
     noData: !!r.thieu_du_lieu,
-    lastSeen: r.lan_cuoi_co_du_lieu || null,        // 'DD/MM HH:MM' bản ghi gần nhất
-    agePhut: r.tre_phut != null ? Number(r.tre_phut) : null,  // số phút kể từ bản ghi gần nhất
+    lastSeen: r.lan_cuoi_co_du_lieu || null,        // 'DD/MM HH:MM' = MỐC ĐÓNG cửa sổ giờ (giờ VN)
+    window: r.cua_so_gio || null,                   // 'HH:MM–HH:MM' = khung giờ của bản ghi gần nhất
+    agePhut: r.tre_phut != null ? Number(r.tre_phut) : null,  // số phút kể từ mốc đóng cửa sổ
     _isLive: true,
     _compliance: r.ti_le_dat_1h != null ? Math.round(r.ti_le_dat_1h) : null,
     _level: mucCanhBaoToLevel(r.muc_canh_bao_phong),
@@ -135,7 +136,8 @@ export async function layThongKeSensorPhong(maPhong, signal) {
     min: s.gioi_han_duoi != null ? Number(s.gioi_han_duoi) : null,
     max: s.gioi_han_tren != null ? Number(s.gioi_han_tren) : null,
     lanCuoi: s.lan_cuoi || null,
-    hourly8: (s.hourly_8 || []).map((h) => ({ label: h.label, avg: h.avg, oos: h.oos })),
+    // map cả min/max theo giờ → vmin/vmax để biểu đồ chi tiết vẽ dải min–max
+    hourly8: (s.hourly_8 || []).map((h) => ({ label: h.label, avg: h.avg, oos: h.oos, vmin: h.min ?? null, vmax: h.max ?? null })),
   }))
   return { error: null, sensors }
 }
@@ -237,7 +239,23 @@ export async function layChuoiXuHuongChiTiet(scopeType, scopeId, sensorType, don
 }
 
 // ============================================================
-// XẾP HẠNG RỦI RO  ·  view: xem_xep_hang_rui_ro
+// XU HƯỚNG ĐA CẢM BIẾN (1 phòng → vẽ ĐỦ DP/RH/T)  ·  RPC: rpc_chuoi_xu_huong_da_sensor
+// donVi: 'GIO' | 'NGAY'. → { error, perSensor:[{k, series:[{label,ts,comp,oos,dq}]}] }
+// ============================================================
+export async function layChuoiXuHuongDaSensor(scopeType, scopeId, donVi, soDiem, signal) {
+  const { data, error } = await goiRPC('rpc_chuoi_xu_huong_da_sensor', {
+    p_scope_type: scopeType, p_scope_id: scopeId, p_don_vi: donVi || 'GIO', p_so_diem: soDiem,
+  }, { signal })
+  if (error || !Array.isArray(data)) return { error, perSensor: [] }
+  const perSensor = data.map((g) => ({
+    k: g.loai_cam_bien,
+    series: (g.series || []).map((r) => ({
+      label: r.label, ts: r.ts != null ? Number(r.ts) : null,
+      comp: r.comp, oos: r.oos ?? 0, dq: r.dq != null ? Math.round(r.dq) : null,
+    })),
+  }))
+  return { error: null, perSensor }
+}
 // cột: scope_type, scope_id, ten_scope, khu_vuc, ahu, comp_moi_nhat,
 //      delta_7_ngay, rui_ro, danh_gia
 // ============================================================
