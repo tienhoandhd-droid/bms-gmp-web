@@ -12,6 +12,7 @@
 // Interface KHÔNG đổi so với bản trước → App.jsx không cần sửa.
 // ============================================================
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { supabase } from '../lib/bmsClient'
 import {
   layTongQuan, laySuCoDangMo, layCanhBaoHeThong, layNhatKyThaoTac, layLichSuCauHinh,
   layDanhSachPhong, layThongKeSensorPhong, layXepHangRuiRo, layQuyTrinhSop, layBaoCaoAi,
@@ -140,6 +141,28 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
       if (ctrlRef.current) ctrlRef.current.abort()    // hủy request đang chờ khi unmount
     }
   }, [isLive, lamMoi, tuDongMoiMs])
+
+  // ============================================================
+  // KHẮC PHỤC TRIỆT ĐỂ "phải F5 mới hiện dữ liệu":
+  // Lần nạp đầu (trong useEffect mount) chạy NGAY khi component xuất hiện — lúc đó
+  // supabase-js CHƯA chắc đã nạp xong phiên từ localStorage, nên truy vấn đi bằng
+  // vai trò `anon` → ở chế độ PROD bị "permission denied" và màn hình đứng ở trạng
+  // thái lỗi/0 cho tới khi người dùng F5 (lúc F5 phiên đã có sẵn trong localStorage).
+  // → Thay vì phụ thuộc thời điểm của React, ta NẠP LẠI ngay khi Supabase phát tín
+  //   hiệu phiên đã sẵn sàng: INITIAL_SESSION (khôi phục lúc tải trang), SIGNED_IN
+  //   (vừa đăng nhập), TOKEN_REFRESHED. Như vậy mọi truy vấn đều mang JWT.
+  // ⚠️ Không await truy vấn NGAY trong callback onAuthStateChange (supabase-js
+  //   serialize Auth bằng Web Locks → dễ kẹt). Đẩy lamMoi ra khỏi callback bằng
+  //   setTimeout(…, 0) cho an toàn.
+  useEffect(() => {
+    if (!isLive || !supabase) return
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        setTimeout(() => { if (!huy.current) lamMoi() }, 0)
+      }
+    })
+    return () => sub?.subscription?.unsubscribe?.()
+  }, [isLive, lamMoi])
 
   return {
     isLive, kpis, incidents, systemAlerts, audit, configHistory,
