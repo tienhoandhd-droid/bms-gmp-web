@@ -251,11 +251,19 @@ function RoomDetailModal({ room, onClose }) {
           <div key={s.k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-4">
             <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[s.k].label} ({s.k})</p><p className="text-[11px] text-slate-500">Giới hạn: {s.min != null ? `≥ ${s.min}` : "—"}{s.max != null ? ` · ≤ ${s.max}` : ""} {unit}</p></div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center">{[["Hiện tại", `${st.cur ?? "—"} ${unit}`], ["TB 1h", `${st.avg1h ?? "—"}`], ["TB 8h", mean == null ? "—" : `${mean}`], ["OOS 1h", st.oos1h == null ? "—" : `${st.oos1h}/60`], ["OOS 10′ cuối", st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : <div style={{ height: 182 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={pts} margin={{ top: 8, right: 14, left: 2, bottom: 0 }}>
+            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : (() => {
+              // Domain trục tung: bao cả dữ liệu thực LẪN giới hạn (để thấy GHD/GHT), thêm đệm 8%.
+              const vals = []; pts.forEach((p) => { [p.avg, p.vmin, p.vmax].forEach((x) => { if (x != null) vals.push(+x); }); });
+              if (s.min != null) vals.push(+s.min); if (s.max != null) vals.push(+s.max);
+              let lo = vals.length ? Math.min(...vals) : 0, hi = vals.length ? Math.max(...vals) : 1;
+              if (lo === hi) { lo -= 1; hi += 1; } const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+              const span = hi - lo; const dec = span >= 10 ? 0 : span >= 2 ? 1 : 2;  // ít số lẻ khi khoảng rộng, nhiều khi hẹp
+              const fmtY = (v) => (+v).toFixed(dec);
+              return <div style={{ height: 182 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={pts} margin={{ top: 8, right: 14, left: 2, bottom: 0 }}>
               <CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={["auto", "auto"]} tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
-              <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => [v == null ? "—" : `${v} ${unit}`, n === "avg" ? "TB giờ" : n === "_band" ? "Min–Max" : n]} />
+              <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={48} domain={[lo, hi]} allowDecimals={dec > 0} tickCount={6} tickFormatter={fmtY} />
+              <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => { const f = (x) => (x == null ? "—" : (+x).toFixed(2)); if (n === "_band") return [Array.isArray(v) ? `${f(v[0])}–${f(v[1])} ${unit}` : `${f(v)} ${unit}`, "Min–Max"]; return [v == null ? "—" : `${f(v)} ${unit}`, n === "avg" ? "TB giờ" : n]; }} />
               {s.min != null && s.max != null && <ReferenceArea y1={s.min} y2={s.max} fill={COLOR.teal} fillOpacity={0.10} stroke="none" />}
               {pts.some((p) => p.vmin != null && p.vmax != null) && <Area type="monotone" dataKey={(d) => (d.vmin != null && d.vmax != null ? [d.vmin, d.vmax] : null)} name="_band" stroke="none" fill={COLOR.sky} fillOpacity={0.14} connectNulls isAnimationActive={false} />}
               {s.min != null && <ReferenceLine y={s.min} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${s.min}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
@@ -264,7 +272,7 @@ function RoomDetailModal({ room, onClose }) {
               <Line type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} isAnimationActive={false}
                 dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (s.min != null && payload.avg < s.min) || (s.max != null && payload.avg > s.max); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={3} fill={oob ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={1} />; }}
                 activeDot={{ r: 4 }} />
-            </ComposedChart></ResponsiveContainer></div>}
+            </ComposedChart></ResponsiveContainer></div>; })()}
             {!noDL && <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Khoảng đạt (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.sky, opacity: 0.45 }} /> Dải min–max theo giờ</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> trong khoảng</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> ngoài khoảng</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình 8h</span></div>}
           </div>
         ); })}</div>
