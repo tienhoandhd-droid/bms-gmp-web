@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
 import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
@@ -18,13 +19,15 @@ import {
 } from "recharts";
 import logoCpc1hn from "./assets/logo-cpc1hn.png";
 
-/* ============ MÀU NƯỚC — HỆ THỦY ============ */
-const COLOR = { navy: "#1e3a56", ink: "#33506e", teal: "#149e90", sky: "#4f9fd1", coral: "#e2674f", coralDeep: "#cf583f", sand: "#e6b052", softCoral: "#df7d62" };
+/* ============ AQUA CLINICAL NEO-MINIMALISM — HỆ THỦY ============ */
+/* Giữ tên biến, làm SÂU màu để đủ tương phản (WCAG): chữ đậm, teal/sky sâu,
+   critical đỏ trầm chuyên nghiệp, warning amber đậm, không hồng/vàng nhạt. */
+const COLOR = { navy: "#102A3E", ink: "#33506e", teal: "#0E7C73", sky: "#1E72B8", coral: "#D9534F", coralDeep: "#B3261E", sand: "#C77E12", softCoral: "#D9534F" };
 const PAGE_BG = "linear-gradient(155deg,#EAF3F8 0%,#FAFDFF 45%,#E2F2EE 100%)";
-const cardShadow = { boxShadow: "0 14px 38px -16px rgba(35,80,110,0.40)" };
-const CARD = "rounded-3xl bg-white/90 backdrop-blur ring-1 ring-slate-200/80";
-const STATUS = { normal: { txt: "text-teal-600", bg: "bg-teal-50", dot: "bg-teal-400" }, warning: { txt: "text-amber-600", bg: "bg-amber-50", dot: "bg-amber-400" }, critical: { txt: "text-rose-600", bg: "bg-rose-50", dot: "bg-rose-500" } };
-const PRIORITY = { P1: "bg-rose-50 text-rose-600 ring-1 ring-rose-200", P2: "bg-amber-50 text-amber-600 ring-1 ring-amber-200", P3: "bg-sky-50 text-sky-600 ring-1 ring-sky-200" };
+const cardShadow = { boxShadow: "0 12px 34px -18px rgba(16,40,55,0.30)" };
+const CARD = "rounded-3xl bg-white/95 backdrop-blur ring-1 ring-[#D8E6EC]";
+const STATUS = { normal: { txt: "text-teal-700", bg: "bg-teal-50", dot: "bg-teal-500" }, warning: { txt: "text-amber-700", bg: "bg-amber-50", dot: "bg-amber-500" }, critical: { txt: "text-rose-700", bg: "bg-rose-50", dot: "bg-rose-600" } };
+const PRIORITY = { P1: "bg-rose-600 text-white ring-1 ring-rose-700", P2: "bg-amber-100 text-amber-900 ring-1 ring-amber-400", P3: "bg-sky-100 text-sky-800 ring-1 ring-sky-300" };
 const MUC = { P1: "Mức 1", P2: "Mức 2", P3: "Mức 3" };
 const LEVELS = [
   { key: "normal", label: "Kiểm soát tốt", txt: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200", dot: "bg-teal-400" },
@@ -142,9 +145,9 @@ const AREAS = ["C1", "C4", "Q2"];
 const AHUS = ["AHU01", "AHU02", "AHU03", "AHU04", "AHU-K01", "AHU-K02"];
 const SENSOR_META = { DP: { label: "Chênh áp", unit: "Pa", icon: Gauge }, RH: { label: "Độ ẩm", unit: "%", icon: Droplets }, T: { label: "Nhiệt độ", unit: "°C", icon: Thermometer } };
 // Màu cố định cho từng chỉ tiêu (đồng bộ mọi biểu đồ): DP=teal, RH=sky, T=sand.
-const SENSOR_COLOR = { DP: "#149e90", RH: "#4f9fd1", T: "#e6b052" };
-const COMPLY_OK = "#149e90";    // đạt
-const COMPLY_BAD = "#cf583f";   // dưới ngưỡng
+const SENSOR_COLOR = { DP: "#0E7C73", RH: "#1E72B8", T: "#B26F0E" };
+const COMPLY_OK = "#0E7C73";    // đạt
+const COMPLY_BAD = "#B3261E";   // dưới ngưỡng (đỏ trầm)
 const OOS_FILL = "#df7d62";     // vùng OOS
 function defSensors(priority) { return [{ k: "DP", min: priority === "P1" ? 12.5 : priority === "P2" ? 10 : 8, max: 30 }, { k: "RH", min: 30, max: priority === "P3" ? 60 : 55 }, { k: "T", min: 18, max: priority === "P3" ? 25 : 24 }]; }
 const ROOM_SEED = [
@@ -186,7 +189,7 @@ const ICON_CANH_BAO = (a) => (a.kind === "critical" ? Wind : a.kind === "warning
 /* ============ UI HELPERS ============ */
 function Card({ children, className = "", style = {} }) { return <div className={`${CARD} ${className}`} style={{ ...cardShadow, ...style }}>{children}</div>; }
 function SectionTitle({ icon: Icon, children, hint }) { return <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: COLOR.navy }}><Icon className="w-4 h-4" style={{ color: COLOR.teal }} strokeWidth={1.8} />{children}{hint && <span className="text-[11px] font-normal text-slate-400">— {hint}</span>}</h3>; }
-function MucBadge({ p, stack }) { const n = p[1]; return stack ? <span className={`inline-flex flex-col items-center justify-center leading-tight px-2.5 py-1 rounded-lg ${PRIORITY[p]}`}><span className="text-[9px] font-semibold uppercase tracking-wide">Mức</span><span className="text-[14px] font-bold">{n}</span></span> : <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${PRIORITY[p]}`}>{MUC[p]}</span>; }
+function MucBadge({ p, stack }) { const n = p[1]; return stack ? <span className={`inline-flex flex-col items-center justify-center leading-tight px-2.5 py-1 rounded-lg ${PRIORITY[p]}`}><span className="text-[9px] font-semibold uppercase tracking-wide">Mức</span><span className="text-[14px] font-bold">{n}</span></span> : <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${PRIORITY[p]}`}>{MUC[p]}</span>; }
 function HeaderChip({ children, ring = "ring-slate-200" }) { return <div className={`flex items-center gap-2.5 rounded-2xl bg-white px-4 ring-1 ${ring} h-[50px]`} style={cardShadow}>{children}</div>; }
 // Đồng hồ máy chủ UTC+7 tự cập nhật mỗi giây (tách riêng để không render lại toàn trang).
 function ServerClock({ live }) {
@@ -313,9 +316,9 @@ function KpiListModal({ kind, groups, incidents, cfg, onClose, onPickRoom, onPic
             incidents.length === 0 ? <p className="text-center text-[13px] text-slate-500 py-8">Không có sự cố Mức 1 nào đang mở. 🎉</p> : (
               <div className="space-y-2">
                 {incidents.map((i) => (
-                  <button key={i.id} onClick={() => onPickIncident(i)} className="w-full text-left rounded-2xl ring-1 ring-slate-200 hover:ring-sky-300 hover:bg-sky-50/50 px-4 py-3 transition flex items-center justify-between gap-3">
-                    <div className="min-w-0"><div className="flex items-center gap-2"><span className="text-[13px] font-semibold" style={{ color: COLOR.navy }}>{i.id}</span><span className="text-[10px] px-2 py-0.5 rounded-full font-semibold text-rose-700 bg-rose-50 ring-1 ring-rose-200">Mức 1</span></div><p className="text-[11px] text-slate-500 mt-0.5 truncate">{i.room} · {i.sensor || "—"} · {i.status}</p></div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" strokeWidth={1.8} />
+                  <button key={i.id} onClick={() => onPickIncident(i)} className="w-full text-left rounded-2xl ring-1 ring-rose-200 border-l-[6px] border-rose-600 bg-rose-50/30 hover:ring-rose-300 hover:bg-rose-50/60 px-4 py-3 transition duration-150 flex items-center justify-between gap-3">
+                    <div className="min-w-0"><div className="flex items-center gap-2"><span className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{i.id}</span><span className="text-[11px] px-2 py-0.5 rounded-full font-bold text-white bg-rose-600">Mức 1</span></div><p className="text-[12px] text-slate-600 mt-0.5 truncate">{i.room} · {i.sensor || "—"} · {i.status}</p></div>
+                    <ChevronRight className="w-4 h-4 text-rose-300 shrink-0" strokeWidth={1.8} />
                   </button>
                 ))}
                 <button onClick={onGotoIncidents} className="w-full mt-1 rounded-2xl py-2.5 text-[12px] font-semibold text-white transition" style={{ background: COLOR.teal }}>Mở trang Sự cố để xử lý →</button>
@@ -424,7 +427,7 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onEdit, onDelete, onUpdateL
           )}
         </div>
       )}
-      <p className="text-[11px] text-slate-400 mt-3">Mọi thay đổi cập nhật ngay KPI, thẻ phòng và được ghi vào <b>Lịch sử thay đổi cấu hình</b> (tab Cài đặt).</p>
+      <p className="text-[11px] text-slate-400 mt-3">Mọi thay đổi cập nhật ngay KPI, thẻ phòng và được ghi vào <b>lịch sử thay đổi cấu hình</b> (tab Nhật ký &amp; SOP).</p>
     </Card>
   );
 }
@@ -621,15 +624,31 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [hi, setHi] = useState(0);
+  const [pos, setPos] = useState(null);
   const boxRef = useRef(null);
   const listRef = useRef(null);
   const cur = items.find((o) => o.id === value) || null;
 
+  // click ngoài: bỏ qua cả ô input (boxRef) lẫn danh sách trong portal (listRef)
   useEffect(() => {
-    const onDoc = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    const onDoc = (e) => {
+      if (boxRef.current && boxRef.current.contains(e.target)) return;
+      if (listRef.current && listRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
+
+  // tính vị trí cố định của danh sách theo ô input; cập nhật khi mở / cuộn / đổi kích thước
+  useEffect(() => {
+    if (!open) return;
+    const upd = () => { if (boxRef.current) { const r = boxRef.current.getBoundingClientRect(); setPos({ left: r.left, top: r.bottom + 6, width: r.width }); } };
+    upd();
+    window.addEventListener("scroll", upd, true);
+    window.addEventListener("resize", upd);
+    return () => { window.removeEventListener("scroll", upd, true); window.removeEventListener("resize", upd); };
+  }, [open]);
   useEffect(() => { setHi(0); }, [q, open]);
 
   const ql = q.trim().toLowerCase();
@@ -672,8 +691,8 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
         )}
         <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition cursor-pointer ${open ? "rotate-180" : ""}`} strokeWidth={1.8} onClick={() => setOpen((v) => !v)} />
       </div>
-      {open && (
-        <div ref={listRef} className="absolute z-50 mt-1.5 w-full max-h-72 overflow-auto rounded-2xl bg-white ring-1 ring-slate-200 shadow-xl shadow-slate-300/40 py-1.5">
+      {open && pos && createPortal(
+        <div ref={listRef} style={{ position: "fixed", left: pos.left, top: pos.top, width: pos.width, zIndex: 9999 }} className="max-h-72 overflow-auto rounded-2xl bg-white ring-1 ring-slate-200 shadow-2xl shadow-slate-400/30 py-1.5">
           <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center justify-between"><span>{levelLabel}</span><span>{filtered.length} kết quả</span></div>
           {filtered.length === 0 ? (
             <div className="px-3 py-4 text-center text-[12px] text-slate-400">Không tìm thấy — thử từ khoá khác</div>
@@ -694,8 +713,7 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
               </button>
             );
           })}
-        </div>
-      )}
+        </div>, document.body)}
     </div>
   );
 }
@@ -1054,7 +1072,6 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: COLOR.navy }}><LineIcon className="w-5 h-5" style={{ color: COLOR.teal }} strokeWidth={1.8} /> Xu hướng GMP — biểu đồ theo thời gian</h2>
-        <div className="flex gap-2"><button onClick={runAI} disabled={aiBusy} className={`text-xs font-medium text-white rounded-xl px-4 py-2 flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: COLOR.teal }}><Sparkles className={`w-4 h-4 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "Đang phân tích…" : "AI phân tích"}</button><button onClick={printTrend} className="text-xs font-medium text-white rounded-xl px-4 py-2 flex items-center gap-1.5" style={{ backgroundColor: COLOR.coral }}><Printer className="w-4 h-4" strokeWidth={1.8} /> In biểu đồ</button></div>
       </div>
 
       <Card className="relative z-30 p-5">
@@ -1755,7 +1772,6 @@ export default function App() {
                   ].map((m) => <div key={m.t} className={`rounded-2xl ${m.bg} ring-1 ${m.ring} p-3`}><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: m.c }} /><span className={`text-[12px] font-semibold ${m.txt}`}>{m.t}</span></div><p className="text-[11px] text-slate-600 mt-1.5 leading-snug">{m.d}</p></div>)}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">{[["Ngưỡng CHÚ Ý — OOS 1h ≥", "notice", "/60"], ["Ngưỡng CẢNH BÁO — OOS 1h >", "warn", "/60"], ["Ngưỡng HÀNH ĐỘNG — lỗi 10′ ≥", "action", "/10"]].map(([lbl, key, suf]) => <div key={key} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4"><label className="text-[11px] uppercase text-slate-500 font-semibold">{lbl}</label><div className="flex items-center gap-2 mt-2"><input type="number" min="0" value={cfg[key]} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, [key]: Number(e.target.value) })} onBlur={() => saveCfg(cfg)} className="w-20 rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm disabled:bg-slate-100" /><span className="text-sm text-slate-400">{suf} điểm</span></div></div>)}</div>{!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh.</p>}</Card>
-              <Card className="p-6"><SectionTitle icon={History}>Lịch sử thay đổi cấu hình</SectionTitle><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Thay đổi"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{configHistory.map((c, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 text-slate-500 tabular-nums">{c.t}</td><td className="py-2.5 pr-4 text-slate-600">{c.who}</td><td className="py-2.5 pr-4 text-slate-700">{c.change}</td></tr>)}</tbody></table></div><p className="text-[11px] text-slate-400 mt-3">Thêm/sửa cảm biến & giới hạn thực hiện tại tab <b>Phòng → Quản lý phòng</b>.</p></Card>
               <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối Supabase</SectionTitle><div className="space-y-3 mt-4 text-sm">{(() => { const conn = !HAS_SUPABASE ? ["chưa cấu hình", "text-slate-600 bg-slate-100"] : !isLive ? ["DEMO", "text-amber-700 bg-amber-100"] : live.loi ? ["lỗi kết nối", "text-rose-700 bg-rose-100"] : live.dangTai ? ["đang tải…", "text-sky-700 bg-sky-100"] : ["đã kết nối", "text-teal-700 bg-teal-100"]; const keyState = HAS_SUPABASE ? ["đã nạp", "text-teal-700 bg-teal-100"] : ["thiếu .env", "text-rose-700 bg-rose-100"]; const rows = [{ k: "Nguồn dữ liệu", v: isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu", s: conn }, { k: "Khóa môi trường", v: HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập", s: keyState }, { k: "Cập nhật gần nhất", v: live.capNhatLuc ? live.capNhatLuc.toLocaleString("vi-VN") : "—", s: conn }]; return rows.map((r, i) => <div key={i} className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0"><span className="text-slate-500 w-44">{r.k}</span><code className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded-lg ring-1 ring-slate-200 flex-1">{r.v}</code><span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.s[1]}`}>{r.s[0]}</span></div>); })()}</div>{isLive && live.loi && <p className="text-[11px] text-rose-600 mt-3">Chi tiết lỗi: {live.loi.thong_bao || live.loi.message || "không xác định"}</p>}</Card>
               <DoiMatKhauCard user={user} isLive={isLive} />
             </div>
