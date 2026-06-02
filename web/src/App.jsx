@@ -141,6 +141,11 @@ function getSeries(scope, sensor, rangeKey) {
 const AREAS = ["C1", "C4", "Q2"];
 const AHUS = ["AHU01", "AHU02", "AHU03", "AHU04", "AHU-K01", "AHU-K02"];
 const SENSOR_META = { DP: { label: "Chênh áp", unit: "Pa", icon: Gauge }, RH: { label: "Độ ẩm", unit: "%", icon: Droplets }, T: { label: "Nhiệt độ", unit: "°C", icon: Thermometer } };
+// Màu cố định cho từng chỉ tiêu (đồng bộ mọi biểu đồ): DP=teal, RH=sky, T=sand.
+const SENSOR_COLOR = { DP: "#149e90", RH: "#4f9fd1", T: "#e6b052" };
+const COMPLY_OK = "#149e90";    // đạt
+const COMPLY_BAD = "#cf583f";   // dưới ngưỡng
+const OOS_FILL = "#df7d62";     // vùng OOS
 function defSensors(priority) { return [{ k: "DP", min: priority === "P1" ? 12.5 : priority === "P2" ? 10 : 8, max: 30 }, { k: "RH", min: 30, max: priority === "P3" ? 60 : 55 }, { k: "T", min: 18, max: priority === "P3" ? 25 : 24 }]; }
 const ROOM_SEED = [
   { id: "C4.R7", name: "Chiết rót", area: "C4", ahu: "AHU-K01", priority: "P1", note: "Khu vô trùng trọng yếu" },
@@ -482,6 +487,57 @@ function printTrend() {
   } catch (e) { window.print(); }
 }
 
+// ====== BIỂU ĐỒ TÁI SỬ DỤNG CHO TAB XU HƯỚNG ======
+// Trục X thưa ~12 mốc; vùng OOS gradient; ngưỡng 80%.
+const xTickEvery = (n) => Math.max(0, Math.floor(n / 12));
+
+// (A) % đạt TOÀN PHẦN theo thời gian + vùng OOS (đường đạt, tô nền phần thiếu hụt tới 100%)
+function ChartComplyTotal({ data, height = 280, idSuffix = "" }) {
+  const gid = `oosGrad${idSuffix}`;
+  return (
+    <div style={{ height }}><ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={COMPLY_OK} stopOpacity={0.22} />
+            <stop offset="100%" stopColor={COMPLY_OK} stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
+        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(data.length)} />
+        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={[(d) => Math.max(0, Math.floor(d - 5)), 100]} tickFormatter={(v) => `${v}%`} />
+        <Tooltip contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }}
+          formatter={(v) => [`${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`, "% đạt"]} />
+        <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "ngưỡng 80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
+        <Area type="monotone" dataKey="comp" stroke="none" fill={`url(#${gid})`} isAnimationActive={false} connectNulls />
+        <Line type="monotone" dataKey="comp" stroke={COMPLY_OK} strokeWidth={2.4} isAnimationActive={false} connectNulls
+          dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const low = payload.comp != null && payload.comp < 80; return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={low ? 3.2 : 2.4} fill={low ? COMPLY_BAD : COMPLY_OK} stroke="#fff" strokeWidth={0.9} />; }}
+          activeDot={{ r: 4 }} />
+      </ComposedChart>
+    </ResponsiveContainer></div>
+  );
+}
+
+// (B) % đạt THEO TỪNG CHỈ TIÊU (DP/RH/T) — mỗi chỉ tiêu 1 đường, màu cố định
+function ChartComplyPerMetric({ data, present, height = 280 }) {
+  return (
+    <div style={{ height }}><ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
+        <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
+        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(data.length)} />
+        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={[(d) => Math.max(0, Math.floor(d - 5)), 100]} tickFormatter={(v) => `${v}%`} />
+        <Tooltip contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }}
+          formatter={(v, n) => { const k = String(n).replace("comp_", ""); return [`${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`, SENSOR_META[k]?.label || k]; }} />
+        <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
+        {["DP", "RH", "T"].filter((k) => present.includes(k)).map((k) => (
+          <Line key={k} type="monotone" dataKey={`comp_${k}`} name={SENSOR_META[k].label} stroke={SENSOR_COLOR[k]} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} connectNulls />
+        ))}
+        <Legend wrapperStyle={{ fontSize: 11 }} iconType="plainline" />
+      </ComposedChart>
+    </ResponsiveContainer></div>
+  );
+}
+
 function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, onSaveAI = null }) {
   const [range, setRange] = useState("30n");
   const [level, setLevel] = useState("TOTAL");
@@ -625,22 +681,23 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
     return () => { huy = true; };
   }, [wantRoomBand, activeId, sensor, range]); // eslint-disable-line
 
-  // #3 — chuỗi ĐA CẢM BIẾN cho 1 PHÒNG (vẽ đủ DP/RH/T). Tải khi đang xem cấp PHÒNG.
-  const multiKey = `${activeId}|${range}`;
-  const wantMulti = isLive && activeScope && activeScope.type === "ROOM";
+  // chuỗi ĐA CẢM BIẾN (vẽ đủ DP/RH/T) — tải cho MỌI cấp: phòng/khu/AHU/tổng.
+  const multiKey = `${activeScope?.type || "TOTAL"}|${activeId}|${range}`;
+  const wantMulti = isLive && !!activeScope;
   useEffect(() => {
     if (!wantMulti) return;
     if (multiSensor[multiKey]) return;
     const donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
     const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
+    const scType = activeScope.type || "TOTAL";
     let huy = false;
     (async () => {
-      const r = await layChuoiXuHuongDaSensor("ROOM", activeId, donVi, soDiem);
+      const r = await layChuoiXuHuongDaSensor(scType, activeId, donVi, soDiem);
       if (huy) return;
       setMultiSensor((m) => ({ ...m, [multiKey]: (r && r.perSensor) || [] }));
     })();
     return () => { huy = true; };
-  }, [wantMulti, activeId, range]); // eslint-disable-line
+  }, [wantMulti, activeId, range, activeScope]); // eslint-disable-line
 
   // Gộp chuỗi đa cảm biến theo mốc thời gian → {ts,label,comp_DP,oos_DP,comp_RH,...}
   const multiMerged = useMemo(() => {
@@ -662,7 +719,6 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
   const series = full.filter((r) => r.ts >= Math.min(fromMs, toMs) && r.ts <= Math.max(fromMs, toMs));
   const view = series.length ? series : full;
   const isHourly = range === "1n" || range === "7n";   // #3: 24 giờ & 7 ngày theo GIỜ
-  const xTick = (n) => Math.max(0, Math.floor(n / 12));  // ~12 mốc trục X cho dễ đọc
   // #3 — chuỗi đa cảm biến đã lọc theo cùng cửa sổ thời gian
   const viewMulti = useMemo(() => {
     if (!wantMulti || !multiMerged.length) return [];
@@ -670,6 +726,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
     return f.length ? f : multiMerged;
   }, [wantMulti, multiMerged, fromMs, toMs]);
   const showMulti = wantMulti && sensor === "ALL" && viewMulti.length > 0 && sensorsPresent.length > 0;
+  const isRoom = !!activeScope && activeScope.type === "ROOM";
+  const isLargeScope = !!activeScope && !isRoom;  // TOTAL / AREA / AHU
 
   const latest = view[view.length - 1] || {};
   const prev = view[view.length - 2] || {};
@@ -843,31 +901,69 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
             <p className="mt-2 text-[11px] text-slate-400">Đã lưu vào tab <b>Báo cáo</b> để gửi email · {aiResult.time}</p>
           </Card>
         ); })()}
-        {wantRoomBand && (
-          <Card className="p-6"><SectionTitle icon={Minus} hint={`${activeScope.name} · ${SENSOR_META[sensor].label} (${sensor}) · giá trị trung bình theo thời gian`}>Giá trị trung bình &amp; dải giới hạn — phòng</SectionTitle>
-            {bandSeries.length === 0 ? (
-              <p className="mt-4 text-[13px] text-amber-600">Đang tải dữ liệu giá trị phòng… (nếu không có, phòng này chưa ghi nhận giá trị {SENSOR_META[sensor].label} trong khoảng đã chọn)</p>
-            ) : (<>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4 mb-2 text-center">{[["Trung bình", bandMean == null ? "—" : `${bandMean} ${sUnit}`], ["GHD", bandLo == null ? "—" : `${bandLo} ${sUnit}`], ["GHT", bandHi == null ? "—" : `${bandHi} ${sUnit}`], ["Số điểm", `${bandSeries.length}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-              <div style={{ height: 250 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={bandSeries} margin={{ top: 10, right: 14, left: -2, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTick(bandSeries.length)} />
-                <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={["auto", "auto"]} tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => [`${v} ${sUnit}`, n === "avg" ? "TB" : n === "vmin" ? "Thấp nhất" : n === "vmax" ? "Cao nhất" : n]} />
-                {bandLo != null && bandHi != null && <ReferenceArea y1={bandLo} y2={bandHi} fill={COLOR.teal} fillOpacity={0.08} stroke="none" />}
-                {bandLo != null && <ReferenceLine y={bandLo} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${bandLo}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-                {bandHi != null && <ReferenceLine y={bandHi} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${bandHi}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-                <Area type="monotone" dataKey="vmax" stroke="none" fill={COLOR.sky} fillOpacity={0.07} />
-                <Area type="monotone" dataKey="vmin" stroke="none" fill="#fff" fillOpacity={0.0} />
-                {bandMean != null && <ReferenceLine y={bandMean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${bandMean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
-                <Line type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} isAnimationActive={false}
-                  dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (bandLo != null && payload.avg < bandLo) || (bandHi != null && payload.avg > bandHi); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={2.8} fill={oob ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={0.8} />; }}
-                  activeDot={{ r: 4 }} />
-              </ComposedChart></ResponsiveContainer></div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Dải giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình kỳ</span><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.sky, opacity: 0.4 }} /> Vùng min–max</span></div>
-            </>)}
+        {/* ============ PHÒNG: phân tích chi tiết khi có lỗi ============ */}
+        {isRoom && (<>
+          {/* (1) Giá trị trung bình mỗi giờ + dải giới hạn */}
+          {wantRoomBand ? (
+            <Card className="p-6"><SectionTitle icon={Minus} hint={`${activeScope.name} · ${SENSOR_META[sensor].label} (${sensor}) · trung bình mỗi ${isHourly ? "giờ" : "ngày"}`}>① Giá trị trung bình &amp; dải giới hạn</SectionTitle>
+              {bandSeries.length === 0 ? (
+                <p className="mt-4 text-[13px] text-amber-600">Đang tải dữ liệu giá trị phòng… (nếu không có, phòng này chưa ghi nhận giá trị {SENSOR_META[sensor].label} trong khoảng đã chọn)</p>
+              ) : (<>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4 mb-2 text-center">{[["Trung bình", bandMean == null ? "—" : `${bandMean} ${sUnit}`], ["GHD", bandLo == null ? "—" : `${bandLo} ${sUnit}`], ["GHT", bandHi == null ? "—" : `${bandHi} ${sUnit}`], ["Số điểm", `${bandSeries.length}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
+                <div style={{ height: 250 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={bandSeries} margin={{ top: 10, right: 16, left: -2, bottom: 4 }}>
+                  <defs><linearGradient id="bandFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={COLOR.teal} stopOpacity={0.16} /><stop offset="100%" stopColor={COLOR.teal} stopOpacity={0.03} /></linearGradient></defs>
+                  <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(bandSeries.length)} />
+                  <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={["auto", "auto"]} tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }} formatter={(v, n) => [v == null ? "—" : `${(+v).toFixed(2)} ${sUnit}`, n === "avg" ? "TB" : n === "vmax" ? "Cao nhất" : n === "vmin" ? "Thấp nhất" : n]} />
+                  {bandLo != null && bandHi != null && <ReferenceArea y1={bandLo} y2={bandHi} fill={COLOR.teal} fillOpacity={0.07} stroke="none" />}
+                  {bandLo != null && <ReferenceLine y={bandLo} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${bandLo}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
+                  {bandHi != null && <ReferenceLine y={bandHi} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${bandHi}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
+                  {bandMean != null && <ReferenceLine y={bandMean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${bandMean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
+                  <Area type="monotone" dataKey="avg" stroke="none" fill="url(#bandFill)" isAnimationActive={false} connectNulls />
+                  <Line type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.4} isAnimationActive={false} connectNulls
+                    dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (bandLo != null && payload.avg < bandLo) || (bandHi != null && payload.avg > bandHi); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={oob ? 3.2 : 2.6} fill={oob ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={0.9} />; }}
+                    activeDot={{ r: 4 }} />
+                </ComposedChart></ResponsiveContainer></div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Dải giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình kỳ</span></div>
+              </>)}
+            </Card>
+          ) : (
+            <Card className="p-6"><SectionTitle icon={Minus} hint={`${activeScope.name} · trung bình theo thời gian`}>① Giá trị trung bình &amp; dải giới hạn</SectionTitle>
+              <p className="mt-4 text-[13px] text-slate-500">Chọn một chỉ tiêu cụ thể (<b>Chênh áp</b> / <b>Độ ẩm</b> / <b>Nhiệt độ</b>) ở thanh lọc phía trên để xem giá trị trung bình mỗi giờ kèm dải giới hạn cho phòng này.</p>
+            </Card>
+          )}
+          {/* (2) % đạt / OOS theo thời gian — vẽ đủ cảm biến phòng có */}
+          <Card className="p-6"><SectionTitle icon={LineIcon} hint={showMulti ? `${activeScope.name} · ${sensorsPresent.map((k) => SENSOR_META[k]?.label).join(" · ")} · theo ${isHourly ? "giờ" : "ngày"}` : `${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label} · theo ${isHourly ? "giờ" : "ngày"}`}>② % đạt / OOS theo thời gian{showMulti ? " — theo từng cảm biến" : ""}</SectionTitle>
+            <p className="text-[11px] text-slate-400 mt-1">% đạt = 100% − % ngoài giới hạn (OOS). Đường dưới mốc 80% là kỳ cần chú ý.</p>
+            <div className="mt-3">{showMulti
+              ? <ChartComplyPerMetric data={viewMulti} present={sensorsPresent} />
+              : <ChartComplyTotal data={view} idSuffix="RoomOne" />}</div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500">{showMulti ? sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: SENSOR_COLOR[k] }} /> {SENSOR_META[k]?.label || k}</span>) : (<><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_OK }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_BAD }} /> &lt; 80% (điểm đỏ)</span></>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
           </Card>
-        )}
+        </>)}
+
+        {/* ============ KHU / AHU / TỔNG: tổng quát + theo chỉ tiêu ============ */}
+        {isLargeScope && (<>
+          {/* (1) % đạt / OOS TOÀN PHẦN (hoặc theo chỉ tiêu đang chọn) */}
+          <Card className="p-6"><SectionTitle icon={LineIcon} hint={`${activeScope.name} · ${sensor === "ALL" ? "toàn phần" : SENSOR_META[sensor]?.label} · theo ${isHourly ? "giờ" : "ngày"}`}>① % đạt / OOS {sensor === "ALL" ? "toàn phần" : `— ${SENSOR_META[sensor]?.label}`} theo thời gian</SectionTitle>
+            <p className="text-[11px] text-slate-400 mt-1">{sensor === "ALL" ? "Tổng hợp mọi cảm biến trong phạm vi" : `Chỉ riêng ${SENSOR_META[sensor]?.label}`}. % đạt = 100% − % ngoài giới hạn (OOS). Vùng xanh nhạt minh hoạ mức đạt.</p>
+            <div className="mt-3"><ChartComplyTotal data={view} idSuffix="Large" /></div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_OK }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_BAD }} /> &lt; 80% (điểm đỏ)</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
+          </Card>
+          {/* (2) % đạt / OOS THEO TỪNG CHỈ TIÊU */}
+          <Card className="p-6"><SectionTitle icon={CircleDot} hint={`${activeScope.name} · theo từng chỉ tiêu · theo ${isHourly ? "giờ" : "ngày"}`}>② % đạt / OOS theo từng chỉ tiêu</SectionTitle>
+            <p className="text-[11px] text-slate-400 mt-1">Tách riêng <span style={{ color: SENSOR_COLOR.DP }}>Chênh áp</span>, <span style={{ color: SENSOR_COLOR.RH }}>Độ ẩm</span>, <span style={{ color: SENSOR_COLOR.T }}>Nhiệt độ</span> để thấy chỉ tiêu nào kéo tỉ lệ đạt xuống.</p>
+            {sensorsPresent.length > 0 && viewMulti.length > 0 ? (<>
+              <div className="mt-3"><ChartComplyPerMetric data={viewMulti} present={sensorsPresent} /></div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500">{sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: SENSOR_COLOR[k] }} /> {SENSOR_META[k]?.label || k}</span>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
+            </>) : (
+              <p className="mt-4 text-[13px] text-amber-600">Đang tải dữ liệu theo chỉ tiêu… (nếu trống, phạm vi này chưa có đủ dữ liệu cảm biến trong khoảng đã chọn)</p>
+            )}
+          </Card>
+        </>)}
+
+        {/* ============ CHUNG: phân tích kỹ thuật phục vụ AI ============ */}
         <Card className="p-6"><SectionTitle icon={CircleDot} hint="dữ liệu phân tích kỹ thuật phục vụ AI đánh giá xu hướng">Phân tích kỹ thuật xu hướng</SectionTitle>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4">{[
             ["Số điểm", tech.n ? `${tech.n}` : "—", "text-slate-600"],
@@ -879,34 +975,6 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
           ].map(([k, v, c]) => <div key={k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold leading-tight">{k}</p><p className={`text-lg font-light mt-1 tabular-nums ${c}`}>{v}</p></div>)}</div>
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">{[["Đạt 1 ngày", fmtPct(activeScope.dat1n)], ["Đạt 3 ngày", fmtPct(activeScope.dat3n)], ["Đạt 7 ngày", fmtPct(activeScope.dat7n)], ["Min–Max kỳ", tech.n ? `${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%` : "—"]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-2"><p className="text-[9px] uppercase text-slate-400 font-semibold">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
           <p className="text-[11px] text-slate-400 mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Bấm <b>“AI phân tích &amp; cảnh báo”</b> để tổng hợp thành kết luận và mức cảnh báo.</p>
-        </Card>
-        <Card className="p-6"><SectionTitle icon={LineIcon} hint={showMulti ? `${activeScope.name} · đủ cảm biến (${sensorsPresent.join("/")}) · theo ${isHourly ? "giờ" : "ngày"}` : `${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label} · theo ${isHourly ? "giờ" : "ngày"}`}>% đạt theo thời gian{showMulti ? " — theo từng cảm biến" : ""}</SectionTitle>
-          <p className="text-[11px] text-slate-400 mt-1">Mỗi điểm: % đạt = 100% − % ngoài giới hạn (OOS) — gộp chung một biểu đồ. Đường dưới mốc 80% là kỳ cần chú ý.</p>
-          {showMulti ? (
-            <div className="mt-3" style={{ height: 280 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={viewMulti} margin={{ top: 10, right: 14, left: 0, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTick(viewMulti.length)} />
-              <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={[(dmin) => Math.max(0, Math.floor(dmin - 5)), 100]} tickFormatter={(v) => `${v}%`} />
-              <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => { const k = String(n).replace("comp_", ""); const lab = SENSOR_META[k]?.label || k; return [`${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`, lab]; }} />
-              <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
-              {sensorsPresent.includes("DP") && <Line type="monotone" dataKey="comp_DP" name="Chênh áp" stroke={COLOR.teal} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} connectNulls />}
-              {sensorsPresent.includes("RH") && <Line type="monotone" dataKey="comp_RH" name="Độ ẩm" stroke={COLOR.sky} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} connectNulls />}
-              {sensorsPresent.includes("T") && <Line type="monotone" dataKey="comp_T" name="Nhiệt độ" stroke={COLOR.sand} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} connectNulls />}
-              <Legend wrapperStyle={{ fontSize: 11 }} iconType="plainline" />
-            </ComposedChart></ResponsiveContainer></div>
-          ) : (
-            <div className="mt-3" style={{ height: 280 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={view} margin={{ top: 10, right: 14, left: 0, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTick(view.length)} />
-              <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={[(dmin) => Math.max(0, Math.floor(dmin - 5)), 100]} tickFormatter={(v) => `${v}%`} />
-              <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v) => [`${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`, "% đạt"]} />
-              <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "ngưỡng 80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
-              <Line type="monotone" dataKey="comp" stroke={COLOR.teal} strokeWidth={2.2} isAnimationActive={false}
-                dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const low = payload.comp != null && payload.comp < 80; return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={2.6} fill={low ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={0.8} />; }}
-                activeDot={{ r: 4 }} />
-            </ComposedChart></ResponsiveContainer></div>
-          )}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500">{showMulti ? sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: k === "DP" ? COLOR.teal : k === "RH" ? COLOR.sky : COLOR.sand }} /> {SENSOR_META[k]?.label || k}</span>) : (<><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> &lt; 80% (điểm đỏ)</span></>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
         </Card>
       </div>
 
