@@ -618,6 +618,40 @@ function ChartComplyPerMetric({ data, present, height = 280 }) {
   );
 }
 
+// Biểu đồ giá trị TRUNG BÌNH + dải giới hạn (GHD–GHT) cho MỘT chỉ tiêu của phòng.
+// Dùng để hiển thị đồng thời cả 3 chỉ tiêu (DP/RH/T) khi chọn phòng.
+function RoomBandChart({ sensorKey, series, isHourly }) {
+  const unit = SENSOR_META[sensorKey]?.unit || "";
+  const color = SENSOR_COLOR[sensorKey] || COLOR.teal;
+  const lo = [...series].reverse().find((p) => p.lo != null)?.lo ?? null;
+  const hi = [...series].reverse().find((p) => p.hi != null)?.hi ?? null;
+  const vals = series.filter((p) => p.avg != null);
+  const mean = vals.length ? +(vals.reduce((a, p) => a + p.avg, 0) / vals.length).toFixed(2) : null;
+  const gid = `bandFill_${sensorKey}`;
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h4 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[sensorKey]?.label} ({sensorKey})</h4></div>
+      <div className="grid grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Số điểm", `${series.length}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[10px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
+      <div style={{ height: 210 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={series} margin={{ top: 10, right: 16, left: -2, bottom: 4 }}>
+        <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.16} /><stop offset="100%" stopColor={color} stopOpacity={0.03} /></linearGradient></defs>
+        <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
+        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(series.length)} />
+        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={["auto", "auto"]} tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
+        <Tooltip contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }} formatter={(v, n) => [v == null ? "—" : `${(+v).toFixed(2)} ${unit}`, n === "avg" ? "TB" : n]} />
+        {lo != null && hi != null && <ReferenceArea y1={lo} y2={hi} fill={color} fillOpacity={0.07} stroke="none" />}
+        {lo != null && <ReferenceLine y={lo} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${lo}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
+        {hi != null && <ReferenceLine y={hi} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${hi}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
+        {mean != null && <ReferenceLine y={mean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${mean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
+        <Area type="monotone" dataKey="avg" stroke="none" fill={`url(#${gid})`} isAnimationActive={false} connectNulls />
+        <Line type="monotone" dataKey="avg" stroke={color} strokeWidth={2.4} isAnimationActive={false} connectNulls
+          dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (lo != null && payload.avg < lo) || (hi != null && payload.avg > hi); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={oob ? 3.2 : 2.6} fill={oob ? COLOR.coralDeep : color} stroke="#fff" strokeWidth={0.9} />; }}
+          activeDot={{ r: 4 }} />
+      </ComposedChart></ResponsiveContainer></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.35 }} /> Dải giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> TB ngoài giới hạn</span></div>
+    </div>
+  );
+}
+
 // ====== COMBOBOX TÌM KIẾM (kiểu web bán hàng) cho chọn đối tượng ======
 // Gõ để lọc; danh sách thả xuống có highlight, %đạt, khu/AHU; chọn bằng chuột hoặc bàn phím.
 function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
@@ -738,6 +772,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
   const [liveSeries, setLiveSeries] = useState({});   // {scopeId: chuỗi 90 ngày ALL} — cho mini-scope & thẻ kỳ
   const [mainSeries, setMainSeries] = useState({});   // {`id|sensor|range`: chuỗi chính (giờ/ngày + đúng cảm biến)}
   const [roomBand, setRoomBand] = useState({});       // {`room|sensor|range`: chuỗi giá trị TB + giới hạn (phòng)}
+  const [roomBandsMulti, setRoomBandsMulti] = useState({}); // {`room|range`: { DP:series, RH:series, T:series }} — hiện CẢ 3 chỉ tiêu
   const [multiSensor, setMultiSensor] = useState({}); // {`room|range`: [{k, series}]} — vẽ ĐỦ DP/RH/T của 1 phòng
 
   // Vũ trụ scope ở chế độ LIVE — DỰNG TỪ DANH SÁCH PHÒNG (luôn có dữ liệu nhờ WF1)
@@ -862,6 +897,28 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
     })();
     return () => { huy = true; };
   }, [wantRoomBand, activeId, sensor, range]); // eslint-disable-line
+
+  // LIVE: nạp band TB + giới hạn cho CẢ 3 chỉ tiêu (DP/RH/T) của phòng — để hiện đồng thời.
+  const roomBandsKey = `${activeId}|${range}`;
+  const wantRoomBands = isLive && activeScope && activeScope.type === "ROOM";
+  useEffect(() => {
+    if (!wantRoomBands) return;
+    if (roomBandsMulti[roomBandsKey]) return;
+    const donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
+    const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
+    let huy = false;
+    (async () => {
+      const out = {};
+      for (const k of ["DP", "RH", "T"]) {
+        const r = await layChuoiGiaTriPhong(activeId, k, donVi, soDiem);
+        if (huy) return;
+        const s = (r && r.series) || [];
+        if (s.length) out[k] = s;
+      }
+      if (!huy) setRoomBandsMulti((m) => ({ ...m, [roomBandsKey]: out }));
+    })();
+    return () => { huy = true; };
+  }, [wantRoomBands, activeId, range]); // eslint-disable-line
 
   // chuỗi ĐA CẢM BIẾN (vẽ đủ DP/RH/T) — tải cho MỌI cấp: phòng/khu/AHU/tổng.
   const multiKey = `${activeScope?.type || "TOTAL"}|${activeId}|${range}`;
@@ -1152,36 +1209,24 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
         ); })()}
         {/* ============ PHÒNG: phân tích chi tiết khi có lỗi ============ */}
         {isRoom && (<>
-          {/* (1) Giá trị trung bình mỗi giờ + dải giới hạn */}
-          {wantRoomBand ? (
-            <Card className="p-6"><SectionTitle icon={Minus} hint={`${activeScope.name} · ${SENSOR_META[sensor].label} (${sensor}) · trung bình mỗi ${isHourly ? "giờ" : "ngày"}`}>① Giá trị trung bình &amp; dải giới hạn</SectionTitle>
-              {bandSeries.length === 0 ? (
-                <p className="mt-4 text-[13px] text-amber-600">Đang tải dữ liệu giá trị phòng… (nếu không có, phòng này chưa ghi nhận giá trị {SENSOR_META[sensor].label} trong khoảng đã chọn)</p>
-              ) : (<>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4 mb-2 text-center">{[["Trung bình", bandMean == null ? "—" : `${bandMean} ${sUnit}`], ["GHD", bandLo == null ? "—" : `${bandLo} ${sUnit}`], ["GHT", bandHi == null ? "—" : `${bandHi} ${sUnit}`], ["Số điểm", `${bandSeries.length}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-                <div style={{ height: 250 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={bandSeries} margin={{ top: 10, right: 16, left: -2, bottom: 4 }}>
-                  <defs><linearGradient id="bandFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={COLOR.teal} stopOpacity={0.16} /><stop offset="100%" stopColor={COLOR.teal} stopOpacity={0.03} /></linearGradient></defs>
-                  <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(bandSeries.length)} />
-                  <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={["auto", "auto"]} tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
-                  <Tooltip contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }} formatter={(v, n) => [v == null ? "—" : `${(+v).toFixed(2)} ${sUnit}`, n === "avg" ? "TB" : n === "vmax" ? "Cao nhất" : n === "vmin" ? "Thấp nhất" : n]} />
-                  {bandLo != null && bandHi != null && <ReferenceArea y1={bandLo} y2={bandHi} fill={COLOR.teal} fillOpacity={0.07} stroke="none" />}
-                  {bandLo != null && <ReferenceLine y={bandLo} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${bandLo}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-                  {bandHi != null && <ReferenceLine y={bandHi} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${bandHi}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-                  {bandMean != null && <ReferenceLine y={bandMean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${bandMean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
-                  <Area type="monotone" dataKey="avg" stroke="none" fill="url(#bandFill)" isAnimationActive={false} connectNulls />
-                  <Line type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.4} isAnimationActive={false} connectNulls
-                    dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (bandLo != null && payload.avg < bandLo) || (bandHi != null && payload.avg > bandHi); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={oob ? 3.2 : 2.6} fill={oob ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={0.9} />; }}
-                    activeDot={{ r: 4 }} />
-                </ComposedChart></ResponsiveContainer></div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Dải giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình kỳ</span></div>
-              </>)}
-            </Card>
-          ) : (
-            <Card className="p-6"><SectionTitle icon={Minus} hint={`${activeScope.name} · trung bình theo thời gian`}>① Giá trị trung bình &amp; dải giới hạn</SectionTitle>
-              <p className="mt-4 text-[13px] text-slate-500">Chọn một chỉ tiêu cụ thể (<b>Chênh áp</b> / <b>Độ ẩm</b> / <b>Nhiệt độ</b>) ở thanh lọc phía trên để xem giá trị trung bình mỗi giờ kèm dải giới hạn cho phòng này.</p>
-            </Card>
-          )}
+          {/* (1) Giá trị trung bình mỗi giờ + dải giới hạn — hiện CẢ 3 chỉ tiêu của phòng */}
+          {(() => {
+            const bands = (wantRoomBands && roomBandsMulti[roomBandsKey]) || null;
+            const ks = bands ? ["DP", "RH", "T"].filter((k) => bands[k] && bands[k].length) : [];
+            return (
+              <Card className="p-6"><SectionTitle icon={Minus} hint={`${activeScope.name} · trung bình mỗi ${isHourly ? "giờ" : "ngày"} · tất cả chỉ tiêu`}>① Giá trị trung bình &amp; dải giới hạn</SectionTitle>
+                {!isLive ? (
+                  <p className="mt-4 text-[13px] text-slate-500">Biểu đồ giá trị trung bình theo phòng hiển thị ở chế độ <b>LIVE</b> (đọc dữ liệu thật từ Supabase).</p>
+                ) : !bands ? (
+                  <p className="mt-4 text-[13px] text-amber-600">Đang tải dữ liệu giá trị phòng cho cả 3 chỉ tiêu…</p>
+                ) : ks.length === 0 ? (
+                  <p className="mt-4 text-[13px] text-slate-500">Phòng này chưa ghi nhận giá trị (Chênh áp / Độ ẩm / Nhiệt độ) trong khoảng đã chọn.</p>
+                ) : (
+                  <div className="mt-4 divide-y divide-slate-100">{ks.map((k, idx) => <div key={k} className={idx > 0 ? "pt-6" : ""}><RoomBandChart sensorKey={k} series={bands[k]} isHourly={isHourly} /></div>)}</div>
+                )}
+              </Card>
+            );
+          })()}
           {/* (2) % đạt / OOS theo thời gian — vẽ đủ cảm biến phòng có */}
           <Card className="p-6"><SectionTitle icon={LineIcon} hint={showMulti ? `${activeScope.name} · ${sensorsPresent.map((k) => SENSOR_META[k]?.label).join(" · ")} · theo ${isHourly ? "giờ" : "ngày"}` : `${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label} · theo ${isHourly ? "giờ" : "ngày"}`}>② % đạt / OOS theo thời gian{showMulti ? " — theo từng cảm biến" : ""}</SectionTitle>
             <p className="text-[11px] text-slate-400 mt-1">% đạt = 100% − % ngoài giới hạn (OOS). Đường dưới mốc 80% là kỳ cần chú ý.</p>
