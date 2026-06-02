@@ -462,6 +462,32 @@ export async function xoaCamBien(p, signal)   { return goiRPC('rpc_xoa_cam_bien'
 export async function suaNguong(p, signal)    { return goiRPC('rpc_sua_nguong_canh_bao', p, { signal }) }
 export async function luuPhanTichAi(p, signal){ return goiRPC('rpc_luu_phan_tich_ai', p, { signal }) }
 
+// Lấy URL webhook WF7 (cấu hình trong cau_hinh: key 'wf7_webhook_url'). Trả '' nếu chưa đặt.
+export async function layWebhookAi(signal) {
+  const { data, error } = await docView('xem_cau_hinh_he_thong',
+    (q) => q.select('key,value_hien_thi').eq('key', 'wf7_webhook_url'), { signal })
+  if (error || !data || !data.length) return ''
+  return (data[0].value_hien_thi || '').trim()
+}
+
+// Gọi WF7 (n8n) để AI phân tích dữ liệu biểu đồ thật. Trả { ok, text, level, error }.
+export async function phanTichAiQuaWorkflow(url, payload, signal) {
+  if (!url) return { ok: false, error: 'CHUA_CAU_HINH_WEBHOOK' }
+  try {
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload), signal,
+    })
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
+    const j = await res.json()
+    const text = (j && (j.text || j.ket_qua || j.content)) || ''
+    if (!text) return { ok: false, error: 'EMPTY' }
+    return { ok: true, text, level: j.level != null ? Number(j.level) : null }
+  } catch (e) {
+    return { ok: false, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
+  }
+}
+
 // ---------- tiện ích ----------
 function mucCanhBaoToLevel(muc) {
   switch ((muc || '').toUpperCase()) {
