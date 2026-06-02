@@ -444,6 +444,58 @@ function regStat(ys) {
   }
   return { n, mean, std, slope, r2, vmin: Math.min(...ys), vmax: Math.max(...ys) };
 }
+// Hiển thị kết quả AI theo MỤC: tách theo "## TÊN MỤC", mỗi mục là 1 khối có tiêu đề + màu.
+// Nếu văn bản không có marker "##" → hiển thị nguyên văn (tương thích kết quả cũ).
+function AiSections({ text }) {
+  if (!text) return null;
+  const raw = String(text).trim();
+  if (!/##\s+/.test(raw)) return <p className="text-[13px] leading-relaxed text-slate-600 whitespace-pre-line">{raw}</p>;
+  const blocks = raw.split(/\n?##\s+/).map((s) => s.trim()).filter(Boolean);
+  const META = [
+    { kw: "DỮ LIỆU", icon: Gauge, c: COLOR.sky, bg: "bg-sky-50/70", ring: "ring-sky-100" },
+    { kw: "PHÂN TÍCH", icon: Activity, c: COLOR.teal, bg: "bg-teal-50/70", ring: "ring-teal-100" },
+    { kw: "BÁO CÁO", icon: FileBarChart, c: COLOR.navy, bg: "bg-slate-50", ring: "ring-slate-200" },
+    { kw: "CAPA", icon: CheckCircle2, c: COLOR.coralDeep, bg: "bg-amber-50/70", ring: "ring-amber-100" },
+  ];
+  return <div className="space-y-3 mt-3">{blocks.map((b, idx) => {
+    const nl = b.indexOf("\n");
+    const title = (nl < 0 ? b : b.slice(0, nl)).trim();
+    const body = (nl < 0 ? "" : b.slice(nl + 1)).trim();
+    const m = META.find((x) => title.toUpperCase().includes(x.kw)) || { icon: Sparkles, c: COLOR.teal, bg: "bg-slate-50", ring: "ring-slate-200" };
+    const Icon = m.icon;
+    const lines = body.split("\n").map((l) => l.replace(/\s+$/, "")).filter((l) => l.trim());
+    return (
+      <div key={idx} className={`rounded-2xl ring-1 ${m.ring} ${m.bg} p-3.5`}>
+        <div className="flex items-center gap-2 mb-1.5"><Icon className="w-4 h-4 shrink-0" style={{ color: m.c }} strokeWidth={1.9} /><h5 className="text-[12px] font-bold uppercase tracking-wide" style={{ color: m.c }}>{title}</h5></div>
+        <div className="space-y-1">{lines.map((l, j) => {
+          const t = l.trim();
+          const bullet = t.startsWith("•") || t.startsWith("-");
+          const txt = t.replace(/^[•-]\s*/, "");
+          const warn = txt.startsWith("⚠");
+          return <p key={j} className={`text-[12.5px] leading-relaxed ${warn ? "text-amber-700 font-medium" : "text-slate-600"} ${bullet ? "flex gap-1.5" : ""}`}>{bullet && <span className="mt-[2px] shrink-0" style={{ color: m.c }}>•</span>}<span>{txt}</span></p>;
+        })}</div>
+      </div>
+    );
+  })}</div>;
+}
+
+// Tooltip cho biểu đồ "% đạt/OOS theo từng chỉ tiêu" — đọc thẳng điểm dữ liệu nên
+// mỗi chỉ tiêu CHỈ hiện 1 lần (tránh lặp do có cả Area + Line cùng dataKey).
+function SensorComplyTooltip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0].payload;
+  const ks = ["DP", "RH", "T"].filter((k) => d[`comp_${k}`] != null);
+  if (!ks.length) return null;
+  return <div className="rounded-2xl bg-white px-3.5 py-2.5 ring-1 ring-slate-200" style={{ boxShadow: "0 10px 30px -8px rgba(35,80,110,0.4)" }}>
+    <p className="text-xs font-semibold mb-1.5" style={{ color: COLOR.navy }}>{label}</p>
+    <div className="space-y-1 text-[11px]">{ks.map((k) => { const v = d[`comp_${k}`]; return (
+      <p key={k} className="flex justify-between gap-5">
+        <span className="font-medium" style={{ color: SENSOR_COLOR[k] }}>● {SENSOR_META[k].label}</span>
+        <span className="tabular-nums text-slate-600">{fmtPct(v)} · OOS {v == null ? "—" : (100 - v).toFixed(1) + "%"}</span>
+      </p>); })}</div>
+  </div>;
+}
+
 function TrendTooltip({ active, payload, label }) {
   if (!active || !payload || !payload.length) return null; const d = payload[0].payload;
   return <div className="rounded-2xl bg-white px-3.5 py-2.5 ring-1 ring-slate-200" style={{ boxShadow: "0 10px 30px -8px rgba(35,80,110,0.4)" }}><p className="text-xs font-semibold mb-1.5" style={{ color: COLOR.navy }}>{label}</p><div className="space-y-1 text-[11px]"><p className="flex justify-between gap-4"><span className="text-slate-500">Tổng giờ cảnh báo</span><span className="font-semibold tabular-nums">{fmtH(d.alert)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.sand }}>● Warning</span><span className="tabular-nums">{fmtH(d.warnH)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.softCoral }}>● Critical</span><span className="tabular-nums">{fmtH(d.critH)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.teal }}>― Tuân thủ</span><span className="tabular-nums">{fmtPct(d.comp)}</span></p></div></div>;
@@ -549,8 +601,7 @@ function ChartComplyPerMetric({ data, present, height = 280 }) {
         <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
         <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(data.length)} />
         <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={dom} tickFormatter={(v) => `${v}%`} />
-        <Tooltip contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }}
-          formatter={(v, n) => { const k = String(n).replace("comp_", ""); return [`${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`, SENSOR_META[k]?.label || k]; }} />
+        <Tooltip content={<SensorComplyTooltip />} cursor={{ fill: "rgba(79,159,209,0.08)" }} />
         <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
         {["DP", "RH", "T"].filter((k) => present.includes(k)).map((k) => (
           <Area key={`a_${k}`} type="monotone" dataKey={`comp_${k}`} stroke="none" fill={`url(#grad_${k})`} isAnimationActive={false} connectNulls legendType="none" />
@@ -622,7 +673,7 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
         <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition cursor-pointer ${open ? "rotate-180" : ""}`} strokeWidth={1.8} onClick={() => setOpen((v) => !v)} />
       </div>
       {open && (
-        <div ref={listRef} className="absolute z-30 mt-1.5 w-full max-h-72 overflow-auto rounded-2xl bg-white ring-1 ring-slate-200 shadow-xl shadow-slate-300/40 py-1.5">
+        <div ref={listRef} className="absolute z-50 mt-1.5 w-full max-h-72 overflow-auto rounded-2xl bg-white ring-1 ring-slate-200 shadow-xl shadow-slate-300/40 py-1.5">
           <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center justify-between"><span>{levelLabel}</span><span>{filtered.length} kết quả</span></div>
           {filtered.length === 0 ? (
             <div className="px-3 py-4 text-center text-[12px] text-slate-400">Không tìm thấy — thử từ khoá khác</div>
@@ -662,6 +713,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
   const [dtToDraft, setDtToDraft] = useState("");
   const [aiResult, setAiResult] = useState(null);
   const [aiBusy, setAiBusy] = useState(false);        // đang gọi AI qua workflow
+  const [aiNote, setAiNote] = useState(null);         // ghi chú trạng thái (vd: lỗi → dùng bản cục bộ)
   const [aiWebhook, setAiWebhook] = useState("");     // URL WF7 (nếu cấu hình)
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const u = await layWebhookAi(); if (!huy) setAiWebhook(u || ""); })(); return () => { huy = true; }; }, [isLive]);
   const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90 };
@@ -906,16 +958,49 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
       ? `IPC: kiểm tra hiện trường ${activeScope.name} (cửa/chốt liên động, chênh áp thực, chế độ phòng). Cơ điện: soát AHU${activeScope.ahu ? " " + activeScope.ahu : ""} — lưu lượng, cấp lọc, van/biến tần, rò khí. QA: xem xét mở/đánh giá CAPA nếu tái diễn, rà soát rủi ro liên đới.`
       : `Duy trì giám sát thường quy; chưa cần can thiệp khẩn. QA tiếp tục theo dõi các ${donViLbl} tới.`;
     const i = (a, b) => (showMulti ? a : b);
-    const text = [
-      `Phân tích ${activeScope.name} · ${showMulti ? `đủ cảm biến (${sensorsPresent.join("/")})` : SENSORS.find((s) => s.k === sensor).label} · khoảng ${RANGES.find((r) => r.k === range).label}${win} · ${tech.n} điểm theo ${donViLbl}.`,
-      `1) Tổng quan: tỉ lệ đạt trung bình ${avg.toFixed(1)}% (dao động ${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%, độ lệch chuẩn ${tech.std.toFixed(1)}%); ${rateTxt}.`,
-      showMulti && perSensorLines.length ? `2) Theo từng cảm biến:\n${perSensorLines.join("\n")}` : "",
-      `${i("3", "2")}) Xu hướng tổng: ${slopeTxt}; Δ7 ${donViLbl} ${fmtDelta(delta7)}.`,
-      `${i("4", "3")}) OOS: tổng ${tech.totOos} điểm ngoài giới hạn${worst ? `; cao điểm tại ${worst.label} (đạt ${fmtPct(worst.comp)}, ${worst.oos || 0} điểm OOS)` : ""}.`,
-      `${i("5", "4")}) Chất lượng dữ liệu: ${dqTxt}${dqWarn}.`,
-      `${i("6", "5")}) Khuyến nghị: ${khuyenNghi}`,
-      `AI chỉ hỗ trợ phân tích xu hướng; quyết định GMP do IPC/QA phê duyệt.`,
+    const levelLbl = ["Kiểm soát tốt", "Cần chú ý", "Cảnh báo", "Hành động khắc phục"][level];
+    const xuHuongDien = tech.n >= 2
+      ? (tech.slope > 0.05 ? "đang cải thiện dần" : tech.slope < -0.05 ? "đang xấu đi — cần lưu ý" : "đi ngang, ổn định")
+      : "chưa đủ dữ liệu để kết luận xu hướng";
+    const dgPhanTich = avg >= 88
+      ? `Tỉ lệ đạt TB ${avg.toFixed(1)}% ở mức tốt, trên ngưỡng GMP 80%; ${xuHuongDien}.`
+      : avg >= 80
+        ? `Tỉ lệ đạt TB ${avg.toFixed(1)}% còn mỏng so với ngưỡng 80% — biên an toàn hẹp; ${xuHuongDien}.`
+        : `Tỉ lệ đạt TB ${avg.toFixed(1)}% DƯỚI ngưỡng GMP 80% — chưa đạt kiểm soát; ${xuHuongDien}.`;
+    const worstTxt = worst ? `Cao điểm mất kiểm soát tại ${worst.label}: đạt ${fmtPct(worst.comp)}, ${worst.oos || 0} điểm OOS.` : "Không có mốc nổi bật về OOS.";
+    const capaLines = (avg < 80 || tech.slope < -0.5)
+      ? [
+          `IPC: kiểm tra hiện trường ${activeScope.name} — cửa/chốt liên động, chênh áp thực tế, chế độ vận hành phòng.`,
+          `Cơ điện: soát AHU${activeScope.ahu ? " " + activeScope.ahu : ""} — lưu lượng cấp/hồi, cấp lọc (chênh áp phin lọc), van/biến tần, rò khí.`,
+          `QA: xem xét mở/đánh giá CAPA nếu lặp lại; rà soát rủi ro liên đới và hồ sơ lô bị ảnh hưởng.`,
+        ]
+      : [
+          `Duy trì giám sát thường quy; chưa cần can thiệp khẩn.`,
+          `QA tiếp tục theo dõi ${donViLbl} tới; ghi nhận nếu xu hướng đảo chiều.`,
+        ];
+    const secTho = [
+      `• Đối tượng: ${activeScope.name} · ${showMulti ? `đủ cảm biến (${sensorsPresent.join("/")})` : SENSORS.find((s) => s.k === sensor).label} · khoảng ${RANGES.find((r) => r.k === range).label}${win} · ${tech.n} điểm theo ${donViLbl}.`,
+      `• Tỉ lệ đạt: TB ${avg.toFixed(1)}% (min–max ${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%, SD ${tech.std.toFixed(1)}%). ${rateTxt}.`,
+      `• OOS & dữ liệu: tổng ${tech.totOos} điểm OOS; độ đầy đủ dữ liệu ${dqTxt}.`,
+      `• Xu hướng: ${slopeTxt}; Δ7 ${donViLbl} ${fmtDelta(delta7)}.`,
+      showMulti && perSensorLines.length ? `• Theo từng chỉ tiêu:\n${perSensorLines.join("\n")}` : "",
     ].filter(Boolean).join("\n");
+    const secPhanTich = [
+      `• ${dgPhanTich}`,
+      `• ${worstTxt}`,
+      dqWarn ? `• ⚠ Độ đầy đủ dữ liệu thấp (${dqTxt}) làm giảm độ tin cậy kết luận.` : `• Độ đầy đủ dữ liệu ${dqTxt} — đủ tin cậy để kết luận.`,
+    ].join("\n");
+    const secBaoCao = [
+      `• Mức kết luận: ${levelLbl}.`,
+      `• ${activeScope.name} ${avg >= 80 ? "đang trong tầm kiểm soát" : "chưa đạt kiểm soát"} ở khoảng ${RANGES.find((r) => r.k === range).label}; ${tech.slope < -0.5 ? "xu hướng suy giảm cần theo dõi sát." : "xu hướng ổn định/cải thiện."}`,
+    ].join("\n");
+    const secCapa = capaLines.map((x) => `• ${x}`).concat("• AI chỉ hỗ trợ phân tích xu hướng; quyết định GMP do IPC/QA phê duyệt.").join("\n");
+    const text = [
+      `## DỮ LIỆU THÔ\n${secTho}`,
+      `## PHÂN TÍCH\n${secPhanTich}`,
+      `## BÁO CÁO\n${secBaoCao}`,
+      `## CAPA & KHUYẾN NGHỊ\n${secCapa}`,
+    ].join("\n\n");
     return { text, level };
   };
 
@@ -927,6 +1012,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
 
   const runAI = async () => {
     if (aiBusy) return;
+    setAiNote(null);
     if (!tech.n) { finishAI("Chưa có đủ dữ liệu trong khoảng đã chọn để phân tích. Hãy mở rộng khoảng thời gian hoặc kiểm tra kết nối FMS/WF1.", 0, "cuc_bo"); return; }
 
     // Nếu đã cấu hình WF7 → gửi DỮ LIỆU BIỂU ĐỒ THẬT cho OpenAI phân tích.
@@ -942,9 +1028,10 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
       const r = await phanTichAiQuaWorkflow(aiWebhook, payload);
       setAiBusy(false);
       if (r.ok) { const loc = buildLocalAnalysis(); finishAI(r.text, r.level != null ? r.level : loc.level, "openai"); return; }
-      // lỗi → rơi về bản cục bộ + ghi chú
+      // lỗi → rơi về bản cục bộ + ghi chú trạng thái (KHÔNG nối vào nội dung để giữ 4 mục sạch)
       const loc = buildLocalAnalysis();
-      finishAI(loc.text + `\n\n(Ghi chú: chưa gọi được AI qua workflow — ${r.error}. Đang hiển thị phân tích cục bộ.)`, loc.level, "cuc_bo");
+      setAiNote(`Chưa gọi được AI qua workflow (${r.error}). Đang hiển thị phân tích cục bộ — kiểm tra WF7 / khóa OpenAI nếu cần.`);
+      finishAI(loc.text, loc.level, "cuc_bo");
       return;
     }
     // Chưa cấu hình webhook → bản cục bộ
@@ -970,7 +1057,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
         <div className="flex gap-2"><button onClick={runAI} disabled={aiBusy} className={`text-xs font-medium text-white rounded-xl px-4 py-2 flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: COLOR.teal }}><Sparkles className={`w-4 h-4 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "Đang phân tích…" : "AI phân tích"}</button><button onClick={printTrend} className="text-xs font-medium text-white rounded-xl px-4 py-2 flex items-center gap-1.5" style={{ backgroundColor: COLOR.coral }}><Printer className="w-4 h-4" strokeWidth={1.8} /> In biểu đồ</button></div>
       </div>
 
-      <Card className="p-5">
+      <Card className="relative z-30 p-5">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Khoảng</span>{RANGES.map((r) => <Chip key={r.k} active={range === r.k} onClick={() => { setRange(r.k); setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }}>{r.label}</Chip>)}</div>
           <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Cấp xem</span>{SCOPE_LEVELS.map((s) => <Chip key={s.k} active={level === s.k} onClick={() => { setLevel(s.k); setSelId(""); setOptArea("ALL"); setOptAhu("ALL"); }}>{s.label}</Chip>)}</div>
@@ -1033,11 +1120,17 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
       </Card>
 
       <div id="trendPrintArea" className="space-y-5">
-        {aiResult && (() => { const al = [{ l: "Kiểm soát tốt", c: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200" }, { l: "Cần chú ý", c: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200" }, { l: "Cảnh báo", c: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200" }, { l: "Hành động", c: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200" }][aiResult.level]; return (
+        {aiBusy && (
+          <Card className="p-5 ring-1 ring-teal-100">
+            <div className="flex items-center gap-3"><Sparkles className="w-5 h-5 animate-pulse" style={{ color: COLOR.teal }} strokeWidth={1.9} /><div><p className="text-[13px] font-semibold" style={{ color: COLOR.navy }}>Đang phân tích qua AI…</p><p className="text-[12px] text-slate-500">Đang gửi dữ liệu biểu đồ cho AI (OpenAI). Thường mất 10–30 giây — vui lòng đợi.</p></div></div>
+          </Card>
+        )}
+        {!aiBusy && aiResult && (() => { const al = [{ l: "Kiểm soát tốt", c: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200" }, { l: "Cần chú ý", c: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200" }, { l: "Cảnh báo", c: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200" }, { l: "Hành động", c: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200" }][aiResult.level]; return (
           <Card className={`p-5 ring-1 ${al.ring}`}>
             <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Kết quả AI phân tích &amp; cảnh báo</SectionTitle><div className="flex items-center gap-2">{aiResult.nguon === "openai" && <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-teal-50 text-teal-700 ring-1 ring-teal-200">OpenAI</span>}{aiResult.nguon === "cuc_bo" && <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-500">Phân tích cục bộ</span>}<span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Mức cảnh báo: {al.l}</span></div></div>
-            <p className="mt-3 text-[13px] leading-relaxed text-slate-600 whitespace-pre-line">{aiResult.text}</p>
-            <p className="mt-2 text-[11px] text-slate-400">Đã lưu vào tab <b>Báo cáo</b> để gửi email · {aiResult.time}</p>
+            <AiSections text={aiResult.text} />
+            {aiNote && <p className="mt-3 text-[12px] text-amber-700 bg-amber-50 ring-1 ring-amber-100 rounded-xl px-3 py-2">⚠ {aiNote}</p>}
+            <p className="mt-3 text-[11px] text-slate-400">Đã lưu vào tab <b>Báo cáo</b> để gửi email · {aiResult.time}</p>
           </Card>
         ); })()}
         {/* ============ PHÒNG: phân tích chi tiết khi có lỗi ============ */}
@@ -1188,7 +1281,7 @@ function ReportsPage({ ai, aiRows = null }) {
     <div className="space-y-5">
       <SectionTitle icon={FileBarChart}>Báo cáo & Phân tích AI</SectionTitle>
       <Card className="p-6"><SectionTitle icon={Sparkles} hint="tích hợp từ tab Xu hướng GMP">Phân tích AI</SectionTitle>
-        {ai ? <div className="rounded-2xl ring-1 ring-teal-100 p-5 text-sm leading-relaxed text-slate-700 mt-4" style={{ background: "linear-gradient(135deg,#EAF6F3,#fff)" }}><p className="text-[11px] text-slate-500 mb-2">{ai.scope} · {ai.sensor} · {ai.range} · tạo lúc {ai.time}</p><p>{ai.text}</p></div> : <div className="rounded-2xl ring-1 ring-amber-100 bg-amber-50/50 p-5 text-sm text-slate-600 mt-4">Chưa có phân tích. Vào tab <b>Xu hướng GMP</b>, chọn đối tượng/khoảng thời gian rồi bấm <b>AI phân tích</b>.</div>}
+        {ai ? <div className="rounded-2xl ring-1 ring-teal-100 p-5 text-sm leading-relaxed text-slate-700 mt-4" style={{ background: "linear-gradient(135deg,#EAF6F3,#fff)" }}><p className="text-[11px] text-slate-500 mb-2">{ai.scope} · {ai.sensor} · {ai.range} · tạo lúc {ai.time}</p><AiSections text={ai.text} /></div> : <div className="rounded-2xl ring-1 ring-amber-100 bg-amber-50/50 p-5 text-sm text-slate-600 mt-4">Chưa có phân tích. Vào tab <b>Xu hướng GMP</b>, chọn đối tượng/khoảng thời gian rồi bấm <b>AI phân tích</b>.</div>}
         {aiRows && aiRows.length > 0 && (
           <div className="mt-5">
             <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-2 flex items-center gap-1.5"><History className="w-3 h-3" strokeWidth={1.8} /> Phân tích đã lưu — gần đây</p>
