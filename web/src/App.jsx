@@ -628,6 +628,12 @@ function RoomBandChart({ sensorKey, series, isHourly }) {
   const vals = series.filter((p) => p.avg != null);
   const mean = vals.length ? +(vals.reduce((a, p) => a + p.avg, 0) / vals.length).toFixed(2) : null;
   const gid = `bandFill_${sensorKey}`;
+  // Trục Y phải BAO GỒM cả GHD/GHT + dữ liệu để 2 đường giới hạn luôn hiện đầy đủ.
+  const ys = vals.map((p) => p.avg);
+  const yLo = Math.min(...ys, lo == null ? Infinity : lo, hi == null ? Infinity : hi);
+  const yHi = Math.max(...ys, lo == null ? -Infinity : lo, hi == null ? -Infinity : hi);
+  const pad = Math.max(0.5, (yHi - yLo) * 0.1);
+  const yDomain = ys.length && isFinite(yLo) && isFinite(yHi) ? [+(yLo - pad).toFixed(1), +(yHi + pad).toFixed(1)] : ["auto", "auto"];
   return (
     <div>
       <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h4 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[sensorKey]?.label} ({sensorKey})</h4></div>
@@ -636,8 +642,17 @@ function RoomBandChart({ sensorKey, series, isHourly }) {
         <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.16} /><stop offset="100%" stopColor={color} stopOpacity={0.03} /></linearGradient></defs>
         <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
         <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(series.length)} />
-        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={["auto", "auto"]} tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
-        <Tooltip contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }} formatter={(v, n) => [v == null ? "—" : `${(+v).toFixed(2)} ${unit}`, n === "avg" ? "TB" : n]} />
+        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={yDomain} allowDataOverflow tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
+        <Tooltip cursor={{ stroke: color, strokeWidth: 1, strokeDasharray: "3 3" }} content={({ active, payload, label }) => {
+          if (!active || !payload || !payload.length) return null;
+          const d = payload[0].payload; if (d.avg == null) return null;
+          const oob = (lo != null && d.avg < lo) || (hi != null && d.avg > hi);
+          return <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200" style={{ boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }}>
+            <p className="text-[11px] font-semibold mb-1" style={{ color: COLOR.navy }}>{label}</p>
+            <p className="text-[12px]"><span className="text-slate-500">TB: </span><span className="font-semibold tabular-nums" style={{ color: oob ? COLOR.coralDeep : color }}>{(+d.avg).toFixed(2)} {unit}</span>{oob && <span className="text-[10px] text-rose-600 ml-1">· ngoài giới hạn</span>}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5 tabular-nums">GHD {lo == null ? "—" : lo} · GHT {hi == null ? "—" : hi} {unit}</p>
+          </div>;
+        }} />
         {lo != null && hi != null && <ReferenceArea y1={lo} y2={hi} fill={color} fillOpacity={0.07} stroke="none" />}
         {lo != null && <ReferenceLine y={lo} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${lo}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
         {hi != null && <ReferenceLine y={hi} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${hi}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
