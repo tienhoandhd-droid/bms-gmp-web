@@ -21,8 +21,9 @@ export const TRANG_THAI_CODE_TO_LABEL = {
   IPC_BAT_THUONG:            'IPC: bất thường',
   DA_BAO_CO_DIEN:            'Đã báo cơ điện',
   CO_DIEN_DANG_XU_LY:        'Cơ điện đang xử lý',
-  CO_DIEN_KHONG_XU_LY_DUOC:  'Cơ điện đang xử lý',   // leo thang — giữ ở bước cơ điện
+  CO_DIEN_KHONG_XU_LY_DUOC:  'Không xử lý được',     // → Trực HSL điều phối
   CO_DIEN_DA_XU_LY:          'Chờ IPC kiểm lại',
+  CHO_QA_KIEM_LAI:           'Chờ IPC kiểm lại',
   DA_KHAC_PHUC:              'Đã khắc phục',
   IPC_BINH_THUONG:           'Đã khắc phục',         // đóng (bình thường)
   DONG_TU_DONG:              'Đã khắc phục',         // đóng (tự động)
