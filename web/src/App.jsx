@@ -160,13 +160,42 @@ const ROOM_SEED = [
 ];
 const INITIAL_ROOMS = ROOM_SEED.map((r) => ({ ...r, noData: !!r.noData, sensors: r.noData ? [] : defSensors(r.priority) }));
 
-const STATUS_FLOW = {
-  "Chưa xử lý": { next: "IPC: bất thường", label: "IPC tiếp nhận", roles: ["IPC"], color: "text-sky-700 bg-sky-50 hover:bg-sky-100 ring-sky-200" },
-  "IPC: bất thường": { next: "Đã báo cơ điện", label: "Báo cơ điện", roles: ["IPC"], color: "text-violet-700 bg-violet-50 hover:bg-violet-100 ring-violet-200" },
-  "Đã báo cơ điện": { next: "Cơ điện đang xử lý", label: "Cơ điện tiếp nhận", roles: ["MEP"], color: "text-teal-700 bg-teal-50 hover:bg-teal-100 ring-teal-200" },
-  "Cơ điện đang xử lý": { next: "Chờ IPC kiểm lại", label: "Báo đã xử lý", roles: ["MEP"], color: "text-cyan-700 bg-cyan-50 hover:bg-cyan-100 ring-cyan-200" },
-  "Chờ IPC kiểm lại": { next: "Đã khắc phục", label: "QA xác nhận khắc phục", roles: ["QA"], color: "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 ring-emerald-200" },
+// Mỗi trạng thái → DANH SÁCH hành động (nút) theo vai trò. code = mã RPC; next = trạng thái hiển thị kế; dong = đóng sự cố.
+const A_TEAL = "text-teal-700 bg-teal-50 hover:bg-teal-100 ring-teal-200";
+const A_AMBER = "text-amber-700 bg-amber-50 hover:bg-amber-100 ring-amber-200";
+const A_INFO = "text-sky-700 bg-sky-50 hover:bg-sky-100 ring-sky-200";
+const A_ROSE = "text-rose-700 bg-rose-50 hover:bg-rose-100 ring-rose-200";
+const A_SLATE = "text-slate-600 bg-slate-100 hover:bg-slate-200 ring-slate-200";
+const STATUS_ACTIONS = {
+  "Chưa xử lý": [
+    { label: "Đã kiểm tra — Bình thường", code: "ipc_binh_thuong", next: "Đã khắc phục", dong: true, roles: ["IPC"], color: A_TEAL },
+    { label: "Bất thường — Báo Cơ điện", code: "ipc_bao_co_dien", next: "Đã báo cơ điện", roles: ["IPC"], color: A_AMBER },
+    { label: "Không có ở hiện trường", code: "ipc_vang", next: "Chưa xử lý", roles: ["IPC"], color: A_SLATE },
+  ],
+  "Đã báo cơ điện": [
+    { label: "Đang xử lý", code: "mep_tiep_nhan", next: "Cơ điện đang xử lý", roles: ["MEP"], color: A_INFO },
+    { label: "Đã xử lý xong", code: "mep_xu_ly_xong", next: "Chờ IPC kiểm lại", roles: ["MEP"], color: A_TEAL },
+    { label: "Không xử lý được", code: "mep_khong_xu_ly_duoc", next: "Không xử lý được", roles: ["MEP"], color: A_ROSE },
+    { label: "Không có ở hiện trường", code: "mep_vang", next: "Đã báo cơ điện", roles: ["MEP"], color: A_SLATE },
+  ],
+  "Cơ điện đang xử lý": [
+    { label: "Đã xử lý xong", code: "mep_xu_ly_xong", next: "Chờ IPC kiểm lại", roles: ["MEP"], color: A_TEAL },
+    { label: "Không xử lý được", code: "mep_khong_xu_ly_duoc", next: "Không xử lý được", roles: ["MEP"], color: A_ROSE },
+    { label: "Không có ở hiện trường", code: "mep_vang", next: "Cơ điện đang xử lý", roles: ["MEP"], color: A_SLATE },
+  ],
+  "Chờ IPC kiểm lại": [
+    { label: "Đạt — Đóng sự cố", code: "ipc_kiem_lai_dat", next: "Đã khắc phục", dong: true, roles: ["IPC"], color: A_TEAL },
+    { label: "Không đạt — Mở lại", code: "ipc_kiem_lai_khong_dat", next: "Đã báo cơ điện", roles: ["IPC"], color: A_ROSE },
+  ],
+  "Không xử lý được": [
+    { label: "Nhắc IPC + Cơ điện", code: "lot_nhac_nho", next: "Không xử lý được", roles: ["LOT"], color: A_INFO },
+    { label: "Ghi chú hồ sơ lô", code: "lot_ghi_chu", next: "Không xử lý được", roles: ["LOT"], color: A_SLATE },
+    { label: "Leo thang cấp trên", code: "lot_leo_thang", next: "Không xử lý được", roles: ["LOT"], color: A_AMBER },
+  ],
 };
+// gộp mọi vai trò có thể thao tác ở 1 trạng thái (để hiện "Chờ …")
+const rolesOfStatus = (st) => [...new Set((STATUS_ACTIONS[st] || []).flatMap((a) => a.roles))];
+const firstActionFor = (st, role) => (STATUS_ACTIONS[st] || []).find((a) => role === "ADMIN" || a.roles.includes(role)) || null;
 const STATUS_DOT = { "Chưa xử lý": "bg-rose-500", "IPC: bất thường": "bg-violet-500", "Đã báo cơ điện": "bg-amber-500", "Cơ điện đang xử lý": "bg-cyan-500", "Chờ IPC kiểm lại": "bg-teal-500", "Đã khắc phục": "bg-emerald-500" };
 const INCIDENTS0 = [
   { id: "SC-1042", room: "C4.R7", sensor: "Chênh áp (DP)", priority: "P1", start: "2026-05-29 06:12:04", duration: 7.1, status: "Chưa xử lý", silenced: false, trail: [{ t: "06:12:04", who: "Hệ thống", act: "Chênh áp nghiêm trọng (9.1 Pa < 12.5 Pa) — AHU-K01" }] },
@@ -1324,19 +1353,19 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   );
 }
 
-function ApprovalModal({ incident, user, onClose, onCommit }) {
-  const [reason, setReason] = useState(""); const flow = STATUS_FLOW[incident.status]; const valid = reason.trim().length >= 6 && flow && user;
+function ApprovalModal({ incident, action, user, onClose, onCommit }) {
+  const [reason, setReason] = useState(""); const valid = reason.trim().length >= 6 && action && user;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <div className="w-full max-w-lg rounded-3xl bg-white ring-1 ring-slate-200 overflow-hidden" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 pt-6 pb-4 flex items-start justify-between" style={{ background: "linear-gradient(135deg,#E6F4F1,#fff)" }}><div className="flex items-center gap-3"><div className="rounded-2xl bg-white p-2.5 ring-1 ring-teal-100 shadow-sm"><ShieldCheck className="w-5 h-5" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div><div><h2 className="text-base font-semibold" style={{ color: COLOR.navy }}>Phê duyệt thao tác</h2><p className="text-[11px] text-slate-500">Ghi nhận bằng tài khoản đăng nhập · ALCOA+</p></div></div><button onClick={onClose} className="rounded-full p-1.5 hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" strokeWidth={1.8} /></button></div>
+        <div className="px-6 pt-6 pb-4 flex items-start justify-between" style={{ background: "linear-gradient(135deg,#E6F4F1,#fff)" }}><div className="flex items-center gap-3"><div className="rounded-2xl bg-white p-2.5 ring-1 ring-teal-100 shadow-sm"><ShieldCheck className="w-5 h-5" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div><div><h2 className="text-base font-semibold" style={{ color: COLOR.navy }}>{action ? action.label : "Xem sự cố"}</h2><p className="text-[11px] text-slate-500">Ghi nhận bằng tài khoản đăng nhập · ALCOA+</p></div></div><button onClick={onClose} className="rounded-full p-1.5 hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" strokeWidth={1.8} /></button></div>
         <div className="px-6 py-5 space-y-5">
           <div className="grid grid-cols-3 gap-3 text-xs">{[["Mã sự cố", incident.id], ["Phòng", incident.room], ["Chỉ tiêu", incident.sensor]].map(([k, v]) => <div key={k}><p className="text-slate-500 text-[10px] uppercase tracking-wider font-semibold">{k}</p><p className="mt-1 font-semibold" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
           <div className="rounded-2xl bg-teal-50 ring-1 ring-teal-100 px-4 py-3 flex items-center gap-2 text-[13px]"><User className="w-4 h-4 text-teal-600" strokeWidth={1.8} /><span className="text-slate-600">Người thực hiện:</span> <span className="font-semibold" style={{ color: COLOR.navy }}>{user ? `${user.name} (${user.role})` : "chưa đăng nhập"}</span></div>
           <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-4"><p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" strokeWidth={1.8} /> Nhật ký truy vết</p><div className="space-y-2 max-h-32 overflow-y-auto pr-1">{incident.trail.map((e, i) => <div key={i} className="flex gap-3 text-xs"><span className="text-slate-400 tabular-nums shrink-0">{e.t}</span><span className="text-slate-300">·</span><span className="text-slate-600"><span className="font-semibold">{e.who}</span> — {e.act}</span></div>)}</div></div>
           <div><label className="text-[11px] font-semibold text-slate-600 mb-2 block">Lý do / kết quả <span className="text-rose-500">*</span></label><textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ghi rõ lý do/kết quả (tối thiểu 6 ký tự)…" className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-teal-300 resize-none placeholder:text-slate-300" /></div>
         </div>
-        <div className="px-6 py-4 bg-slate-50 flex items-center justify-between gap-3"><span className="text-[11px] text-slate-500">Trạng thái tiếp → <span className="font-semibold text-slate-700">{flow?.next}</span></span><div className="flex gap-2"><button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100">Hủy</button><button disabled={!valid} onClick={() => onCommit(incident, reason)} className="px-5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 text-white disabled:bg-slate-200 disabled:text-slate-400" style={valid ? { backgroundColor: COLOR.coral } : {}}><Check className="w-4 h-4" strokeWidth={2} /> Xác nhận & lưu</button></div></div>
+        <div className="px-6 py-4 bg-slate-50 flex items-center justify-between gap-3"><span className="text-[11px] text-slate-500">{action ? <>Trạng thái tiếp → <span className="font-semibold text-slate-700">{action.next}</span></> : <span className="text-slate-400">Bạn không có quyền thao tác bước này</span>}</span><div className="flex gap-2"><button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100">{action ? "Hủy" : "Đóng"}</button>{action && <button disabled={!valid} onClick={() => onCommit(incident, action, reason)} className="px-5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 text-white disabled:bg-slate-200 disabled:text-slate-400" style={valid ? { backgroundColor: COLOR.coral } : {}}><Check className="w-4 h-4" strokeWidth={2} /> Xác nhận & lưu</button>}</div></div>
       </div>
     </div>
   );
@@ -1678,20 +1707,20 @@ export default function App() {
   };
 
   const requireLogin = () => { if (!user) { setLoginOpen(true); return false; } return true; };
-  const openApproval = (inc) => { if (!requireLogin()) return; setModal(inc); };
-  const handleCommit = async (inc, reason) => {
-    const who = `${user.name} (${user.role})`; const flow = STATUS_FLOW[inc.status];
+  const openApproval = (inc, action) => { if (!requireLogin()) return; const act = action || firstActionFor(inc.status, role); setModal({ inc, action: act }); };
+  const handleCommit = async (inc, action, reason) => {
+    const who = `${user.name} (${user.role})`;
     if (isLive && inc.dbId) {
-      const actionCode = ACTION_LABEL_TO_CODE[flow.label];
-      const { error } = await thaoTacSuCo({ dbId: inc.dbId, actionCode, lyDo: reason, actorEmail: user.email });
+      const { error } = await thaoTacSuCo({ dbId: inc.dbId, actionCode: action.code, lyDo: reason, actorEmail: user.email });
       setModal(null);
       if (error) { alert(error.nghiep_vu ? (error.thong_bao || error.ma_loi) : "Lỗi kết nối — thử lại."); return; }
       await live.lamMoi({ nen: true });   // đồng bộ lại từ DB (đã có audit/trail thật)
       return;
     }
     // DEMO
-    setIncidents((prev) => prev.map((i) => i.id === inc.id ? { ...i, status: flow.next, trail: [...i.trail, { t: now.slice(11), who, act: `${flow.label}: ${reason}` }] } : i));
-    setAudit((a) => [{ t: now.slice(11, 16) + " 29/5", who, act: flow.label, obj: `${inc.id} / ${inc.room}`, detail: reason }, ...a]); setModal(null);
+    const nextStatus = action.dong ? "Đã khắc phục" : action.next;
+    setIncidents((prev) => prev.map((i) => i.id === inc.id ? { ...i, status: nextStatus, trail: [...i.trail, { t: now.slice(11), who, act: `${action.label}: ${reason}` }] } : i));
+    setAudit((a) => [{ t: now.slice(11, 16) + " 29/5", who, act: action.label, obj: `${inc.id} / ${inc.room}`, detail: reason }, ...a]); setModal(null);
   };
   const toggleSilence = async (id) => {
     if (!requireLogin()) return;
@@ -1791,7 +1820,7 @@ export default function App() {
                 </div>
               ) : (
               <div className="overflow-x-auto"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
-                <tbody>{incidents.map((inc) => { const flow = STATUS_FLOW[inc.status]; const allowed = user && (role === "ADMIN" || (flow && flow.roles.includes(role))); return (
+                <tbody>{incidents.map((inc) => { const acts = STATUS_ACTIONS[inc.status] || []; const terminal = acts.length === 0; const myActs = user ? acts.filter((a) => role === "ADMIN" || a.roles.includes(role)) : []; return (
                   <tr key={inc.id} className={`border-t border-slate-100 hover:bg-sky-50/40 transition ${inc.silenced ? "opacity-60" : ""}`}>
                     <td className="py-3 px-3 font-semibold" style={{ color: COLOR.navy }}>{inc.id}</td>
                     <td className="py-3 px-3">{inc.room}</td>
@@ -1801,7 +1830,7 @@ export default function App() {
                     <td className="py-3 px-3 text-amber-600 font-medium">{inc.duration}h</td>
                     <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-slate-700 font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span></td>
                     <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Dừng CB</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đã dừng" : "—"}</span>}</td>
-                    <td className="py-3 px-3">{!flow ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : allowed ? <button onClick={() => openApproval(inc)} className={`text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 transition flex items-center gap-1.5 ${flow.color}`}>{flow.label} <ChevronRight className="w-3 h-3" strokeWidth={2} /></button> : <span className="text-[11px] text-slate-400">Chờ {flow.roles.map((r) => ROLE_VI[r]).join("/")}</span>}</td>
+                    <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 transition ${a.color}`}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {rolesOfStatus(inc.status).map((r) => ROLE_VI[r]).join("/")}</span>}</td>
                   </tr>
                 ); })}</tbody></table></div>)}</Card>
               <p className="text-[11px] text-slate-500 text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
@@ -1866,7 +1895,7 @@ export default function App() {
         <footer className="mt-8 text-center text-[11px] text-slate-400 tracking-wide leading-relaxed"><span className="font-semibold" style={{ color: COLOR.ink }}>Hệ thống giám sát HVAC phòng sạch GMP</span> · V/Q team — QLCL</footer>
       </div>
 
-      {modal && <ApprovalModal incident={modal} user={user} onClose={() => setModal(null)} onCommit={handleCommit} />}
+      {modal && <ApprovalModal incident={modal.inc} action={modal.action} user={user} onClose={() => setModal(null)} onCommit={handleCommit} />}
       {roomModal && <RoomDetailModal room={roomModal} onClose={() => setRoomModal(null)} />}
       {kpiModal && <KpiListModal kind={kpiModal} groups={nhomPhong} incidents={suCoP1} cfg={cfg}
         onClose={() => setKpiModal(null)}
