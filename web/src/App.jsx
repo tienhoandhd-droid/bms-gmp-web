@@ -767,7 +767,7 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
   );
 }
 
-function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, onSaveAI = null }) {
+function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, liveIncidents = null, onSaveAI = null }) {
   const [range, setRange] = useState("30n");
   const [level, setLevel] = useState("TOTAL");
   const [selId, setSelId] = useState("");
@@ -1108,12 +1108,37 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, on
     // Nếu đã cấu hình WF7 → gửi DỮ LIỆU BIỂU ĐỒ THẬT cho OpenAI phân tích.
     if (isLive && aiWebhook) {
       setAiBusy(true);
+      // dữ liệu bổ sung cho phân tích chuyên sâu (đều từ dữ liệu web đã có)
+      const slimAI = (arr, keep = 60) => { if (!Array.isArray(arr) || arr.length <= keep) return arr || []; const st = Math.ceil(arr.length / keep); return arr.filter((_, i) => i % st === 0); };
+      const bandsAll = (activeScope.type === "ROOM" && roomBandsMulti[roomBandsKey]) || {};
+      const giaTriThuc3 = ["DP", "RH", "T"].filter((k) => bandsAll[k] && bandsAll[k].length).map((k) => {
+        const s = bandsAll[k];
+        const lo = [...s].reverse().find((p) => p.lo != null)?.lo ?? null;
+        const hi = [...s].reverse().find((p) => p.hi != null)?.hi ?? null;
+        const v = s.filter((p) => p.avg != null);
+        const tb = v.length ? +(v.reduce((a, p) => a + p.avg, 0) / v.length).toFixed(2) : null;
+        return { chi_tieu: SENSOR_META[k]?.label || k, don_vi: SENSOR_META[k]?.unit || "", GHD: lo, GHT: hi, TB_ky: tb, chuoi: slimAI(s).map((p) => ({ t: p.label, tb: p.avg, min: p.vmin, max: p.vmax })) };
+      });
+      const ahuId = activeScope.ahu;
+      const phongCungAhu = ahuId ? (liveRooms || []).filter((r) => r.ahu === ahuId).map((r) => ({ ma: r.id, ten: r.name || r.id, dat_pct: r._compliance != null ? +(+r._compliance).toFixed(1) : null, thieu_dl: !!r.noData })) : [];
+      const scId = activeScope.id;
+      const suCoLienQuan = (liveIncidents || []).filter((i) => {
+        if (activeScope.type === "ROOM") return i.room === scId;
+        if (activeScope.type === "AHU") return (liveRooms || []).some((r) => r.ahu === scId && r.id === i.room);
+        if (activeScope.type === "AREA") return (liveRooms || []).some((r) => r.area === scId && r.id === i.room);
+        return false;
+      }).slice(0, 12).map((i) => ({ ma: i.id, phong: i.room, chi_tieu: i.sensor || null, muc: i.priority, trang_thai: i.status }));
+      const roomRec = (liveRooms || []).find((r) => r.id === activeScope.id) || {};
       const payload = {
-        scope: { name: activeScope.name, type: activeScope.type, area: activeScope.area, ahu: activeScope.ahu, dat1n: activeScope.dat1n, dat3n: activeScope.dat3n, dat7n: activeScope.dat7n },
+        scope: { name: activeScope.name, type: activeScope.type, area: activeScope.area, ahu: activeScope.ahu, dat1n: activeScope.dat1n, dat3n: activeScope.dat3n, dat7n: activeScope.dat7n,
+          cap_sach: roomRec.cap_phong_sach || roomRec.capPhong || null, uu_tien: roomRec.priority || roomRec.muc_uu_tien || null },
         rangeLabel: RANGES.find((r) => r.k === range).label, isHourly,
         metrics: { mean: tech.mean, std: tech.std, slope: tech.slope, r2: tech.r2, totOos: tech.totOos, dq: tech.dqAvg, vmin: tech.vmin, vmax: tech.vmax, n: tech.n },
         series: view.map((r) => ({ label: r.label, comp: r.comp, oos: r.oos })),
         perSensor: showMulti ? sensorsPresent.map((k) => ({ k, label: SENSOR_META[k]?.label, series: viewMulti.map((r) => ({ label: r.label, comp: r[`comp_${k}`], oos: r[`oos_${k}`] })) })) : [],
+        gia_tri_thuc_3: giaTriThuc3,      // giá trị đo thực + GHD/GHT cho cả 3 chỉ tiêu
+        phong_cung_ahu: phongCungAhu,     // tình trạng các phòng cùng AHU (suy luận hệ thống)
+        su_co_lien_quan: suCoLienQuan,    // sự cố mở/gần đây trong phạm vi (bối cảnh)
       };
       const r = await phanTichAiQuaWorkflow(aiWebhook, payload);
       setAiBusy(false);
@@ -1787,7 +1812,7 @@ export default function App() {
             <div className="space-y-5"><SectionTitle icon={Building2}>Quản lý phòng</SectionTitle><RoomManager rooms={rooms} cfg={cfg} canManage={canManage} onAdd={addRoom} onEdit={editRoom} onDelete={deleteRoom} onUpdateLimit={updateLimit} onAddSensor={addSensor} onRemoveSensor={removeSensor} /></div>
           )}
 
-          {tab === "trend" && <TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? live.rooms : null} onSaveAI={handleSaveAI} />}
+          {tab === "trend" && <TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? live.rooms : null} liveIncidents={isLive ? incidents : null} onSaveAI={handleSaveAI} />}
           {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
 
           {tab === "audit" && (() => {
