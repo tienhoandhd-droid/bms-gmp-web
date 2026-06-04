@@ -607,8 +607,8 @@ function ChartComplyTotal({ data, height = 280, idSuffix = "" }) {
         <Tooltip contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }}
           formatter={(v) => [`${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`, "% đạt"]} />
         <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "ngưỡng 80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
-        <Area type="monotone" dataKey="comp" stroke="none" fill={`url(#${gid})`} isAnimationActive={false} connectNulls />
-        <Line type="monotone" dataKey="comp" stroke={COMPLY_OK} strokeWidth={2.6} isAnimationActive={false} connectNulls filter={`url(#glow${idSuffix})`}
+        <Area type="monotone" dataKey="comp" stroke="none" fill={`url(#${gid})`} isAnimationActive={false} connectNulls={false} />
+        <Line type="monotone" dataKey="comp" stroke={COMPLY_OK} strokeWidth={2.6} isAnimationActive={false} connectNulls={false} filter={`url(#glow${idSuffix})`}
           dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const low = payload.comp != null && payload.comp < 80; return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={low ? 3.4 : 2.4} fill={low ? COMPLY_BAD : COMPLY_OK} stroke="#fff" strokeWidth={1} />; }}
           activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }} />
       </ComposedChart>
@@ -636,10 +636,10 @@ function ChartComplyPerMetric({ data, present, height = 280 }) {
         <Tooltip content={<SensorComplyTooltip />} cursor={{ fill: "rgba(79,159,209,0.08)" }} />
         <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
         {["DP", "RH", "T"].filter((k) => present.includes(k)).map((k) => (
-          <Area key={`a_${k}`} type="monotone" dataKey={`comp_${k}`} stroke="none" fill={`url(#grad_${k})`} isAnimationActive={false} connectNulls legendType="none" />
+          <Area key={`a_${k}`} type="monotone" dataKey={`comp_${k}`} stroke="none" fill={`url(#grad_${k})`} isAnimationActive={false} connectNulls={false} legendType="none" />
         ))}
         {["DP", "RH", "T"].filter((k) => present.includes(k)).map((k) => (
-          <Line key={k} type="monotone" dataKey={`comp_${k}`} name={SENSOR_META[k].label} stroke={SENSOR_COLOR[k]} strokeWidth={2.4} dot={false} activeDot={{ r: 4.5, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} connectNulls />
+          <Line key={k} type="monotone" dataKey={`comp_${k}`} name={SENSOR_META[k].label} stroke={SENSOR_COLOR[k]} strokeWidth={2.4} dot={false} activeDot={{ r: 4.5, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} connectNulls={false} />
         ))}
         <Legend wrapperStyle={{ fontSize: 11 }} iconType="plainline" />
       </ComposedChart>
