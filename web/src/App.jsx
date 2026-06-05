@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import AuthGate from "./AuthGate";
 import {
@@ -1158,6 +1158,19 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         return false;
       }).slice(0, 12).map((i) => ({ ma: i.id, phong: i.room, chi_tieu: i.sensor || null, muc: i.priority, trang_thai: i.status }));
       const roomRec = (liveRooms || []).find((r) => r.id === activeScope.id) || {};
+      // ===== Dữ liệu PHÂN TÍCH SÂU (Supabase tính) =====
+      const _donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
+      const _soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
+      const _soGio = range === "1n" ? 24 : range === "7n" ? 168 : ((RANGE_DAYS[range] || 30) * 24);
+      const _isTongQuat = activeScope.type === "TOTAL" || activeScope.type === "AREA";
+      let phanTichSau = null, quetBatThuong = null;
+      try {
+        const can = [layPhanTichSau(activeScope.type, activeScope.id, sensor, _donVi, _soDiem)];
+        if (_isTongQuat) can.push(layQuetBatThuong(_soGio));
+        const kq = await Promise.all(can);
+        phanTichSau = kq[0] && kq[0].sau ? kq[0].sau : null;
+        quetBatThuong = _isTongQuat && kq[1] && kq[1].quet ? kq[1].quet : null;
+      } catch { /* bỏ qua — payload vẫn gửi phần còn lại */ }
       const payload = {
         scope: { name: activeScope.name, type: activeScope.type, area: activeScope.area, ahu: activeScope.ahu, dat1n: activeScope.dat1n, dat3n: activeScope.dat3n, dat7n: activeScope.dat7n,
           cap_sach: roomRec.cap_phong_sach || roomRec.capPhong || null, uu_tien: roomRec.priority || roomRec.muc_uu_tien || null },
@@ -1168,6 +1181,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         gia_tri_thuc_3: giaTriThuc3,      // giá trị đo thực + GHD/GHT cho cả 3 chỉ tiêu
         phong_cung_ahu: phongCungAhu,     // tình trạng các phòng cùng AHU (suy luận hệ thống)
         su_co_lien_quan: suCoLienQuan,    // sự cố mở/gần đây trong phạm vi (bối cảnh)
+        phan_tich_sau: phanTichSau,       // độ phủ DL + OOS tách trên/dưới + lịch sử (kỳ trước, TB 7/30 ngày)
+        quet_bat_thuong: quetBatThuong,   // (Tổng quan/Khu vực) xếp hạng khu vực + phòng tốt/xấu + đợt bất thường có mốc thời gian
       };
       const r = await phanTichAiQuaWorkflow(aiWebhook, payload);
       setAiBusy(false);
