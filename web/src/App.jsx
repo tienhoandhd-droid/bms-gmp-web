@@ -1162,14 +1162,14 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       const _donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
       const _soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
       const _soGio = range === "1n" ? 24 : range === "7n" ? 168 : ((RANGE_DAYS[range] || 30) * 24);
-      const _isTongQuat = activeScope.type === "TOTAL" || activeScope.type === "AREA";
+      const _canDrill = activeScope.type === "TOTAL" || activeScope.type === "AREA" || activeScope.type === "AHU";
       let phanTichSau = null, quetBatThuong = null;
       try {
         const can = [layPhanTichSau(activeScope.type, activeScope.id, sensor, _donVi, _soDiem)];
-        if (_isTongQuat) can.push(layQuetBatThuong(_soGio));
+        if (_canDrill) can.push(layQuetBatThuong(_soGio, activeScope.type, activeScope.id));
         const kq = await Promise.all(can);
         phanTichSau = kq[0] && kq[0].sau ? kq[0].sau : null;
-        quetBatThuong = _isTongQuat && kq[1] && kq[1].quet ? kq[1].quet : null;
+        quetBatThuong = _canDrill && kq[1] && kq[1].quet ? kq[1].quet : null;
       } catch { /* bỏ qua — payload vẫn gửi phần còn lại */ }
       const payload = {
         scope: { name: activeScope.name, type: activeScope.type, area: activeScope.area, ahu: activeScope.ahu, dat1n: activeScope.dat1n, dat3n: activeScope.dat3n, dat7n: activeScope.dat7n,

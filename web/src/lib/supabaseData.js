@@ -275,8 +275,8 @@ export async function layPhanTichSau(scopeType, scopeId, sensor, donVi, soDiem, 
 // QUÉT BẤT THƯỜNG + drill-down khu vực/phòng (Tổng quan) · RPC: rpc_quet_bat_thuong
 // → { cua_so_gio, khu_vuc, khu_tot_nhat, khu_kem_nhat, phong_xau_di, phong_tot_len, bat_thuong }
 // ============================================================
-export async function layQuetBatThuong(soGio, signal) {
-  const { data, error } = await goiRPC('rpc_quet_bat_thuong', { p_gio: soGio }, { signal })
+export async function layQuetBatThuong(soGio, scopeType, scopeId, signal) {
+  const { data, error } = await goiRPC('rpc_quet_bat_thuong', { p_gio: soGio, p_scope_type: scopeType || 'TOTAL', p_scope_id: scopeId || 'ALL' }, { signal })
   if (error || !data) return { error, quet: null }
   return { error: null, quet: data }
 }
