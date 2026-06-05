@@ -1152,6 +1152,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       const phongCungAhu = ahuId ? (liveRooms || []).filter((r) => r.ahu === ahuId).map((r) => ({ ma: r.id, ten: r.name || r.id, dat_pct: r._compliance != null ? +(+r._compliance).toFixed(1) : null, thieu_dl: !!r.noData })) : [];
       const scId = activeScope.id;
       const suCoLienQuan = (liveIncidents || []).filter((i) => {
+        if (activeScope.type === "TOTAL") return true;
         if (activeScope.type === "ROOM") return i.room === scId;
         if (activeScope.type === "AHU") return (liveRooms || []).some((r) => r.ahu === scId && r.id === i.room);
         if (activeScope.type === "AREA") return (liveRooms || []).some((r) => r.area === scId && r.id === i.room);
