@@ -257,6 +257,29 @@ export async function layChuoiXuHuongDaSensor(scopeType, scopeId, donVi, soDiem,
   }))
   return { error: null, perSensor }
 }
+
+// ============================================================
+// PHÂN TÍCH SÂU cho AI · RPC: rpc_phan_tich_xu_huong_sau
+// → { do_phu_du_lieu, theo_chi_tieu, tong_hop, so_sanh_lich_su }
+// ============================================================
+export async function layPhanTichSau(scopeType, scopeId, sensor, donVi, soDiem, signal) {
+  const { data, error } = await goiRPC('rpc_phan_tich_xu_huong_sau', {
+    p_scope_type: scopeType, p_scope_id: scopeId, p_sensor: sensor || 'ALL',
+    p_don_vi: donVi || 'GIO', p_so_diem: soDiem,
+  }, { signal })
+  if (error || !data) return { error, sau: null }
+  return { error: null, sau: data }
+}
+
+// ============================================================
+// QUÉT BẤT THƯỜNG + drill-down khu vực/phòng (Tổng quan) · RPC: rpc_quet_bat_thuong
+// → { cua_so_gio, khu_vuc, khu_tot_nhat, khu_kem_nhat, phong_xau_di, phong_tot_len, bat_thuong }
+// ============================================================
+export async function layQuetBatThuong(soGio, signal) {
+  const { data, error } = await goiRPC('rpc_quet_bat_thuong', { p_gio: soGio }, { signal })
+  if (error || !data) return { error, quet: null }
+  return { error: null, quet: data }
+}
 // cột: scope_type, scope_id, ten_scope, khu_vuc, ahu, comp_moi_nhat,
 //      delta_7_ngay, rui_ro, danh_gia
 // ============================================================
