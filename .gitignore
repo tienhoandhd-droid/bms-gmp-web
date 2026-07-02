@@ -1,0 +1,14 @@
+# Sản phẩm build — CI (deploy.yml) tự build từ source, không commit
+web/dist/
+
+# Phụ thuộc
+node_modules/
+
+# Biến môi trường cục bộ (chứa key)
+.env
+.env.*
+!.env.example
+
+# File hệ điều hành / editor
+.DS_Store
+Thumbs.db
