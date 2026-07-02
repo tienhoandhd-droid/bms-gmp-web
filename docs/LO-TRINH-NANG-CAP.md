@@ -28,17 +28,17 @@
 | # | Hạng mục | Ưu tiên | Ghi chú |
 |---|---|---|---|
 | 3.1 | Bỏ `web/dist` khỏi git + `.gitignore` | ✅ đã làm | CI tự build, không commit sản phẩm build. |
-| 3.2 | Tách `App.jsx` (1.924 dòng) theo tab + `React.lazy` | Cao | Màn hình đầu nhẹ ~400KB; tab Xu hướng mới tải chunk biểu đồ. |
-| 3.3 | Chuyển Recharts → Apache ECharts (tree-shaken) | Cao | ~100KB gzip, canvas, `markArea` vẽ dải giới hạn + cửa sổ bảo trì, `dataZoom`, xuất PNG. Nhúng thống kê σ/P5/P95/SPC từ dữ liệu mới của 1.3. |
+| 3.2 | Tách biểu đồ khỏi `App.jsx` + `React.lazy` | ✅ đã làm | Gom 8 biểu đồ vào `src/components/charts.jsx`, nạp trễ qua 1 wrapper `<Chart>`. **Đo thực tế:** chunk Recharts (360KB / 107KB gzip) rời khỏi màn hình đầu — không còn `modulepreload` ở `index.html`, chỉ tải khi mở tab Xu hướng / modal phòng. Đã build + smoke-test (Playwright): tab Tổng quan vẽ đúng 5 SVG / 73 bar, không lỗi mới. Sửa `vite.config.js` (bỏ ép Recharts vào chunk 'charts' → Rollup tự đẩy vào chunk async). |
+| 3.3 | Chuyển Recharts → Apache ECharts (tree-shaken) | Hoãn (đánh giá) | Lợi ích tải-nhẹ đã đạt ở 3.2 (giữ Recharts, lazy). Riêng lợi ích ECharts (canvas 50k+ điểm, `markArea`, `dataZoom`, xuất PNG) **chưa cấp thiết** ở quy mô ~90 điểm/chuỗi; và viết lại 8 biểu đồ (tooltip/đường-dải giới hạn/chấm OOB đổi màu) mang rủi ro sai lệch hiển thị **không kiểm chứng trực quan được trong môi trường headless**. → Nên làm thành 1 đợt riêng có review trực quan trước khi merge, không đẩy mù vào production GMP. |
 | 3.4 | Xóa `du_lieu_goc` cũ (bản sao thừa 108MB) | Trung bình | **Cần phê duyệt QA/ADMIN** vì đụng dữ liệu lịch sử (dù chỉ là bản sao của các cột đã có, FMS giữ bản gốc). Sau phê duyệt: UPDATE về `{}` + VACUUM. |
-| 3.5 | Cảnh báo CRITICAL tức thời qua Telegram theo khu vực | Trung bình | Dùng 3 bot có sẵn (Tele C1, Tele C4, Q2_BMS) — nhánh thêm trong WF1. |
+| 3.5 | Cảnh báo CRITICAL tức thời qua Telegram theo khu vực | ✅ đã làm | WF1 thêm chuỗi: Lấy sự cố CRITICAL mới (mở trong 3') → Soạn tin theo khu → Switch C1/C4/Q2 → 3 bot Telegram (Tele C1/Tele C4/Q2_BMS). Chống spam: chỉ báo sự cố MỚI mở; chat-id rỗng thì bỏ qua. Đã chạy thử (0 CRITICAL → no-op an toàn, ingest không ảnh hưởng). **Cần điền** `telegram_chat_id_c1/c4/q2` trong `cau_hinh`. |
 | 3.6 | pg_partman phân vùng `du_lieu_gio` theo tháng | Thấp | Cần khi 57 phòng có dữ liệu đầy đủ (48 lượt/ngày × 81 sensor). Retention khi đó = drop partition (tức thời). |
 
 ## Giai đoạn 4 — AI đa nhân & báo cáo nâng cao (kế tiếp)
 
 | # | Hạng mục | Ghi chú |
 |---|---|---|
-| 4.1 | Fallback chain Gemini → Groq → OpenAI trong WF3 | Cột `bao_cao_ai.trang_thai_ai` (OK/FALLBACK/FAILED) đã thiết kế sẵn. |
+| 4.1 | Fallback chain Gemini → Groq → OpenAI trong WF3 | ✅ **đã làm.** WF3 thay node "Gọi OpenAI" bằng Code node chuỗi dự phòng (thứ tự đọc từ `cau_hinh.ai_thu_tu_uu_tien`, mặc định Gemini→Groq→OpenAI). Provider key rỗng → bỏ qua; primary hỏng → tự rơi sang provider sau. Ghi `model_dung` + `trang_thai_ai` (OK/FALLBACK/FAILED) qua `rpc_luu_bao_cao_ai_wf`. **Cần điền** `gemini_api_key`, `groq_api_key` (OpenAI đã có). AI chỉ viết nhận định — số liệu tính tất định ở SQL. |
 | 4.2 | Writer–Judge: mô hình B thẩm định nhận định của mô hình A (bịa số? mâu thuẫn?) trước khi ghi DB | Ensemble nhẹ, không cần framework đa-agent. |
 | 4.3 | Biểu đồ PNG trong email (QuickChart/ECharts SSR) | Báo cáo email có trend line + control chart. |
 | 4.4 | SPC đầy đủ: EWMA/CUSUM + Nelson rules trong SQL | Nền tảng σ (1.3) đã có. Tham khảo spc-kit. |
@@ -54,3 +54,7 @@
 - **Đổi thời gian lưu**: sửa `cau_hinh.so_thang_luu_du_lieu` (mặc định 6).
 - **Báo cáo Drive**: điền ID thư mục Drive vào `cau_hinh.drive_folder_id_bao_cao` (mở thư mục trên Drive, lấy chuỗi sau `/folders/`). Nếu để trống, WF5 báo lỗi qua Error Handler (WF4).
 - **2 job đêm** xem tại: `select * from cron.job;` — `bms-xu-huong-dem` (01:15 VN), `bms-don-dep-du-lieu` (02:30 VN).
+- **Telegram cảnh báo**: điền `telegram_chat_id_c1/c4/q2` trong `cau_hinh` (mỗi bot post vào nhóm khu của nó); `telegram_bat_canh_bao=false` để tắt toàn bộ.
+- **AI đa mô hình (WF3)**: điền `gemini_api_key`, `groq_api_key`; đổi thứ tự ưu tiên tại `ai_thu_tu_uu_tien`.
+- **Biểu đồ web lazy-load**: sau khi build, `web/dist/index.html` KHÔNG còn preload chunk Recharts; biểu đồ nằm ở chunk async `charts-*.js`, chỉ tải khi cần. Nếu thêm biểu đồ mới, đặt vào `src/components/charts.jsx` và gọi qua `<Chart type="…" />` để giữ tính lazy.
+- **Lưu ý (bug có sẵn, ngoài phạm vi)**: ở chế độ DEMO (không cấu hình Supabase) tab "Xu hướng" lỗi `demoFull is not defined` — có từ trước, chỉ ảnh hưởng preview cục bộ, KHÔNG ảnh hưởng bản LIVE. Nên sửa riêng khi tiện.
