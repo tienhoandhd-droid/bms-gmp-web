@@ -1,18 +1,25 @@
 // ============================================================
-// charts.jsx — Toàn bộ biểu đồ (Recharts) tách khỏi App.jsx.
-// Được App nạp TRỄ qua React.lazy(() => import("./components/charts")) →
-// bundle màn hình đầu KHÔNG kèm Recharts (~400KB); biểu đồ chỉ tải khi
-// người dùng mở tab Xu hướng hoặc modal chi tiết phòng.
+// charts.jsx — Toàn bộ biểu đồ bằng APACHE ECHARTS (tree-shaken, canvas).
+// App nạp TRỄ qua React.lazy(() => import("./components/charts")) → bundle
+// màn hình đầu KHÔNG kèm thư viện biểu đồ; chỉ tải khi mở tab Xu hướng /
+// modal chi tiết phòng.
 //
-// GIỮ NGUYÊN 100% code vẽ so với bản gốc trong App.jsx (không đổi giao diện) —
-// chỉ di chuyển + gom hằng số cần dùng vào đây để module tự lập.
-// Điểm vào: default export LazyChart({ type, ...props }) điều phối theo `type`.
+// Giữ NGUYÊN API điều phối: default export LazyChart({ type, ...props }) —
+// App.jsx gọi <Chart type="…" /> không đổi.
+//
+// Vì sao ECharts: canvas (mượt khi nhiều điểm), markArea vẽ dải giới hạn
+// (GHD–GHT) + cửa sổ bảo trì, markLine cho ngưỡng, dataZoom, xuất ảnh — và
+// tree-shaking (chỉ nạp Line/Bar + vài component) giữ bundle nhỏ.
 // ============================================================
-import React from "react";
+import React, { useRef, useEffect } from "react";
+import * as echarts from "echarts/core";
+import { LineChart, BarChart } from "echarts/charts";
 import {
-  ComposedChart, Bar, BarChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea, Legend
-} from "recharts";
+  GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, LegendComponent
+} from "echarts/components";
+import { CanvasRenderer } from "echarts/renderers";
+
+echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, LegendComponent, CanvasRenderer]);
 
 // ---- Hằng số thiết kế (bản sao gọn từ App.jsx — chỉ những gì biểu đồ cần) ----
 const COLOR = { navy: "#102A3E", ink: "#33506e", teal: "#0E7C73", sky: "#1E72B8", coral: "#D9534F", coralDeep: "#B3261E", sand: "#C77E12", softCoral: "#D9534F" };
@@ -21,7 +28,6 @@ const SENSOR_META = { DP: { label: "Chênh áp", unit: "Pa" }, RH: { label: "Đ�
 const COMPLY_OK = "#0E7C73";
 const COMPLY_BAD = "#B3261E";
 const fmtPct = (v) => (v == null || isNaN(v) ? "—" : `${(+v).toFixed(1).replace(".0", "")}%`);
-const fmtH = (v) => (v == null || isNaN(v) ? "—" : `${(+v).toFixed(1).replace(".0", "")}h`);
 const xTickEvery = (n) => Math.max(0, Math.floor(n / 12));
 function complyDomain(values) {
   const ys = values.filter((v) => v != null);
@@ -31,194 +37,237 @@ function complyDomain(values) {
   return [Math.max(0, Math.floor(lo - pad)), Math.min(100, Math.ceil(hi + pad))];
 }
 const chartWrap = "rounded-2xl p-2 bg-gradient-to-b from-sky-50/70 to-white ring-1 ring-sky-100/80";
+const TT_CSS = "border-radius:12px;box-shadow:0 10px 30px -8px rgba(35,80,110,0.4);padding:8px 12px;";
+const tooltipBase = { backgroundColor: "#fff", borderColor: "#e2e8f0", borderWidth: 1, textStyle: { fontSize: 11, color: COLOR.ink }, extraCssText: TT_CSS };
+const gradient = (c, top = 0.30, bot = 0.02) => new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: echarts.color.modifyAlpha(c, top) }, { offset: 1, color: echarts.color.modifyAlpha(c, bot) }]);
 
-// Tooltip cho biểu đồ "% đạt/OOS theo từng chỉ tiêu"
-function SensorComplyTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null;
-  const d = payload[0].payload;
-  const ks = ["DP", "RH", "T"].filter((k) => d[`comp_${k}`] != null);
-  if (!ks.length) return null;
-  return <div className="rounded-2xl bg-white px-3.5 py-2.5 ring-1 ring-slate-200" style={{ boxShadow: "0 10px 30px -8px rgba(35,80,110,0.4)" }}>
-    <p className="text-xs font-semibold mb-1.5" style={{ color: COLOR.navy }}>{label}</p>
-    <div className="space-y-1 text-[11px]">{ks.map((k) => { const v = d[`comp_${k}`]; return (
-      <p key={k} className="flex justify-between gap-5">
-        <span className="font-medium" style={{ color: SENSOR_COLOR[k] }}>● {SENSOR_META[k].label}</span>
-        <span className="tabular-nums text-slate-600">{fmtPct(v)} · OOS {v == null ? "—" : (100 - v).toFixed(1) + "%"}</span>
-      </p>); })}</div>
-  </div>;
+// ---- Wrapper React quanh ECharts: init 1 lần, cập nhật option, tự resize ----
+function EChart({ option, height = 200, width = "100%", className = "" }) {
+  const elRef = useRef(null);
+  const instRef = useRef(null);
+  useEffect(() => {
+    instRef.current = echarts.init(elRef.current, null, { renderer: "canvas" });
+    const ro = new ResizeObserver(() => instRef.current && instRef.current.resize());
+    ro.observe(elRef.current);
+    return () => { ro.disconnect(); instRef.current && instRef.current.dispose(); instRef.current = null; };
+  }, []);
+  useEffect(() => { if (instRef.current && option) instRef.current.setOption(option, true); }, [option]);
+  return <div ref={elRef} className={className} style={{ width, height }} />;
 }
 
-function TrendTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null; const d = payload[0].payload;
-  return <div className="rounded-2xl bg-white px-3.5 py-2.5 ring-1 ring-slate-200" style={{ boxShadow: "0 10px 30px -8px rgba(35,80,110,0.4)" }}><p className="text-xs font-semibold mb-1.5" style={{ color: COLOR.navy }}>{label}</p><div className="space-y-1 text-[11px]"><p className="flex justify-between gap-4"><span className="text-slate-500">Tổng giờ cảnh báo</span><span className="font-semibold tabular-nums">{fmtH(d.alert)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.sand }}>● Warning</span><span className="tabular-nums">{fmtH(d.warnH)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.softCoral }}>● Critical</span><span className="tabular-nums">{fmtH(d.critH)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.teal }}>― Tuân thủ</span><span className="tabular-nums">{fmtPct(d.comp)}</span></p></div></div>;
+const axisX = (labels, interval = 0, show = true) => ({
+  type: "category", data: labels, boundaryGap: true,
+  axisTick: { show: false }, axisLine: { show, lineStyle: { color: "#cbdde8" } },
+  axisLabel: show ? { fontSize: 9, color: "#5f7a90", interval } : { show: false },
+});
+
+// ====== Mini cột "điểm OOS theo giờ (8h)" — thẻ phòng ở tab Tổng quan ======
+export function OOSMini({ data }) {
+  const option = {
+    animation: false,
+    grid: { top: 6, right: 4, bottom: 18, left: 4, containLabel: false },
+    tooltip: { trigger: "axis", ...tooltipBase, formatter: (p) => `Giờ ${p[0].axisValue}<br/>${p[0].data} điểm OOS` },
+    xAxis: { ...axisX(data.map((d) => d.label), 1), axisLine: { show: false } },
+    yAxis: { type: "value", show: false, min: 0 },
+    series: [{ type: "bar", data: data.map((d) => d.oos), barMaxWidth: 16, itemStyle: { color: COLOR.softCoral, borderRadius: [3, 3, 0, 0] } }],
+  };
+  return <EChart option={option} height={70} />;
 }
 
-export function TrendMainChart({ data, range }) {
-  const interval = range === "90n" ? Math.floor(data.length / 9) : range === "30n" ? Math.floor(data.length / 10) : 0;
-  return (
-    <div className="w-full" style={{ height: 300 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={data} margin={{ top: 16, right: 14, left: 0, bottom: 4 }}>
-          <defs><linearGradient id="warnG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={COLOR.sand} stopOpacity={1} /><stop offset="100%" stopColor={COLOR.sand} stopOpacity={0.65} /></linearGradient><linearGradient id="critG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={COLOR.softCoral} stopOpacity={1} /><stop offset="100%" stopColor={COLOR.softCoral} stopOpacity={0.65} /></linearGradient></defs>
-          <CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} />
-          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#5f7a90" }} interval={interval} axisLine={{ stroke: "#cbdde8" }} tickLine={false} />
-          <YAxis yAxisId="h" tick={{ fontSize: 10, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={38} />
-          <YAxis yAxisId="p" orientation="right" domain={[0, 100]} tick={{ fontSize: 10, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={34} />
-          <Tooltip content={<TrendTooltip />} cursor={{ fill: "rgba(79,159,209,0.1)" }} />
-          <ReferenceLine yAxisId="p" y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.5} />
-          <Bar yAxisId="h" dataKey="warnH" stackId="a" fill="url(#warnG)" maxBarSize={26} />
-          <Bar yAxisId="h" dataKey="critH" stackId="a" fill="url(#critG)" radius={[4, 4, 0, 0]} maxBarSize={26} />
-          <Line yAxisId="p" type="monotone" dataKey="comp" stroke={COLOR.teal} strokeWidth={2.6} dot={false} activeDot={{ r: 4, fill: COLOR.teal }} />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
-  );
+// ====== MiniArea: % đạt theo thời gian (thẻ "Xu hướng theo cấp") ======
+export function MiniArea({ data }) {
+  const comps = data.map((d) => (d.comp == null ? null : d.comp));
+  const option = {
+    animation: false,
+    grid: { top: 6, right: 4, bottom: 4, left: 4, containLabel: false },
+    tooltip: { trigger: "axis", ...tooltipBase, formatter: (p) => `${p[0].axisValue}<br/>${fmtPct(p[0].data)} % đạt` },
+    xAxis: { ...axisX(data.map((d) => d.label), 0, false) },
+    yAxis: { type: "value", show: false, scale: true, max: 100 },
+    series: [{
+      type: "line", data: comps, smooth: true, showSymbol: false, connectNulls: true,
+      lineStyle: { color: COMPLY_OK, width: 2 }, areaStyle: { color: gradient(COMPLY_OK, 0.28, 0.02) },
+      markLine: { silent: true, symbol: "none", label: { show: false }, data: [{ yAxis: 80 }], lineStyle: { color: COLOR.sand, type: "dashed", width: 1 } },
+    }],
+  };
+  return <EChart option={option} height={84} />;
 }
 
-export function MiniArea({ data }) { return <div className="w-full" style={{ height: 84 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={data} margin={{ top: 6, right: 4, left: 4, bottom: 0 }}><defs><linearGradient id="miniComply" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={COMPLY_OK} stopOpacity={0.28} /><stop offset="100%" stopColor={COMPLY_OK} stopOpacity={0.02} /></linearGradient></defs><YAxis hide domain={[(d) => Math.max(0, Math.floor(d - 8)), 100]} /><XAxis dataKey="label" hide /><Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 10 }} formatter={(v) => [fmtPct(v), "% đạt"]} labelFormatter={(l) => l} /><ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="3 3" strokeWidth={1} /><Area type="monotone" dataKey="comp" stroke={COMPLY_OK} strokeWidth={2} fill="url(#miniComply)" dot={false} connectNulls isAnimationActive={false} /></AreaChart></ResponsiveContainer></div>; }
-
+// ====== Sparkline (bảng xếp hạng rủi ro) — màu theo chiều tăng/giảm ======
 export function Sparkline({ chuoi }) {
   if (!chuoi || chuoi.length < 2) return <span className="text-[11px] text-slate-300">—</span>;
-  const last = chuoi[chuoi.length - 1]?.comp;
-  const first = chuoi[0]?.comp;
+  const last = chuoi[chuoi.length - 1]?.comp, first = chuoi[0]?.comp;
   const stroke = (last != null && first != null) ? (last >= first ? COLOR.teal : COLOR.coral) : COLOR.teal;
-  return <div style={{ width: 96, height: 30 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={chuoi} margin={{ top: 3, right: 2, left: 2, bottom: 0 }}><YAxis hide domain={["dataMin - 2", "dataMax + 2"]} /><XAxis dataKey="label" hide /><Tooltip contentStyle={{ borderRadius: 8, border: "none", fontSize: 10 }} formatter={(v) => [fmtPct(v), "Đạt"]} labelFormatter={(l) => l} /><Area type="monotone" dataKey="comp" stroke={stroke} strokeWidth={1.6} fill={stroke} fillOpacity={0.12} dot={false} /></AreaChart></ResponsiveContainer></div>;
+  const option = {
+    animation: false,
+    grid: { top: 3, right: 2, bottom: 0, left: 2, containLabel: false },
+    tooltip: { trigger: "axis", ...tooltipBase, formatter: (p) => `${p[0].axisValue}<br/>${fmtPct(p[0].data)} đạt` },
+    xAxis: { ...axisX(chuoi.map((d) => d.label), 0, false) },
+    yAxis: { type: "value", show: false, scale: true },
+    series: [{ type: "line", data: chuoi.map((d) => d.comp), smooth: true, showSymbol: false, lineStyle: { color: stroke, width: 1.6 }, areaStyle: { color: echarts.color.modifyAlpha(stroke, 0.12) } }],
+  };
+  return <EChart option={option} height={30} width={96} />;
 }
 
+// ====== (A) % đạt TOÀN PHẦN + vùng OOS + ngưỡng 80% (chấm đỏ khi < 80) ======
 export function ChartComplyTotal({ data, height = 280, idSuffix = "" }) {
-  const gid = `oosGrad${idSuffix}`;
-  const dom = complyDomain(data.map((d) => d.comp));
-  return (
-    <div className={chartWrap} style={{ height: height + 16 }}><ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
-        <defs>
-          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={COMPLY_OK} stopOpacity={0.30} />
-            <stop offset="100%" stopColor={COMPLY_OK} stopOpacity={0.02} />
-          </linearGradient>
-          <filter id={`glow${idSuffix}`} x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodColor={COMPLY_OK} floodOpacity="0.25" />
-          </filter>
-        </defs>
-        <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(data.length)} />
-        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={dom} tickFormatter={(v) => `${v}%`} />
-        <Tooltip contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }}
-          formatter={(v) => [`${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`, "% đạt"]} />
-        <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "ngưỡng 80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
-        <Area type="monotone" dataKey="comp" stroke="none" fill={`url(#${gid})`} isAnimationActive={false} connectNulls={false} />
-        <Line type="monotone" dataKey="comp" stroke={COMPLY_OK} strokeWidth={2.6} isAnimationActive={false} connectNulls={false} filter={`url(#glow${idSuffix})`}
-          dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const low = payload.comp != null && payload.comp < 80; return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={low ? 3.4 : 2.4} fill={low ? COMPLY_BAD : COMPLY_OK} stroke="#fff" strokeWidth={1} />; }}
-          activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }} />
-      </ComposedChart>
-    </ResponsiveContainer></div>
-  );
+  const [ymin, ymax] = complyDomain(data.map((d) => d.comp));
+  const option = {
+    animation: false,
+    grid: { top: 12, right: 16, bottom: 22, left: 8, containLabel: true },
+    tooltip: { trigger: "axis", ...tooltipBase, formatter: (p) => { const v = p[0].data == null ? null : p[0].data; return `${p[0].axisValue}<br/>${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`; } },
+    xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
+    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: "{value}%" } },
+    series: [{
+      type: "line", smooth: true, connectNulls: false, showSymbol: true, symbolSize: 5,
+      data: data.map((d) => ({ value: d.comp, itemStyle: { color: d.comp != null && d.comp < 80 ? COMPLY_BAD : COMPLY_OK, borderColor: "#fff", borderWidth: 1 } })),
+      lineStyle: { color: COMPLY_OK, width: 2.6 }, areaStyle: { color: gradient(COMPLY_OK, 0.30, 0.02) },
+      markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: COLOR.sand, type: "dashed", width: 1.4 }, label: { formatter: "ngưỡng 80%", fontSize: 9, color: COLOR.sand, position: "insideEndTop" } },
+    }],
+  };
+  return <div className={chartWrap} style={{ height: height + 16 }}><EChart option={option} height={height} /></div>;
 }
 
+// ====== (B) % đạt THEO TỪNG CHỈ TIÊU (DP/RH/T) ======
 export function ChartComplyPerMetric({ data, present, height = 280 }) {
+  const ks = ["DP", "RH", "T"].filter((k) => present.includes(k));
   const allVals = [];
-  data.forEach((d) => ["DP", "RH", "T"].forEach((k) => { if (d[`comp_${k}`] != null) allVals.push(d[`comp_${k}`]); }));
-  const dom = complyDomain(allVals);
-  return (
-    <div className={chartWrap} style={{ height: height + 16 }}><ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
-        <defs>{["DP", "RH", "T"].map((k) => (
-          <linearGradient key={k} id={`grad_${k}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={SENSOR_COLOR[k]} stopOpacity={0.18} />
-            <stop offset="100%" stopColor={SENSOR_COLOR[k]} stopOpacity={0.01} />
-          </linearGradient>
-        ))}</defs>
-        <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(data.length)} />
-        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={dom} tickFormatter={(v) => `${v}%`} />
-        <Tooltip content={<SensorComplyTooltip />} cursor={{ fill: "rgba(79,159,209,0.08)" }} />
-        <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
-        {["DP", "RH", "T"].filter((k) => present.includes(k)).map((k) => (
-          <Area key={`a_${k}`} type="monotone" dataKey={`comp_${k}`} stroke="none" fill={`url(#grad_${k})`} isAnimationActive={false} connectNulls={false} legendType="none" />
-        ))}
-        {["DP", "RH", "T"].filter((k) => present.includes(k)).map((k) => (
-          <Line key={k} type="monotone" dataKey={`comp_${k}`} name={SENSOR_META[k].label} stroke={SENSOR_COLOR[k]} strokeWidth={2.4} dot={false} activeDot={{ r: 4.5, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} connectNulls={false} />
-        ))}
-        <Legend wrapperStyle={{ fontSize: 11 }} iconType="plainline" />
-      </ComposedChart>
-    </ResponsiveContainer></div>
-  );
+  data.forEach((d) => ks.forEach((k) => { if (d[`comp_${k}`] != null) allVals.push(d[`comp_${k}`]); }));
+  const [ymin, ymax] = complyDomain(allVals);
+  const option = {
+    animation: false,
+    grid: { top: 12, right: 16, bottom: 34, left: 8, containLabel: true },
+    legend: { data: ks.map((k) => SENSOR_META[k].label), bottom: 0, textStyle: { fontSize: 11, color: COLOR.ink }, icon: "roundRect", itemWidth: 14, itemHeight: 3 },
+    tooltip: {
+      trigger: "axis", ...tooltipBase,
+      formatter: (ps) => {
+        const head = `<div style="font-weight:600;color:${COLOR.navy};margin-bottom:4px">${ps[0].axisValue}</div>`;
+        return head + ps.map((p) => { const v = p.data; return `<div style="display:flex;justify-content:space-between;gap:16px"><span style="color:${p.color}">● ${p.seriesName}</span><span>${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}</span></div>`; }).join("");
+      },
+    },
+    xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
+    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: "{value}%" } },
+    series: ks.map((k) => ({
+      name: SENSOR_META[k].label, type: "line", smooth: true, connectNulls: false, showSymbol: false,
+      data: data.map((d) => d[`comp_${k}`]), lineStyle: { color: SENSOR_COLOR[k], width: 2.4 }, itemStyle: { color: SENSOR_COLOR[k] },
+      areaStyle: { color: gradient(SENSOR_COLOR[k], 0.16, 0.01) },
+      ...(k === ks[0] ? { markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: COLOR.sand, type: "dashed", width: 1.4 }, label: { formatter: "80%", fontSize: 9, color: COLOR.sand, position: "insideEndTop" } } } : {}),
+    })),
+  };
+  return <div className={chartWrap} style={{ height: height + 16 }}><EChart option={option} height={height} /></div>;
 }
 
-export function RoomBandChart({ sensorKey, series, isHourly }) {
+// ====== Giá trị TB + dải giới hạn (GHD–GHT) cho MỘT chỉ tiêu của phòng ======
+export function RoomBandChart({ sensorKey, series }) {
   const unit = SENSOR_META[sensorKey]?.unit || "";
   const color = SENSOR_COLOR[sensorKey] || COLOR.teal;
   const lo = [...series].reverse().find((p) => p.lo != null)?.lo ?? null;
   const hi = [...series].reverse().find((p) => p.hi != null)?.hi ?? null;
   const vals = series.filter((p) => p.avg != null);
   const mean = vals.length ? +(vals.reduce((a, p) => a + p.avg, 0) / vals.length).toFixed(2) : null;
-  const gid = `bandFill_${sensorKey}`;
   const ys = vals.map((p) => p.avg);
   const yLo = Math.min(...ys, lo == null ? Infinity : lo, hi == null ? Infinity : hi);
   const yHi = Math.max(...ys, lo == null ? -Infinity : lo, hi == null ? -Infinity : hi);
   const pad = Math.max(0.5, (yHi - yLo) * 0.1);
-  const yDomain = ys.length && isFinite(yLo) && isFinite(yHi) ? [+(yLo - pad).toFixed(1), +(yHi + pad).toFixed(1)] : ["auto", "auto"];
+  const hasDomain = ys.length && isFinite(yLo) && isFinite(yHi);
+  const markLineData = [];
+  if (lo != null) markLineData.push({ yAxis: lo, label: { formatter: `GHD ${lo}`, fontSize: 9, color: COLOR.coralDeep, position: "insideStartBottom" }, lineStyle: { color: COLOR.coral, type: "dashed", width: 1.3 } });
+  if (hi != null) markLineData.push({ yAxis: hi, label: { formatter: `GHT ${hi}`, fontSize: 9, color: COLOR.coralDeep, position: "insideStartTop" }, lineStyle: { color: COLOR.coral, type: "dashed", width: 1.3 } });
+  if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: COLOR.navy, position: "insideEndTop" }, lineStyle: { color: COLOR.navy, type: "dashed", width: 1.2 } });
+  const option = {
+    animation: false,
+    grid: { top: 10, right: 16, bottom: 22, left: 8, containLabel: true },
+    tooltip: {
+      trigger: "axis", ...tooltipBase,
+      formatter: (ps) => { const v = ps[0].data; if (v == null) return ""; const oob = (lo != null && v < lo) || (hi != null && v > hi); return `<div style="font-weight:600;color:${COLOR.navy}">${ps[0].axisValue}</div><div>TB: <b style="color:${oob ? COLOR.coralDeep : color}">${(+v).toFixed(2)} ${unit}</b>${oob ? ' <span style="color:#e11d48">· ngoài giới hạn</span>' : ""}</div><div style="color:#94a3b8">GHD ${lo == null ? "—" : lo} · GHT ${hi == null ? "—" : hi} ${unit}</div>`; },
+    },
+    xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
+    yAxis: { type: "value", scale: true, ...(hasDomain ? { min: +(yLo - pad).toFixed(1), max: +(yHi + pad).toFixed(1) } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: (v) => `${+(+v).toFixed(1)}` } },
+    series: [{
+      type: "line", smooth: true, connectNulls: true, showSymbol: true, symbolSize: 5,
+      data: series.map((p) => ({ value: p.avg, itemStyle: { color: (lo != null && p.avg < lo) || (hi != null && p.avg > hi) ? COLOR.coralDeep : color, borderColor: "#fff", borderWidth: 0.9 } })),
+      lineStyle: { color, width: 2.4 }, areaStyle: { color: gradient(color, 0.16, 0.03) },
+      markArea: (lo != null && hi != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(color, 0.07) }, data: [[{ yAxis: lo }, { yAxis: hi }]] } : undefined,
+      markLine: markLineData.length ? { silent: true, symbol: "none", data: markLineData } : undefined,
+    }],
+  };
   return (
     <div>
       <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h4 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[sensorKey]?.label} ({sensorKey})</h4></div>
       <div className="grid grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Số điểm", `${series.length}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[10px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-      <div style={{ height: 210 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={series} margin={{ top: 10, right: 16, left: -2, bottom: 4 }}>
-        <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.16} /><stop offset="100%" stopColor={color} stopOpacity={0.03} /></linearGradient></defs>
-        <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(series.length)} />
-        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={yDomain} allowDataOverflow tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
-        <Tooltip cursor={{ stroke: color, strokeWidth: 1, strokeDasharray: "3 3" }} content={({ active, payload, label }) => {
-          if (!active || !payload || !payload.length) return null;
-          const d = payload[0].payload; if (d.avg == null) return null;
-          const oob = (lo != null && d.avg < lo) || (hi != null && d.avg > hi);
-          return <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200" style={{ boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }}>
-            <p className="text-[11px] font-semibold mb-1" style={{ color: COLOR.navy }}>{label}</p>
-            <p className="text-[12px]"><span className="text-slate-500">TB: </span><span className="font-semibold tabular-nums" style={{ color: oob ? COLOR.coralDeep : color }}>{(+d.avg).toFixed(2)} {unit}</span>{oob && <span className="text-[10px] text-rose-600 ml-1">· ngoài giới hạn</span>}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5 tabular-nums">GHD {lo == null ? "—" : lo} · GHT {hi == null ? "—" : hi} {unit}</p>
-          </div>;
-        }} />
-        {lo != null && hi != null && <ReferenceArea y1={lo} y2={hi} fill={color} fillOpacity={0.07} stroke="none" />}
-        {lo != null && <ReferenceLine y={lo} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${lo}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-        {hi != null && <ReferenceLine y={hi} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${hi}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-        {mean != null && <ReferenceLine y={mean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${mean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
-        <Area type="monotone" dataKey="avg" stroke="none" fill={`url(#${gid})`} isAnimationActive={false} connectNulls />
-        <Line type="monotone" dataKey="avg" stroke={color} strokeWidth={2.4} isAnimationActive={false} connectNulls
-          dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (lo != null && payload.avg < lo) || (hi != null && payload.avg > hi); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={oob ? 3.2 : 2.6} fill={oob ? COLOR.coralDeep : color} stroke="#fff" strokeWidth={0.9} />; }}
-          activeDot={{ r: 4 }} />
-      </ComposedChart></ResponsiveContainer></div>
+      <EChart option={option} height={210} />
       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.35 }} /> Dải giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> TB ngoài giới hạn</span></div>
     </div>
   );
 }
 
-// Biểu đồ nhỏ trong modal chi tiết phòng (1 cảm biến): TB giờ + dải min–max + GHD/GHT.
+// ====== Modal chi tiết phòng: TB giờ + dải min–max + GHD/GHT ======
 export function RoomDetailMiniChart({ pts, smin, smax, mean, unit }) {
   const vals = []; pts.forEach((p) => { [p.avg, p.vmin, p.vmax].forEach((x) => { if (x != null) vals.push(+x); }); });
   if (smin != null) vals.push(+smin); if (smax != null) vals.push(+smax);
   let lo = vals.length ? Math.min(...vals) : 0, hi = vals.length ? Math.max(...vals) : 1;
   if (lo === hi) { lo -= 1; hi += 1; } const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
   const span = hi - lo; const dec = span >= 10 ? 0 : span >= 2 ? 1 : 2;
-  const fmtY = (v) => (+v).toFixed(dec);
-  return <div style={{ height: 182 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={pts} margin={{ top: 8, right: 14, left: 2, bottom: 0 }}>
-    <CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} />
-    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} />
-    <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={48} domain={[lo, hi]} allowDecimals={dec > 0} tickCount={6} tickFormatter={fmtY} />
-    <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => { const f = (x) => (x == null ? "—" : (+x).toFixed(2)); if (n === "_band") return [Array.isArray(v) ? `${f(v[0])}–${f(v[1])} ${unit}` : `${f(v)} ${unit}`, "Min–Max"]; return [v == null ? "—" : `${f(v)} ${unit}`, n === "avg" ? "TB giờ" : n]; }} />
-    {smin != null && smax != null && <ReferenceArea y1={smin} y2={smax} fill={COLOR.teal} fillOpacity={0.10} stroke="none" />}
-    {pts.some((p) => p.vmin != null && p.vmax != null) && <Area type="monotone" dataKey={(d) => (d.vmin != null && d.vmax != null ? [d.vmin, d.vmax] : null)} name="_band" stroke="none" fill={COLOR.sky} fillOpacity={0.14} connectNulls isAnimationActive={false} />}
-    {smin != null && <ReferenceLine y={smin} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${smin}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-    {smax != null && <ReferenceLine y={smax} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${smax}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-    {mean != null && <ReferenceLine y={mean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${mean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
-    <Line type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} isAnimationActive={false}
-      dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (smin != null && payload.avg < smin) || (smax != null && payload.avg > smax); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={3} fill={oob ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={1} />; }}
-      activeDot={{ r: 4 }} />
-  </ComposedChart></ResponsiveContainer></div>;
+  const hasBand = pts.some((p) => p.vmin != null && p.vmax != null);
+  const markLineData = [];
+  if (smin != null) markLineData.push({ yAxis: smin, label: { formatter: `GHD ${smin}`, fontSize: 9, color: COLOR.coralDeep, position: "insideStartBottom" }, lineStyle: { color: COLOR.coral, type: "dashed", width: 1.3 } });
+  if (smax != null) markLineData.push({ yAxis: smax, label: { formatter: `GHT ${smax}`, fontSize: 9, color: COLOR.coralDeep, position: "insideStartTop" }, lineStyle: { color: COLOR.coral, type: "dashed", width: 1.3 } });
+  if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: COLOR.navy, position: "insideEndTop" }, lineStyle: { color: COLOR.navy, type: "dashed", width: 1.2 } });
+  const option = {
+    animation: false,
+    grid: { top: 8, right: 14, bottom: 20, left: 8, containLabel: true },
+    tooltip: {
+      trigger: "axis", ...tooltipBase,
+      formatter: (ps) => {
+        const byName = {}; ps.forEach((p) => { byName[p.seriesName] = p; });
+        const avg = byName["TB giờ"] ? byName["TB giờ"].data : null;
+        const f = (x) => (x == null ? "—" : (+x).toFixed(2));
+        const lohi = hasBand ? `<div style="color:#94a3b8">Min–Max: ${f(pts[ps[0].dataIndex]?.vmin)}–${f(pts[ps[0].dataIndex]?.vmax)} ${unit}</div>` : "";
+        return `<div style="font-weight:600;color:${COLOR.navy}">${ps[0].axisValue}</div><div>TB giờ: <b>${f(avg)} ${unit}</b></div>${lohi}`;
+      },
+    },
+    xAxis: axisX(pts.map((p) => p.label)),
+    yAxis: { type: "value", min: +lo.toFixed(dec), max: +hi.toFixed(dec), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: (v) => (+v).toFixed(dec) } },
+    series: [
+      // Dải min–max: 2 series stack (đáy vmin trong suốt + phần vmax-vmin tô nền)
+      ...(hasBand ? [
+        { name: "_lo", type: "line", stack: "band", data: pts.map((p) => (p.vmin != null ? p.vmin : "-")), lineStyle: { opacity: 0 }, showSymbol: false, symbol: "none", silent: true, tooltip: { show: false } },
+        { name: "_band", type: "line", stack: "band", data: pts.map((p) => (p.vmin != null && p.vmax != null ? +(p.vmax - p.vmin).toFixed(4) : "-")), lineStyle: { opacity: 0 }, areaStyle: { color: echarts.color.modifyAlpha(COLOR.sky, 0.14) }, showSymbol: false, symbol: "none", silent: true, tooltip: { show: false } },
+      ] : []),
+      {
+        name: "TB giờ", type: "line", smooth: true, connectNulls: true, showSymbol: true, symbolSize: 6, z: 3,
+        data: pts.map((p) => ({ value: p.avg, itemStyle: { color: (smin != null && p.avg < smin) || (smax != null && p.avg > smax) ? COLOR.coralDeep : COLOR.teal, borderColor: "#fff", borderWidth: 1 } })),
+        lineStyle: { color: COLOR.teal, width: 2.2 },
+        markArea: (smin != null && smax != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(COLOR.teal, 0.10) }, data: [[{ yAxis: smin }, { yAxis: smax }]] } : undefined,
+        markLine: markLineData.length ? { silent: true, symbol: "none", data: markLineData } : undefined,
+      },
+    ],
+  };
+  return <EChart option={option} height={182} />;
 }
 
-// Mini cột "điểm OOS theo giờ (8h)" trong thẻ phòng ở tab Tổng quan.
-export function OOSMini({ data }) { return <div className="w-full" style={{ height: 70 }}><ResponsiveContainer width="100%" height="100%"><BarChart data={data} margin={{ top: 6, right: 2, left: 2, bottom: 0 }}><YAxis hide /><XAxis dataKey="label" tick={{ fontSize: 8, fill: "#90a8bd" }} axisLine={false} tickLine={false} interval={1} /><Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 10 }} formatter={(v) => [`${v} điểm OOS`, "Lỗi/giờ"]} labelFormatter={(l) => `Giờ ${l}`} /><Bar dataKey="oos" fill={COLOR.softCoral} radius={[3, 3, 0, 0]} maxBarSize={16} /></BarChart></ResponsiveContainer></div>; }
+// ====== TrendMainChart (dự phòng): cột warning/critical + đường tuân thủ ======
+export function TrendMainChart({ data, range }) {
+  const interval = range === "90n" ? Math.floor(data.length / 9) : range === "30n" ? Math.floor(data.length / 10) : 0;
+  const option = {
+    animation: false,
+    grid: { top: 16, right: 40, bottom: 24, left: 8, containLabel: true },
+    tooltip: { trigger: "axis", ...tooltipBase },
+    legend: { show: false },
+    xAxis: axisX(data.map((d) => d.label), interval),
+    yAxis: [
+      { type: "value", axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 10, color: "#5f7a90" } },
+      { type: "value", min: 0, max: 100, position: "right", axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 10, color: "#5f7a90" } },
+    ],
+    series: [
+      { name: "Warning", type: "bar", stack: "h", data: data.map((d) => d.warnH), barMaxWidth: 26, itemStyle: { color: COLOR.sand } },
+      { name: "Critical", type: "bar", stack: "h", data: data.map((d) => d.critH), barMaxWidth: 26, itemStyle: { color: COLOR.softCoral, borderRadius: [4, 4, 0, 0] } },
+      { name: "Tuân thủ", type: "line", yAxisIndex: 1, smooth: true, showSymbol: false, data: data.map((d) => d.comp), lineStyle: { color: COLOR.teal, width: 2.6 }, itemStyle: { color: COLOR.teal }, markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: COLOR.sand, type: "dashed", width: 1.5 } } },
+    ],
+  };
+  return <EChart option={option} height={300} />;
+}
 
-// Điểm vào điều phối: App gọi <Chart type=... {...} /> → lazy tải module này 1 lần.
+// ====== Điểm vào điều phối ======
 export default function LazyChart({ type, ...p }) {
   switch (type) {
     case "oosMini": return <OOSMini data={p.data} />;
