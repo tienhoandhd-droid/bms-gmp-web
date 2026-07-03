@@ -41,9 +41,9 @@
 | 4.1 | Fallback chain Gemini → Groq → OpenAI trong WF3 | ✅ **đã làm.** WF3 thay node "Gọi OpenAI" bằng Code node chuỗi dự phòng (thứ tự đọc từ `cau_hinh.ai_thu_tu_uu_tien`, mặc định Gemini→Groq→OpenAI). Provider key rỗng → bỏ qua; primary hỏng → tự rơi sang provider sau. Ghi `model_dung` + `trang_thai_ai` (OK/FALLBACK/FAILED) qua `rpc_luu_bao_cao_ai_wf`. **Cần điền** `gemini_api_key`, `groq_api_key` (OpenAI đã có). AI chỉ viết nhận định — số liệu tính tất định ở SQL. |
 | 4.2 | Writer–Judge: mô hình B thẩm định nhận định của mô hình A (bịa số? mâu thuẫn?) trước khi ghi DB | Ensemble nhẹ, không cần framework đa-agent. |
 | 4.3 | Biểu đồ PNG trong email (QuickChart/ECharts SSR) | Báo cáo email có trend line + control chart. |
-| 4.4 | SPC đầy đủ: EWMA/CUSUM + Nelson rules trong SQL | Nền tảng σ (1.3) đã có. Tham khảo spc-kit. |
+| 4.4 | SPC đầy đủ: EWMA/CUSUM + Nelson rules trong SQL | ✅ **đã làm.** `rpc_tinh_spc(scope_type, scope_id, sensor, so_ngay)` → jsonb: EWMA (λ/L), CUSUM (K/H), Nelson 1 (±3σ) / 2 (9 điểm cùng phía) / 3 (6 điểm tăng-giảm) trên chuỗi `ti_le_dat_pct` ngày. Job đêm `rpc_capnhat_spc_dac_trung()` (cron `bms-spc-dem`, 01:45 VN) nạp kết quả vào `dac_trung_xu_huong.du_lieu.spc`. Tham số ở `cau_hinh` (`spc_ewma_lambda/L`, `spc_cusum_k/h`). **Verify:** TOTAL/ALL phát hiện đúng NELSON1 (51.3 > 3σ) + NELSON2; 53/70 scope có tín hiệu (dữ liệu đang nhiễu sau sự cố FMS). |
 | 4.5 | Join dữ liệu thời tiết (project Supabase `Du_bao_thoi_tiet` có sẵn) | Tách "AHU yếu" khỏi "trời nồm" khi phân tích RH. |
-| 4.6 | MKT (Mean Kinetic Temperature) cho sensor T | Chỉ số ICH chuẩn thanh tra GMP, tính trong job đêm. |
+| 4.6 | MKT (Mean Kinetic Temperature) cho sensor T | ✅ **đã làm.** `rpc_tinh_mkt(ma_phong, tu, den)` theo công thức ICH Q1A (ΔH=83.144 kJ/mol cấu hình ở `cau_hinh.mkt_delta_h_kj`); view `xem_mkt_phong` (MKT 30 ngày + T TB + T max) cho mọi phòng có sensor nhiệt. **Verify:** C1.R28 MKT 24.54°C > TB 24.50 (đúng bản chất Arrhenius — MKT luôn ≥ trung bình cộng). |
 
 ---
 
@@ -53,7 +53,10 @@
 - **KPI theo bucket**: các cột `so_gio_*` trong `kpi_gio` từ nay đếm theo bucket 30 phút (2 bucket/giờ).
 - **Đổi thời gian lưu**: sửa `cau_hinh.so_thang_luu_du_lieu` (mặc định 6).
 - **Báo cáo Drive**: điền ID thư mục Drive vào `cau_hinh.drive_folder_id_bao_cao` (mở thư mục trên Drive, lấy chuỗi sau `/folders/`). Nếu để trống, WF5 báo lỗi qua Error Handler (WF4).
-- **2 job đêm** xem tại: `select * from cron.job;` — `bms-xu-huong-dem` (01:15 VN), `bms-don-dep-du-lieu` (02:30 VN).
+- **3 job đêm** xem tại: `select * from cron.job;` — `bms-xu-huong-dem` (01:15 VN), `bms-spc-dem` (01:45 VN, nạp SPC vào `dac_trung_xu_huong.du_lieu.spc`), `bms-don-dep-du-lieu` (02:30 VN).
+- **Phân tích GMP (MKT/SPC)**: MKT xem `select * from xem_mkt_phong;`; SPC gắn trong `dac_trung_xu_huong.du_lieu->'spc'` (in_control, tin_hieu[]). Tinh chỉnh độ nhạy ở `cau_hinh`: `spc_ewma_lambda` (0.2), `spc_ewma_L` (2.7), `spc_cusum_k` (0.5), `spc_cusum_h` (4.0); ΔH của MKT ở `mkt_delta_h_kj`.
+- **Đã vá (session này)**: `rpc_tinh_xu_huong_hang_ngay` trước xóa idempotent theo `current_date` — sai khi chạy qua nửa đêm/khác ngày (đụng UNIQUE không gồm ngày). Nay xóa theo `thuoc_thu_nghiem`.
+- **Chưa surface lên UI**: MKT + SPC hiện chỉ ở DB (view + jsonb). Bước kế: thêm vào báo cáo WF5 + tab web (tùy chọn).
 - **Telegram cảnh báo**: điền `telegram_chat_id_c1/c4/q2` trong `cau_hinh` (mỗi bot post vào nhóm khu của nó); `telegram_bat_canh_bao=false` để tắt toàn bộ.
 - **AI đa mô hình (WF3)**: điền `gemini_api_key`, `groq_api_key`; đổi thứ tự ưu tiên tại `ai_thu_tu_uu_tien`.
 - **Biểu đồ web lazy-load**: sau khi build, `web/dist/index.html` KHÔNG còn preload chunk Recharts; biểu đồ nằm ở chunk async `charts-*.js`, chỉ tải khi cần. Nếu thêm biểu đồ mới, đặt vào `src/components/charts.jsx` và gọi qua `<Chart type="…" />` để giữ tính lazy.
