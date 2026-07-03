@@ -18,11 +18,16 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return
           if (id.includes('lucide-react')) return 'icons'
+          // Recharts + phụ thuộc (d3…): KHÔNG ép chunk riêng. Chúng chỉ được
+          // import động qua src/components/charts.jsx (React.lazy) → trả undefined
+          // để Rollup tự gộp vào chunk ASYNC của module đó → KHÔNG tải ở màn hình
+          // đầu, chỉ tải khi mở tab Xu hướng / modal phòng.
           if (
+            id.includes('echarts') || id.includes('zrender') ||
             id.includes('recharts') || id.includes('victory-vendor') ||
             id.includes('d3-') || id.includes('internmap') ||
             id.includes('decimal.js') || id.includes('robust-predicates')
-          ) return 'charts'
+          ) return
           if (id.includes('@supabase') || id.includes('supabase')) return 'supabase'
           if (id.includes('react-dom') || id.includes('scheduler') || /[\\/]react[\\/]/.test(id)) return 'react'
           return 'vendor'

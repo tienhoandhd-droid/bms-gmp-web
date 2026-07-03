@@ -13,11 +13,18 @@ import {
   ScrollText, Settings as Cog, Wifi, Printer, Plus, Trash2, Search, LogIn, LogOut,
   User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus
 } from "lucide-react";
-import {
-  ComposedChart, Bar, Line, AreaChart, Area, BarChart, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea, Legend
-} from "recharts";
 import logoCpc1hn from "./assets/logo-cpc1hn.png";
+
+// Biểu đồ (Recharts) tách sang module riêng, NẠP TRỄ (lazy) → bundle màn hình đầu
+// KHÔNG kèm Recharts (~400KB); chỉ tải khi mở tab Xu hướng / modal chi tiết phòng.
+const LazyChart = React.lazy(() => import("./components/charts"));
+function Chart({ h = 200, ...p }) {
+  return (
+    <React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: h }} />}>
+      <LazyChart {...p} />
+    </React.Suspense>
+  );
+}
 
 /* ============ AQUA CLINICAL NEO-MINIMALISM — HỆ THỦY ============ */
 /* Giữ tên biến, làm SÂU màu để đủ tương phản (WCAG): chữ đậm, teal/sky sâu,
@@ -237,7 +244,6 @@ function KpiCard({ icon: Icon, label, value, total, sub, accent, onClick }) {
     </Card>
   );
 }
-function OOSMini({ data }) { return <div className="w-full" style={{ height: 70 }}><ResponsiveContainer width="100%" height="100%"><BarChart data={data} margin={{ top: 6, right: 2, left: 2, bottom: 0 }}><YAxis hide /><XAxis dataKey="label" tick={{ fontSize: 8, fill: "#90a8bd" }} axisLine={false} tickLine={false} interval={1} /><Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 10 }} formatter={(v) => [`${v} điểm OOS`, "Lỗi/giờ"]} labelFormatter={(l) => `Giờ ${l}`} /><Bar dataKey="oos" fill={COLOR.softCoral} radius={[3, 3, 0, 0]} maxBarSize={16} /></BarChart></ResponsiveContainer></div>; }
 
 /* ===== THẺ PHÒNG ===== */
 function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
@@ -268,7 +274,7 @@ function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
         </div>
       )}
 
-      {!room.noData && (() => { const oos8 = roomHourlyOOS(room); const tong8 = oos8.reduce((a, h) => a + (h.oos || 0), 0); return <div className="mt-3"><div className="flex items-center justify-between"><span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Điểm OOS theo giờ — 8h</span>{oos8.length > 0 && tong8 === 0 && <span className="text-[10px] text-teal-600 font-medium">0 điểm OOS · đạt</span>}</div>{oos8.length === 0 ? <p className="text-[11px] text-slate-400 italic py-3 text-center">chưa có dữ liệu 8h</p> : <OOSMini data={oos8} />}</div>; })()}
+      {!room.noData && (() => { const oos8 = roomHourlyOOS(room); const tong8 = oos8.reduce((a, h) => a + (h.oos || 0), 0); return <div className="mt-3"><div className="flex items-center justify-between"><span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Điểm OOS theo giờ — 8h</span>{oos8.length > 0 && tong8 === 0 && <span className="text-[10px] text-teal-600 font-medium">0 điểm OOS · đạt</span>}</div>{oos8.length === 0 ? <p className="text-[11px] text-slate-400 italic py-3 text-center">chưa có dữ liệu 8h</p> : <Chart type="oosMini" data={oos8} h={70} />}</div>; })()}
       {room.note && <p className="mt-3 text-[11px] text-slate-500 bg-sky-50/60 ring-1 ring-sky-100 rounded-xl px-3 py-2">📝 {room.note}</p>}
       <div className="mt-3 flex gap-2">
         <button onClick={() => onDetail(room)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-xl py-2 ring-1 ring-sky-200 transition"><Eye className="w-3.5 h-3.5" strokeWidth={1.8} /> Chi tiết &amp; biểu đồ</button>
@@ -288,28 +294,7 @@ function RoomDetailModal({ room, onClose }) {
           <div key={s.k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-4">
             <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[s.k].label} ({s.k})</p><p className="text-[11px] text-slate-500">Giới hạn: {s.min != null ? `≥ ${s.min}` : "—"}{s.max != null ? ` · ≤ ${s.max}` : ""} {unit}</p></div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center">{[["Hiện tại", `${st.cur ?? "—"} ${unit}`], ["TB 1h", `${st.avg1h ?? "—"}`], ["TB 8h", mean == null ? "—" : `${mean}`], ["OOS 1h", st.oos1h == null ? "—" : `${st.oos1h}/60`], ["OOS 10′ cuối", st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : (() => {
-              // Domain trục tung: bao cả dữ liệu thực LẪN giới hạn (để thấy GHD/GHT), thêm đệm 8%.
-              const vals = []; pts.forEach((p) => { [p.avg, p.vmin, p.vmax].forEach((x) => { if (x != null) vals.push(+x); }); });
-              if (s.min != null) vals.push(+s.min); if (s.max != null) vals.push(+s.max);
-              let lo = vals.length ? Math.min(...vals) : 0, hi = vals.length ? Math.max(...vals) : 1;
-              if (lo === hi) { lo -= 1; hi += 1; } const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
-              const span = hi - lo; const dec = span >= 10 ? 0 : span >= 2 ? 1 : 2;  // ít số lẻ khi khoảng rộng, nhiều khi hẹp
-              const fmtY = (v) => (+v).toFixed(dec);
-              return <div style={{ height: 182 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={pts} margin={{ top: 8, right: 14, left: 2, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="2 6" stroke="#d6e6ee" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={48} domain={[lo, hi]} allowDecimals={dec > 0} tickCount={6} tickFormatter={fmtY} />
-              <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11 }} formatter={(v, n) => { const f = (x) => (x == null ? "—" : (+x).toFixed(2)); if (n === "_band") return [Array.isArray(v) ? `${f(v[0])}–${f(v[1])} ${unit}` : `${f(v)} ${unit}`, "Min–Max"]; return [v == null ? "—" : `${f(v)} ${unit}`, n === "avg" ? "TB giờ" : n]; }} />
-              {s.min != null && s.max != null && <ReferenceArea y1={s.min} y2={s.max} fill={COLOR.teal} fillOpacity={0.10} stroke="none" />}
-              {pts.some((p) => p.vmin != null && p.vmax != null) && <Area type="monotone" dataKey={(d) => (d.vmin != null && d.vmax != null ? [d.vmin, d.vmax] : null)} name="_band" stroke="none" fill={COLOR.sky} fillOpacity={0.14} connectNulls isAnimationActive={false} />}
-              {s.min != null && <ReferenceLine y={s.min} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${s.min}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-              {s.max != null && <ReferenceLine y={s.max} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${s.max}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-              {mean != null && <ReferenceLine y={mean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${mean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
-              <Line type="monotone" dataKey="avg" stroke={COLOR.teal} strokeWidth={2.2} isAnimationActive={false}
-                dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (s.min != null && payload.avg < s.min) || (s.max != null && payload.avg > s.max); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={3} fill={oob ? COLOR.coralDeep : COLOR.teal} stroke="#fff" strokeWidth={1} />; }}
-                activeDot={{ r: 4 }} />
-            </ComposedChart></ResponsiveContainer></div>; })()}
+            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : <Chart type="roomDetail" pts={pts} smin={s.min} smax={s.max} mean={mean} unit={unit} h={182} />}
             {!noDL && <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Khoảng đạt (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.sky, opacity: 0.45 }} /> Dải min–max theo giờ</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> trong khoảng</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> ngoài khoảng</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình 8h</span></div>}
           </div>
         ); })}</div>
@@ -511,58 +496,6 @@ function AiSections({ text }) {
   })}</div>;
 }
 
-// Tooltip cho biểu đồ "% đạt/OOS theo từng chỉ tiêu" — đọc thẳng điểm dữ liệu nên
-// mỗi chỉ tiêu CHỈ hiện 1 lần (tránh lặp do có cả Area + Line cùng dataKey).
-function SensorComplyTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null;
-  const d = payload[0].payload;
-  const ks = ["DP", "RH", "T"].filter((k) => d[`comp_${k}`] != null);
-  if (!ks.length) return null;
-  return <div className="rounded-2xl bg-white px-3.5 py-2.5 ring-1 ring-slate-200" style={{ boxShadow: "0 10px 30px -8px rgba(35,80,110,0.4)" }}>
-    <p className="text-xs font-semibold mb-1.5" style={{ color: COLOR.navy }}>{label}</p>
-    <div className="space-y-1 text-[11px]">{ks.map((k) => { const v = d[`comp_${k}`]; return (
-      <p key={k} className="flex justify-between gap-5">
-        <span className="font-medium" style={{ color: SENSOR_COLOR[k] }}>● {SENSOR_META[k].label}</span>
-        <span className="tabular-nums text-slate-600">{fmtPct(v)} · OOS {v == null ? "—" : (100 - v).toFixed(1) + "%"}</span>
-      </p>); })}</div>
-  </div>;
-}
-
-function TrendTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null; const d = payload[0].payload;
-  return <div className="rounded-2xl bg-white px-3.5 py-2.5 ring-1 ring-slate-200" style={{ boxShadow: "0 10px 30px -8px rgba(35,80,110,0.4)" }}><p className="text-xs font-semibold mb-1.5" style={{ color: COLOR.navy }}>{label}</p><div className="space-y-1 text-[11px]"><p className="flex justify-between gap-4"><span className="text-slate-500">Tổng giờ cảnh báo</span><span className="font-semibold tabular-nums">{fmtH(d.alert)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.sand }}>● Warning</span><span className="tabular-nums">{fmtH(d.warnH)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.softCoral }}>● Critical</span><span className="tabular-nums">{fmtH(d.critH)}</span></p><p className="flex justify-between gap-4"><span style={{ color: COLOR.teal }}>― Tuân thủ</span><span className="tabular-nums">{fmtPct(d.comp)}</span></p></div></div>;
-}
-function TrendMainChart({ data, range }) {
-  const interval = range === "90n" ? Math.floor(data.length / 9) : range === "30n" ? Math.floor(data.length / 10) : 0;
-  return (
-    <div className="w-full" style={{ height: 300 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={data} margin={{ top: 16, right: 14, left: 0, bottom: 4 }}>
-          <defs><linearGradient id="warnG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={COLOR.sand} stopOpacity={1} /><stop offset="100%" stopColor={COLOR.sand} stopOpacity={0.65} /></linearGradient><linearGradient id="critG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={COLOR.softCoral} stopOpacity={1} /><stop offset="100%" stopColor={COLOR.softCoral} stopOpacity={0.65} /></linearGradient></defs>
-          <CartesianGrid strokeDasharray="2 6" stroke="#bcd7e4" vertical={false} />
-          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#5f7a90" }} interval={interval} axisLine={{ stroke: "#cbdde8" }} tickLine={false} />
-          <YAxis yAxisId="h" tick={{ fontSize: 10, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={38} />
-          <YAxis yAxisId="p" orientation="right" domain={[0, 100]} tick={{ fontSize: 10, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={34} />
-          <Tooltip content={<TrendTooltip />} cursor={{ fill: "rgba(79,159,209,0.1)" }} />
-          <ReferenceLine yAxisId="p" y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.5} />
-          <Bar yAxisId="h" dataKey="warnH" stackId="a" fill="url(#warnG)" maxBarSize={26} />
-          <Bar yAxisId="h" dataKey="critH" stackId="a" fill="url(#critG)" radius={[4, 4, 0, 0]} maxBarSize={26} />
-          <Line yAxisId="p" type="monotone" dataKey="comp" stroke={COLOR.teal} strokeWidth={2.6} dot={false} activeDot={{ r: 4, fill: COLOR.teal }} />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-function MiniArea({ data }) { return <div className="w-full" style={{ height: 84 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={data} margin={{ top: 6, right: 4, left: 4, bottom: 0 }}><defs><linearGradient id="miniComply" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={COMPLY_OK} stopOpacity={0.28} /><stop offset="100%" stopColor={COMPLY_OK} stopOpacity={0.02} /></linearGradient></defs><YAxis hide domain={[(d) => Math.max(0, Math.floor(d - 8)), 100]} /><XAxis dataKey="label" hide /><Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 10 }} formatter={(v) => [fmtPct(v), "% đạt"]} labelFormatter={(l) => l} /><ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="3 3" strokeWidth={1} /><Area type="monotone" dataKey="comp" stroke={COMPLY_OK} strokeWidth={2} fill="url(#miniComply)" dot={false} connectNulls isAnimationActive={false} /></AreaChart></ResponsiveContainer></div>; }
-
-// Sparkline tỉ lệ đạt theo ngày (cho bảng xếp hạng rủi ro) — chuoi: [{label, comp}]
-function Sparkline({ chuoi }) {
-  if (!chuoi || chuoi.length < 2) return <span className="text-[11px] text-slate-300">—</span>;
-  const last = chuoi[chuoi.length - 1]?.comp;
-  const first = chuoi[0]?.comp;
-  const stroke = (last != null && first != null) ? (last >= first ? COLOR.teal : COLOR.coral) : COLOR.teal;
-  return <div style={{ width: 96, height: 30 }}><ResponsiveContainer width="100%" height="100%"><AreaChart data={chuoi} margin={{ top: 3, right: 2, left: 2, bottom: 0 }}><YAxis hide domain={["dataMin - 2", "dataMax + 2"]} /><XAxis dataKey="label" hide /><Tooltip contentStyle={{ borderRadius: 8, border: "none", fontSize: 10 }} formatter={(v) => [fmtPct(v), "Đạt"]} labelFormatter={(l) => l} /><Area type="monotone" dataKey="comp" stroke={stroke} strokeWidth={1.6} fill={stroke} fillOpacity={0.12} dot={false} /></AreaChart></ResponsiveContainer></div>;
-}
 
 function printTrend() {
   try { const node = document.getElementById("trendPrintArea"); if (!node) { window.print(); return; } const win = window.open("", "PRINT", "height=760,width=1040"); if (!win) { window.print(); return; }
@@ -571,130 +504,6 @@ function printTrend() {
   } catch (e) { window.print(); }
 }
 
-// ====== BIỂU ĐỒ TÁI SỬ DỤNG CHO TAB XU HƯỚNG ======
-// Trục X thưa ~12 mốc; vùng OOS gradient; ngưỡng 80%.
-const xTickEvery = (n) => Math.max(0, Math.floor(n / 12));
-
-// (A) % đạt TOÀN PHẦN theo thời gian + vùng OOS (đường đạt, tô nền phần thiếu hụt tới 100%)
-// Y-domain "có khoảng thở": đáy = min−đệm (≥0), trần = min(100, max+đệm) để đỉnh không chạm cạnh trên.
-function complyDomain(values) {
-  const ys = values.filter((v) => v != null);
-  if (!ys.length) return [0, 100];
-  const lo = Math.min(...ys), hi = Math.max(...ys);
-  const pad = Math.max(4, (hi - lo) * 0.18);
-  return [Math.max(0, Math.floor(lo - pad)), Math.min(100, Math.ceil(hi + pad))];
-}
-const chartWrap = "rounded-2xl p-2 bg-gradient-to-b from-sky-50/70 to-white ring-1 ring-sky-100/80";
-
-function ChartComplyTotal({ data, height = 280, idSuffix = "" }) {
-  const gid = `oosGrad${idSuffix}`;
-  const dom = complyDomain(data.map((d) => d.comp));
-  return (
-    <div className={chartWrap} style={{ height: height + 16 }}><ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
-        <defs>
-          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={COMPLY_OK} stopOpacity={0.30} />
-            <stop offset="100%" stopColor={COMPLY_OK} stopOpacity={0.02} />
-          </linearGradient>
-          <filter id={`glow${idSuffix}`} x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="1.5" stdDeviation="2" floodColor={COMPLY_OK} floodOpacity="0.25" />
-          </filter>
-        </defs>
-        <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(data.length)} />
-        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={dom} tickFormatter={(v) => `${v}%`} />
-        <Tooltip contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }}
-          formatter={(v) => [`${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`, "% đạt"]} />
-        <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "ngưỡng 80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
-        <Area type="monotone" dataKey="comp" stroke="none" fill={`url(#${gid})`} isAnimationActive={false} connectNulls={false} />
-        <Line type="monotone" dataKey="comp" stroke={COMPLY_OK} strokeWidth={2.6} isAnimationActive={false} connectNulls={false} filter={`url(#glow${idSuffix})`}
-          dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const low = payload.comp != null && payload.comp < 80; return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={low ? 3.4 : 2.4} fill={low ? COMPLY_BAD : COMPLY_OK} stroke="#fff" strokeWidth={1} />; }}
-          activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }} />
-      </ComposedChart>
-    </ResponsiveContainer></div>
-  );
-}
-
-// (B) % đạt THEO TỪNG CHỈ TIÊU (DP/RH/T) — mỗi chỉ tiêu 1 đường, màu cố định + vùng nền nhẹ
-function ChartComplyPerMetric({ data, present, height = 280 }) {
-  const allVals = [];
-  data.forEach((d) => ["DP", "RH", "T"].forEach((k) => { if (d[`comp_${k}`] != null) allVals.push(d[`comp_${k}`]); }));
-  const dom = complyDomain(allVals);
-  return (
-    <div className={chartWrap} style={{ height: height + 16 }}><ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
-        <defs>{["DP", "RH", "T"].map((k) => (
-          <linearGradient key={k} id={`grad_${k}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={SENSOR_COLOR[k]} stopOpacity={0.18} />
-            <stop offset="100%" stopColor={SENSOR_COLOR[k]} stopOpacity={0.01} />
-          </linearGradient>
-        ))}</defs>
-        <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(data.length)} />
-        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={42} domain={dom} tickFormatter={(v) => `${v}%`} />
-        <Tooltip content={<SensorComplyTooltip />} cursor={{ fill: "rgba(79,159,209,0.08)" }} />
-        <ReferenceLine y={80} stroke={COLOR.sand} strokeDasharray="5 5" strokeWidth={1.4} label={{ value: "80%", position: "insideTopRight", fontSize: 9, fill: COLOR.sand }} />
-        {["DP", "RH", "T"].filter((k) => present.includes(k)).map((k) => (
-          <Area key={`a_${k}`} type="monotone" dataKey={`comp_${k}`} stroke="none" fill={`url(#grad_${k})`} isAnimationActive={false} connectNulls={false} legendType="none" />
-        ))}
-        {["DP", "RH", "T"].filter((k) => present.includes(k)).map((k) => (
-          <Line key={k} type="monotone" dataKey={`comp_${k}`} name={SENSOR_META[k].label} stroke={SENSOR_COLOR[k]} strokeWidth={2.4} dot={false} activeDot={{ r: 4.5, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} connectNulls={false} />
-        ))}
-        <Legend wrapperStyle={{ fontSize: 11 }} iconType="plainline" />
-      </ComposedChart>
-    </ResponsiveContainer></div>
-  );
-}
-
-// Biểu đồ giá trị TRUNG BÌNH + dải giới hạn (GHD–GHT) cho MỘT chỉ tiêu của phòng.
-// Dùng để hiển thị đồng thời cả 3 chỉ tiêu (DP/RH/T) khi chọn phòng.
-function RoomBandChart({ sensorKey, series, isHourly }) {
-  const unit = SENSOR_META[sensorKey]?.unit || "";
-  const color = SENSOR_COLOR[sensorKey] || COLOR.teal;
-  const lo = [...series].reverse().find((p) => p.lo != null)?.lo ?? null;
-  const hi = [...series].reverse().find((p) => p.hi != null)?.hi ?? null;
-  const vals = series.filter((p) => p.avg != null);
-  const mean = vals.length ? +(vals.reduce((a, p) => a + p.avg, 0) / vals.length).toFixed(2) : null;
-  const gid = `bandFill_${sensorKey}`;
-  // Trục Y phải BAO GỒM cả GHD/GHT + dữ liệu để 2 đường giới hạn luôn hiện đầy đủ.
-  const ys = vals.map((p) => p.avg);
-  const yLo = Math.min(...ys, lo == null ? Infinity : lo, hi == null ? Infinity : hi);
-  const yHi = Math.max(...ys, lo == null ? -Infinity : lo, hi == null ? -Infinity : hi);
-  const pad = Math.max(0.5, (yHi - yLo) * 0.1);
-  const yDomain = ys.length && isFinite(yLo) && isFinite(yHi) ? [+(yLo - pad).toFixed(1), +(yHi + pad).toFixed(1)] : ["auto", "auto"];
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h4 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[sensorKey]?.label} ({sensorKey})</h4></div>
-      <div className="grid grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Số điểm", `${series.length}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[10px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-      <div style={{ height: 210 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={series} margin={{ top: 10, right: 16, left: -2, bottom: 4 }}>
-        <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.16} /><stop offset="100%" stopColor={color} stopOpacity={0.03} /></linearGradient></defs>
-        <CartesianGrid strokeDasharray="2 6" stroke="#cfe2ec" vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} interval={xTickEvery(series.length)} />
-        <YAxis tick={{ fontSize: 9, fill: "#5f7a90" }} axisLine={false} tickLine={false} width={46} domain={yDomain} allowDataOverflow tickFormatter={(v) => `${+(+v).toFixed(1)}`} />
-        <Tooltip cursor={{ stroke: color, strokeWidth: 1, strokeDasharray: "3 3" }} content={({ active, payload, label }) => {
-          if (!active || !payload || !payload.length) return null;
-          const d = payload[0].payload; if (d.avg == null) return null;
-          const oob = (lo != null && d.avg < lo) || (hi != null && d.avg > hi);
-          return <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200" style={{ boxShadow: "0 8px 24px -8px rgba(30,58,86,0.35)" }}>
-            <p className="text-[11px] font-semibold mb-1" style={{ color: COLOR.navy }}>{label}</p>
-            <p className="text-[12px]"><span className="text-slate-500">TB: </span><span className="font-semibold tabular-nums" style={{ color: oob ? COLOR.coralDeep : color }}>{(+d.avg).toFixed(2)} {unit}</span>{oob && <span className="text-[10px] text-rose-600 ml-1">· ngoài giới hạn</span>}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5 tabular-nums">GHD {lo == null ? "—" : lo} · GHT {hi == null ? "—" : hi} {unit}</p>
-          </div>;
-        }} />
-        {lo != null && hi != null && <ReferenceArea y1={lo} y2={hi} fill={color} fillOpacity={0.07} stroke="none" />}
-        {lo != null && <ReferenceLine y={lo} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHD ${lo}`, position: "insideBottomLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-        {hi != null && <ReferenceLine y={hi} stroke={COLOR.coral} strokeDasharray="5 4" strokeWidth={1.3} label={{ value: `GHT ${hi}`, position: "insideTopLeft", fontSize: 9, fill: COLOR.coralDeep }} />}
-        {mean != null && <ReferenceLine y={mean} stroke={COLOR.navy} strokeDasharray="2 3" strokeWidth={1.2} label={{ value: `TB ${mean}`, position: "right", fontSize: 9, fill: COLOR.navy }} />}
-        <Area type="monotone" dataKey="avg" stroke="none" fill={`url(#${gid})`} isAnimationActive={false} connectNulls />
-        <Line type="monotone" dataKey="avg" stroke={color} strokeWidth={2.4} isAnimationActive={false} connectNulls
-          dot={(dp) => { const { cx, cy, payload } = dp; if (cx == null || cy == null) return null; const oob = (lo != null && payload.avg < lo) || (hi != null && payload.avg > hi); return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={oob ? 3.2 : 2.6} fill={oob ? COLOR.coralDeep : color} stroke="#fff" strokeWidth={0.9} />; }}
-          activeDot={{ r: 4 }} />
-      </ComposedChart></ResponsiveContainer></div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.35 }} /> Dải giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> TB ngoài giới hạn</span></div>
-    </div>
-  );
-}
 
 // ====== COMBOBOX TÌM KIẾM (kiểu web bán hàng) cho chọn đối tượng ======
 // Gõ để lọc; danh sách thả xuống có highlight, %đạt, khu/AHU; chọn bằng chuột hoặc bàn phím.
@@ -995,7 +804,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     return [...byTs.values()].sort((a, b) => a.ts - b.ts);
   }, [wantMulti, multiSensor, multiKey]);
   const sensorsPresent = useMemo(() => (wantMulti ? (multiSensor[multiKey] || []).map((g) => g.k) : []), [wantMulti, multiSensor, multiKey]);
-  const full = isLive ? (mainSeries[trendKey] || []) : demoFull;
+  const full = isLive ? (mainSeries[trendKey] || []) : getSeries(activeScope, sensor, range);
   const minTs = full[0]?.ts, maxTs = full[full.length - 1]?.ts;
   const fromMs = dtFrom ? new Date(dtFrom).getTime() : minTs;
   const toMs = dtTo ? new Date(dtTo).getTime() : maxTs;
@@ -1307,7 +1116,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
                 ) : ks.length === 0 ? (
                   <p className="mt-4 text-[13px] text-slate-500">Phòng này chưa ghi nhận giá trị (Chênh áp / Độ ẩm / Nhiệt độ) trong khoảng đã chọn.</p>
                 ) : (
-                  <div className="mt-4 divide-y divide-slate-100">{ks.map((k, idx) => <div key={k} className={idx > 0 ? "pt-6" : ""}><RoomBandChart sensorKey={k} series={bands[k]} isHourly={isHourly} /></div>)}</div>
+                  <div className="mt-4 divide-y divide-slate-100">{ks.map((k, idx) => <div key={k} className={idx > 0 ? "pt-6" : ""}><Chart type="roomBand" sensorKey={k} series={bands[k]} isHourly={isHourly} h={296} /></div>)}</div>
                 )}
               </Card>
             );
@@ -1316,8 +1125,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           <Card className="p-6"><SectionTitle icon={LineIcon} hint={showMulti ? `${activeScope.name} · ${sensorsPresent.map((k) => SENSOR_META[k]?.label).join(" · ")} · theo ${isHourly ? "giờ" : "ngày"}` : `${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label} · theo ${isHourly ? "giờ" : "ngày"}`}>② % đạt / OOS theo thời gian{showMulti ? " — theo từng cảm biến" : ""}</SectionTitle>
             <p className="text-[11px] text-slate-400 mt-1">% đạt = 100% − % ngoài giới hạn (OOS). Đường dưới mốc 80% là kỳ cần chú ý.</p>
             <div className="mt-3">{showMulti
-              ? <ChartComplyPerMetric data={viewMulti} present={sensorsPresent} />
-              : <ChartComplyTotal data={view} idSuffix="RoomOne" />}</div>
+              ? <Chart type="complyPerMetric" data={viewMulti} present={sensorsPresent} h={296} />
+              : <Chart type="complyTotal" data={view} idSuffix="RoomOne" h={296} />}</div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500">{showMulti ? sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: SENSOR_COLOR[k] }} /> {SENSOR_META[k]?.label || k}</span>) : (<><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_OK }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_BAD }} /> &lt; 80% (điểm đỏ)</span></>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
           </Card>
         </>)}
@@ -1327,14 +1136,14 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           {/* (1) % đạt / OOS TOÀN PHẦN (hoặc theo chỉ tiêu đang chọn) */}
           <Card className="p-6"><SectionTitle icon={LineIcon} hint={`${activeScope.name} · ${sensor === "ALL" ? "toàn phần" : SENSOR_META[sensor]?.label} · theo ${isHourly ? "giờ" : "ngày"}`}>① % đạt / OOS {sensor === "ALL" ? "toàn phần" : `— ${SENSOR_META[sensor]?.label}`} theo thời gian</SectionTitle>
             <p className="text-[11px] text-slate-400 mt-1">{sensor === "ALL" ? "Tổng hợp mọi cảm biến trong phạm vi" : `Chỉ riêng ${SENSOR_META[sensor]?.label}`}. % đạt = 100% − % ngoài giới hạn (OOS). Vùng xanh nhạt minh hoạ mức đạt.</p>
-            <div className="mt-3"><ChartComplyTotal data={view} idSuffix="Large" /></div>
+            <div className="mt-3"><Chart type="complyTotal" data={view} idSuffix="Large" h={296} /></div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_OK }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_BAD }} /> &lt; 80% (điểm đỏ)</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
           </Card>
           {/* (2) % đạt / OOS THEO TỪNG CHỈ TIÊU */}
           <Card className="p-6"><SectionTitle icon={CircleDot} hint={`${activeScope.name} · theo từng chỉ tiêu · theo ${isHourly ? "giờ" : "ngày"}`}>② % đạt / OOS theo từng chỉ tiêu</SectionTitle>
             <p className="text-[11px] text-slate-400 mt-1">Tách riêng <span style={{ color: SENSOR_COLOR.DP }}>Chênh áp</span>, <span style={{ color: SENSOR_COLOR.RH }}>Độ ẩm</span>, <span style={{ color: SENSOR_COLOR.T }}>Nhiệt độ</span> để thấy chỉ tiêu nào kéo tỉ lệ đạt xuống.</p>
             {sensorsPresent.length > 0 && viewMulti.length > 0 ? (<>
-              <div className="mt-3"><ChartComplyPerMetric data={viewMulti} present={sensorsPresent} /></div>
+              <div className="mt-3"><Chart type="complyPerMetric" data={viewMulti} present={sensorsPresent} h={296} /></div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500">{sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: SENSOR_COLOR[k] }} /> {SENSOR_META[k]?.label || k}</span>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
             </>) : (
               <p className="mt-4 text-[13px] text-amber-600">Đang tải dữ liệu theo chỉ tiêu… (nếu trống, phạm vi này chưa có đủ dữ liệu cảm biến trong khoảng đã chọn)</p>
@@ -1358,11 +1167,11 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       </div>
 
       <Card className="p-6"><SectionTitle icon={CircleDot} hint="% điểm đạt mỗi cấp · theo dõi nhanh">Xu hướng theo cấp</SectionTitle>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-(RANGE_DAYS[range] || 30)) : getSeries(sc, sensor, range); const lt = d[d.length - 1] || {}; const p = lt.comp; const pc = p == null ? "#94a3b8" : p < 70 ? COMPLY_BAD : p < 88 ? "#d99a2b" : COMPLY_OK; return <div key={lvl} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold" style={{ color: COLOR.navy }}>{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-[10px] px-2 py-0.5 rounded-full text-slate-600 bg-white ring-1 ring-slate-200">{sc.id}</span></div><div className="flex items-baseline gap-1.5 mb-1"><span className="text-2xl font-light tabular-nums leading-none" style={{ color: pc }}>{p == null ? "—" : fmtPct(p)}</span><span className="text-[10px] text-slate-400">% đạt mới nhất</span></div><p className="text-[10px] text-slate-400 mb-1 truncate">{sc.name}</p><MiniArea data={d} /></div>; })}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-(RANGE_DAYS[range] || 30)) : getSeries(sc, sensor, range); const lt = d[d.length - 1] || {}; const p = lt.comp; const pc = p == null ? "#94a3b8" : p < 70 ? COMPLY_BAD : p < 88 ? "#d99a2b" : COMPLY_OK; return <div key={lvl} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold" style={{ color: COLOR.navy }}>{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-[10px] px-2 py-0.5 rounded-full text-slate-600 bg-white ring-1 ring-slate-200">{sc.id}</span></div><div className="flex items-baseline gap-1.5 mb-1"><span className="text-2xl font-light tabular-nums leading-none" style={{ color: pc }}>{p == null ? "—" : fmtPct(p)}</span><span className="text-[10px] text-slate-400">% đạt mới nhất</span></div><p className="text-[10px] text-slate-400 mb-1 truncate">{sc.name}</p><Chart type="miniArea" data={d} h={84} /></div>; })}</div>
       </Card>
 
       <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="Tổng → Khu → AHU → Phòng · tỉ lệ đạt 1/3/7 ngày">Xếp hạng rủi ro</SectionTitle>
-        <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", "Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày", "Xu hướng 14n", "Risk", "Đánh giá"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; const a = comp == null ? ["Chờ dữ liệu", "text-slate-400"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-rose-600"] : comp < 88 ? ["Cần chú ý", "text-amber-600"] : ["Tốt", "text-teal-600"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-slate-100 hover:bg-sky-50/40 ${r.type === "TOTAL" ? "bg-teal-50/30" : ""}`}><td className="py-2.5 pr-4 text-slate-500 whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4"><button disabled={!canPick} onClick={() => { if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left ${canPick ? "hover:underline" : ""}`}><span className="font-semibold" style={{ color: COLOR.navy }}>{r.id}</span> <span className="text-slate-500">{r.name}</span></button></td><td className="py-2.5 pr-4 text-slate-500 whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-slate-600">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-slate-600">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td><td className="py-2.5 pr-4"><Sparkline chuoi={r.chuoi} /></td><td className="py-2.5 pr-4"><span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: COLOR.coralDeep }}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
+        <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", "Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày", "Xu hướng 14n", "Risk", "Đánh giá"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; const a = comp == null ? ["Chờ dữ liệu", "text-slate-400"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-rose-600"] : comp < 88 ? ["Cần chú ý", "text-amber-600"] : ["Tốt", "text-teal-600"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-slate-100 hover:bg-sky-50/40 ${r.type === "TOTAL" ? "bg-teal-50/30" : ""}`}><td className="py-2.5 pr-4 text-slate-500 whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4"><button disabled={!canPick} onClick={() => { if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left ${canPick ? "hover:underline" : ""}`}><span className="font-semibold" style={{ color: COLOR.navy }}>{r.id}</span> <span className="text-slate-500">{r.name}</span></button></td><td className="py-2.5 pr-4 text-slate-500 whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-slate-600">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-slate-600">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td><td className="py-2.5 pr-4"><Chart type="sparkline" chuoi={r.chuoi} h={30} /></td><td className="py-2.5 pr-4"><span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: COLOR.coralDeep }}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
         <p className="text-[11px] text-slate-400 mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó. Tỉ lệ đạt = trung bình tuân thủ trong 1 / 3 / 7 ngày gần nhất.</p>
       </Card>
     </div>
@@ -1583,6 +1392,36 @@ function DoiMatKhauModal({ user, isLive, onClose }) {
           <p className="text-[11px] text-slate-400 leading-relaxed">Cần xác thực mật khẩu hiện tại. Mật khẩu mới tối thiểu 6 ký tự; lần đăng nhập sau dùng mật khẩu mới.</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Phân tích GMP chuyên sâu (MKT + SPC) — tất định, job đêm tính, chỉ hiện ở LIVE.
+function PhanTichGmpCard({ mkt, spc, isLive }) {
+  if (!isLive) return (
+    <Card className="p-6"><SectionTitle icon={Activity} hint="MKT (ICH Q1A) + SPC (EWMA/CUSUM/Nelson)">Phân tích GMP chuyên sâu</SectionTitle>
+      <p className="mt-3 text-[13px] text-slate-500">Hiển thị ở chế độ <b>LIVE</b> (đọc dữ liệu thật). MKT/SPC được job đêm tính tất định từ Supabase.</p>
+    </Card>
+  );
+  const mk = mkt || [], sp = spc || [];
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Card className="p-6"><SectionTitle icon={Thermometer} hint="Nhiệt độ động học TB · 30 ngày · ICH Q1A">MKT theo phòng</SectionTitle>
+        <p className="text-[11px] text-slate-400 mt-1">MKT phạt các đợt nhiệt cao (Arrhenius), luôn ≥ nhiệt độ TB. Phòng MKT cao → chú ý phơi nhiễm nhiệt.</p>
+        {mk.length ? (
+          <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Phòng", "Khu", "Ưu tiên", "MKT °C", "T TB", "T max"].map((hh) => <th key={hh} className="py-2 pr-3 font-semibold whitespace-nowrap">{hh}</th>)}</tr></thead><tbody>
+            {mk.slice(0, 12).map((r) => <tr key={r.ma_phong} className="border-t border-slate-100 hover:bg-sky-50/40"><td className="py-2 pr-3"><span className="font-semibold" style={{ color: COLOR.navy }}>{r.ma_phong}</span> <span className="text-slate-400 text-[11px]">{r.ten_phong}</span></td><td className="py-2 pr-3 text-slate-500">{r.khu_vuc}</td><td className="py-2 pr-3">{r.muc_uu_tien && <MucBadge p={r.muc_uu_tien} />}</td><td className="py-2 pr-3 tabular-nums font-semibold" style={{ color: COLOR.navy }}>{r.mkt == null ? "—" : r.mkt.toFixed(2)}</td><td className="py-2 pr-3 tabular-nums text-slate-600">{r.tTb == null ? "—" : r.tTb.toFixed(2)}</td><td className="py-2 pr-3 tabular-nums text-slate-600">{r.tMax == null ? "—" : r.tMax.toFixed(2)}</td></tr>)}
+          </tbody></table></div>
+        ) : <p className="mt-3 text-[13px] text-slate-500">Chưa có dữ liệu MKT (cần sensor nhiệt + job đêm đã chạy).</p>}
+      </Card>
+      <Card className="p-6"><SectionTitle icon={Activity} hint="EWMA · CUSUM · Nelson rules">SPC — cảnh báo dịch chuyển</SectionTitle>
+        <p className="text-[11px] text-slate-400 mt-1">"Ngoài kiểm soát" = có tín hiệu dịch chuyển/xu hướng trước khi vượt ngưỡng OOS. Nelson1=vượt 3σ, 2=9 điểm cùng phía, 3=6 điểm tăng/giảm.</p>
+        {sp.length ? (
+          <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Phạm vi", "Sensor", "Mục tiêu", "σ", "Tín hiệu", "Loại"].map((hh) => <th key={hh} className="py-2 pr-3 font-semibold whitespace-nowrap">{hh}</th>)}</tr></thead><tbody>
+            {sp.slice(0, 12).map((r, i) => <tr key={i} className="border-t border-slate-100 hover:bg-sky-50/40"><td className="py-2 pr-3"><span className="font-semibold" style={{ color: COLOR.navy }}>{r.scope_id}</span> <span className="text-slate-400 text-[11px]">{r.ten_scope}</span></td><td className="py-2 pr-3 text-slate-500">{r.sensor_type}</td><td className="py-2 pr-3 tabular-nums text-slate-600">{r.mucTieu == null ? "—" : fmtPct(r.mucTieu)}</td><td className="py-2 pr-3 tabular-nums text-slate-600">{r.sigma == null ? "—" : r.sigma.toFixed(2)}</td><td className="py-2 pr-3"><span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: COLOR.coralDeep }}>{r.soTinHieu}</span></td><td className="py-2 pr-3 text-[11px] text-slate-500">{r.cacLoai || "—"}</td></tr>)}
+          </tbody></table></div>
+        ) : <p className="mt-3 text-[13px] text-teal-600">Tất cả phạm vi đang trong kiểm soát — không có tín hiệu SPC.</p>}
+      </Card>
     </div>
   );
 }
@@ -1857,7 +1696,7 @@ export default function App() {
             <div className="space-y-5"><SectionTitle icon={Building2}>Quản lý phòng</SectionTitle><RoomManager rooms={rooms} cfg={cfg} canManage={canManage} onAdd={addRoom} onEdit={editRoom} onDelete={deleteRoom} onUpdateLimit={updateLimit} onAddSensor={addSensor} onRemoveSensor={removeSensor} /></div>
           )}
 
-          {tab === "trend" && <TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? live.rooms : null} liveIncidents={isLive ? incidents : null} onSaveAI={handleSaveAI} />}
+          {tab === "trend" && <div className="space-y-6"><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? live.rooms : null} liveIncidents={isLive ? incidents : null} onSaveAI={handleSaveAI} /><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
           {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
 
           {tab === "audit" && (() => {

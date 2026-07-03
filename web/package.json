@@ -13,10 +13,10 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
+    "echarts": "^6.1.0",
     "lucide-react": "^1.17.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "recharts": "^2.15.4"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.2",
