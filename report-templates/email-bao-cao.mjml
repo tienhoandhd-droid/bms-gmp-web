@@ -1,0 +1,164 @@
+<!--
+  email-bao-cao.mjml — Template email "executive scorecard" BMS-GMP (WF5 v2 / mục B3)
+  =====================================================================================
+  - Compile 1 lần bằng: npx mjml email-bao-cao.mjml -o email-bao-cao.html
+    (hoặc compile sẵn rồi để n8n chỉ interpolate — khuyến nghị, xem README.md).
+  - Placeholder kiểu {{handlebars}} do Code node của n8n thay thế TRƯỚC khi gửi.
+    Toàn bộ SỐ LIỆU lấy từ rpc_bao_cao_tong_hop — AI chỉ viết nhận định.
+  - Ảnh biểu đồ nhúng bằng CID attachment (cid:chart_line, cid:chart_heat,
+    cid:spark_<ma_phong>) — KHÔNG dùng ảnh remote để khỏi bị mail client chặn.
+  - Danh sách placeholder: xem README.md (bảng "Placeholder email").
+-->
+<mjml lang="vi">
+  <mj-head>
+    <mj-title>Báo cáo {{ky_bao_cao}} — Hệ thống BMS-GMP</mj-title>
+    <mj-preview>Tuân thủ {{kpi_tuan_thu}}% ({{delta_tuan_thu_mui_ten}}{{delta_tuan_thu}}) · {{so_su_co_mo}} sự cố mở · {{so_tin_hieu_spc}} tín hiệu SPC</mj-preview>
+    <mj-attributes>
+      <mj-all font-family="Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif" />
+      <mj-text color="#334155" font-size="14px" line-height="1.55" />
+      <mj-section padding="0" background-color="#ffffff" />
+    </mj-attributes>
+    <mj-style>
+      .kpi-so { font-size: 30px; font-weight: 700; color: #0f172a; }
+      .kpi-nhan { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: #64748b; }
+      .kpi-delta { font-size: 13px; font-weight: 600; }
+      .bang-rui-ro td, .bang-rui-ro th { padding: 8px 10px; font-size: 13px; }
+      .bang-rui-ro th { text-align: left; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 2px solid #e2e8f0; }
+      .bang-rui-ro td { border-bottom: 1px solid #f1f5f9; color: #334155; }
+    </mj-style>
+  </mj-head>
+
+  <mj-body background-color="#f1f5f9" width="640px">
+
+    <!-- ================= HEADER ================= -->
+    <mj-section background-color="#0f172a" padding="20px 24px" border-radius="8px 8px 0 0">
+      <mj-column width="20%" vertical-align="middle">
+        <!-- Placeholder logo CPC1 — thay src bằng cid:logo_cpc1 (attachment) -->
+        <mj-image src="cid:logo_cpc1" alt="CPC1" width="56px" padding="0" />
+      </mj-column>
+      <mj-column width="80%" vertical-align="middle">
+        <mj-text color="#ffffff" font-size="18px" font-weight="700" padding="0 0 2px 0">
+          Báo cáo {{ky_bao_cao}} — Giám sát môi trường GMP
+        </mj-text>
+        <mj-text color="#94a3b8" font-size="12px" padding="0">
+          Kỳ: {{tu_ngay}} → {{den_ngay}} · Tạo lúc {{tao_luc}} (giờ VN)
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- ================= HÀNG 4 KPI ================= -->
+    <mj-section padding="20px 12px 4px 12px">
+      <mj-column width="25%" padding="0 6px">
+        <mj-text align="center" css-class="kpi-nhan" padding="0 0 4px 0">% Tuân thủ</mj-text>
+        <mj-text align="center" css-class="kpi-so" padding="0"><span style="color:{{kpi_tuan_thu_mau}}">{{kpi_tuan_thu}}%</span></mj-text>
+        <mj-text align="center" css-class="kpi-delta" padding="2px 0 0 0">
+          <span style="color:{{delta_tuan_thu_mau}}">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}} so kỳ trước</span>
+        </mj-text>
+      </mj-column>
+      <mj-column width="25%" padding="0 6px">
+        <mj-text align="center" css-class="kpi-nhan" padding="0 0 4px 0">Giờ OOS</mj-text>
+        <mj-text align="center" css-class="kpi-so" padding="0">{{kpi_gio_oos}}</mj-text>
+        <mj-text align="center" css-class="kpi-delta" padding="2px 0 0 0">
+          <span style="color:{{delta_oos_mau}}">{{delta_oos_mui_ten}} {{delta_oos}} so kỳ trước</span>
+        </mj-text>
+      </mj-column>
+      <mj-column width="25%" padding="0 6px">
+        <mj-text align="center" css-class="kpi-nhan" padding="0 0 4px 0">Sự cố (mở/đóng)</mj-text>
+        <mj-text align="center" css-class="kpi-so" padding="0">{{so_su_co_mo}}/{{so_su_co_dong}}</mj-text>
+        <mj-text align="center" css-class="kpi-delta" padding="2px 0 0 0">
+          <span style="color:{{delta_su_co_mau}}">{{delta_su_co_mui_ten}} {{delta_su_co}} · MTTR {{mttr_gio}}h</span>
+        </mj-text>
+      </mj-column>
+      <mj-column width="25%" padding="0 6px">
+        <mj-text align="center" css-class="kpi-nhan" padding="0 0 4px 0">Tín hiệu SPC</mj-text>
+        <mj-text align="center" css-class="kpi-so" padding="0"><span style="color:{{kpi_spc_mau}}">{{so_tin_hieu_spc}}</span></mj-text>
+        <mj-text align="center" css-class="kpi-delta" color="#64748b" padding="2px 0 0 0">
+          {{so_scope_ngoai_ks}} scope ngoài kiểm soát
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="8px 24px 0 24px">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#e2e8f0" padding="8px 0" />
+      </mj-column>
+    </mj-section>
+
+    <!-- ================= BIỂU ĐỒ CHÍNH ================= -->
+    <mj-section padding="8px 24px 0 24px">
+      <mj-column>
+        <mj-text font-size="15px" font-weight="700" color="#0f172a" padding="0 0 6px 0">
+          Tỉ lệ tuân thủ theo ngày (ngưỡng 80%)
+        </mj-text>
+        <mj-image src="cid:chart_line" alt="Biểu đồ tuân thủ theo ngày" width="592px" padding="0" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="16px 24px 0 24px">
+      <mj-column>
+        <mj-text font-size="15px" font-weight="700" color="#0f172a" padding="0 0 6px 0">
+          Lịch tuân thủ trong kỳ
+        </mj-text>
+        <mj-image src="cid:chart_heat" alt="Heatmap lịch tuân thủ" width="592px" padding="0" />
+      </mj-column>
+    </mj-section>
+
+    <!-- ================= TOP 5 PHÒNG RỦI RO ================= -->
+    <mj-section padding="20px 24px 0 24px">
+      <mj-column>
+        <mj-text font-size="15px" font-weight="700" color="#0f172a" padding="0 0 6px 0">
+          Top 5 phòng rủi ro
+        </mj-text>
+        <mj-table css-class="bang-rui-ro" padding="0">
+          <tr>
+            <th>Phòng</th>
+            <th>Khu</th>
+            <th style="text-align:right">Tuân thủ</th>
+            <th style="text-align:right">Giờ OOS</th>
+            <th>Diễn biến</th>
+          </tr>
+          <!-- Code node lặp mảng top_phong_rui_ro và nhân bản khối dưới -->
+          {{#each top_phong_rui_ro}}
+          <tr>
+            <td><strong>{{ten_phong}}</strong><br /><span style="color:#94a3b8;font-size:11px">{{ma_phong}}</span></td>
+            <td>{{khu_vuc}}</td>
+            <td style="text-align:right;color:{{mau}};font-weight:700">{{ty_le_tuan_thu}}%</td>
+            <td style="text-align:right">{{so_gio_oos}}</td>
+            <td><img src="cid:spark_{{ma_phong}}" alt="xu hướng {{ma_phong}}" width="120" height="36" style="display:block" /></td>
+          </tr>
+          {{/each}}
+        </mj-table>
+      </mj-column>
+    </mj-section>
+
+    <!-- ================= NHẬN ĐỊNH AI ================= -->
+    <mj-section padding="20px 24px 0 24px">
+      <mj-column background-color="#f0fdfa" border-radius="8px" padding="14px 16px" border="1px solid #ccfbf1">
+        <mj-text font-size="13px" font-weight="700" color="#0d9488" padding="0 0 6px 0">
+          Nhận định AI (đã thẩm định Writer–Judge)
+        </mj-text>
+        <mj-text font-size="13px" color="#334155" padding="0 0 8px 0">
+          {{nhan_dinh_ai}}
+        </mj-text>
+        <mj-text font-size="11px" color="#64748b" font-style="italic" padding="0">
+          Số liệu do hệ thống tính — AI chỉ viết nhận định. Kết luận GMP do IPC/QA.
+          Mô hình: {{ai_model_dung}} · {{ai_tao_luc}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- ================= FOOTER TRUY VẾT ================= -->
+    <mj-section padding="20px 24px 24px 24px" border-radius="0 0 8px 8px">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#e2e8f0" padding="0 0 10px 0" />
+        <mj-text font-size="11px" color="#94a3b8" padding="0" line-height="1.6">
+          Truy vết GMP: mã lần chạy WF5 <strong>{{ma_lan_chay}}</strong> ·
+          Tạo lúc {{tao_luc}} · Nguồn số liệu: <code>rpc_bao_cao_tong_hop('{{ky}}', '{{tu_ngay_iso}}', '{{den_ngay_iso}}')</code><br />
+          Email tự động từ hệ thống BMS-GMP (CPC1HN) — vui lòng không trả lời.
+          Bản lưu trữ chính thức: PDF trên Google Drive ({{link_drive}}).
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>

@@ -1,0 +1,19 @@
+{
+  "name": "bms-chart-render",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dịch vụ render biểu đồ ECharts SSR -> PNG cho báo cáo/email BMS-GMP (WF5 v2 / WF3)",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "echarts": "^6.0.0",
+    "express": "^4.21.2",
+    "sharp": "^0.33.5"
+  }
+}
