@@ -528,9 +528,11 @@ function printTrend(meta = {}) {
     const logo = document.querySelector('img[alt="CPC1 Hà Nội"]');
     const logoSrc = logo ? logo.src : "";
     const now = new Date().toLocaleString("vi-VN");
-    const metaLine = [meta.scope, meta.sensor, meta.range, meta.res, meta.window].filter(Boolean).join(" · ");
+    const phamVi = meta.phamVi || meta.scope || "";
+    const detail = [meta.sensor ? `Chỉ tiêu: ${meta.sensor}` : "", meta.range ? `Khoảng: ${meta.range}` : "", meta.res ? `Độ phân giải: ${meta.res}` : "", meta.window ? `Cửa sổ thời gian: ${meta.window}` : ""].filter(Boolean).join(" · ");
     const win = window.open("", "PRINT", "height=900,width=1200");
-    if (!win) { window.print(); return; }
+    // KHÔNG rơi về window.print() (sẽ in CẢ trang gồm tìm kiếm/xếp hạng) — báo người dùng cho phép pop-up.
+    if (!win) { try { alert("Trình duyệt đang chặn cửa sổ in. Hãy CHO PHÉP pop-up cho trang này rồi bấm In lại — báo cáo chỉ in phần nội dung (không kèm tìm kiếm/xếp hạng)."); } catch (_) { /* bỏ qua */ } return; }
     win.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Báo cáo xu hướng GMP — ${meta.scope || ""}</title>
 ${linkTags}
 ${styleTags}
@@ -543,7 +545,9 @@ ${styleTags}
   .rp-head img { height:46px; width:auto; }
   .rp-title { font-size:15px; font-weight:800; color:#102A3E; line-height:1.25; }
   .rp-sub { font-size:10.5px; color:#5f7a90; margin-top:3px; }
-  .rp-meta { font-size:10.5px; color:#0E7C73; font-weight:600; margin-top:2px; }
+  .rp-scope { font-size:12.5px; font-weight:800; color:#102A3E; margin-top:5px; letter-spacing:.2px; }
+  .rp-scope b { color:#0E7C73; }
+  .rp-meta { font-size:10.5px; color:#5f7a90; font-weight:600; margin-top:2px; }
   #trendPrintArea { display:block !important; }
   #trendPrintArea > * { break-inside: avoid; page-break-inside: avoid; margin-bottom:12px; }
   /* Bảng cuộn → in đầy đủ */
@@ -556,7 +560,7 @@ ${styleTags}
   .rp-foot { margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0; font-size:9.5px; color:#94a3b8; text-align:center; }
 </style></head>
 <body><div class="rp-wrap">
-  <div class="rp-head">${logoSrc ? `<img src="${logoSrc}" alt="logo"/>` : ""}<div><div class="rp-title">CÔNG TY CPC1 HÀ NỘI — Giám sát môi trường HVAC phòng sạch GMP</div><div class="rp-sub">BÁO CÁO XU HƯỚNG · xuất lúc ${now}</div>${metaLine ? `<div class="rp-meta">${metaLine}</div>` : ""}</div></div>
+  <div class="rp-head">${logoSrc ? `<img src="${logoSrc}" alt="logo"/>` : ""}<div><div class="rp-title">CÔNG TY CPC1 HÀ NỘI — Giám sát môi trường HVAC phòng sạch GMP</div><div class="rp-sub">BÁO CÁO XU HƯỚNG · xuất lúc ${now}</div>${phamVi ? `<div class="rp-scope">PHẠM VI IN: <b>${phamVi}</b></div>` : ""}${detail ? `<div class="rp-meta">${detail}</div>` : ""}</div></div>
   ${clone.outerHTML}
   <div class="rp-foot">Số liệu tất định do hệ thống tính (giới hạn GHD/GHT theo phòng trong CSDL). AI chỉ hỗ trợ gợi ý — kết luận GMP do IPC/QA phê duyệt.</div>
 </div>
@@ -1077,7 +1081,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
 
   // In báo cáo A4 — LUÔN kèm phân tích AI: nếu chưa có nhận định thì chạy AI trước rồi mới in.
   const inBaoCaoA4 = async () => {
-    const meta = { scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor)?.label, range: RANGES.find((r) => r.k === range)?.label, res: resLbl, window: (dtFrom || dtTo) ? `${view[0]?.label}→${view[view.length - 1]?.label}` : "" };
+    const LVL = { TOTAL: "Toàn hệ thống", AREA: "Khu vực", AHU: "AHU", ROOM: "Phòng" };
+    const phamVi = activeScope.type === "TOTAL" ? "Toàn hệ thống" : `${LVL[activeScope.type] || ""}: ${activeScope.name}`;
+    const meta = { phamVi, scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor)?.label, range: RANGES.find((r) => r.k === range)?.label, res: resLbl, window: (dtFrom || dtTo) ? `${view[0]?.label}→${view[view.length - 1]?.label}` : `${RANGES.find((r) => r.k === range)?.label} gần nhất` };
     if (!aiResult) {
       setDangInBaoCao(true);
       try { await runAI(); await new Promise((r) => setTimeout(r, 650)); } catch { /* vẫn in phần còn lại */ }
