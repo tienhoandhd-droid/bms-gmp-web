@@ -1,0 +1,121 @@
+# report-templates — Báo cáo scorecard WF5 v2 (BMS-GMP)
+
+Template cho **mục B3** của `docs/KE-HOACH-NANG-CAP-BIEU-DO-BAO-CAO.md`:
+báo cáo tuần/tháng/quý dạng "executive scorecard" — 1 nguồn số liệu duy nhất
+(`rpc_bao_cao_tong_hop`), biểu đồ từ `services/chart-render`, xuất **HTML (Drive)
++ PDF (Gotenberg, bản lưu trữ GMP) + email MJML (ảnh CID)**.
+
+| File | Dùng cho |
+|---|---|
+| `email-bao-cao.mjml` | Email gửi quản lý — compile sẵn ra HTML, n8n chỉ interpolate; ảnh nhúng **CID attachment** |
+| `bao-cao-scorecard.html` | HTML lên Drive + đầu vào Gotenberg → PDF; ảnh nhúng **data URI base64** (file tự chứa) |
+
+Compile MJML một lần (khi sửa template):
+
+```bash
+npx mjml report-templates/email-bao-cao.mjml -o report-templates/email-bao-cao.html
+```
+
+---
+
+## Pipeline WF5 v2 — mô tả từng node
+
+```
+Schedule ──▶ Postgres (rpc_bao_cao_tong_hop) ──▶ Code (delta + placeholders)
+   ──▶ HTTP Request ×5 (chart-render)  ──▶ Code (assemble HTML/MJML)
+   ──▶ (a) Drive upload HTML   (b) Gotenberg → PDF → Drive   (c) Send Email (CID)
+```
+
+1. **Schedule Trigger** — giữ lịch cũ: thứ 2 07:00 (tuần), ngày 1 07:15 (tháng;
+   tháng 1/4/7/10 = quý). Node Code nhỏ tính `p_ky`, `p_tu`, `p_den` theo lịch VN.
+2. **Postgres node — gọi RPC** (1 query duy nhất, GMP-critical):
+   ```sql
+   select rpc_bao_cao_tong_hop($1, $2::date, $3::date) as bao_cao;
+   ```
+   Chạy bằng credential **service_role** (RPC chỉ grant cho service_role).
+   Mọi con số của báo cáo truy vết về đúng query này — KHÔNG tính thêm số
+   ở node khác.
+3. **Code node — tính delta + build placeholders**: từ `kpi_ky_nay` vs
+   `kpi_ky_truoc` tính delta từng KPI; gán mũi tên `▲▼` + màu
+   (lưu ý chiều tốt/xấu: tuân thủ tăng = xanh `#0d9488`, giờ OOS tăng = đỏ
+   `#b91c1c`); gán màu đèn giao thông (≥95 xanh, 80–95 vàng `#d97706`, <80 đỏ);
+   sinh `ma_lan_chay` (vd `WF5-{{$execution.id}}`); xuất object placeholder
+   (bảng bên dưới) + payload cho từng biểu đồ.
+4. **HTTP Request → chart-render** (5 lượt, POST `http://chart-render:8081/render`,
+   Header Auth `Authorization: Bearer <token>`, Response Format = **File**):
+   - `type: "line"` — `chuoi_ngay.total` → binary `chart_line`;
+   - `type: "calendarHeatmap"` — `chuoi_ngay.total` (ngay/ty_le) → `chart_heat`;
+   - `type: "bar"` — `top_phong_rui_ro` → `chart_bar` (dùng ở phụ lục/quý);
+   - `type: "sparkline"` ×5 — chạy "Run Once for Each Item" trên
+     `top_phong_rui_ro[i].chuoi_ngay` → `spark_<ma_phong>`.
+5. **Code node — assemble**:
+   - **HTML/PDF**: đọc `bao-cao-scorecard.html`, thay `{{placeholder}}`,
+     nhân bản khối `{{#each …}}…{{/each}}` theo mảng, điền ảnh dạng
+     `data:image/png;base64,` + `$binary.chart_line.data`…
+   - **Email**: đọc `email-bao-cao.html` (đã compile từ MJML), thay placeholder,
+     GIỮ nguyên `src="cid:…"` — ảnh gắn ở bước (c).
+6. **(a) Google Drive node** — Upload file HTML vào thư mục
+   `cau_hinh.drive_folder_id_bao_cao` (tên file: `BMS-baocao-{{ky}}-{{tu_ngay}}.html`).
+7. **(b) HTTP Request → Gotenberg** — POST `http://gotenberg:3000/forms/chromium/convert/html`,
+   body multipart: field `files` = HTML (tên file BẮT BUỘC `index.html`),
+   `paperWidth=8.27`, `paperHeight=11.69`, `marginTop/Bottom/Left/Right` ~0.4
+   (template đã có `@page`). Nhận binary PDF → Google Drive node upload
+   (`BMS-baocao-{{ky}}-{{tu_ngay}}.pdf`) — **bản lưu trữ chính thức GMP**.
+8. **(c) Send Email node** — HTML = email đã interpolate; **Attachments** = các
+   binary `chart_line`, `chart_heat`, `spark_<ma_phong>`, `logo_cpc1` với
+   `Content-ID` trùng tên CID trong template (n8n: option "Attachments" +
+   thuộc tính binary; đặt content-id qua trường tuỳ chọn của node). Người nhận
+   đọc từ `cau_hinh.email_nhan_bao_cao` (danh sách, phẩy).
+9. **Error Handler** — giữ WF4 như hiện tại (mọi node lỗi → báo lỗi tập trung).
+
+**Cảnh báo font tiếng Việt**: container Gotenberg mặc định có thể thiếu font
+Việt — build image Gotenberg kèm `fonts-noto-core` (giống Dockerfile của
+chart-render) và test chuỗi `"ĐẶNG ỄỆỠ ỰỬ áàảãạ"` ra PDF **trước** khi
+nghiệm thu template.
+
+---
+
+## Placeholder (cả 2 template dùng chung, trừ ảnh)
+
+| Placeholder | Nguồn (JSON của RPC) |
+|---|---|
+| `{{ky_bao_cao}}` | nhãn hiển thị: "tuần 27/2026", "tháng 6/2026", "quý 2/2026" (Code node tự sinh) |
+| `{{ky}}` `{{tu_ngay_iso}}` `{{den_ngay_iso}}` | `ky`, `tu_ngay`, `den_ngay` (nguyên ISO — cho footer truy vết) |
+| `{{tu_ngay}}` `{{den_ngay}}` | định dạng VN `DD/MM/YYYY` |
+| `{{tao_luc}}` `{{ma_lan_chay}}` | `tao_luc` (đổi giờ VN) · `WF5-{{$execution.id}}` |
+| `{{kpi_tuan_thu}}` `{{kpi_tuan_thu_mau}}` | `kpi_ky_nay.ty_le_tuan_thu` + màu traffic light |
+| `{{delta_tuan_thu}}` `{{delta_tuan_thu_mui_ten}}` `{{delta_tuan_thu_mau}}` | so `kpi_ky_truoc` (▲/▼; tăng = xanh) |
+| `{{kpi_gio_oos}}` `{{delta_oos*}}` | `kpi_ky_nay.so_gio_oos` (OOS tăng = đỏ) |
+| `{{so_su_co_mo}}` `{{so_su_co_dong}}` `{{mttr_gio}}` `{{delta_su_co*}}` | `su_co.dang_mo/.dong_trong_ky/.mttr_gio/.mo_ky_truoc` |
+| `{{so_tin_hieu_spc}}` `{{so_scope_ngoai_ks}}` `{{kpi_spc_mau}}` | `spc.tong_tin_hieu/.so_scope_ngoai_ks` (0 = xanh) |
+| `{{#each top_phong_rui_ro}}` — `{{ma_phong}}` `{{ten_phong}}` `{{khu_vuc}}` `{{ty_le_tuan_thu}}` `{{so_gio_oos}}` `{{mau}}` | `top_phong_rui_ro[]` |
+| `{{#each spc_chi_tiet}}` — `{{ten_scope}}` `{{sensor_type}}` `{{so_tin_hieu}}` `{{cac_loai}}` | `spc.chi_tiet[]` (chỉ template HTML) |
+| `{{nhan_dinh_ai}}` `{{ai_model_dung}}` `{{ai_tao_luc}}` | `nhan_dinh_ai_gan_nhat` |
+| `{{link_drive}}` | link file HTML/PDF sau khi upload (chỉ email — node Drive trả về) |
+| Ảnh — email | `cid:logo_cpc1`, `cid:chart_line`, `cid:chart_heat`, `cid:spark_{{ma_phong}}` |
+| Ảnh — HTML/PDF | `{{logo_src}}`, `{{chart_line_src}}`, `{{chart_heat_src}}`, `{{spark_src}}` (data URI base64) |
+
+Lưu ý khối lặp `{{#each}}…{{/each}}`: n8n Code node tự cắt-nhân bản chuỗi giữa
+2 mốc này (regex đơn giản) — không cần cài thư viện Handlebars, nhưng nếu tiện
+thì `npm` của n8n có sẵn `handlebars` qua Code node (tuỳ cấu hình
+`NODE_FUNCTION_ALLOW_EXTERNAL`).
+
+---
+
+## Checklist key `cau_hinh` cần điền trước khi chạy WF5 v2
+
+- [ ] `drive_folder_id_bao_cao` — ID thư mục Drive nhận HTML + PDF (đang có, kiểm tra lại).
+- [ ] `email_nhan_bao_cao` — danh sách email quản lý nhận scorecard (key MỚI, phẩy ngăn cách).
+- [ ] `chart_render_url` — URL nội bộ chart-render, vd `http://chart-render:8081` (key MỚI).
+- [ ] `chart_render_token` — Bearer token khớp env `CHART_RENDER_TOKEN` của container (key MỚI; hoặc lưu bằng n8n Credentials).
+- [ ] `gotenberg_url` — vd `http://gotenberg:3000` (key MỚI).
+- [ ] `bat_bieu_do_bao_cao` — giữ `true`; khi chart-render lỗi có thể tạm `false`.
+- [ ] `quickchart_base_url` — CHỈ còn là fallback (nếu giữ đường cũ); trỏ instance tự host.
+- [ ] Ngưỡng đèn giao thông (chốt với QA): xanh ≥95, vàng 80–95, đỏ <80 — nếu QA đổi, sửa ở Code node bước 3 VÀ ở `services/chart-render/server.js` (`trafficColor`).
+- [ ] Khóa AI (`gemini_api_key`, `groq_api_key`) — cho nhận định AI (WF3 đã dùng).
+- [ ] Đổi tên workflow backfill trùng tên "WF5" thành WF9 (tránh nhầm, xem mục 6 kế hoạch).
+
+**Nghiệm thu**: chạy tay WF5 v2 với kỳ có dữ liệu lịch sử (≤30/06, trước sự cố
+FMS); kiểm tra (1) số trên email = số trong JSON RPC, (2) PDF hiển thị đủ dấu
+tiếng Việt, (3) email <102KB phần HTML (ảnh là attachment CID nên không tính),
+(4) footer có mã lần chạy + câu lệnh RPC. Nghiệm thu cuối chờ FMS phục hồi 57 phòng.
