@@ -497,11 +497,73 @@ function AiSections({ text }) {
 }
 
 
-function printTrend() {
-  try { const node = document.getElementById("trendPrintArea"); if (!node) { window.print(); return; } const win = window.open("", "PRINT", "height=760,width=1040"); if (!win) { window.print(); return; }
-    win.document.write(`<html><head><title>Biểu đồ xu hướng GMP</title><style>body{font-family:Inter,'Segoe UI',sans-serif;padding:28px;color:#1e3a56}h1{font-size:16px;margin:0 0 4px}p{font-size:12px;color:#5f7a90;margin:0 0 16px}svg{max-width:100%}</style></head><body><h1>Hệ thống giám sát HVAC phòng sạch GMP — V/Q team QLCL</h1><p>Báo cáo xu hướng · xuất ${new Date().toLocaleString("vi-VN")}</p>${node.innerHTML}</body></html>`);
-    win.document.close(); win.focus(); setTimeout(() => { win.print(); win.close(); }, 350);
-  } catch (e) { window.print(); }
+// In tab Xu hướng thành BÁO CÁO A4 chuẩn form: biểu đồ ECharts (canvas) được
+// XUẤT THÀNH ẢNH (getDataURL, loại toolbox/dataZoom) — nếu chỉ copy innerHTML thì
+// canvas ra TRẮNG. Giữ nguyên CSS ứng dụng để thẻ đẹp; thêm khổ giấy A4 + tiêu đề.
+function printTrend(meta = {}) {
+  try {
+    const node = document.getElementById("trendPrintArea");
+    if (!node) { window.print(); return; }
+    const reg = window.__bmsEcharts;
+    const instForCanvas = (canvas) => { let el = canvas.parentElement; while (el) { if (reg && reg.has(el)) return reg.get(el); el = el.parentElement; } return null; };
+    // 1) Chụp từng canvas → ảnh (sạch, độ nét gấp đôi)
+    const srcCanvases = Array.from(node.querySelectorAll("canvas"));
+    const shots = srcCanvases.map((c) => {
+      const w = c.clientWidth || c.width;
+      try {
+        const inst = instForCanvas(c);
+        const url = inst ? inst.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff", excludeComponents: ["toolbox", "dataZoom"] }) : c.toDataURL("image/png");
+        return { url, w };
+      } catch { try { return { url: c.toDataURL("image/png"), w }; } catch { return null; } }
+    });
+    // 2) Nhân bản vùng in, thay canvas bằng <img>
+    const clone = node.cloneNode(true);
+    Array.from(clone.querySelectorAll("canvas")).forEach((c, i) => {
+      const s = shots[i];
+      if (s && s.url) { const img = document.createElement("img"); img.src = s.url; img.style.width = "100%"; img.style.maxWidth = (s.w || 640) + "px"; img.style.height = "auto"; img.style.display = "block"; c.replaceWith(img); }
+    });
+    // 3) Giữ nguyên CSS ứng dụng (link tuyệt đối + style inline) để thẻ hiển thị đẹp
+    const linkTags = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map((l) => `<link rel="stylesheet" href="${l.href}">`).join("\n");
+    const styleTags = Array.from(document.querySelectorAll("style")).map((n) => n.outerHTML).join("\n");
+    const logo = document.querySelector('img[alt="CPC1 Hà Nội"]');
+    const logoSrc = logo ? logo.src : "";
+    const now = new Date().toLocaleString("vi-VN");
+    const metaLine = [meta.scope, meta.sensor, meta.range, meta.res, meta.window].filter(Boolean).join(" · ");
+    const win = window.open("", "PRINT", "height=900,width=1200");
+    if (!win) { window.print(); return; }
+    win.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Báo cáo xu hướng GMP — ${meta.scope || ""}</title>
+${linkTags}
+${styleTags}
+<style>
+  @page { size: A4 portrait; margin: 12mm 10mm; }
+  html, body { background:#fff !important; }
+  body { font-family: Inter, 'Segoe UI', sans-serif; color:#102A3E; -webkit-print-color-adjust:exact; print-color-adjust:exact; margin:0; }
+  .rp-wrap { max-width: 190mm; margin: 0 auto; }
+  .rp-head { display:flex; align-items:center; gap:12px; border-bottom:2px solid #0E7C73; padding-bottom:10px; margin-bottom:14px; }
+  .rp-head img { height:46px; width:auto; }
+  .rp-title { font-size:15px; font-weight:800; color:#102A3E; line-height:1.25; }
+  .rp-sub { font-size:10.5px; color:#5f7a90; margin-top:3px; }
+  .rp-meta { font-size:10.5px; color:#0E7C73; font-weight:600; margin-top:2px; }
+  #trendPrintArea { display:block !important; }
+  #trendPrintArea > * { break-inside: avoid; page-break-inside: avoid; margin-bottom:12px; }
+  /* Bảng cuộn → in đầy đủ */
+  .max-h-72, .max-h-32 { max-height:none !important; overflow:visible !important; }
+  .overflow-auto, .overflow-x-auto, .overflow-y-auto { overflow:visible !important; }
+  table { width:100%; border-collapse:collapse; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  img { break-inside: avoid; }
+  .rp-foot { margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0; font-size:9.5px; color:#94a3b8; text-align:center; }
+</style></head>
+<body><div class="rp-wrap">
+  <div class="rp-head">${logoSrc ? `<img src="${logoSrc}" alt="logo"/>` : ""}<div><div class="rp-title">CÔNG TY CPC1 HÀ NỘI — Giám sát môi trường HVAC phòng sạch GMP</div><div class="rp-sub">BÁO CÁO XU HƯỚNG · xuất lúc ${now}</div>${metaLine ? `<div class="rp-meta">${metaLine}</div>` : ""}</div></div>
+  ${clone.outerHTML}
+  <div class="rp-foot">Số liệu tất định do hệ thống tính (giới hạn GHD/GHT theo phòng trong CSDL). AI chỉ hỗ trợ gợi ý — kết luận GMP do IPC/QA phê duyệt.</div>
+</div>
+<scr` + `ipt>window.onload=function(){setTimeout(function(){try{window.focus();window.print();}catch(e){}},450);};</scr` + `ipt>
+</body></html>`);
+    win.document.close(); win.focus();
+  } catch (e) { try { window.print(); } catch (_) { /* bỏ qua */ } }
 }
 
 
@@ -1082,7 +1144,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       <Card className="p-4 flex items-center justify-between flex-wrap gap-3">
         <span className="text-[12px] text-slate-600">Đang chọn: <b style={{ color: COLOR.navy }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {RANGES.find((r) => r.k === range).label}{(dtFrom || dtTo) ? ` · ${view[0]?.label}→${view[view.length - 1]?.label}` : ""}</span>
         <div className="flex gap-2">
-          <button onClick={printTrend} className="text-xs font-medium rounded-xl px-4 py-2 text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> In biểu đồ từ lựa chọn này</button>
+          <button onClick={() => printTrend({ scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor)?.label, range: RANGES.find((r) => r.k === range)?.label, res: resLbl, window: (dtFrom || dtTo) ? `${view[0]?.label}→${view[view.length - 1]?.label}` : "" })} className="text-xs font-medium rounded-xl px-4 py-2 text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> In báo cáo A4 (từ lựa chọn này)</button>
           <button onClick={runAI} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: COLOR.teal }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "AI gợi ý đọc biểu đồ"}</button>
         </div>
       </Card>
