@@ -953,8 +953,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       // dữ liệu bổ sung cho phân tích chuyên sâu (đều từ dữ liệu web đã có)
       const slimAI = (arr, keep = 60) => { if (!Array.isArray(arr) || arr.length <= keep) return arr || []; const st = Math.ceil(arr.length / keep); return arr.filter((_, i) => i % st === 0); };
       const bandsAll = (activeScope.type === "ROOM" && roomBandsMulti[roomBandsKey]) || {};
-      const giaTriThuc3 = ["DP", "RH", "T"].filter((k) => bandsAll[k] && bandsAll[k].length).map((k) => {
-        const s = bandsAll[k];
+      const giaTriThuc3 = ["DP", "RH", "T"].filter((k) => bandsAll[k] && bandsAll[k].series && bandsAll[k].series.length).map((k) => {
+        const s = bandsAll[k].series;
         const lo = [...s].reverse().find((p) => p.lo != null)?.lo ?? null;
         const hi = [...s].reverse().find((p) => p.hi != null)?.hi ?? null;
         const v = s.filter((p) => p.avg != null);
@@ -1174,6 +1174,53 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           ].map(([k, v, c]) => <div key={k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold leading-tight">{k}</p><p className={`text-lg font-light mt-1 tabular-nums ${c}`}>{v}</p></div>)}</div>
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">{[["Đạt 1 ngày", fmtPct(activeScope.dat1n)], ["Đạt 3 ngày", fmtPct(activeScope.dat3n)], ["Đạt 7 ngày", fmtPct(activeScope.dat7n)], ["Min–Max kỳ", tech.n ? `${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%` : "—"]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-2"><p className="text-[9px] uppercase text-slate-400 font-semibold">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
           <p className="text-[11px] text-slate-400 mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Đây là <b>số liệu tất định</b> (hệ thống tính). Bấm <b>“AI gợi ý đọc biểu đồ”</b> để AI diễn giải &amp; gợi ý (không thay thế kết luận GMP).</p>
+        </Card>
+
+        {/* ====== BẢNG DỮ LIỆU THÔ + ĐÁNH GIÁ CƠ BẢN (tất định, TRƯỚC khi AI gợi ý / QA kết luận) ====== */}
+        <Card className="p-6"><SectionTitle icon={FileBarChart} hint={`${activeScope.name} · ${resLbl} · số liệu nền để tự đánh giá xu hướng — trước khi AI gợi ý / QA kết luận`}>Bảng dữ liệu thô &amp; đánh giá cơ bản</SectionTitle>
+          {(() => {
+            const fv = (x, d = 2) => (x == null || isNaN(x) ? "—" : (+x).toFixed(d));
+            const bands = (isRoom && wantRoomBands && roomBandsMulti[roomBandsKey]) || null;
+            const ksB = bands ? ["DP", "RH", "T"].filter((k) => bands[k] && bands[k].series && bands[k].series.length) : [];
+            if (isRoom && ksB.length) {
+              return <div className="mt-4 space-y-6">{ksB.map((k) => {
+                const s = bands[k].series; const unit = SENSOR_META[k]?.unit || "";
+                const lo = [...s].reverse().find((p) => p.lo != null)?.lo ?? null;
+                const hi = [...s].reverse().find((p) => p.hi != null)?.hi ?? null;
+                const vals = s.filter((p) => p.avg != null).map((p) => p.avg);
+                const st = regStat(vals);
+                const within = vals.filter((v) => (lo == null || v >= lo) && (hi == null || v <= hi)).length;
+                const pctIn = vals.length ? (within / vals.length * 100) : null;
+                const perUnit = donVi === "NGAY" ? `${unit}/ngày` : `${unit}/${donVi === "PHUT" ? "30′" : "giờ"}`;
+                const b = bands[k].baseline;
+                const evalCards = [
+                  ["TB kỳ", `${fv(st.mean)} ${unit}`], ["Min–Max", `${fv(st.vmin)}–${fv(st.vmax)} ${unit}`],
+                  ["Độ lệch chuẩn σ", `${fv(st.std)} ${unit}`], ["Giới hạn GHD–GHT", `${lo == null ? "—" : lo}–${hi == null ? "—" : hi} ${unit}`],
+                  ["% trong giới hạn", pctIn == null ? "—" : `${pctIn.toFixed(1)}%`], ["Điểm ngoài GH", `${vals.length - within}/${vals.length}`],
+                  ["Xu hướng", st.n >= 2 ? `${st.slope > 0 ? "+" : ""}${st.slope.toFixed(3)} ${perUnit} · R²=${st.r2.toFixed(2)}` : "—"],
+                  ["Nền 30 ngày", b && b.tb != null ? `${b.tb}${b.sigma != null ? `±${b.sigma}` : ""} ${unit}` : "—"],
+                ];
+                return (
+                  <div key={k}>
+                    <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full" style={{ background: SENSOR_COLOR[k] }} /><h4 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[k]?.label} ({k})</h4><span className="text-[11px] text-slate-400">— đánh giá cơ bản (hệ thống tính)</span></div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">{evalCards.map(([kk, vv]) => <div key={kk} className="rounded-xl bg-slate-50 ring-1 ring-slate-200/70 py-1.5 px-2 text-center"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{kk}</p><p className="text-[12px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{vv}</p></div>)}</div>
+                    <div className="overflow-auto max-h-72 rounded-xl ring-1 ring-slate-200"><table className="w-full text-[12px]"><thead className="sticky top-0 bg-slate-50"><tr className="text-slate-500 text-left text-[10px] uppercase tracking-wider">{["Thời điểm", "TB", "Min", "Max", "P5", "P50", "P95", "GHD", "GHT", "TT"].map((h) => <th key={h} className="py-2 px-2 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{[...s].reverse().map((p, i) => { const oob = (lo != null && p.avg < lo) || (hi != null && p.avg > hi); return <tr key={i} className={`border-t border-slate-100 ${oob ? "bg-rose-50/50" : ""}`}><td className="py-1.5 px-2 text-slate-500 whitespace-nowrap">{p.label}</td><td className={`py-1.5 px-2 tabular-nums font-medium ${oob ? "text-rose-600" : ""}`}>{fv(p.avg)}</td><td className="py-1.5 px-2 tabular-nums text-slate-500">{fv(p.vmin)}</td><td className="py-1.5 px-2 tabular-nums text-slate-500">{fv(p.vmax)}</td><td className="py-1.5 px-2 tabular-nums text-slate-500">{fv(p.p5)}</td><td className="py-1.5 px-2 tabular-nums text-slate-500">{fv(p.p50)}</td><td className="py-1.5 px-2 tabular-nums text-slate-500">{fv(p.p95)}</td><td className="py-1.5 px-2 tabular-nums text-slate-400">{lo == null ? "—" : lo}</td><td className="py-1.5 px-2 tabular-nums text-slate-400">{hi == null ? "—" : hi}</td><td className="py-1.5 px-2">{oob ? <span className="text-rose-600 font-semibold">OOS</span> : <span className="text-teal-600">Đạt</span>}</td></tr>; })}</tbody></table></div>
+                  </div>
+                );
+              })}</div>;
+            }
+            if (view.length) {
+              const vm = {}; viewMulti.forEach((r) => { vm[r.ts] = r; });
+              return (
+                <div className="mt-4">
+                  <p className="text-[11px] text-slate-400 mb-2">% đạt = 100 − % ngoài giới hạn (OOS) · tổng hợp cảm biến trong phạm vi <b>{activeScope.name}</b>.</p>
+                  <div className="overflow-auto max-h-72 rounded-xl ring-1 ring-slate-200"><table className="w-full text-[12px]"><thead className="sticky top-0 bg-slate-50"><tr className="text-slate-500 text-left text-[10px] uppercase tracking-wider">{["Thời điểm", "% đạt", "OOS", "DQ", ...sensorsPresent.map((k) => SENSOR_META[k]?.label || k)].map((h) => <th key={h} className="py-2 px-2 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{[...view].reverse().map((r, i) => { const low = r.comp != null && r.comp < 80; const m = vm[r.ts] || {}; return <tr key={i} className={`border-t border-slate-100 ${low ? "bg-amber-50/40" : ""}`}><td className="py-1.5 px-2 text-slate-500 whitespace-nowrap">{r.label}</td><td className={`py-1.5 px-2 tabular-nums font-medium ${low ? "text-amber-600" : ""}`}>{fmtPct(r.comp)}</td><td className="py-1.5 px-2 tabular-nums text-slate-500">{r.oos ?? "—"}</td><td className="py-1.5 px-2 tabular-nums text-slate-400">{r.dq == null ? "—" : `${r.dq}%`}</td>{sensorsPresent.map((k) => <td key={k} className="py-1.5 px-2 tabular-nums text-slate-500">{fmtPct(m[`comp_${k}`])}</td>)}</tr>; })}</tbody></table></div>
+                </div>
+              );
+            }
+            return <p className="mt-4 text-[13px] text-slate-500">Chưa có dữ liệu trong khoảng đã chọn để lập bảng.</p>;
+          })()}
+          <p className="text-[11px] text-slate-400 mt-3">Bảng &amp; đánh giá này là <b>số liệu tất định</b> từ dữ liệu đo — <b>giới hạn GHD/GHT lấy theo từng phòng trong CSDL</b> (không phải AI đặt). Dùng để <b>tự đánh giá xu hướng trước khi</b> AI gợi ý và QA kết luận.</p>
         </Card>
       </div>
 
