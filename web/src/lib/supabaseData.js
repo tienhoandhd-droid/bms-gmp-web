@@ -162,6 +162,7 @@ export async function laySuCoDangMo(signal) {
     sensor: r.cam_bien_vi || SENSOR_LABEL[r.loai_cam_bien] || r.loai_cam_bien || '—',
     priority: r.uu_tien || 'P3',
     start: fmtTS(r.bat_dau),
+    startTs: r.bat_dau ? new Date(r.bat_dau).getTime() : null,   // ms — overlay ⚑ lên biểu đồ xu hướng
     duration: r.keo_dai_gio != null ? +(+r.keo_dai_gio).toFixed(1) : 0,
     statusCode: r.trang_thai,
     status: TRANG_THAI_CODE_TO_LABEL[r.trang_thai] || r.trang_thai,
