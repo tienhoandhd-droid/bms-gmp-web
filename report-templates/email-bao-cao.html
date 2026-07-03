@@ -1,660 +1,133 @@
 <!doctype html>
-<html lang="vi" dir="auto" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
-
+<!--
+  email-bao-cao.html — Email TÓM TẮT báo cáo GMP (WF5 v2) — CHỈ TEXT, KHÔNG ẢNH
+  =============================================================================
+  - Thân email = tóm tắt số liệu (KPI, top phòng, bất thường, nhận định AI) dạng
+    bảng/chữ. KHÔNG nhúng biểu đồ ảnh (tránh mờ/nén + để email nhẹ, không phụ thuộc
+    tải ảnh ngoài).
+  - Nút "Mở dashboard tương tác" trỏ tới {{link_dashboard}} (web dashboard).
+    File dashboard tương tác (.html) + Báo cáo PDF ký duyệt được ĐÍNH KÈM email.
+  - Placeholder {{ten}} do Code node n8n thay từ JSON rpc_bao_cao_tong_hop.
+    Khối lặp {{#each ...}}…{{/each}} — Code node nhân bản phần thân.
+-->
+<html lang="vi">
 <head>
-  <title>Báo cáo {{ky_bao_cao}} — Hệ thống BMS-GMP</title>
-  <!--[if !mso]><!-->
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <!--<![endif]-->
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style type="text/css">
-    #outlook a {
-      padding: 0;
-    }
-
-    body {
-      margin: 0;
-      padding: 0;
-      -webkit-text-size-adjust: 100%;
-      -ms-text-size-adjust: 100%;
-    }
-
-    table,
-    td {
-      border-collapse: collapse;
-      mso-table-lspace: 0pt;
-      mso-table-rspace: 0pt;
-    }
-
-    img {
-      border: 0;
-      height: auto;
-      line-height: 100%;
-      outline: none;
-      text-decoration: none;
-      -ms-interpolation-mode: bicubic;
-    }
-
-    p {
-      display: block;
-      margin: 13px 0;
-    }
-  </style>
-  <!--[if mso]>
-    <noscript>
-    <xml>
-    <o:OfficeDocumentSettings>
-      <o:AllowPNG/>
-      <o:PixelsPerInch>96</o:PixelsPerInch>
-    </o:OfficeDocumentSettings>
-    </xml>
-    </noscript>
-    <![endif]-->
-  <!--[if lte mso 11]>
-    <style type="text/css">
-      .mj-outlook-group-fix { width:100% !important; }
-    </style>
-    <![endif]-->
-  <style type="text/css">
-    @media only screen and (min-width:480px) {
-      .mj-column-per-20 {
-        width: 20% !important;
-        max-width: 20%;
-      }
-
-      .mj-column-per-80 {
-        width: 80% !important;
-        max-width: 80%;
-      }
-
-      .mj-column-per-100 {
-        width: 100% !important;
-        max-width: 100%;
-      }
-
-      .mj-column-per-25 {
-        width: 25% !important;
-        max-width: 25%;
-      }
-    }
-  </style>
-  <style media="screen and (min-width:480px)">
-    .moz-text-html .mj-column-per-20 {
-      width: 20% !important;
-      max-width: 20%;
-    }
-
-    .moz-text-html .mj-column-per-80 {
-      width: 80% !important;
-      max-width: 80%;
-    }
-
-    .moz-text-html .mj-column-per-100 {
-      width: 100% !important;
-      max-width: 100%;
-    }
-
-    .moz-text-html .mj-column-per-25 {
-      width: 25% !important;
-      max-width: 25%;
-    }
-  </style>
-  <style type="text/css">
-    @media only screen and (max-width:479px) {
-      table.mj-full-width-mobile {
-        width: 100% !important;
-      }
-
-      td.mj-full-width-mobile {
-        width: auto !important;
-      }
-    }
-  </style>
-  <style type="text/css">
-    .kpi-so {
-      font-size: 30px;
-      font-weight: 700;
-      color: #0f172a;
-    }
-
-    .kpi-nhan {
-      font-size: 11px;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      color: #64748b;
-    }
-
-    .kpi-delta {
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .bang-rui-ro td,
-    .bang-rui-ro th {
-      padding: 8px 10px;
-      font-size: 13px;
-    }
-
-    .bang-rui-ro th {
-      text-align: left;
-      color: #64748b;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      border-bottom: 2px solid #e2e8f0;
-    }
-
-    .bang-rui-ro td {
-      border-bottom: 1px solid #f1f5f9;
-      color: #334155;
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Báo cáo {{ky_bao_cao}} — BMS-GMP</title>
 </head>
+<body style="margin:0;padding:0;background:#f1f5f9;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Tuân thủ {{kpi_tuan_thu}}% ({{delta_tuan_thu_mui_ten}}{{delta_tuan_thu}}) · {{so_su_co_mo}} sự cố mở · {{so_tin_hieu_spc}} tín hiệu SPC · {{so_phong_bat_thuong}} phòng bất thường</div>
 
-<body style="word-spacing:normal;background-color:#f1f5f9;">
-  <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">Tuân thủ {{kpi_tuan_thu}}% ({{delta_tuan_thu_mui_ten}}{{delta_tuan_thu}}) · {{so_su_co_mo}} sự cố mở · {{so_tin_hieu_spc}} tín hiệu SPC</div>
-  <div aria-label="Báo cáo {{ky_bao_cao}} — Hệ thống BMS-GMP" aria-roledescription="email" role="article" lang="vi" dir="auto" style="word-spacing:normal;background-color:#f1f5f9;">
-    <!-- ================= HEADER ================= -->
-    <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:640px;" width="640" bgcolor="#0f172a" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    <div style="background:#0f172a;background-color:#0f172a;margin:0px auto;max-width:640px;border-radius:8px 8px 0 0;overflow:hidden;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#0f172a;background-color:#0f172a;width:100%;border-collapse:separate;">
-        <tbody>
-          <tr>
-            <td style="border-radius:8px 8px 0 0;direction:ltr;font-size:0px;padding:20px 24px;text-align:center;">
-              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:middle;width:118px;" ><![endif]-->
-              <div class="mj-column-per-20 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:middle;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:middle;" width="100%">
-                  <tbody>
-                    <!-- Placeholder logo CPC1 — thay src bằng cid:logo_cpc1 (attachment) -->
-                    <tr>
-                      <td align="center" style="font-size:0px;padding:0;word-break:break-word;">
-                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
-                          <tbody>
-                            <tr>
-                              <td style="width:56px;">
-                                <img alt="CPC1" src="{{logo_src}}" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="56" height="auto" />
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td><td class="" style="vertical-align:middle;width:474px;" ><![endif]-->
-              <div class="mj-column-per-80 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:middle;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:middle;" width="100%">
-                  <tbody>
-                    <tr>
-                      <td align="left" style="font-size:0px;padding:0 0 2px 0;word-break:break-word;">
-                        <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:18px;font-weight:700;line-height:1.55;text-align:left;color:#ffffff;">Báo cáo {{ky_bao_cao}} — Giám sát môi trường GMP</div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td align="left" style="font-size:0px;padding:0;word-break:break-word;">
-                        <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:12px;line-height:1.55;text-align:left;color:#94a3b8;">Kỳ: {{tu_ngay}} → {{den_ngay}} · Tạo lúc {{tao_luc}} (giờ VN)</div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td></tr></table><![endif]-->
-            </td>
-          </tr>
-        </tbody>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;">
+    <tr><td align="center" style="padding:20px 12px;">
+      <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:100%;font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;color:#334155;">
+
+        <!-- HEADER -->
+        <tr><td style="background:#0f172a;border-radius:10px 10px 0 0;padding:20px 24px;">
+          <div style="color:#ffffff;font-size:18px;font-weight:700;line-height:1.4;">Báo cáo {{ky_bao_cao}} — Giám sát môi trường GMP</div>
+          <div style="color:#94a3b8;font-size:12px;margin-top:3px;">Kỳ: {{tu_ngay}} → {{den_ngay}} · Tạo lúc {{tao_luc}} (giờ VN) · CPC1HN</div>
+        </td></tr>
+
+        <!-- CTA: dashboard + đính kèm -->
+        <tr><td style="background:#ecfeff;border-left:1px solid #cffafe;border-right:1px solid #cffafe;padding:16px 24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+              <td style="font-size:13px;color:#0f172a;line-height:1.55;">
+                <strong>📊 Dashboard tương tác</strong> (hover xem số, lọc theo Khu/AHU) và <strong>Báo cáo PDF ký duyệt</strong> được đính kèm email này.
+              </td>
+            </tr>
+            <tr><td style="padding-top:12px;">
+              <a href="{{link_dashboard}}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:10px 20px;border-radius:9px;">Mở dashboard tương tác →</a>
+              <span style="font-size:11px;color:#64748b;padding-left:10px;">hoặc mở file <b>{{ten_file_pdf}}</b> đính kèm</span>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- TÓM TẮT ĐIỀU HÀNH -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:18px 24px 6px;">
+          <div style="background:#f8fafc;border-left:4px solid #0d9488;border-radius:0 8px 8px 0;padding:12px 14px;font-size:13px;line-height:1.6;color:#334155;">
+            <strong style="color:#0f172a;">Tóm tắt điều hành:</strong> {{tom_tat_dieu_hanh}}
+          </div>
+        </td></tr>
+
+        <!-- KPI (bảng chữ) -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:14px 24px 4px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
+            <tr>
+              <td width="50%" style="padding:9px 10px;border:1px solid #eef2f6;">% Tuân thủ<br><span style="font-size:20px;font-weight:700;color:{{kpi_tuan_thu_mau}};">{{kpi_tuan_thu}}%</span> <span style="font-size:12px;color:{{delta_tuan_thu_mau}};">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}}</span></td>
+              <td width="50%" style="padding:9px 10px;border:1px solid #eef2f6;">Giờ cảnh báo (W+C)<br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{kpi_gio_oos}}</span> <span style="font-size:12px;color:{{delta_oos_mau}};">{{delta_oos_mui_ten}} {{delta_oos}}</span></td>
+            </tr>
+            <tr>
+              <td style="padding:9px 10px;border:1px solid #eef2f6;">Sự cố (mở/đóng)<br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{so_su_co_mo}}/{{so_su_co_dong}}</span> <span style="font-size:12px;color:#64748b;">MTTR {{mttr_gio}}h</span></td>
+              <td style="padding:9px 10px;border:1px solid #eef2f6;">Tín hiệu SPC<br><span style="font-size:20px;font-weight:700;color:{{kpi_spc_mau}};">{{so_tin_hieu_spc}}</span> <span style="font-size:12px;color:#64748b;">{{so_scope_ngoai_ks}} scope</span></td>
+            </tr>
+          </table>
+        </td></tr>
+
+        <!-- TOP PHÒNG CẦN CHÚ Ý -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:16px 24px 4px;">
+          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:8px;">Top phòng cần chú ý (tuân thủ thấp nhất)</div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12.5px;">
+            <tr>
+              <th align="left" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Phòng</th>
+              <th align="left" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Khu</th>
+              <th align="right" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Tuân thủ</th>
+              <th align="right" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Giờ CB</th>
+            </tr>
+            {{#each top_phong_xau}}
+            <tr>
+              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;"><strong>{{ten_phong}}</strong> <span style="color:#94a3b8;font-size:10px;">{{ma_phong}}</span></td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;">{{khu_vuc}}</td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #f1f5f9;color:{{mau}};font-weight:700;">{{ty_le_tuan_thu}}%</td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #f1f5f9;">{{so_gio_oos}}</td>
+            </tr>
+            {{/each}}
+          </table>
+        </td></tr>
+
+        <!-- BẤT THƯỜNG TRONG KỲ -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:16px 24px 4px;">
+          <div style="font-size:14px;font-weight:700;color:#b91c1c;margin-bottom:6px;">⚠ Bất thường trong kỳ: {{so_phong_bat_thuong}} phòng xấu đi · {{so_ngoai_le}} ngoại lệ dữ liệu</div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12.5px;">
+            <tr>
+              <th align="left" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #fecaca;">Phòng</th>
+              <th align="right" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #fecaca;">Kỳ này</th>
+              <th align="right" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #fecaca;">Δ</th>
+              <th align="left" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #fecaca;">Lý do</th>
+            </tr>
+            {{#each bat_thuong_tom_tat}}
+            <tr>
+              <td style="padding:6px 8px;border-bottom:1px solid #fef2f2;"><strong>{{ten_phong}}</strong> <span style="color:#94a3b8;font-size:10px;">{{ma_phong}}</span></td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #fef2f2;">{{tuan_thu_ky_nay}}%</td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #fef2f2;color:#b91c1c;font-weight:700;">{{delta}}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #fef2f2;font-size:11px;color:#64748b;">{{ly_do}}</td>
+            </tr>
+            {{/each}}
+          </table>
+          <div style="font-size:10.5px;color:#7f1d1d;margin-top:6px;">Tiêu chí: giảm ≥ 5 điểm % so kỳ trước · tín hiệu SPC mới (EWMA/CUSUM/Nelson) · độ dốc âm với R² ≥ 0,5. Cảnh báo sớm trước khi vượt ngưỡng OOS. Chi tiết đầy đủ ở dashboard + PDF đính kèm.</div>
+        </td></tr>
+
+        <!-- NHẬN ĐỊNH AI -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:16px 24px 6px;">
+          <div style="font-size:14px;font-weight:700;color:#0d9488;margin-bottom:6px;">Nhận định AI (đã thẩm định Writer–Judge)</div>
+          <div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.6;color:#334155;white-space:pre-wrap;">{{nhan_dinh_ai}}</div>
+          <div style="font-size:10.5px;color:#94a3b8;margin-top:6px;">Số liệu do hệ thống tính — AI chỉ viết nhận định. Kết luận GMP do IPC/QA. Mô hình: {{ai_model_dung}} · {{ai_tao_luc}}</div>
+        </td></tr>
+
+        <!-- FOOTER -->
+        <tr><td style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;padding:14px 24px;">
+          <div style="font-size:11px;color:#94a3b8;line-height:1.6;">
+            Đính kèm: <b>dashboard tương tác (.html)</b> + <b>{{ten_file_pdf}}</b> (bản ký duyệt lưu trữ).
+            Bản lưu Google Drive: <a href="{{link_drive}}" style="color:#0d9488;">thư mục báo cáo</a>.<br>
+            Truy vết GMP: mã lần chạy <b>{{ma_lan_chay}}</b> · Nguồn: <span style="font-family:monospace;">rpc_bao_cao_tong_hop('{{ky}}','{{tu_ngay_iso}}','{{den_ngay_iso}}')</span>.
+            Báo cáo tự động WF5 — BMS-GMP (CPC1HN).
+          </div>
+        </td></tr>
+
       </table>
-    </div>
-    <!--[if mso | IE]></td></tr></table><![endif]-->
-    <!-- ================= BĂNG ĐÍNH KÈM (v2: email = tóm tắt, chi tiết ở file) ================= -->
-    <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:640px;" width="640" bgcolor="#eff6ff" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    <div style="background:#eff6ff;background-color:#eff6ff;margin:0px auto;max-width:640px;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#eff6ff;background-color:#eff6ff;width:100%;">
-        <tbody>
-          <tr>
-            <td style="border:1px solid #dbeafe;direction:ltr;font-size:0px;padding:10px 24px;text-align:center;">
-              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:590px;" ><![endif]-->
-              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-                  <tbody>
-                    <tr>
-                      <td align="left" style="font-size:0px;padding:0;word-break:break-word;">
-                        <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:12.5px;line-height:1.55;text-align:left;color:#1e40af;">📎 <strong>Báo cáo chi tiết đính kèm</strong> ({{ten_file_pdf}}) — gồm xu hướng từng Khu vực/AHU, top phòng tốt–xấu, mục <strong>Bất thường trong kỳ</strong>, MKT/ICH Q1A, SPC đầy đủ và phụ lục giải thích thuật ngữ. Email này chỉ là tóm tắt điều hành.</div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td></tr></table><![endif]-->
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <!--[if mso | IE]></td></tr></table><![endif]-->
-    <!-- ================= HÀNG 4 KPI ================= -->
-    <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:640px;" width="640" bgcolor="#ffffff" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:640px;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
-        <tbody>
-          <tr>
-            <td style="direction:ltr;font-size:0px;padding:20px 12px 4px 12px;text-align:center;">
-              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:154px;" ><![endif]-->
-              <div class="mj-column-per-25 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
-                  <tbody>
-                    <tr>
-                      <td style="vertical-align:top;padding:0 6px;">
-                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="" width="100%">
-                          <tbody>
-                            <tr>
-                              <td align="center" class="kpi-nhan" style="font-size:0px;padding:0 0 4px 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;">% Tuân thủ</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="center" class="kpi-so" style="font-size:0px;padding:0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;"><span style="color:{{kpi_tuan_thu_mau}}">{{kpi_tuan_thu}}%</span></div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="center" class="kpi-delta" style="font-size:0px;padding:2px 0 0 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;"><span style="color:{{delta_tuan_thu_mau}}">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}} so kỳ trước</span></div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:154px;" ><![endif]-->
-              <div class="mj-column-per-25 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
-                  <tbody>
-                    <tr>
-                      <td style="vertical-align:top;padding:0 6px;">
-                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="" width="100%">
-                          <tbody>
-                            <tr>
-                              <td align="center" class="kpi-nhan" style="font-size:0px;padding:0 0 4px 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;">Giờ cảnh báo (W+C)</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="center" class="kpi-so" style="font-size:0px;padding:0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;">{{kpi_gio_oos}}</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="center" class="kpi-delta" style="font-size:0px;padding:2px 0 0 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;"><span style="color:{{delta_oos_mau}}">{{delta_oos_mui_ten}} {{delta_oos}} so kỳ trước</span></div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:154px;" ><![endif]-->
-              <div class="mj-column-per-25 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
-                  <tbody>
-                    <tr>
-                      <td style="vertical-align:top;padding:0 6px;">
-                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="" width="100%">
-                          <tbody>
-                            <tr>
-                              <td align="center" class="kpi-nhan" style="font-size:0px;padding:0 0 4px 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;">Sự cố (mở/đóng)</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="center" class="kpi-so" style="font-size:0px;padding:0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;">{{so_su_co_mo}}/{{so_su_co_dong}}</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="center" class="kpi-delta" style="font-size:0px;padding:2px 0 0 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;"><span style="color:{{delta_su_co_mau}}">{{delta_su_co_mui_ten}} {{delta_su_co}} · MTTR {{mttr_gio}}h</span></div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:154px;" ><![endif]-->
-              <div class="mj-column-per-25 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
-                  <tbody>
-                    <tr>
-                      <td style="vertical-align:top;padding:0 6px;">
-                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="" width="100%">
-                          <tbody>
-                            <tr>
-                              <td align="center" class="kpi-nhan" style="font-size:0px;padding:0 0 4px 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;">Tín hiệu SPC</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="center" class="kpi-so" style="font-size:0px;padding:0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#334155;"><span style="color:{{kpi_spc_mau}}">{{so_tin_hieu_spc}}</span></div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="center" class="kpi-delta" style="font-size:0px;padding:2px 0 0 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:14px;line-height:1.55;text-align:center;color:#64748b;">{{so_scope_ngoai_ks}} scope ngoài kiểm soát</div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td></tr></table><![endif]-->
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <!--[if mso | IE]></td></tr></table><![endif]-->
-    <!-- ================= TÓM TẮT ĐIỀU HÀNH ================= -->
-    <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:640px;" width="640" bgcolor="#ffffff" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:640px;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
-        <tbody>
-          <tr>
-            <td style="direction:ltr;font-size:0px;padding:12px 24px 0 24px;text-align:center;">
-              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:592px;" ><![endif]-->
-              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="border-collapse:separate;">
-                  <tbody>
-                    <tr>
-                      <td style="background-color:#f8fafc;border-radius:8px;vertical-align:top;border-collapse:separate;padding:10px 14px;">
-                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="" width="100%">
-                          <tbody>
-                            <tr>
-                              <td align="left" style="font-size:0px;padding:0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:13px;line-height:1.55;text-align:left;color:#334155;"><strong style="color:#0f172a">Tóm tắt điều hành:</strong> {{tom_tat_dieu_hanh}}</div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td></tr></table><![endif]-->
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:640px;" width="640" bgcolor="#ffffff" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:640px;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
-        <tbody>
-          <tr>
-            <td style="direction:ltr;font-size:0px;padding:8px 24px 0 24px;text-align:center;">
-              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:592px;" ><![endif]-->
-              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-                  <tbody>
-                    <tr>
-                      <td align="center" style="font-size:0px;padding:8px 0;word-break:break-word;">
-                        <p style="border-top:solid 1px #e2e8f0;font-size:1px;margin:0px auto;width:100%;">
-                        </p>
-                        <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" style="border-top:solid 1px #e2e8f0;font-size:1px;margin:0px auto;width:592px;" role="presentation" width="592px" ><tr><td style="height:0;line-height:0;"> &nbsp;
-</td></tr></table><![endif]-->
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td></tr></table><![endif]-->
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <!--[if mso | IE]></td></tr></table><![endif]-->
-    <!-- ================= BIỂU ĐỒ CHÍNH ================= -->
-    <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:640px;" width="640" bgcolor="#ffffff" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:640px;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
-        <tbody>
-          <tr>
-            <td style="direction:ltr;font-size:0px;padding:8px 24px 0 24px;text-align:center;">
-              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:592px;" ><![endif]-->
-              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-                  <tbody>
-                    <tr>
-                      <td align="left" style="font-size:0px;padding:0 0 6px 0;word-break:break-word;">
-                        <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:15px;font-weight:700;line-height:1.55;text-align:left;color:#0f172a;">Tỉ lệ tuân thủ theo ngày (ngưỡng 80%)</div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td align="center" style="font-size:0px;padding:0;word-break:break-word;">
-                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
-                          <tbody>
-                            <tr>
-                              <td style="width:592px;">
-                                <img alt="Biểu đồ tuân thủ theo ngày" src="{{chart_line_src}}" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="592" height="auto" />
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td></tr></table><![endif]-->
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <!--[if mso | IE]></td></tr></table><![endif]-->
-    <!-- Heatmap + sparkline chuyển sang FILE ĐÍNH KÈM (giữ email < 102KB Gmail).
-         Biểu đồ line duy nhất nhúng base64 (Code node thay {{chart_line_src}}). --><!-- ================= TOP 5 PHÒNG CẦN CHÚ Ý ================= -->
-    <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:640px;" width="640" bgcolor="#ffffff" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:640px;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
-        <tbody>
-          <tr>
-            <td style="direction:ltr;font-size:0px;padding:20px 24px 0 24px;text-align:center;">
-              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:592px;" ><![endif]-->
-              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-                  <tbody>
-                    <tr>
-                      <td align="left" style="font-size:0px;padding:0 0 6px 0;word-break:break-word;">
-                        <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:15px;font-weight:700;line-height:1.55;text-align:left;color:#0f172a;">Top 5 phòng cần chú ý nhất</div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td align="left" class="bang-rui-ro" style="font-size:0px;padding:0;word-break:break-word;">
-                        <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:13px;line-height:22px;table-layout:auto;width:100%;border:none;">
-                          <tr>
-                            <th>Phòng</th>
-                            <th>Khu</th>
-                            <th style="text-align:right">Tuân thủ</th>
-                            <th style="text-align:right">Giờ cảnh báo (W+C)</th>
-                            <th style="text-align:right">Δ so kỳ trước</th>
-                          </tr>
-                          <!-- Code node lặp mảng top_phong_xau và nhân bản khối dưới -->
-                          {{#each top_phong_xau}}
-                            <tr>
-                              <td><strong>{{ten_phong}}</strong><br /><span style="color:#94a3b8;font-size:11px">{{ma_phong}}</span></td>
-                              <td>{{khu_vuc}}</td>
-                              <td style="text-align:right;color:{{mau}};font-weight:700">{{ty_le_tuan_thu}}%</td>
-                              <td style="text-align:right">{{so_gio_oos}}</td>
-                              <td style="text-align:right;color:{{delta_mau}};font-weight:600">{{delta}}</td>
-                            </tr>
-                          {{/each}}
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td></tr></table><![endif]-->
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <!--[if mso | IE]></td></tr></table><![endif]-->
-    <!-- ================= BẤT THƯỜNG TRONG KỲ (tóm tắt — chi tiết ở file đính kèm) ================= -->
-    <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:640px;" width="640" bgcolor="#ffffff" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:640px;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
-        <tbody>
-          <tr>
-            <td style="direction:ltr;font-size:0px;padding:20px 24px 0 24px;text-align:center;">
-              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:592px;" ><![endif]-->
-              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="border-collapse:separate;">
-                  <tbody>
-                    <tr>
-                      <td style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;vertical-align:top;border-collapse:separate;padding:12px 16px;">
-                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="" width="100%">
-                          <tbody>
-                            <tr>
-                              <td align="left" style="font-size:0px;padding:0 0 6px 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:13px;font-weight:700;line-height:1.55;text-align:left;color:#b91c1c;">⚠ Bất thường trong kỳ: {{so_phong_bat_thuong}} phòng xấu đi bất thường · {{so_ngoai_le}} ngoại lệ dữ liệu</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="left" class="bang-rui-ro" style="font-size:0px;padding:0;word-break:break-word;">
-                                <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:13px;line-height:22px;table-layout:auto;width:100%;border:none;">
-                                  <tr>
-                                    <th>Phòng</th>
-                                    <th style="text-align:right">Kỳ này</th>
-                                    <th style="text-align:right">Δ so kỳ trước</th>
-                                    <th>Lý do phát hiện</th>
-                                  </tr>
-                                  {{#each bat_thuong_tom_tat}}
-                                    <tr>
-                                      <td><strong>{{ten_phong}}</strong> <span style="color:#94a3b8;font-size:11px">{{ma_phong}}</span></td>
-                                      <td style="text-align:right">{{tuan_thu_ky_nay}}%</td>
-                                      <td style="text-align:right;color:#b91c1c;font-weight:700">{{delta}}</td>
-                                      <td style="font-size:11px">{{ly_do}}</td>
-                                    </tr>
-                                  {{/each}}
-                                </table>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="left" style="font-size:0px;padding:6px 0 0 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:11px;font-style:italic;line-height:1.55;text-align:left;color:#7f1d1d;">Tiêu chí: giảm ≥ 5 điểm % so kỳ trước · tín hiệu SPC mới · độ dốc âm R² ≥ 0,5 — cảnh báo sớm trước khi vượt OOS. Chi tiết mục 6 của file đính kèm.</div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td></tr></table><![endif]-->
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <!--[if mso | IE]></td></tr></table><![endif]-->
-    <!-- ================= NHẬN ĐỊNH AI ================= -->
-    <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:640px;" width="640" bgcolor="#ffffff" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:640px;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
-        <tbody>
-          <tr>
-            <td style="direction:ltr;font-size:0px;padding:20px 24px 0 24px;text-align:center;">
-              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:592px;" ><![endif]-->
-              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="border-collapse:separate;">
-                  <tbody>
-                    <tr>
-                      <td style="background-color:#f0fdfa;border:1px solid #ccfbf1;border-radius:8px;vertical-align:top;border-collapse:separate;padding:14px 16px;">
-                        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="" width="100%">
-                          <tbody>
-                            <tr>
-                              <td align="left" style="font-size:0px;padding:0 0 6px 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:13px;font-weight:700;line-height:1.55;text-align:left;color:#0d9488;">Nhận định AI (đã thẩm định Writer–Judge)</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="left" style="font-size:0px;padding:0 0 8px 0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:13px;line-height:1.55;text-align:left;color:#334155;">{{nhan_dinh_ai}}</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td align="left" style="font-size:0px;padding:0;word-break:break-word;">
-                                <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:11px;font-style:italic;line-height:1.55;text-align:left;color:#64748b;">Số liệu do hệ thống tính — AI chỉ viết nhận định. Kết luận GMP do IPC/QA. Mô hình: {{ai_model_dung}} · {{ai_tao_luc}}</div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td></tr></table><![endif]-->
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <!--[if mso | IE]></td></tr></table><![endif]-->
-    <!-- ================= FOOTER TRUY VẾT ================= -->
-    <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:640px;" width="640" bgcolor="#ffffff" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-    <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:640px;border-radius:0 0 8px 8px;overflow:hidden;">
-      <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;border-collapse:separate;">
-        <tbody>
-          <tr>
-            <td style="border-radius:0 0 8px 8px;direction:ltr;font-size:0px;padding:20px 24px 24px 24px;text-align:center;">
-              <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:592px;" ><![endif]-->
-              <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-                  <tbody>
-                    <tr>
-                      <td align="center" style="font-size:0px;padding:0 0 10px 0;word-break:break-word;">
-                        <p style="border-top:solid 1px #e2e8f0;font-size:1px;margin:0px auto;width:100%;">
-                        </p>
-                        <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" style="border-top:solid 1px #e2e8f0;font-size:1px;margin:0px auto;width:592px;" role="presentation" width="592px" ><tr><td style="height:0;line-height:0;"> &nbsp;
-</td></tr></table><![endif]-->
-                      </td>
-                    </tr>
-                    <tr>
-                      <td align="left" style="font-size:0px;padding:0;word-break:break-word;">
-                        <div style="font-family:Be Vietnam Pro, Noto Sans, Segoe UI, Arial, sans-serif;font-size:11px;line-height:1.6;text-align:left;color:#94a3b8;">Truy vết GMP: mã lần chạy WF5 <strong>{{ma_lan_chay}}</strong> · Tạo lúc {{tao_luc}} · Nguồn số liệu: <code>rpc_bao_cao_tong_hop('{{ky}}', '{{tu_ngay_iso}}', '{{den_ngay_iso}}')</code><br /> Email tự động từ hệ thống BMS-GMP (CPC1HN) — vui lòng không trả lời. Bản lưu trữ chính thức: PDF trên Google Drive ({{link_drive}}).</div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <!--[if mso | IE]></td></tr></table><![endif]-->
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <!--[if mso | IE]></td></tr></table><![endif]-->
-  </div>
+    </td></tr>
+  </table>
 </body>
-
 </html>
