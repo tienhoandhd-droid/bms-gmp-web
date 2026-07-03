@@ -119,3 +119,25 @@ thì `npm` của n8n có sẵn `handlebars` qua Code node (tuỳ cấu hình
 FMS); kiểm tra (1) số trên email = số trong JSON RPC, (2) PDF hiển thị đủ dấu
 tiếng Việt, (3) email <102KB phần HTML (ảnh là attachment CID nên không tính),
 (4) footer có mã lần chạy + câu lệnh RPC. Nghiệm thu cuối chờ FMS phục hồi 57 phòng.
+
+---
+
+## v2 (2026-07-03) — theo góp ý quản lý + nghiên cứu chuẩn GMP (Annex 1 / ISO 14644-2 / Part 11)
+
+Template chi tiết `bao-cao-scorecard.html` thêm: hàng 6 KPI (thêm DQ + MKT), tóm tắt điều hành,
+xu hướng Khu/AHU (small multiples ảnh `khu_*`/`ahu_*` từ /render-batch), top phòng TỐT + XẤU,
+**mục 6 "Bất thường trong kỳ khảo sát"** (phòng xấu đi bất thường theo 3 tiêu chí + ngoại lệ dữ liệu
++ sổ excursion), kết luận trạng thái kiểm soát, bảng giới hạn cấu hình 2 cấp, MKT/ICH Q1A,
+DQ/ALCOA+, khối ký duyệt 3 chữ ký, phụ lục giải thích thuật ngữ.
+
+Email `email-bao-cao.mjml` chuyển chiến lược: **thân thư = tóm tắt điều hành** (1 line chart base64
++ bảng top + khối bất thường rút gọn, giữ < 102KB Gmail), **báo cáo chi tiết = PDF đính kèm**.
+`email-bao-cao.html` là bản compile sẵn (mjml CLI) để n8n interpolate trực tiếp — chạy lại
+`npx mjml email-bao-cao.mjml -o email-bao-cao.html` sau mỗi lần sửa MJML.
+
+Workflow import sẵn: `n8n/WF5-v2-bao-cao-quan-tri.json` (đọc `n8n/README.md`).
+
+Chuẩn GMP chưa nhét vào v2 (cần thêm nguồn dữ liệu — lộ trình v3):
+tình trạng hiệu chuẩn đầu đo; sổ excursion đầy đủ trường (peak value, người xác nhận,
+số deviation/CAPA); phụ lục min/max/mean/SD từng phòng × chỉ tiêu; so sánh cùng kỳ năm trước
+(mùa vụ RH/T); chỉ số "biên an toàn tới giới hạn hành động" (% điểm đo trong vùng ±X% giới hạn).

@@ -34,7 +34,7 @@
     <mj-section background-color="#0f172a" padding="20px 24px" border-radius="8px 8px 0 0">
       <mj-column width="20%" vertical-align="middle">
         <!-- Placeholder logo CPC1 — thay src bằng cid:logo_cpc1 (attachment) -->
-        <mj-image src="cid:logo_cpc1" alt="CPC1" width="56px" padding="0" />
+        <mj-image src="{{logo_src}}" alt="CPC1" width="56px" padding="0" />
       </mj-column>
       <mj-column width="80%" vertical-align="middle">
         <mj-text color="#ffffff" font-size="18px" font-weight="700" padding="0 0 2px 0">
@@ -42,6 +42,17 @@
         </mj-text>
         <mj-text color="#94a3b8" font-size="12px" padding="0">
           Kỳ: {{tu_ngay}} → {{den_ngay}} · Tạo lúc {{tao_luc}} (giờ VN)
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- ================= BĂNG ĐÍNH KÈM (v2: email = tóm tắt, chi tiết ở file) ================= -->
+    <mj-section background-color="#eff6ff" padding="10px 24px" border="1px solid #dbeafe">
+      <mj-column>
+        <mj-text font-size="12.5px" color="#1e40af" padding="0">
+          📎 <strong>Báo cáo chi tiết đính kèm</strong> ({{ten_file_pdf}}) — gồm xu hướng từng Khu vực/AHU,
+          top phòng tốt–xấu, mục <strong>Bất thường trong kỳ</strong>, MKT/ICH Q1A, SPC đầy đủ và phụ lục giải thích thuật ngữ.
+          Email này chỉ là tóm tắt điều hành.
         </mj-text>
       </mj-column>
     </mj-section>
@@ -78,6 +89,15 @@
       </mj-column>
     </mj-section>
 
+    <!-- ================= TÓM TẮT ĐIỀU HÀNH ================= -->
+    <mj-section padding="12px 24px 0 24px">
+      <mj-column background-color="#f8fafc" border-radius="8px" padding="10px 14px">
+        <mj-text font-size="13px" color="#334155" padding="0">
+          <strong style="color:#0f172a">Tóm tắt điều hành:</strong> {{tom_tat_dieu_hanh}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
     <mj-section padding="8px 24px 0 24px">
       <mj-column>
         <mj-divider border-width="1px" border-color="#e2e8f0" padding="8px 0" />
@@ -90,24 +110,18 @@
         <mj-text font-size="15px" font-weight="700" color="#0f172a" padding="0 0 6px 0">
           Tỉ lệ tuân thủ theo ngày (ngưỡng 80%)
         </mj-text>
-        <mj-image src="cid:chart_line" alt="Biểu đồ tuân thủ theo ngày" width="592px" padding="0" />
+        <mj-image src="{{chart_line_src}}" alt="Biểu đồ tuân thủ theo ngày" width="592px" padding="0" />
       </mj-column>
     </mj-section>
 
-    <mj-section padding="16px 24px 0 24px">
-      <mj-column>
-        <mj-text font-size="15px" font-weight="700" color="#0f172a" padding="0 0 6px 0">
-          Lịch tuân thủ trong kỳ
-        </mj-text>
-        <mj-image src="cid:chart_heat" alt="Heatmap lịch tuân thủ" width="592px" padding="0" />
-      </mj-column>
-    </mj-section>
+    <!-- Heatmap + sparkline chuyển sang FILE ĐÍNH KÈM (giữ email < 102KB Gmail).
+         Biểu đồ line duy nhất nhúng base64 (Code node thay {{chart_line_src}}). -->
 
-    <!-- ================= TOP 5 PHÒNG RỦI RO ================= -->
+    <!-- ================= TOP 5 PHÒNG CẦN CHÚ Ý ================= -->
     <mj-section padding="20px 24px 0 24px">
       <mj-column>
         <mj-text font-size="15px" font-weight="700" color="#0f172a" padding="0 0 6px 0">
-          Top 5 phòng rủi ro
+          Top 5 phòng cần chú ý nhất
         </mj-text>
         <mj-table css-class="bang-rui-ro" padding="0">
           <tr>
@@ -115,19 +129,47 @@
             <th>Khu</th>
             <th style="text-align:right">Tuân thủ</th>
             <th style="text-align:right">Giờ OOS</th>
-            <th>Diễn biến</th>
+            <th style="text-align:right">Δ so kỳ trước</th>
           </tr>
-          <!-- Code node lặp mảng top_phong_rui_ro và nhân bản khối dưới -->
-          {{#each top_phong_rui_ro}}
+          <!-- Code node lặp mảng top_phong_xau và nhân bản khối dưới -->
+          {{#each top_phong_xau}}
           <tr>
             <td><strong>{{ten_phong}}</strong><br /><span style="color:#94a3b8;font-size:11px">{{ma_phong}}</span></td>
             <td>{{khu_vuc}}</td>
             <td style="text-align:right;color:{{mau}};font-weight:700">{{ty_le_tuan_thu}}%</td>
             <td style="text-align:right">{{so_gio_oos}}</td>
-            <td><img src="cid:spark_{{ma_phong}}" alt="xu hướng {{ma_phong}}" width="120" height="36" style="display:block" /></td>
+            <td style="text-align:right;color:{{delta_mau}};font-weight:600">{{delta}}</td>
           </tr>
           {{/each}}
         </mj-table>
+      </mj-column>
+    </mj-section>
+
+    <!-- ================= BẤT THƯỜNG TRONG KỲ (tóm tắt — chi tiết ở file đính kèm) ================= -->
+    <mj-section padding="20px 24px 0 24px">
+      <mj-column background-color="#fef2f2" border-radius="8px" padding="12px 16px" border="1px solid #fecaca">
+        <mj-text font-size="13px" font-weight="700" color="#b91c1c" padding="0 0 6px 0">
+          ⚠ Bất thường trong kỳ: {{so_phong_bat_thuong}} phòng xấu đi bất thường · {{so_ngoai_le}} ngoại lệ dữ liệu
+        </mj-text>
+        <mj-table css-class="bang-rui-ro" padding="0">
+          <tr>
+            <th>Phòng</th>
+            <th style="text-align:right">Kỳ này</th>
+            <th style="text-align:right">Δ so kỳ trước</th>
+            <th>Lý do phát hiện</th>
+          </tr>
+          {{#each bat_thuong_tom_tat}}
+          <tr>
+            <td><strong>{{ten_phong}}</strong> <span style="color:#94a3b8;font-size:11px">{{ma_phong}}</span></td>
+            <td style="text-align:right">{{tuan_thu_ky_nay}}%</td>
+            <td style="text-align:right;color:#b91c1c;font-weight:700">{{delta}}</td>
+            <td style="font-size:11px">{{ly_do}}</td>
+          </tr>
+          {{/each}}
+        </mj-table>
+        <mj-text font-size="11px" color="#7f1d1d" font-style="italic" padding="6px 0 0 0">
+          Tiêu chí: giảm ≥ 5 điểm % so kỳ trước · tín hiệu SPC mới · độ dốc âm R² ≥ 0,5 — cảnh báo sớm trước khi vượt OOS. Chi tiết mục 6 của file đính kèm.
+        </mj-text>
       </mj-column>
     </mj-section>
 

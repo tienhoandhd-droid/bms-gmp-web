@@ -1,21 +1,22 @@
 <!doctype html>
 <!--
-  bao-cao-scorecard.html — Báo cáo scorecard BMS-GMP (bản HTML/PDF, WF5 v2 / mục B3)
-  ===================================================================================
-  - Dùng cho 2 đường: (a) upload HTML lên Google Drive, (b) POST tới Gotenberg
-    /forms/chromium/convert/html để xuất PDF (bản lưu trữ chính thức GMP).
-  - Placeholder {{handlebars}} do Code node n8n thay thế. KHÁC email: ảnh biểu đồ
-    ở đây nhúng qua {{chart_*_src}} — Code node điền data URI base64
-    ("data:image/png;base64,…") để file TỰ CHỨA (Gotenberg/Drive không có CID).
-  - In A4: có @page rules; Gotenberg convert với paperWidth=8.27 paperHeight=11.69.
-  - CSS inline toàn bộ, không tải tài nguyên ngoài (an toàn khi mở offline).
+  bao-cao-scorecard.html — Báo cáo giám sát môi trường GMP (v2, bản CHI TIẾT đính kèm email / Drive / PDF)
+  =========================================================================================================
+  - Dùng cho 3 đường: (a) file HTML upload Google Drive, (b) POST tới Gotenberg
+    /forms/chromium/convert/html → PDF (bản lưu trữ + ĐÍNH KÈM EMAIL), (c) mở offline.
+  - Placeholder {{ten}} do Code node n8n thay thế từ JSON của rpc_bao_cao_tong_hop (1 nguồn số liệu).
+    Ảnh biểu đồ nhúng data URI base64 ("data:image/png;base64,…") để file TỰ CHỨA.
+  - Khối lặp: {{#each ten_mang}} … {{/each}} — Code node nhân bản phần thân.
+  - In A4: @page rules; Gotenberg convert paperWidth=8.27 paperHeight=11.69.
+  - v2 theo góp ý quản lý: tóm tắt điều hành, xu hướng Nhà máy→Khu→AHU (small multiples),
+    top TỐT/XẤU, mục BẤT THƯỜNG TRONG KỲ (trọng yếu), DQ (toàn vẹn dữ liệu), MKT/ICH Q1A,
+    căn cứ tiêu chuẩn GMP, khối ký duyệt ALCOA+, phụ lục giải thích thuật ngữ.
 -->
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
 <title>Báo cáo {{ky_bao_cao}} — BMS-GMP</title>
 <style>
-  /* ---- In A4 ---- */
   @page { size: A4 portrait; margin: 14mm 12mm 16mm 12mm; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -28,39 +29,58 @@
     color: #334155; font-size: 12px; line-height: 1.55;
     background: #ffffff; max-width: 186mm; margin: 0 auto; padding: 8px 0;
   }
-  /* ---- Header ---- */
   .header { display: flex; align-items: center; gap: 14px; background: #0f172a;
             color: #fff; border-radius: 8px; padding: 14px 18px; }
   .header img.logo { width: 48px; height: 48px; object-fit: contain; }
   .header h1 { font-size: 17px; font-weight: 700; }
   .header .phu-de { color: #94a3b8; font-size: 11px; margin-top: 2px; }
-  /* ---- KPI ---- */
-  .hang-kpi { display: flex; gap: 10px; margin: 14px 0 4px 0; }
+  .hang-kpi { display: flex; gap: 8px; margin: 14px 0 4px 0; }
   .the-kpi { flex: 1; border: 1px solid #e2e8f0; border-radius: 8px;
-             padding: 10px 12px; text-align: center; }
-  .the-kpi .nhan { font-size: 9px; letter-spacing: .05em; text-transform: uppercase; color: #64748b; }
-  .the-kpi .so { font-size: 24px; font-weight: 700; color: #0f172a; margin: 2px 0; }
-  .the-kpi .delta { font-size: 11px; font-weight: 600; }
-  /* màu đèn giao thông — Code node gán class ok/warn/bad hoặc màu trực tiếp */
-  .ok   { color: #0d9488; } .warn { color: #d97706; } .bad  { color: #b91c1c; }
-  /* ---- Khối biểu đồ ---- */
+             padding: 9px 8px; text-align: center; }
+  .the-kpi .nhan { font-size: 8.5px; letter-spacing: .05em; text-transform: uppercase; color: #64748b; }
+  .the-kpi .so { font-size: 21px; font-weight: 700; color: #0f172a; margin: 2px 0; }
+  .the-kpi .delta { font-size: 10px; font-weight: 600; }
+  .ok { color: #0d9488; } .warn { color: #d97706; } .bad { color: #b91c1c; }
   h2 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 16px 0 6px 0; }
+  h3 { font-size: 11.5px; font-weight: 700; color: #334155; margin: 10px 0 4px 0; }
   .khoi-bieu-do img { width: 100%; height: auto; display: block;
                       border: 1px solid #f1f5f9; border-radius: 6px; }
-  /* ---- Bảng top phòng ---- */
   table.bang { width: 100%; border-collapse: collapse; }
   table.bang th { text-align: left; font-size: 9px; text-transform: uppercase;
                   letter-spacing: .04em; color: #64748b; padding: 6px 8px;
                   border-bottom: 2px solid #e2e8f0; }
-  table.bang td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+  table.bang td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
   table.bang td.so { text-align: right; font-variant-numeric: tabular-nums; }
   table.bang img.spark { width: 120px; height: 36px; display: block; }
-  /* ---- Khối AI ---- */
+  /* Tóm tắt điều hành */
+  .tom-tat { background: #f8fafc; border-left: 4px solid #0d9488; border-radius: 0 8px 8px 0;
+             padding: 10px 14px; margin-top: 12px; font-size: 12px; }
+  /* Small multiples Khu / AHU */
+  .luoi-mini { display: flex; flex-wrap: wrap; gap: 8px; }
+  .o-mini { flex: 1 1 30%; min-width: 30%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; }
+  .o-mini .ten { font-size: 10px; font-weight: 700; color: #0f172a; display: flex; justify-content: space-between; }
+  .o-mini .ten .pct { font-variant-numeric: tabular-nums; }
+  .o-mini img { width: 100%; height: auto; display: block; margin-top: 4px; }
+  /* Khối BẤT THƯỜNG (trọng yếu) */
+  .khoi-bat-thuong { border: 2px solid #fecaca; background: #fef2f2; border-radius: 10px;
+                     padding: 12px 14px; margin-top: 16px; }
+  .khoi-bat-thuong h2 { color: #b91c1c; margin-top: 0; }
+  .the-ly-do { display: inline-block; background: #fee2e2; color: #b91c1c; border-radius: 4px;
+               font-size: 9px; font-weight: 600; padding: 1px 6px; margin: 1px 2px 1px 0; }
+  /* Khối AI */
   .khoi-ai { background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 8px;
              padding: 12px 14px; margin-top: 16px; }
   .khoi-ai .tieu-de { color: #0d9488; font-weight: 700; font-size: 12px; margin-bottom: 6px; }
   .khoi-ai .disclaimer { color: #64748b; font-size: 10px; font-style: italic; margin-top: 8px; }
-  /* ---- Footer truy vết ---- */
+  /* Ghi chú tiêu chuẩn GMP */
+  .can-cu { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 10px 12px; margin-top: 10px; font-size: 10.5px; color: #475569; }
+  /* Khối ký duyệt */
+  .ky-duyet { display: flex; gap: 10px; margin-top: 18px; }
+  .o-ky { flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; }
+  .o-ky .vai-tro { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
+  .o-ky .cho-ky { height: 46px; border-bottom: 1px dashed #cbd5e1; margin: 8px 6px; }
+  .o-ky .ghi { font-size: 9.5px; color: #94a3b8; }
   .footer { margin-top: 18px; padding-top: 10px; border-top: 1px solid #e2e8f0;
             color: #94a3b8; font-size: 10px; }
   .footer code { font-family: ui-monospace, 'Courier New', monospace; font-size: 9.5px;
@@ -73,12 +93,12 @@
   <header class="header khong-cat">
     <img class="logo" src="{{logo_src}}" alt="CPC1" />
     <div>
-      <h1>Báo cáo {{ky_bao_cao}} — Giám sát môi trường GMP</h1>
+      <h1>Báo cáo {{ky_bao_cao}} — Giám sát môi trường GMP (T° / RH / ΔP)</h1>
       <div class="phu-de">Kỳ: {{tu_ngay}} → {{den_ngay}} · Tạo lúc {{tao_luc}} (giờ VN) · Mã lần chạy: {{ma_lan_chay}}</div>
     </div>
   </header>
 
-  <!-- ================= HÀNG 4 KPI ================= -->
+  <!-- ================= HÀNG 6 KPI ================= -->
   <section class="hang-kpi khong-cat">
     <div class="the-kpi">
       <div class="nhan">% Tuân thủ</div>
@@ -100,22 +120,60 @@
       <div class="so" style="color:{{kpi_spc_mau}}">{{so_tin_hieu_spc}}</div>
       <div class="delta" style="color:#64748b">{{so_scope_ngoai_ks}} scope ngoài kiểm soát</div>
     </div>
+    <div class="the-kpi">
+      <div class="nhan">Đủ dữ liệu (DQ)</div>
+      <div class="so" style="color:{{kpi_dq_mau}}">{{kpi_dq}}%</div>
+      <div class="delta" style="color:#64748b">{{so_ngay_thieu_dl}} ngày thiếu dữ liệu</div>
+    </div>
+    <div class="the-kpi">
+      <div class="nhan">MKT cao nhất</div>
+      <div class="so" style="color:{{kpi_mkt_mau}}">{{kpi_mkt_max}}°C</div>
+      <div class="delta" style="color:#64748b">{{kpi_mkt_phong}} · ICH Q1A</div>
+    </div>
+  </section>
+
+  <!-- ================= TÓM TẮT ĐIỀU HÀNH ================= -->
+  <section class="tom-tat khong-cat">
+    <strong style="color:#0f172a">Tóm tắt điều hành:</strong> {{tom_tat_dieu_hanh}}
   </section>
 
   <!-- ================= BIỂU ĐỒ CHÍNH ================= -->
   <section class="khoi-bieu-do khong-cat">
-    <h2>Tỉ lệ tuân thủ theo ngày (ngưỡng 80%)</h2>
+    <h2>1. Tỉ lệ tuân thủ toàn nhà máy theo ngày (ngưỡng hành động 80%)</h2>
     <img src="{{chart_line_src}}" alt="Biểu đồ tuân thủ theo ngày" />
   </section>
 
   <section class="khoi-bieu-do khong-cat">
-    <h2>Lịch tuân thủ trong kỳ</h2>
+    <h2>2. Lịch tuân thủ trong kỳ</h2>
     <img src="{{chart_heat_src}}" alt="Heatmap lịch tuân thủ" />
   </section>
 
-  <!-- ================= TOP 5 PHÒNG RỦI RO ================= -->
+  <!-- ================= XU HƯỚNG NHÀ MÁY → KHU → AHU ================= -->
   <section class="khong-cat">
-    <h2>Top 5 phòng rủi ro</h2>
+    <h2>3. Xu hướng theo cấp: Khu vực và AHU</h2>
+    <h3>3.1 Theo khu vực</h3>
+    <div class="luoi-mini">
+      {{#each xu_huong_khu}}
+      <div class="o-mini">
+        <div class="ten"><span>Khu {{khu_vuc}}</span><span class="pct" style="color:{{mau}}">{{ty_le_tb}}%</span></div>
+        <img src="{{mini_src}}" alt="xu hướng khu {{khu_vuc}}" />
+      </div>
+      {{/each}}
+    </div>
+    <h3>3.2 Theo AHU</h3>
+    <div class="luoi-mini">
+      {{#each xu_huong_ahu}}
+      <div class="o-mini">
+        <div class="ten"><span>{{ahu}}</span><span class="pct" style="color:{{mau}}">{{ty_le_tb}}%</span></div>
+        <img src="{{mini_src}}" alt="xu hướng {{ahu}}" />
+      </div>
+      {{/each}}
+    </div>
+  </section>
+
+  <!-- ================= TOP XẤU / TỐT ================= -->
+  <section class="khong-cat">
+    <h2>4. Top 5 phòng cần chú ý nhất (xấu nhất kỳ)</h2>
     <table class="bang">
       <thead>
         <tr>
@@ -126,8 +184,7 @@
         </tr>
       </thead>
       <tbody>
-        <!-- Code node lặp mảng top_phong_rui_ro, nhân bản <tr>; spark_src = data URI -->
-        {{#each top_phong_rui_ro}}
+        {{#each top_phong_xau}}
         <tr>
           <td><strong>{{ten_phong}}</strong><br /><span style="color:#94a3b8;font-size:10px">{{ma_phong}}</span></td>
           <td>{{khu_vuc}}</td>
@@ -140,9 +197,101 @@
     </table>
   </section>
 
-  <!-- ================= KHỐI SPC ================= -->
   <section class="khong-cat">
-    <h2>Kiểm soát thống kê (SPC) — {{so_tin_hieu_spc}} tín hiệu / {{so_scope_ngoai_ks}} scope</h2>
+    <h2>5. Top 5 phòng vận hành tốt nhất kỳ</h2>
+    <table class="bang">
+      <thead>
+        <tr>
+          <th>Phòng</th><th>Khu</th>
+          <th style="text-align:right">Tuân thủ</th>
+          <th style="text-align:right">Giờ OOS</th>
+          <th>Diễn biến trong kỳ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each top_phong_tot}}
+        <tr>
+          <td><strong>{{ten_phong}}</strong><br /><span style="color:#94a3b8;font-size:10px">{{ma_phong}}</span></td>
+          <td>{{khu_vuc}}</td>
+          <td class="so" style="color:#0d9488;font-weight:700">{{ty_le_tuan_thu}}%</td>
+          <td class="so">{{so_gio_oos}}</td>
+          <td><img class="spark" src="{{spark_src}}" alt="xu hướng {{ma_phong}}" /></td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ================= BẤT THƯỜNG TRONG KỲ (TRỌNG YẾU) ================= -->
+  <section class="khoi-bat-thuong sang-trang">
+    <h2>⚠ 6. Bất thường trong kỳ khảo sát</h2>
+
+    <h3>6.1 Phòng xấu đi bất thường (so kỳ trước / tín hiệu sớm)</h3>
+    <table class="bang">
+      <thead>
+        <tr>
+          <th>Phòng</th>
+          <th style="text-align:right">Kỳ này</th>
+          <th style="text-align:right">Kỳ trước</th>
+          <th style="text-align:right">Δ</th>
+          <th>Lý do phát hiện</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each phong_xau_bat_thuong}}
+        <tr>
+          <td><strong>{{ten_phong}}</strong><br /><span style="color:#94a3b8;font-size:10px">{{ma_phong}} · {{khu_vuc}}</span></td>
+          <td class="so">{{tuan_thu_ky_nay}}%</td>
+          <td class="so">{{tuan_thu_ky_truoc}}%</td>
+          <td class="so" style="color:#b91c1c;font-weight:700">{{delta}}</td>
+          <td>{{ly_do_html}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <p style="font-size:10px;color:#7f1d1d;margin-top:4px">Tiêu chí phát hiện: giảm ≥ 5 điểm % so kỳ trước · có tín hiệu SPC mới (EWMA/CUSUM/Nelson) · độ dốc xu hướng âm với R² ≥ 0,5. Đây là <strong>cảnh báo sớm trước khi vượt ngưỡng OOS</strong> — khuyến nghị QA/kỹ thuật rà soát trước kỳ tiếp theo.</p>
+
+    <h3>6.2 Ngoại lệ dữ liệu &amp; thiết bị trong kỳ</h3>
+    <table class="bang">
+      <thead>
+        <tr><th>Loại bất thường</th><th style="text-align:right">Số lần</th><th>Diễn giải</th></tr>
+      </thead>
+      <tbody>
+        {{#each ngoai_le_theo_loai}}
+        <tr>
+          <td><strong>{{loai_vi}}</strong></td>
+          <td class="so">{{so_lan}}</td>
+          <td style="color:#64748b">{{dien_giai}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    <h3>6.3 Sự cố tiêu biểu trong kỳ (vượt giới hạn — excursion)</h3>
+    <table class="bang">
+      <thead>
+        <tr>
+          <th>Sự cố</th><th>Phòng · chỉ tiêu</th><th>Bắt đầu</th>
+          <th style="text-align:right">Kéo dài (h)</th><th>Trạng thái xử lý</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each su_co_tieu_bieu}}
+        <tr>
+          <td><strong>{{ma_su_co}}</strong></td>
+          <td>{{phong}} · {{chi_tieu}}</td>
+          <td>{{bat_dau}}</td>
+          <td class="so">{{keo_dai_gio}}</td>
+          <td>{{trang_thai}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ================= SPC ================= -->
+  <section class="khong-cat">
+    <h2>7. Kiểm soát thống kê (SPC) — {{so_tin_hieu_spc}} tín hiệu / {{so_scope_ngoai_ks}} scope</h2>
     <table class="bang">
       <thead>
         <tr><th>Scope</th><th>Cảm biến</th><th style="text-align:right">Tín hiệu</th><th>Loại (EWMA/CUSUM/Nelson)</th></tr>
@@ -160,9 +309,64 @@
     </table>
   </section>
 
+  <!-- ================= KẾT LUẬN TRẠNG THÁI KIỂM SOÁT (Annex 1) ================= -->
+  <section class="can-cu khong-cat">
+    <strong style="color:#0f172a">Kết luận trạng thái kiểm soát (QA xác nhận khi ký duyệt):</strong>
+    {{ket_luan_kiem_soat}}
+  </section>
+
+  <!-- ================= GIỚI HẠN CẤU HÌNH ÁP DỤNG (2 cấp: alert/action) ================= -->
+  <section class="khong-cat">
+    <h2>8. Giới hạn cấu hình áp dụng trong kỳ</h2>
+    <p style="font-size:10.5px;color:#64748b">Giới hạn hành động (GHD–GHT) cấu hình theo TỪNG PHÒNG trong CSDL; bảng dưới tổng hợp theo mức ưu tiên × chỉ tiêu. Cảnh báo 2 cấp: alert (chớm lệch) phát trước action (vượt giới hạn). Giới hạn rà soát định kỳ theo SOP.</p>
+    <table class="bang">
+      <thead>
+        <tr><th>Mức ưu tiên</th><th>Chỉ tiêu</th><th style="text-align:right">GHD</th><th style="text-align:right">GHT</th><th>Đơn vị</th><th style="text-align:right">Số phòng áp dụng</th></tr>
+      </thead>
+      <tbody>
+        {{#each gioi_han_tham_chieu}}
+        <tr>
+          <td>{{muc_uu_tien}}</td>
+          <td>{{chi_tieu}}</td>
+          <td class="so">{{ghd}}</td>
+          <td class="so">{{ght}}</td>
+          <td>{{don_vi}}</td>
+          <td class="so">{{so_phong}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <p style="font-size:10px;color:#94a3b8;margin-top:4px">Tình trạng hiệu chuẩn đầu đo: quản lý theo sổ hiệu chuẩn ngoài hệ thống — khuyến nghị lộ trình tích hợp trạng thái hiệu chuẩn vào báo cáo (Part 11).</p>
+  </section>
+
+  <!-- ================= MKT + TOÀN VẸN DỮ LIỆU ================= -->
+  <section class="khong-cat">
+    <h2>9. MKT (Mean Kinetic Temperature — ICH Q1A) và toàn vẹn dữ liệu</h2>
+    <h3>9.1 MKT theo phòng (30 ngày, cao nhất trước)</h3>
+    <table class="bang">
+      <thead>
+        <tr><th>Phòng</th><th>Khu</th><th style="text-align:right">MKT °C</th><th style="text-align:right">T TB °C</th><th style="text-align:right">T max °C</th></tr>
+      </thead>
+      <tbody>
+        {{#each mkt_chi_tiet}}
+        <tr>
+          <td><strong>{{ma_phong}}</strong> <span style="color:#94a3b8;font-size:10px">{{ten_phong}}</span></td>
+          <td>{{khu_vuc}}</td>
+          <td class="so" style="font-weight:700">{{mkt}}</td>
+          <td class="so">{{t_tb}}</td>
+          <td class="so">{{t_max}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <h3>9.2 Độ đầy đủ dữ liệu (Data Quality)</h3>
+    <p style="font-size:11px">DQ trung bình toàn nhà máy: <strong style="color:{{kpi_dq_mau}}">{{kpi_dq}}%</strong> · Số ngày có khoảng trống dữ liệu: <strong>{{so_ngay_thieu_dl}}</strong> · Phòng thiếu dữ liệu nhiều nhất: {{phong_thieu_dl}}.
+    Kết luận trong báo cáo chỉ có hiệu lực với các khoảng đủ dữ liệu; khoảng thiếu được đánh dấu và không nội suy (nguyên tắc ALCOA+ — dữ liệu nguyên bản).</p>
+  </section>
+
   <!-- ================= NHẬN ĐỊNH AI ================= -->
   <section class="khoi-ai khong-cat">
-    <div class="tieu-de">Nhận định AI (đã thẩm định Writer–Judge)</div>
+    <div class="tieu-de">10. Nhận định AI (đã thẩm định Writer–Judge)</div>
     <div>{{nhan_dinh_ai}}</div>
     <div class="disclaimer">
       Số liệu do hệ thống tính — AI chỉ viết nhận định. Kết luận GMP do IPC/QA.
@@ -170,11 +374,60 @@
     </div>
   </section>
 
+  <!-- ================= CĂN CỨ TIÊU CHUẨN ================= -->
+  <section class="can-cu khong-cat">
+    <strong style="color:#0f172a">Căn cứ tiêu chuẩn áp dụng:</strong>
+    EU GMP Annex 1 (2022) — giám sát liên tục chênh áp/nhiệt độ/độ ẩm khu vực sạch và rà soát xu hướng định kỳ ·
+    ISO 14644-2 — giám sát duy trì trạng thái sạch ·
+    WHO TRS (GMP môi trường sản xuất) ·
+    ICH Q1A(R2) — MKT cho đánh giá phơi nhiễm nhiệt ·
+    ALCOA+ / EU Annex 11 — toàn vẹn dữ liệu, truy vết nguồn số liệu ở footer.
+    Giới hạn cảnh báo (alert) và giới hạn hành động (action = GHD/GHT) cấu hình theo từng phòng trong CSDL — mọi so sánh trong báo cáo dùng đúng giới hạn của phòng đó.
+  </section>
+
+  <!-- ================= KÝ DUYỆT (ALCOA+) ================= -->
+  <section class="ky-duyet khong-cat">
+    <div class="o-ky"><div class="vai-tro">Người lập (hệ thống)</div><div class="cho-ky"></div><div class="ghi">WF5 tự động · {{tao_luc}}</div></div>
+    <div class="o-ky"><div class="vai-tro">Người soát xét (IPC/Kỹ thuật)</div><div class="cho-ky"></div><div class="ghi">Ký &amp; ghi ngày</div></div>
+    <div class="o-ky"><div class="vai-tro">Phê duyệt (QA)</div><div class="cho-ky"></div><div class="ghi">Ký &amp; ghi ngày</div></div>
+  </section>
+
+  <!-- ================= PHỤ LỤC: THUẬT NGỮ ================= -->
+  <section class="sang-trang">
+    <h2>Phụ lục — Giải thích thuật ngữ &amp; từ viết tắt</h2>
+    <table class="bang">
+      <thead><tr><th style="width:20%">Thuật ngữ</th><th>Giải thích</th></tr></thead>
+      <tbody>
+        <tr><td><strong>DP / ΔP</strong></td><td>Chênh áp (Pa) giữa phòng sạch và khu vực lân cận — duy trì dương để ngăn nhiễm chéo.</td></tr>
+        <tr><td><strong>RH</strong></td><td>Độ ẩm tương đối (%).</td></tr>
+        <tr><td><strong>T</strong></td><td>Nhiệt độ (°C).</td></tr>
+        <tr><td><strong>AHU</strong></td><td>Air Handling Unit — tổ máy xử lý không khí cấp cho một cụm phòng.</td></tr>
+        <tr><td><strong>GHD / GHT</strong></td><td>Giới hạn dưới / giới hạn trên (action limit) của từng chỉ tiêu, cấu hình theo phòng.</td></tr>
+        <tr><td><strong>OOS</strong></td><td>Out of Specification — điểm đo nằm ngoài GHD–GHT. % tuân thủ = 100% − % điểm OOS.</td></tr>
+        <tr><td><strong>Excursion</strong></td><td>Đợt vượt giới hạn liên tục (có bắt đầu – kết thúc – thời lượng), được mở thành sự cố.</td></tr>
+        <tr><td><strong>Alert / Action limit</strong></td><td>Cảnh báo 2 cấp: alert (chớm lệch, theo dõi) trước action (vượt giới hạn, phải xử lý).</td></tr>
+        <tr><td><strong>SPC</strong></td><td>Statistical Process Control — kiểm soát thống kê, phát hiện dịch chuyển/xu hướng TRƯỚC khi vượt giới hạn.</td></tr>
+        <tr><td><strong>EWMA</strong></td><td>Đường trung bình trượt có trọng số mũ — nhạy với dịch chuyển nhỏ kéo dài.</td></tr>
+        <tr><td><strong>CUSUM</strong></td><td>Tổng tích lũy độ lệch — phát hiện trôi dần khỏi mục tiêu.</td></tr>
+        <tr><td><strong>Nelson R1/R2/R3</strong></td><td>Quy tắc nhận diện bất thường: R1 = 1 điểm vượt 3σ; R2 = 9 điểm liên tiếp cùng phía trung bình; R3 = 6 điểm tăng/giảm liên tục.</td></tr>
+        <tr><td><strong>σ (sigma)</strong></td><td>Độ lệch chuẩn — thước đo dao động quanh trung bình.</td></tr>
+        <tr><td><strong>R²</strong></td><td>Độ tin cậy của xu hướng hồi quy (0–1; càng gần 1 xu hướng càng rõ).</td></tr>
+        <tr><td><strong>P5 / P50 / P95</strong></td><td>Phân vị 5% / trung vị / 95% — dải phân bố giá trị đo trong kỳ.</td></tr>
+        <tr><td><strong>MKT</strong></td><td>Mean Kinetic Temperature (ICH Q1A) — nhiệt độ động học trung bình, phạt nặng các đợt nhiệt cao; luôn ≥ nhiệt độ trung bình.</td></tr>
+        <tr><td><strong>MTTR</strong></td><td>Mean Time To Repair — thời gian trung bình từ khi mở đến khi đóng sự cố (giờ).</td></tr>
+        <tr><td><strong>DQ</strong></td><td>Data Quality / độ đầy đủ dữ liệu — % thời gian có dữ liệu hợp lệ trong kỳ.</td></tr>
+        <tr><td><strong>Δ (delta)</strong></td><td>Chênh lệch so với kỳ liền trước có cùng độ dài.</td></tr>
+        <tr><td><strong>CAPA</strong></td><td>Corrective And Preventive Action — hành động khắc phục &amp; phòng ngừa.</td></tr>
+        <tr><td><strong>ALCOA+</strong></td><td>Nguyên tắc toàn vẹn dữ liệu GMP: có nguồn gốc, dễ đọc, kịp thời, nguyên bản, chính xác (+ đầy đủ, nhất quán, bền vững, sẵn có).</td></tr>
+      </tbody>
+    </table>
+  </section>
+
   <!-- ================= FOOTER TRUY VẾT ================= -->
   <footer class="footer">
     Truy vết GMP: mã lần chạy WF5 <strong>{{ma_lan_chay}}</strong> · Tạo lúc {{tao_luc}} ·
     Nguồn số liệu: <code>rpc_bao_cao_tong_hop('{{ky}}', '{{tu_ngay_iso}}', '{{den_ngay_iso}}')</code><br />
-    Hệ thống BMS-GMP (CPC1HN). Bản PDF trên Google Drive là bản ghi lưu trữ chính thức.
+    Hệ thống BMS-GMP (CPC1HN). Bản PDF trên Google Drive là bản ghi lưu trữ chính thức. Giới hạn từng phòng lấy theo cấu hình CSDL tại thời điểm chạy báo cáo.
   </footer>
 
 </body>
