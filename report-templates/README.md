@@ -1,20 +1,14 @@
-# report-templates — Báo cáo scorecard WF5 v2 (BMS-GMP)
+# report-templates — Báo cáo WF5 v2 (BMS-GMP)
 
-Template cho **mục B3** của `docs/KE-HOACH-NANG-CAP-BIEU-DO-BAO-CAO.md`:
-báo cáo tuần/tháng/quý dạng "executive scorecard" — 1 nguồn số liệu duy nhất
-(`rpc_bao_cao_tong_hop`), biểu đồ từ `services/chart-render`, xuất **HTML (Drive)
-+ PDF (Gotenberg, bản lưu trữ GMP) + email MJML (ảnh CID)**.
+Báo cáo tuần/tháng/quý — 1 nguồn số liệu duy nhất (`rpc_bao_cao_tong_hop`). **3 sản phẩm** mỗi kỳ
+(cập nhật 04/07/2026 theo yêu cầu: email chỉ text — bỏ ảnh nén; dashboard động đính kèm + link):
 
 | File | Dùng cho |
 |---|---|
-| `email-bao-cao.mjml` | Email gửi quản lý — compile sẵn ra HTML, n8n chỉ interpolate; ảnh nhúng **CID attachment** |
-| `bao-cao-scorecard.html` | HTML lên Drive + đầu vào Gotenberg → PDF; ảnh nhúng **data URI base64** (file tự chứa) |
-
-Compile MJML một lần (khi sửa template):
-
-```bash
-npx mjml report-templates/email-bao-cao.mjml -o report-templates/email-bao-cao.html
-```
+| `email-bao-cao.html` | **Email TÓM TẮT — CHỈ TEXT, KHÔNG ẢNH** (KPI/top phòng/bất thường/AI dạng bảng) + nút "Mở dashboard tương tác". n8n interpolate `{{ }}` + `{{#each}}`. Nhẹ (~17KB). |
+| `dashboard-tuong-tac.html` | **Dashboard TƯƠNG TÁC tự chứa** — nhúng JSON kỳ vào `{{DATA_JSON}}`, vanilla JS + SVG (hover/lọc Khu-AHU). Mở offline. Đính kèm email + lưu Drive. |
+| `bao-cao-scorecard.html` | HTML → Gotenberg → **PDF ký duyệt GMP** (ALCOA+); ảnh biểu đồ nhúng **data URI base64** (chart-render/SVG). |
+| `email-bao-cao.mjml` | ⚠ **Không dùng nữa** — email cũ (MJML/ảnh CID). Giữ để tham khảo; email hiện là `email-bao-cao.html` viết tay text-only. |
 
 ---
 

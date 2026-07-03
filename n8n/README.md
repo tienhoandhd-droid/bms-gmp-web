@@ -17,7 +17,17 @@
 
 **Pipeline:** Xác định kỳ (giờ VN) → Postgres: `rpc_bao_cao_tong_hop` (**1 nguồn số liệu — truy vết GMP,
 đã đối chiếu schema thật**) + cấu hình + người nhận (`nguoi_nhan_bao_cao`) → Ráp báo cáo (1 Code node:
-biểu đồ + template + email) → Gotenberg PDF → Drive (PDF + HTML) + Email (tóm tắt + đính kèm) + Nhật ký.
+biểu đồ scorecard + **dashboard tương tác** + email text) → Gotenberg PDF → Drive (PDF + dashboard) +
+Email (text tóm tắt, đính kèm dashboard + PDF) + Nhật ký.
+
+**3 sản phẩm mỗi kỳ (theo yêu cầu 04/07):**
+- **EMAIL text tóm tắt** — KHÔNG nhúng ảnh biểu đồ (tránh mờ/nén): KPI, top phòng, bất thường, nhận định AI
+  dạng chữ/bảng + nút **"Mở dashboard tương tác"** (`cau_hinh.web_app_url`, rỗng → link thư mục Drive).
+- **DASHBOARD tương tác** (`report-templates/dashboard-tuong-tac.html`) — HTML **tự chứa**, nhúng JSON kỳ,
+  vanilla JS + SVG: line chart hover + lọc Nhà máy/Khu/AHU, heatmap lịch, top phòng, bất thường, SPC, MKT, AI.
+  Mở offline, không lib ngoài. **Đính kèm email + lưu Drive**.
+- **PDF scorecard** (`bao-cao-scorecard.html` → Gotenberg) — bản **KÝ DUYỆT GMP** (ALCOA+), lưu Drive + đính kèm.
+  Gotenberg lỗi → đính kèm HTML scorecard thay PDF.
 
 **Thiết kế chịu lỗi (đã kiểm chứng bằng execution thật `1673476`, `1673589`, `1674463`):**
 - **Biểu đồ**: URL từ `cau_hinh.chart_render_url` (mặc định `http://chart-render:8081`, token

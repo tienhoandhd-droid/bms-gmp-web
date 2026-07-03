@@ -44,6 +44,24 @@ Nguồn số liệu đối chiếu thật: `kpi_ngay_scope` (TOTAL/AREA/AHU) + `
   số liệu = `so_gio_warning + so_gio_critical`), thêm giải thích ở phụ lục thuật ngữ.
 - Lưu ý: workflow tải template từ nhánh `main` → nhãn mới có hiệu lực **sau khi merge nhánh này vào main**.
 
+### Email text-only + Dashboard tương tác (04/07/2026 — theo yêu cầu)
+
+Yêu cầu: "thông tin vào mail đủ màn hình, hình ảnh nén vào mail xấu" → "link đính kèm là 1 dashboard
+động + thông tin trên mail tổng hợp / không nên để hình ảnh". Đã render email cũ kiểm tra: ảnh QuickChart
+900×280 không có devicePixelRatio → mờ trên màn retina. Người xem dùng máy tính.
+
+Giải pháp (đã chốt với người dùng: **Cả hai file + link**, **giữ PDF ký duyệt**):
+- **Email → text-only** (`email-bao-cao.html` viết lại, 49KB→17KB, bỏ QuickChart/mọi `<img>`): KPI, top
+  phòng, bất thường, AI dạng bảng/chữ + nút "Mở dashboard tương tác" (`cau_hinh.web_app_url`, rỗng → Drive).
+- **Dashboard tương tác** (`dashboard-tuong-tac.html`, MỚI): HTML tự chứa, nhúng JSON kỳ, vanilla JS + SVG
+  (line hover + lọc Nhà máy/Khu/AHU, heatmap, top phòng, bất thường, SPC, MKT, AI). Mở offline, không lib
+  ngoài. **Đính kèm email + lưu Drive**. Đã render kiểm tra desktop với dữ liệu thật (không lỗi JS).
+- **PDF scorecard giữ nguyên** làm bản ký duyệt GMP (đính kèm + Drive).
+- Workflow: Ráp tải thêm dashboard template, nhúng JSON (escape `<`→`<`), xuất binary `dashboard_html`;
+  Gộp file kèm dashboard; Drive HTML → **Drive lưu Dashboard**; Email đính kèm `(pdf|scorecard) + dashboard`.
+  `cau_hinh.web_app_url` (migration + DB). Kiểm chứng execution `1675553`: email text gửi OK, đính kèm
+  dashboard (72.8KB) + scorecard (70.3KB), tổng ~215KB.
+
 ### Cải tiến chart-render + Gotenberg (04/07/2026)
 
 - **`services/docker-compose.yml`**: dựng CẢ `chart-render` (8081) + `gotenberg` (3000) bằng
