@@ -1,0 +1,73 @@
+# ============================================================================
+# BMS-GMP — dịch vụ phụ trợ báo cáo WF5 v2: chart-render (biểu đồ PNG) + Gotenberg (PDF)
+# Dựng CẢ HAI bằng MỘT lệnh, chung mạng docker với n8n để n8n gọi bằng tên container.
+#
+#   cd services
+#   cp .env.example .env      # sửa CHART_RENDER_TOKEN + N8N_NETWORK nếu cần
+#   docker compose up -d --build
+#   docker compose ps         # cột STATUS phải "healthy"
+#
+# n8n gọi (mặc định trong workflow, KHÔNG cần sửa gì nếu cùng mạng):
+#   - http://chart-render:8081/render-batch
+#   - http://gotenberg:3000/forms/chromium/convert/html
+#
+# MẠNG: hai service tham gia mạng docker SẴN CÓ của n8n (external). Tìm tên mạng:
+#   docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' <container-n8n>
+# rồi đặt N8N_NETWORK trong .env. Mặc định 'n8n_default' (tên phổ biến khi n8n chạy compose).
+#
+# Nếu n8n KHÔNG chạy bằng docker (hoặc không muốn chung mạng): cổng đã publish ra host
+# (8081/3000) → đặt biến môi trường n8n CHART_RENDER_URL=http://<IP-host>:8081 và
+# GOTENBERG_URL=http://<IP-host>:3000 (workflow đã đọc 2 biến này, có fallback).
+# ============================================================================
+
+name: bms-report-services
+
+services:
+  chart-render:
+    build:
+      context: ./chart-render
+    image: bms-chart-render:latest
+    container_name: chart-render
+    restart: unless-stopped
+    environment:
+      # Bearer token bảo vệ /render (rỗng = không kiểm tra — chỉ an toàn khi ở mạng nội bộ)
+      CHART_RENDER_TOKEN: ${CHART_RENDER_TOKEN:-}
+      # Số biểu đồ render song song (báo cáo nhiều sparkline sẽ nhanh hơn)
+      RENDER_CONCURRENCY: ${RENDER_CONCURRENCY:-4}
+    ports:
+      - "${CHART_RENDER_PORT:-8081}:8081"
+    networks:
+      - n8n
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8081/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  gotenberg:
+    build:
+      context: ./gotenberg
+    image: bms-gotenberg:latest
+    container_name: gotenberg
+    restart: unless-stopped
+    # Gotenberg Chromium chạy sandbox — cần thêm quyền. Nếu môi trường cấm, có thể
+    # bỏ security_opt và Gotenberg tự tắt sandbox (kém an toàn hơn một chút).
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - "${GOTENBERG_PORT:-3000}:3000"
+    networks:
+      - n8n
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+networks:
+  # Mạng SẴN CÓ của n8n — hai service tham gia để n8n gọi bằng tên container.
+  n8n:
+    name: ${N8N_NETWORK:-n8n_default}
+    external: true

@@ -116,6 +116,9 @@ const docSoLieu = node({
   public.cfg_text('drive_folder_id_bao_cao','root')                AS folder_id,
   public.cfg_text('email_gui_tu','')                               AS email_tu,
   public.cfg_text('quickchart_base_url','https://quickchart.io')   AS qc_base,
+  public.cfg_text('gotenberg_url','http://gotenberg:3000')         AS gotenberg_url,
+  public.cfg_text('chart_render_url','http://chart-render:8081')   AS chart_render_url,
+  public.cfg_text('chart_render_token','')                         AS chart_render_token,
   CASE WHEN upper($1) = 'TUAN' THEN public.cfg_text('email_bao_cao_tuan','')
        ELSE public.cfg_text('email_bao_cao_thang','') END          AS email_fallback,
   (SELECT string_agg(n.ho_ten || ' <' || n.email || '>', ', ')
@@ -251,11 +254,11 @@ function thay(than, obj) {
   }
   return s;
 }
-let chartBase = 'http://chart-render:8081';
-try { if ($env.CHART_RENDER_URL) chartBase = String($env.CHART_RENDER_URL); } catch (e) { /* env bị chặn */ }
-while (chartBase.endsWith('/')) chartBase = chartBase.slice(0, -1);
 for (let i = 0; i < items.length; i++) {
   const d = items[i].json;
+  let chartBase = String(d.chart_render_url || 'http://chart-render:8081');
+  while (chartBase.endsWith('/')) chartBase = chartBase.slice(0, -1);
+  const chartToken = String(d.chart_render_token || '').trim();
   const meta = (kyAll[i] || kyAll[0]).json;
   const bc = JSON.parse(d.bao_cao);
   const lineData = (bc.xu_huong && bc.xu_huong.nha_may) || [];
@@ -274,7 +277,8 @@ for (let i = 0; i < items.length; i++) {
   let anh = {};
   let nguonChart = 'chart-render (ECharts PNG)';
   try {
-    const rb = await this.helpers.httpRequest({ method: 'POST', url: chartBase + '/render-batch', body: { items: renderItems }, json: true, timeout: 90000 });
+    const headers = chartToken ? { Authorization: 'Bearer ' + chartToken } : undefined;
+    const rb = await this.helpers.httpRequest({ method: 'POST', url: chartBase + '/render-batch', headers, body: { items: renderItems }, json: true, timeout: 90000 });
     anh = (rb && rb.images) || {};
   } catch (e) { anh = {}; nguonChart = 'SVG nội bộ (chart-render không phản hồi)'; }
   if (!anh.chart_line) anh.chart_line = svgDuong(lineData, 1200, 340);
@@ -386,12 +390,18 @@ const gotenberg = node({
     waitBetweenTries: 3000,
     parameters: {
       method: 'POST',
-      url: expr("{{ ($env.GOTENBERG_URL || 'http://gotenberg:3000') + '/forms/chromium/convert/html' }}"),
+      url: expr("{{ $('Supabase — số liệu + cấu hình + người nhận').item.json.gotenberg_url }}/forms/chromium/convert/html"),
       sendBody: true,
       contentType: 'multipart-form-data',
       bodyParameters: {
         parameters: [
           { parameterType: 'formBinaryData', name: 'files', inputDataFieldName: 'bao_cao_html' },
+          // printBackground=true: BẮT BUỘC — nếu không PDF mất nền header xanh đậm
+          // + các ô KPI/bất thường có màu (template dựa print-color-adjust:exact).
+          { name: 'printBackground', value: 'true' },
+          // preferCssPageSize=true: dùng @page { size:A4; margin:… } của template.
+          { name: 'preferCssPageSize', value: 'true' },
+          // Giữ paperWidth/Height + margin làm dự phòng (bị bỏ qua khi có @page CSS).
           { name: 'paperWidth', value: '8.27' },
           { name: 'paperHeight', value: '11.69' },
           { name: 'marginTop', value: '0.4' },
@@ -566,11 +576,13 @@ const ghiChu = sticky(
 
 **Người nhận:** bảng nguoi_nhan_bao_cao (kich_hoat=true + cờ nhan_tuan/thang/quy). Chưa có ai kích hoạt → fallback cau_hinh.email_bao_cao_thang/tuan.
 
-**Biểu đồ:** thử chart-render (CHART_RENDER_URL, mặc định http://chart-render:8081); không phản hồi → tự vẽ SVG nội bộ, báo cáo KHÔNG chết. Email dùng QuickChart PNG (Gmail chặn SVG).
+**Biểu đồ:** URL từ cau_hinh.chart_render_url (mặc định http://chart-render:8081, token cau_hinh.chart_render_token); không phản hồi → tự vẽ SVG nội bộ, báo cáo KHÔNG chết. Email dùng QuickChart PNG (Gmail chặn SVG).
 
-**PDF:** Gotenberg (GOTENBERG_URL, mặc định http://gotenberg:3000); lỗi → email đính kèm HTML thay PDF.
+**PDF:** Gotenberg từ cau_hinh.gotenberg_url (mặc định http://gotenberg:3000, printBackground+preferCssPageSize → giữ nền header + ô KPI màu); lỗi → email đính kèm HTML thay PDF. (KHÔNG dùng $env — instance này chặn $env.)
 
-**Drive:** cau_hinh.drive_folder_id_bao_cao ('root' = My Drive). Nhật ký: nhat_ky_chay_workflow (WF5_BAO_CAO_V2).`,
+**Drive:** cau_hinh.drive_folder_id_bao_cao ('root' = My Drive). Nhật ký: nhat_ky_chay_workflow (WF5_BAO_CAO_V2).
+
+**Dựng chart-render + Gotenberg:** cd services && cp .env.example .env && docker compose up -d --build`,
   [],
   { color: 4, position: [-1180, -240], width: 620, height: 400 }
 );

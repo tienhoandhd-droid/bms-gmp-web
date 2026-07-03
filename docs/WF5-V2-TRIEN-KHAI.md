@@ -44,6 +44,26 @@ Nguồn số liệu đối chiếu thật: `kpi_ngay_scope` (TOTAL/AREA/AHU) + `
   số liệu = `so_gio_warning + so_gio_critical`), thêm giải thích ở phụ lục thuật ngữ.
 - Lưu ý: workflow tải template từ nhánh `main` → nhãn mới có hiệu lực **sau khi merge nhánh này vào main**.
 
+### Cải tiến chart-render + Gotenberg (04/07/2026)
+
+- **`services/docker-compose.yml`**: dựng CẢ `chart-render` (8081) + `gotenberg` (3000) bằng
+  MỘT lệnh, chung mạng docker n8n, có healthcheck + restart. `services/gotenberg/Dockerfile`
+  thêm **font Noto tiếng Việt** + curl. `services/README.md` + `.env.example` hướng dẫn đầy đủ.
+- **`chart-render/server.js`**: `/render-batch` render **song song có giới hạn** (nhanh hơn khi
+  nhiều sparkline) + **chịu lỗi từng biểu đồ** (1 lỗi không hỏng cả lô — trả `images`+`loi`,
+  n8n tự bù SVG key thiếu); chỉ mở cổng khi chạy trực tiếp (import không bind cổng). Đã test
+  cả 5 loại biểu đồ ra PNG hợp lệ.
+- **Node Gotenberg**: thêm `printBackground=true` (**BẮT BUỘC** — nếu không PDF mất nền header
+  xanh + ô KPI/bất thường có màu) + `preferCssPageSize=true` (dùng `@page A4` của template).
+- **Sửa lỗi `$env` bị chặn** (phát hiện qua execution thật `1674141`: `access to env vars denied`):
+  instance n8n này CHẶN `$env` trong biểu thức → URL `$env.GOTENBERG_URL` LUÔN ném lỗi, PDF không
+  chạy kể cả sau khi dựng Gotenberg. Đã chuyển URL Gotenberg + chart-render (+ token) sang đọc từ
+  `cau_hinh` (keys mới: `gotenberg_url`, `chart_render_url`, `chart_render_token` — đã thêm vào DB).
+  Kiểm chứng execution `1674463`: lỗi đổi từ "access to env vars denied" → "EAI_AGAIN gotenberg"
+  (chỉ là hostname chưa dựng — URL đã resolve đúng), email vẫn gửi OK.
+- **Node Drive**: set tường minh `resource=file`/`operation=upload` (xóa cảnh báo validator; node
+  vốn vẫn chạy bằng giá trị mặc định — lần chạy thật đã gọi API upload, nhận 403 do thư mục root).
+
 ## 2. Việc CẦN NGƯỜI DÙNG làm
 
 - [ ] **Điền 3 email thật** vào bảng `nguoi_nhan_bao_cao` (Supabase Studio → Table Editor)
@@ -51,6 +71,7 @@ Nguồn số liệu đối chiếu thật: `kpi_ngay_scope` (TOTAL/AREA/AHU) + `
 - [ ] **Sửa thư mục Drive**: tạo thư mục/Shared Drive, chia sẻ Editor cho service account
       của credential "kết nối google", đặt `cau_hinh.drive_folder_id_bao_cao` = ID thư mục.
       (Hiện `root` → SA bị 403, file KHÔNG lưu được Drive; email vẫn gửi bình thường.)
-- [ ] (Tùy chọn) Dựng `chart-render` + Gotenberg cạnh n8n để có biểu đồ ECharts + PDF — lệnh trong `n8n/README.md`.
+- [ ] (Tùy chọn) Dựng `chart-render` + Gotenberg: `cd services && cp .env.example .env && docker compose up -d --build`
+      (xem `services/README.md`). Sau đó có biểu đồ ECharts + PDF đính kèm.
 - [ ] (Tùy chọn) Đặt Error workflow = WF4 trong Settings của WF5 v2 (MCP không đặt được mục này).
 - [ ] Merge nhánh `claude/wf5-v2-apply-7zksvj` vào `main` để template nhãn mới + nút web có hiệu lực khi deploy web.

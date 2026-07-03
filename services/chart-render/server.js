@@ -335,31 +335,52 @@ app.post('/render', async (req, res) => {
 
 // BATCH cho n8n (WF5 v2): 1 HTTP Request node lấy ĐỦ mọi biểu đồ của báo cáo.
 // Body: { items: [{key, type, data, options?, width?, height?}] } (tối đa 60 mục)
-// Trả:  { images: { key: "data:image/png;base64,…" } } — Code node thay thẳng
-// vào placeholder {{*_src}} của template (file tự chứa, không cần CID).
+// Trả:  { images: { key: "data:image/png;base64,…" }, loi?: { key: "thông báo" } }
+//   — Code node thay images vào placeholder {{*_src}} của template (file tự chứa,
+//     không cần CID). Biểu đồ nào lỗi thì KHÔNG có trong images → n8n tự vẽ SVG bù.
+// Render SONG SONG có giới hạn (CONCURRENCY) — nhanh hơn tuần tự khi báo cáo có
+// 15+ sparkline, nhưng không nổ RAM/CPU của container nhỏ.
+const CONCURRENCY = Math.min(4, Math.max(1, Number(process.env.RENDER_CONCURRENCY) || 4))
 app.post('/render-batch', async (req, res) => {
-  try {
-    const items = (req.body || {}).items
-    if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'BAD_REQUEST', message: 'Thiếu mảng "items"' })
-    if (items.length > 60) return res.status(400).json({ error: 'BAD_REQUEST', message: 'Tối đa 60 biểu đồ mỗi lần (giữ PDF nhẹ)' })
-    const images = {}
-    for (const it of items) {
-      if (!it || !it.key || !it.type) return res.status(400).json({ error: 'BAD_REQUEST', message: 'Mỗi item cần "key" và "type"' })
-      const png = await renderPng({ type: it.type, data: it.data, options: it.options, width: it.width, height: it.height, theme: it.theme })
-      images[it.key] = 'data:image/png;base64,' + png.toString('base64')
+  const items = (req.body || {}).items
+  if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'BAD_REQUEST', message: 'Thiếu mảng "items"' })
+  if (items.length > 60) return res.status(400).json({ error: 'BAD_REQUEST', message: 'Tối đa 60 biểu đồ mỗi lần (giữ PDF nhẹ)' })
+  for (const it of items) {
+    if (!it || !it.key || !it.type) return res.status(400).json({ error: 'BAD_REQUEST', message: 'Mỗi item cần "key" và "type"' })
+  }
+  const images = {}
+  const loi = {}
+  let idx = 0
+  const worker = async () => {
+    while (idx < items.length) {
+      const it = items[idx++]
+      try {
+        const png = await renderPng({ type: it.type, data: it.data, options: it.options, width: it.width, height: it.height, theme: it.theme })
+        images[it.key] = 'data:image/png;base64,' + png.toString('base64')
+      } catch (e) {
+        // 1 biểu đồ lỗi KHÔNG làm hỏng cả lô — n8n vẽ SVG bù cho key thiếu.
+        loi[it.key] = e.message
+        console.error(`[render-batch] item "${it.key}" (${it.type}) lỗi:`, e.message)
+      }
     }
+  }
+  try {
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker))
     res.set('Cache-Control', 'no-store')
-    res.json({ images })
+    res.json(Object.keys(loi).length ? { images, loi } : { images })
   } catch (e) {
-    const status = e.status || 500
-    if (status >= 500) console.error('[render-batch] lỗi:', e)
-    res.status(status).json({ error: status === 400 ? 'BAD_REQUEST' : 'RENDER_FAILED', message: e.message })
+    console.error('[render-batch] lỗi hệ thống:', e)
+    res.status(500).json({ error: 'RENDER_FAILED', message: e.message })
   }
 })
 
-app.listen(PORT, () => {
-  console.log(`chart-render lắng nghe cổng ${PORT} — POST /render, POST /render-batch, GET /healthz`)
-  if (!TOKEN) console.log('CẢNH BÁO: CHART_RENDER_TOKEN chưa đặt — /render KHÔNG yêu cầu xác thực (chỉ dùng trong mạng nội bộ).')
-})
+// Chỉ mở cổng khi chạy trực tiếp (node server.js). Khi require() để test/nhúng
+// thì KHÔNG bind cổng — tránh EADDRINUSE và tác dụng phụ khi import renderPng.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`chart-render lắng nghe cổng ${PORT} — POST /render, POST /render-batch, GET /healthz (song song ${CONCURRENCY})`)
+    if (!TOKEN) console.log('CẢNH BÁO: CHART_RENDER_TOKEN chưa đặt — /render KHÔNG yêu cầu xác thực (chỉ dùng trong mạng nội bộ).')
+  })
+}
 
 module.exports = { app, renderPng } // cho phép test không cần HTTP

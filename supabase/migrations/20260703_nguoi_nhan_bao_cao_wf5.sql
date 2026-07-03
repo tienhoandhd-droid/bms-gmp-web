@@ -37,7 +37,14 @@ insert into public.nguoi_nhan_bao_cao (ho_ten, email, vai_tro, kich_hoat, ghi_ch
 on conflict (email) do nothing;
 
 -- URL webhook cho nút "Gửi báo cáo bù" trên web (WF5 v2 lắng nghe path này)
+-- + URL các service phụ trợ (WF5 v2 đọc từ đây, KHÔNG dùng $env vì instance chặn $env)
 insert into public.cau_hinh (key, value, mo_ta) values
   ('wf5_webhook_bao_cao_bu', 'https://n8n.cpc1hn.com/webhook/wf5-bao-cao-bu',
-   'URL webhook WF5 v2 — web gọi để gửi báo cáo bù (tháng trước/tuần trước/quý trước) theo yêu cầu')
+   'URL webhook WF5 v2 — web gọi để gửi báo cáo bù (tháng trước/tuần trước/quý trước) theo yêu cầu'),
+  ('gotenberg_url', 'http://gotenberg:3000',
+   'WF5 v2 — URL service Gotenberg (HTML→PDF). Cùng docker network với n8n; đổi nếu host khác.'),
+  ('chart_render_url', 'http://chart-render:8081',
+   'WF5 v2 — URL service chart-render (biểu đồ ECharts PNG). Rỗng/không phản hồi → n8n tự vẽ SVG.'),
+  ('chart_render_token', '',
+   'WF5 v2 — Bearer token chart-render (khớp CHART_RENDER_TOKEN). Rỗng = không gửi header (mạng nội bộ).')
 on conflict (key) do update set value = excluded.value, mo_ta = excluded.mo_ta;

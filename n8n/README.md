@@ -19,13 +19,18 @@
 đã đối chiếu schema thật**) + cấu hình + người nhận (`nguoi_nhan_bao_cao`) → Ráp báo cáo (1 Code node:
 biểu đồ + template + email) → Gotenberg PDF → Drive (PDF + HTML) + Email (tóm tắt + đính kèm) + Nhật ký.
 
-**Thiết kế chịu lỗi (đã kiểm chứng bằng execution thật `1673476`, `1673589`):**
-- **Biểu đồ**: thử service `chart-render` (env `CHART_RENDER_URL`, mặc định `http://chart-render:8081`);
-  không phản hồi → **tự vẽ SVG nội bộ** (line + heatmap lịch + sparkline), báo cáo KHÔNG chết.
-  Email luôn dùng QuickChart PNG (Gmail chặn SVG data-URI).
-- **PDF**: Gotenberg (env `GOTENBERG_URL`, mặc định `http://gotenberg:3000`); lỗi → email
-  **đính kèm HTML thay PDF**, Drive-PDF tự bỏ qua.
+**Thiết kế chịu lỗi (đã kiểm chứng bằng execution thật `1673476`, `1673589`, `1674463`):**
+- **Biểu đồ**: URL từ `cau_hinh.chart_render_url` (mặc định `http://chart-render:8081`, token
+  `cau_hinh.chart_render_token`); không phản hồi → **tự vẽ SVG nội bộ** (line + heatmap lịch +
+  sparkline), báo cáo KHÔNG chết. Email luôn dùng QuickChart PNG (Gmail chặn SVG data-URI).
+- **PDF**: Gotenberg từ `cau_hinh.gotenberg_url` (mặc định `http://gotenberg:3000`); form có
+  `printBackground=true` (giữ nền header xanh + ô KPI màu) + `preferCssPageSize=true` (dùng
+  `@page A4` của template). Lỗi → email **đính kèm HTML thay PDF**, Drive-PDF tự bỏ qua.
 - Drive/Email/Nhật ký chạy song song, node lỗi không chặn node khác (onError continue + retry).
+
+> **KHÔNG dùng `$env`**: instance n8n này CHẶN `$env` trong biểu thức (`access to env vars denied`).
+> Mọi URL/token đọc từ bảng `cau_hinh` — kể cả sau khi dựng service, node vẫn resolve đúng.
+> (Bản đầu dùng `$env.GOTENBERG_URL` sẽ luôn ném lỗi trên instance này → đã sửa.)
 
 ## Người nhận email
 
@@ -34,14 +39,29 @@ Bảng **`nguoi_nhan_bao_cao`** (Supabase): 3 dòng placeholder đã tạo sẵn
 Chưa kích hoạt ai → fallback `cau_hinh.email_bao_cao_thang` / `email_bao_cao_tuan` (hiện: chanbonght@gmail.com).
 FROM lấy từ `cau_hinh.email_gui_tu` (phải trùng tài khoản Gmail SMTP).
 
+## Dựng chart-render + Gotenberg (một lệnh)
+
+Xem `services/README.md`. Tóm tắt:
+
+```bash
+cd services
+cp .env.example .env          # sửa N8N_NETWORK nếu mạng n8n khác 'n8n_default'
+docker compose up -d --build  # dựng CẢ chart-render (8081) + gotenberg (3000)
+docker compose ps             # STATUS phải "healthy"
+```
+
+Cả hai tham gia mạng docker của n8n → n8n gọi bằng tên container (khớp mặc định `cau_hinh`).
+Sau khi dựng, chạy thử lại (Execute Workflow) → PDF đính kèm + biểu đồ ECharts thay SVG fallback.
+Nếu n8n KHÔNG chạy bằng docker: đổi `cau_hinh.gotenberg_url` / `chart_render_url` sang `http://<IP-host>:3000` / `:8081`.
+
 ## Việc còn lại (tùy chọn — nâng chất lượng)
 
 | Việc | Vì sao | Cách làm |
 |---|---|---|
 | **Sửa thư mục Drive** | `drive_folder_id_bao_cao='root'` → service account bị **403** (SA không có quota My Drive riêng) — file hiện KHÔNG lưu được Drive (email vẫn gửi bình thường) | Tạo thư mục Drive (hoặc Shared Drive), **chia sẻ Editor** cho email service account của credential "kết nối google", rồi đặt `cau_hinh.drive_folder_id_bao_cao` = ID thư mục |
-| Dựng `chart-render` | Biểu đồ ECharts PNG đẹp hơn SVG fallback, có dấu tiếng Việt chuẩn font | `docker build -t chart-render services/chart-render && docker run -d --name chart-render --network n8n_default chart-render` |
-| Dựng Gotenberg | Có PDF đính kèm + lưu trữ (hiện đính kèm HTML) | `docker run -d --name gotenberg --network n8n_default gotenberg/gotenberg:8` |
-| errorWorkflow | Báo IT khi WF5 v2 lỗi | Mở workflow Settings → Error workflow → chọn WF4 (`co2ICoNbvwSaGRA7`) — MCP chưa đặt được mục này |
+| **Dựng chart-render + Gotenberg** | Biểu đồ ECharts PNG (dấu tiếng Việt chuẩn) + PDF đính kèm/lưu trữ (hiện SVG + đính kèm HTML) | `cd services && docker compose up -d --build` (xem trên) |
+| Font Be Vietnam Pro | Biểu đồ + PDF đúng font thương hiệu (mặc định đã có Noto Sans phủ đủ dấu) | `sh services/chart-render/fonts/tai-be-vietnam-pro.sh` rồi `docker compose build` |
+| errorWorkflow | Báo IT khi WF5 v2 lỗi chí mạng (Supabase/GitHub/SMTP) | Mở workflow Settings → Error workflow → chọn WF4 (`co2ICoNbvwSaGRA7`) — MCP chưa đặt được mục này |
 
 ## File trong thư mục này
 
