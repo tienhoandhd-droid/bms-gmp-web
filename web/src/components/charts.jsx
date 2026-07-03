@@ -15,11 +15,19 @@ import React, { useRef, useEffect } from "react";
 import * as echarts from "echarts/core";
 import { LineChart, BarChart } from "echarts/charts";
 import {
-  GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, LegendComponent
+  GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, LegendComponent,
+  DataZoomComponent, ToolboxComponent
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 
-echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, LegendComponent, CanvasRenderer]);
+echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, LegendComponent, DataZoomComponent, ToolboxComponent, CanvasRenderer]);
+
+// Toolbox (xuất PNG) + dataZoom (kéo–thu phóng) dùng chung cho biểu đồ xu hướng lớn.
+const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Lưu ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: "#fff" } }, iconStyle: { borderColor: "#94a3b8" }, emphasis: { iconStyle: { borderColor: COLOR.teal } } });
+const dataZoomTruot = (bottom = 6) => ([
+  { type: "inside", filterMode: "none" },
+  { type: "slider", height: 15, bottom, filterMode: "none", brushSelect: false, borderColor: "transparent", fillerColor: "rgba(14,124,115,0.10)", handleSize: "80%", moveHandleSize: 4, dataBackground: { lineStyle: { color: "#cbd5e1" }, areaStyle: { color: "#eef2f6" } }, textStyle: { fontSize: 8, color: "#94a3b8" } },
+]);
 
 // ---- Hằng số thiết kế (bản sao gọn từ App.jsx — chỉ những gì biểu đồ cần) ----
 const COLOR = { navy: "#102A3E", ink: "#33506e", teal: "#0E7C73", sky: "#1E72B8", coral: "#D9534F", coralDeep: "#B3261E", sand: "#C77E12", softCoral: "#D9534F" };
@@ -113,7 +121,9 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "" }) {
   const [ymin, ymax] = complyDomain(data.map((d) => d.comp));
   const option = {
     animation: false,
-    grid: { top: 12, right: 16, bottom: 22, left: 8, containLabel: true },
+    grid: { top: 18, right: 16, bottom: 34, left: 8, containLabel: true },
+    toolbox: toolboxLuuAnh("ty-le-dat" + (idSuffix ? "-" + idSuffix : "")),
+    dataZoom: dataZoomTruot(6),
     tooltip: { trigger: "axis", ...tooltipBase, formatter: (p) => { const v = p[0].data == null ? null : p[0].data; return `${p[0].axisValue}<br/>${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}`; } },
     xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
     yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: "{value}%" } },
@@ -135,7 +145,9 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
   const [ymin, ymax] = complyDomain(allVals);
   const option = {
     animation: false,
-    grid: { top: 12, right: 16, bottom: 34, left: 8, containLabel: true },
+    grid: { top: 20, right: 16, bottom: 34, left: 8, containLabel: true },
+    toolbox: toolboxLuuAnh("ty-le-dat-theo-chi-tieu"),
+    dataZoom: [{ type: "inside", filterMode: "none" }],
     legend: { data: ks.map((k) => SENSOR_META[k].label), bottom: 0, textStyle: { fontSize: 11, color: COLOR.ink }, icon: "roundRect", itemWidth: 14, itemHeight: 3 },
     tooltip: {
       trigger: "axis", ...tooltipBase,
@@ -156,46 +168,75 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
   return <div className={chartWrap} style={{ height: height + 16 }}><EChart option={option} height={height} /></div>;
 }
 
-// ====== Giá trị TB + dải giới hạn (GHD–GHT) cho MỘT chỉ tiêu của phòng ======
-export function RoomBandChart({ sensorKey, series }) {
+// ====== Giá trị TB + dải P5–P95 + trung vị P50 + GHD/GHT + baseline 30 ngày ======
+export function RoomBandChart({ sensorKey, series, baseline }) {
   const unit = SENSOR_META[sensorKey]?.unit || "";
   const color = SENSOR_COLOR[sensorKey] || COLOR.teal;
   const lo = [...series].reverse().find((p) => p.lo != null)?.lo ?? null;
   const hi = [...series].reverse().find((p) => p.hi != null)?.hi ?? null;
   const vals = series.filter((p) => p.avg != null);
   const mean = vals.length ? +(vals.reduce((a, p) => a + p.avg, 0) / vals.length).toFixed(2) : null;
-  const ys = vals.map((p) => p.avg);
-  const yLo = Math.min(...ys, lo == null ? Infinity : lo, hi == null ? Infinity : hi);
-  const yHi = Math.max(...ys, lo == null ? -Infinity : lo, hi == null ? -Infinity : hi);
+  const hasPct = series.some((p) => p.p5 != null && p.p95 != null);   // dữ liệu phân vị (30 phút)
+  const bTb = baseline && baseline.tb != null ? +baseline.tb : null;
+  const bSig = baseline && baseline.sigma != null ? +baseline.sigma : null;
+  // miền y bao gồm avg, GHD/GHT, P5/P95, baseline±σ để không cắt ngọn
+  const dv = [];
+  vals.forEach((p) => dv.push(p.avg));
+  series.forEach((p) => { if (p.p5 != null) dv.push(p.p5); if (p.p95 != null) dv.push(p.p95); });
+  if (lo != null) dv.push(lo); if (hi != null) dv.push(hi);
+  if (bTb != null) { dv.push(bTb + (bSig || 0)); dv.push(bTb - (bSig || 0)); }
+  const yLo = dv.length ? Math.min(...dv) : 0, yHi = dv.length ? Math.max(...dv) : 1;
   const pad = Math.max(0.5, (yHi - yLo) * 0.1);
-  const hasDomain = ys.length && isFinite(yLo) && isFinite(yHi);
+  const hasDomain = dv.length && isFinite(yLo) && isFinite(yHi);
   const markLineData = [];
   if (lo != null) markLineData.push({ yAxis: lo, label: { formatter: `GHD ${lo}`, fontSize: 9, color: COLOR.coralDeep, position: "insideStartBottom" }, lineStyle: { color: COLOR.coral, type: "dashed", width: 1.3 } });
   if (hi != null) markLineData.push({ yAxis: hi, label: { formatter: `GHT ${hi}`, fontSize: 9, color: COLOR.coralDeep, position: "insideStartTop" }, lineStyle: { color: COLOR.coral, type: "dashed", width: 1.3 } });
   if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: COLOR.navy, position: "insideEndTop" }, lineStyle: { color: COLOR.navy, type: "dashed", width: 1.2 } });
+  if (bTb != null) markLineData.push({ yAxis: bTb, label: { formatter: `Nền 30n ${bTb}`, fontSize: 9, color: COLOR.sky, position: "insideEndBottom" }, lineStyle: { color: COLOR.sky, type: "dotted", width: 1.2 } });
+  if (bTb != null && bSig != null && bSig > 0) {
+    markLineData.push({ yAxis: +(bTb + bSig).toFixed(3), label: { show: false }, lineStyle: { color: echarts.color.modifyAlpha(COLOR.sky, 0.5), type: "dotted", width: 1 } });
+    markLineData.push({ yAxis: +(bTb - bSig).toFixed(3), label: { show: false }, lineStyle: { color: echarts.color.modifyAlpha(COLOR.sky, 0.5), type: "dotted", width: 1 } });
+  }
+  const bandSeries = hasPct ? [
+    { name: "_p5", type: "line", stack: "pctl", data: series.map((p) => (p.p5 != null ? p.p5 : "-")), lineStyle: { opacity: 0 }, showSymbol: false, symbol: "none", silent: true, tooltip: { show: false }, z: 1 },
+    { name: "_p90", type: "line", stack: "pctl", data: series.map((p) => (p.p5 != null && p.p95 != null ? +(p.p95 - p.p5).toFixed(4) : "-")), lineStyle: { opacity: 0 }, areaStyle: { color: echarts.color.modifyAlpha(color, 0.13) }, showSymbol: false, symbol: "none", silent: true, tooltip: { show: false }, z: 1 },
+  ] : [];
   const option = {
     animation: false,
-    grid: { top: 10, right: 16, bottom: 22, left: 8, containLabel: true },
+    grid: { top: 14, right: 16, bottom: 34, left: 8, containLabel: true },
+    toolbox: toolboxLuuAnh("gia-tri-" + sensorKey),
+    dataZoom: dataZoomTruot(6),
     tooltip: {
       trigger: "axis", ...tooltipBase,
-      formatter: (ps) => { const v = ps[0].data; if (v == null) return ""; const oob = (lo != null && v < lo) || (hi != null && v > hi); return `<div style="font-weight:600;color:${COLOR.navy}">${ps[0].axisValue}</div><div>TB: <b style="color:${oob ? COLOR.coralDeep : color}">${(+v).toFixed(2)} ${unit}</b>${oob ? ' <span style="color:#e11d48">· ngoài giới hạn</span>' : ""}</div><div style="color:#94a3b8">GHD ${lo == null ? "—" : lo} · GHT ${hi == null ? "—" : hi} ${unit}</div>`; },
+      formatter: (ps) => {
+        const i = ps[0].dataIndex; const p = series[i] || {}; const v = p.avg;
+        if (v == null && p.p50 == null) return "";
+        const oob = (lo != null && v < lo) || (hi != null && v > hi);
+        const pctl = (p.p5 != null && p.p95 != null) ? `<div style="color:#94a3b8">P5–P95: ${(+p.p5).toFixed(2)}–${(+p.p95).toFixed(2)}${p.p50 != null ? ` · P50 ${(+p.p50).toFixed(2)}` : ""}</div>` : "";
+        const base = (bTb != null) ? `<div style="color:${COLOR.sky}">Nền 30n: ${bTb}${bSig != null ? ` ± ${bSig}` : ""} ${unit}</div>` : "";
+        return `<div style="font-weight:600;color:${COLOR.navy}">${ps[0].axisValue}</div><div>TB: <b style="color:${oob ? COLOR.coralDeep : color}">${v == null ? "—" : (+v).toFixed(2)} ${unit}</b>${oob ? ' <span style="color:#e11d48">· ngoài giới hạn</span>' : ""}</div><div style="color:#94a3b8">GHD ${lo == null ? "—" : lo} · GHT ${hi == null ? "—" : hi} ${unit}</div>${pctl}${base}`;
+      },
     },
     xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
     yAxis: { type: "value", scale: true, ...(hasDomain ? { min: +(yLo - pad).toFixed(1), max: +(yHi + pad).toFixed(1) } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: (v) => `${+(+v).toFixed(1)}` } },
-    series: [{
-      type: "line", smooth: true, connectNulls: true, showSymbol: true, symbolSize: 5,
-      data: series.map((p) => ({ value: p.avg, itemStyle: { color: (lo != null && p.avg < lo) || (hi != null && p.avg > hi) ? COLOR.coralDeep : color, borderColor: "#fff", borderWidth: 0.9 } })),
-      lineStyle: { color, width: 2.4 }, areaStyle: { color: gradient(color, 0.16, 0.03) },
-      markArea: (lo != null && hi != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(color, 0.07) }, data: [[{ yAxis: lo }, { yAxis: hi }]] } : undefined,
-      markLine: markLineData.length ? { silent: true, symbol: "none", data: markLineData } : undefined,
-    }],
+    series: [
+      ...bandSeries,
+      ...(hasPct ? [{ name: "P50", type: "line", data: series.map((p) => (p.p50 != null ? p.p50 : null)), connectNulls: true, showSymbol: false, symbol: "none", lineStyle: { color: echarts.color.modifyAlpha(color, 0.55), width: 1, type: "dashed" }, tooltip: { show: false }, z: 2 }] : []),
+      {
+        name: "TB", type: "line", smooth: true, connectNulls: true, showSymbol: true, symbolSize: 5, z: 3,
+        data: series.map((p) => ({ value: p.avg, itemStyle: { color: (lo != null && p.avg < lo) || (hi != null && p.avg > hi) ? COLOR.coralDeep : color, borderColor: "#fff", borderWidth: 0.9 } })),
+        lineStyle: { color, width: 2.4 }, areaStyle: hasPct ? undefined : { color: gradient(color, 0.16, 0.03) },
+        markArea: (lo != null && hi != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(color, 0.06) }, data: [[{ yAxis: lo }, { yAxis: hi }]] } : undefined,
+        markLine: markLineData.length ? { silent: true, symbol: "none", data: markLineData } : undefined,
+      },
+    ],
   };
   return (
     <div>
       <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h4 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[sensorKey]?.label} ({sensorKey})</h4></div>
-      <div className="grid grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Số điểm", `${series.length}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[10px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
+      <div className="grid grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Nền 30n", bTb == null ? "—" : `${bTb}${bSig != null ? `±${bSig}` : ""}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[10px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
       <EChart option={option} height={210} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.35 }} /> Dải giới hạn (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> TB ngoài giới hạn</span></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-500">{hasPct && <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.28 }} /> Dải P5–P95</span>}<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dotted" style={{ borderColor: COLOR.sky }} /> Nền 30 ngày ±σ</span></div>
     </div>
   );
 }
@@ -271,7 +312,7 @@ export function TrendMainChart({ data, range }) {
 export default function LazyChart({ type, ...p }) {
   switch (type) {
     case "oosMini": return <OOSMini data={p.data} />;
-    case "roomBand": return <RoomBandChart sensorKey={p.sensorKey} series={p.series} isHourly={p.isHourly} />;
+    case "roomBand": return <RoomBandChart sensorKey={p.sensorKey} series={p.series} baseline={p.baseline} isHourly={p.isHourly} />;
     case "complyPerMetric": return <ChartComplyPerMetric data={p.data} present={p.present} />;
     case "complyTotal": return <ChartComplyTotal data={p.data} idSuffix={p.idSuffix} />;
     case "miniArea": return <MiniArea data={p.data} />;
