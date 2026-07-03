@@ -16,7 +16,7 @@ import { supabase } from '../lib/bmsClient'
 import {
   layTongQuan, laySuCoDangMo, layCanhBaoHeThong, layNhatKyThaoTac, layLichSuCauHinh,
   layDanhSachPhong, layThongKeSensorPhong, layXepHangRuiRo, layQuyTrinhSop, layBaoCaoAi,
-  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong,
+  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp,
 } from '../lib/supabaseData'
 
 const ENRICH_TTL_MS = 4 * 60 * 1000   // thống kê 8h chỉ đổi mỗi giờ → cache 4'
@@ -44,6 +44,8 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
   const [aiRows, setAiRows] = useState(null)
   const [nguong, setNguong] = useState(null)
   const [sucKhoe, setSucKhoe] = useState(null)
+  const [gmpMkt, setGmpMkt] = useState(null)
+  const [gmpSpc, setGmpSpc] = useState(null)
   const [batBuocDangNhap, setBatBuocDangNhap] = useState(false)
   const [dangTai, setDangTai] = useState(false)
   const [loi, setLoi] = useState(null)
@@ -96,13 +98,13 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
     const signal = ctrl.signal
     if (!nen) setDangTai(true)
     setLoi(null)
-    const [tq, sc, cb, nk, ls, ph, rr, sop, ai, ng, sk] = await Promise.all([
+    const [tq, sc, cb, nk, ls, ph, rr, sop, ai, ng, sk, pg] = await Promise.all([
       layTongQuan(signal), laySuCoDangMo(signal), layCanhBaoHeThong(signal), layNhatKyThaoTac(signal), layLichSuCauHinh(signal),
       layDanhSachPhong(signal), layXepHangRuiRo(signal), layQuyTrinhSop(signal), layBaoCaoAi(signal), layNguongCanhBao(signal),
-      laySucKhoeHeThong(null, signal),
+      laySucKhoeHeThong(null, signal), layPhanTichGmp(signal),
     ])
     if (huy.current || signal.aborted) return
-    const cacLoi = [tq, sc, cb, nk, ls, ph, rr, sop, ai, ng, sk].map((x) => x.error).filter(Boolean)
+    const cacLoi = [tq, sc, cb, nk, ls, ph, rr, sop, ai, ng, sk, pg].map((x) => x.error).filter(Boolean)
     const loiThat = cacLoi.find((e) => e && e.name !== 'AbortError')
     if (loiThat) setLoi(loiThat)
     if (tq.kpis) setKpis(tq.kpis)
@@ -115,6 +117,8 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
     if (ai.rows) setAiRows(ai.rows)
     if (ng.cfg) setNguong(ng.cfg)
     if (sk.suc_khoe) setSucKhoe(sk.suc_khoe)
+    if (pg.mkt) setGmpMkt(pg.mkt)
+    if (pg.spc) setGmpSpc(pg.spc)
     if (ph.rooms) {
       try {
         const full = await lamGiauPhong(ph.rooms, { batBuoc: !tuDong, signal })   // manual ⇒ làm mới ngay; auto ⇒ theo TTL
@@ -166,7 +170,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
 
   return {
     isLive, kpis, incidents, systemAlerts, audit, configHistory,
-    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, batBuocDangNhap,
+    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, gmpMkt, gmpSpc, batBuocDangNhap,
     dangTai, loi, capNhatLuc, lamMoi,
   }
 }

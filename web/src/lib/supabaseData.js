@@ -314,6 +314,39 @@ export async function layXepHangRuiRo(signal) {
 }
 
 // ============================================================
+// PHÂN TÍCH GMP SÂU: MKT (ICH Q1A) + SPC (EWMA/CUSUM/Nelson)
+// Đọc view xem_mkt_phong + xem_spc_canh_bao (tất định, nạp bởi job đêm).
+// Trả { error, mkt:[{ma_phong,ten_phong,khu_vuc,muc_uu_tien,mkt,tTb,tMax}],
+//       spc:[{scope_type,scope_id,ten_scope,sensor_type,mucTieu,sigma,soTinHieu,cacLoai}] }
+// ============================================================
+export async function layPhanTichGmp(signal) {
+  const [mktR, spcR] = await Promise.all([
+    docView('xem_mkt_phong',
+      (q) => q.select('ma_phong,ten_phong,khu_vuc,muc_uu_tien,mkt_30ngay,t_tb_30ngay,t_max_30ngay')
+              .not('mkt_30ngay', 'is', null).order('mkt_30ngay', { ascending: false }).limit(20),
+      { signal }),
+    docView('xem_spc_canh_bao',
+      (q) => q.select('scope_type,scope_id,ten_scope,sensor_type,muc_tieu,sigma,in_control,so_tin_hieu,cac_loai')
+              .eq('in_control', false).order('so_tin_hieu', { ascending: false }).limit(20),
+      { signal }),
+  ])
+  const err = mktR.error || spcR.error
+  const mkt = (mktR.data || []).map((r) => ({
+    ma_phong: r.ma_phong, ten_phong: r.ten_phong, khu_vuc: r.khu_vuc, muc_uu_tien: r.muc_uu_tien,
+    mkt: r.mkt_30ngay != null ? Number(r.mkt_30ngay) : null,
+    tTb: r.t_tb_30ngay != null ? Number(r.t_tb_30ngay) : null,
+    tMax: r.t_max_30ngay != null ? Number(r.t_max_30ngay) : null,
+  }))
+  const spc = (spcR.data || []).map((r) => ({
+    scope_type: r.scope_type, scope_id: r.scope_id, ten_scope: r.ten_scope, sensor_type: r.sensor_type,
+    mucTieu: r.muc_tieu != null ? Number(r.muc_tieu) : null,
+    sigma: r.sigma != null ? Number(r.sigma) : null,
+    soTinHieu: r.so_tin_hieu ?? 0, cacLoai: r.cac_loai || '',
+  }))
+  return { error: err && err.name !== 'AbortError' ? err : null, mkt, spc }
+}
+
+// ============================================================
 // CHUỖI GIÁ TRỊ TRUNG BÌNH + GIỚI HẠN của 1 PHÒNG · 1 CẢM BIẾN  (#4)
 // RPC: rpc_chuoi_gia_tri_phong(p_ma_phong, p_sensor, p_don_vi, p_so_diem)
 // donVi: 'GIO' (N giờ) | 'NGAY' (N ngày). sensor: DP/RH/T (cụ thể).
