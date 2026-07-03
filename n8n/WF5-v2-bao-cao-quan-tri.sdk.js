@@ -119,6 +119,7 @@ const docSoLieu = node({
   public.cfg_text('gotenberg_url','http://gotenberg:3000')         AS gotenberg_url,
   public.cfg_text('chart_render_url','http://chart-render:8081')   AS chart_render_url,
   public.cfg_text('chart_render_token','')                         AS chart_render_token,
+  public.cfg_text('web_app_url','')                                AS web_app_url,
   CASE WHEN upper($1) = 'TUAN' THEN public.cfg_text('email_bao_cao_tuan','')
        ELSE public.cfg_text('email_bao_cao_thang','') END          AS email_fallback,
   (SELECT string_agg(n.ho_ten || ' <' || n.email || '>', ', ')
@@ -227,10 +228,11 @@ function svgLich(points, w, h) {
   return uri(svg);
 }
 const goc = 'https://raw.githubusercontent.com/tienhoandhd-droid/bms-gmp-web/main/report-templates/';
-let tplChiTietGoc, tplEmailGoc;
+let tplChiTietGoc, tplEmailGoc, tplDashboardGoc;
 try {
   tplChiTietGoc = await this.helpers.httpRequest({ url: goc + 'bao-cao-scorecard.html', json: false });
   tplEmailGoc = await this.helpers.httpRequest({ url: goc + 'email-bao-cao.html', json: false });
+  tplDashboardGoc = await this.helpers.httpRequest({ url: goc + 'dashboard-tuong-tac.html', json: false });
 } catch (e) {
   throw new Error('Không tải được template từ GitHub raw (' + (e.message || e) + ') — kiểm tra mạng của n8n hoặc quyền repo.');
 }
@@ -287,13 +289,6 @@ for (let i = 0; i < items.length; i++) {
   topTot.forEach((ph) => { const k = 'spark_tot_' + ph.ma_phong; if (!anh[k]) anh[k] = svgSpark(ph.chuoi, 240, 72); });
   theoKhu.forEach((kv) => { const k = 'khu_' + kv.khu_vuc; if (!anh[k]) anh[k] = svgSpark(kv.chuoi, 320, 90); });
   theoAhu.forEach((av) => { const k = 'ahu_' + av.ahu; if (!anh[k]) anh[k] = svgSpark(av.chuoi, 320, 90); });
-  let qcBase = String(d.qc_base || 'https://quickchart.io');
-  while (qcBase.endsWith('/')) qcBase = qcBase.slice(0, -1);
-  const qcCfg = { type: 'line', data: { labels: lineData.map((r) => String(r.ngay).slice(5)), datasets: [
-    { label: '% dat', data: lineData.map((r) => (r.ty_le == null ? null : +r.ty_le)), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,0.12)', fill: true, tension: 0.3, pointRadius: 0 },
-    { label: 'Nguong 80%', data: lineData.map(() => 80), borderColor: '#d97706', borderDash: [6, 4], pointRadius: 0, fill: false }
-  ] }, options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { suggestedMin: 0, suggestedMax: 100 } } } };
-  const chartEmail = qcBase + '/chart?w=900&h=280&bkg=white&c=' + encodeURIComponent(JSON.stringify(qcCfg));
   const k1 = bc.kpi_ky_nay || {}, k0 = bc.kpi_ky_truoc || {};
   const sc = bc.su_co || {};
   const dq = bc.do_phu_du_lieu || {};
@@ -306,11 +301,13 @@ for (let i = 0; i < items.length; i++) {
   const dOos = (k1.so_gio_oos != null && k0.so_gio_oos != null) ? (k1.so_gio_oos - k0.so_gio_oos) : null;
   const dSuCo = (sc.mo_trong_ky != null && sc.mo_ky_truoc != null) ? (sc.mo_trong_ky - sc.mo_ky_truoc) : null;
   const linkDrive = (d.folder_id && d.folder_id !== 'root') ? ('https://drive.google.com/drive/folders/' + d.folder_id) : 'https://drive.google.com/drive/my-drive';
+  const webUrl = String(d.web_app_url || '').trim();
+  const linkDashboard = webUrl ? (webUrl + (webUrl.indexOf('?') >= 0 ? '&' : '?') + 'bao_cao=' + meta.ky + '&tu=' + meta.tu + '&den=' + meta.den) : linkDrive;
   const tongTinHieu = spc.tong_tin_hieu || 0;
   const rep = {
     ky: meta.ky, ky_bao_cao: meta.ky_bao_cao, tu_ngay: meta.tu_hienthi, den_ngay: meta.den_hienthi,
     tu_ngay_iso: meta.tu, den_ngay_iso: meta.den, tao_luc: meta.tao_luc, ma_lan_chay: meta.ma_lan_chay,
-    ten_file_pdf: meta.ten_file + '.pdf', logo_src: '', link_drive: linkDrive,
+    ten_file_pdf: meta.ten_file + '.pdf', logo_src: '', link_drive: linkDrive, link_dashboard: linkDashboard,
     kpi_tuan_thu: fmt(k1.ty_le_tuan_thu), kpi_tuan_thu_mau: mau(k1.ty_le_tuan_thu),
     delta_tuan_thu: (dTuanThu == null ? '—' : (dTuanThu > 0 ? '+' : '') + dTuanThu + '%'),
     delta_tuan_thu_mau: deltaMau(dTuanThu, true), delta_tuan_thu_mui_ten: muiTen(dTuanThu),
@@ -359,16 +356,20 @@ for (let i = 0; i < items.length; i++) {
   tplChiTiet = thay(tplChiTiet, rep);
   tplEmail = each(tplEmail, 'top_phong_xau', topXau, (t, r) => thay(t, Object.assign({}, r, { ty_le_tuan_thu: fmt(r.ty_le_tuan_thu), so_gio_oos: (r.so_gio_oos == null ? '—' : r.so_gio_oos), mau: mau(r.ty_le_tuan_thu), delta: '—', delta_mau: '#64748b' })));
   tplEmail = each(tplEmail, 'bat_thuong_tom_tat', batThuong.slice(0, 5), (t, r) => thay(t, Object.assign({}, r, { tuan_thu_ky_nay: fmt(r.tuan_thu_ky_nay), delta: (r.delta == null ? '—' : (r.delta > 0 ? '+' : '') + fmt(r.delta) + '%'), ly_do: (r.ly_do || []).join(' · ') })));
-  tplEmail = thay(tplEmail, Object.assign({}, rep, { chart_line_src: chartEmail }));
+  tplEmail = thay(tplEmail, rep);
+  // ---- Dashboard TƯƠNG TÁC: nhúng JSON báo cáo (escape '<' để không phá </script>) ----
+  const duLieuDashboard = JSON.stringify({ meta: meta, bc: bc }).replace(/</g, '\\u003c');
+  const tplDashboard = tplDashboardGoc.replace('{{DATA_JSON}}', duLieuDashboard);
   const emailTo = String(d.nguoi_nhan || '').trim() || String(d.email_fallback || '').trim();
   const binHtml = await this.helpers.prepareBinaryData(Buffer.from(tplChiTiet, 'utf8'), 'index.html', 'text/html');
+  const binDashboard = await this.helpers.prepareBinaryData(Buffer.from(tplDashboard, 'utf8'), 'dashboard.html', 'text/html');
   out.push({
     json: Object.assign({}, meta, {
       folder_id: d.folder_id, email_tu: d.email_tu, email_to: emailTo,
-      html_email: tplEmail, nguon_chart: nguonChart,
+      html_email: tplEmail, nguon_chart: nguonChart, link_dashboard: linkDashboard,
       tieu_de_email: '[BMS-GMP] Báo cáo ' + meta.ky_bao_cao + ' — tuân thủ ' + rep.kpi_tuan_thu + '% ' + rep.delta_tuan_thu_mui_ten + rep.delta_tuan_thu,
     }),
-    binary: { bao_cao_html: binHtml },
+    binary: { bao_cao_html: binHtml, dashboard_html: binDashboard },
     pairedItem: { item: i }
   });
 }
@@ -433,6 +434,8 @@ for (let i = 0; i < rap.length; i++) {
   const gocItem = rap[i];
   const binary = {};
   binary.bao_cao_html = Object.assign({}, gocItem.binary.bao_cao_html, { fileName: gocItem.json.ten_file + '.html' });
+  // Dashboard tương tác (đính kèm + lưu Drive)
+  binary.dashboard_html = Object.assign({}, gocItem.binary.dashboard_html, { fileName: 'Dashboard-' + gocItem.json.ten_file + '.html' });
   const pdfBin = pdfItems[i] && pdfItems[i].binary && pdfItems[i].binary.bao_cao_pdf;
   if (pdfBin) {
     binary.bao_cao_pdf = Object.assign({}, pdfBin, { fileName: gocItem.json.ten_file + '.pdf', mimeType: 'application/pdf' });
@@ -478,7 +481,7 @@ const driveHtml = node({
   type: 'n8n-nodes-base.googleDrive',
   version: 3,
   config: {
-    name: 'Drive — lưu HTML',
+    name: 'Drive — lưu Dashboard',
     position: [360, 380],
     onError: 'continueRegularOutput',
     retryOnFail: true,
@@ -488,15 +491,15 @@ const driveHtml = node({
       resource: 'file',
       operation: 'upload',
       authentication: 'serviceAccount',
-      inputDataFieldName: 'bao_cao_html',
-      name: expr('{{ $json.ten_file }}.html'),
+      inputDataFieldName: 'dashboard_html',
+      name: expr('Dashboard-{{ $json.ten_file }}.html'),
       driveId: { __rl: true, mode: 'list', value: 'My Drive' },
       folderId: { __rl: true, mode: 'id', value: expr('{{ $json.folder_id }}') },
       options: {}
     },
     credentials: { googleApi: { id: 'uqbMxdAY6BDmg4Ez', name: 'kết nối google' } }
   },
-  output: [{ id: '1XyZ', name: 'BaoCao-GMP-THANG-2026-06-30.html' }]
+  output: [{ id: '1XyZ', name: 'Dashboard-BaoCao-GMP-THANG-2026-06-30.html' }]
 });
 
 const coNguoiNhan = ifElse({
@@ -533,7 +536,7 @@ const guiEmail = node({
       html: expr('{{ $json.html_email }}'),
       options: {
         appendAttribution: false,
-        fileAttachments: expr("{{ $json.co_pdf ? 'bao_cao_pdf' : 'bao_cao_html' }}")
+        fileAttachments: expr("{{ ($json.co_pdf ? 'bao_cao_pdf' : 'bao_cao_html') + ',dashboard_html' }}")
       }
     },
     credentials: { smtp: { id: 'sTnd4TyfGjyiau4W', name: 'Gmail SMTP' } }

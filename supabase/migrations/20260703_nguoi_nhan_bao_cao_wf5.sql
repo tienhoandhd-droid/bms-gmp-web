@@ -46,5 +46,7 @@ insert into public.cau_hinh (key, value, mo_ta) values
   ('chart_render_url', 'http://chart-render:8081',
    'WF5 v2 — URL service chart-render (biểu đồ ECharts PNG). Rỗng/không phản hồi → n8n tự vẽ SVG.'),
   ('chart_render_token', '',
-   'WF5 v2 — Bearer token chart-render (khớp CHART_RENDER_TOKEN). Rỗng = không gửi header (mạng nội bộ).')
+   'WF5 v2 — Bearer token chart-render (khớp CHART_RENDER_TOKEN). Rỗng = không gửi header (mạng nội bộ).'),
+  ('web_app_url', '',
+   'WF5 v2 — URL web dashboard (nút "Mở dashboard tương tác" trong email). Rỗng → email dùng link thư mục Drive.')
 on conflict (key) do update set value = excluded.value, mo_ta = excluded.mo_ta;
