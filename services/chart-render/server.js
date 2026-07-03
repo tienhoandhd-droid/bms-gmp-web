@@ -309,12 +309,14 @@ app.get('/healthz', (_req, res) => res.json({ ok: true, service: 'chart-render',
 
 // Bearer auth (tùy chọn): đặt CHART_RENDER_TOKEN thì mọi POST /render phải kèm
 // header "Authorization: Bearer <token>". Không đặt → bỏ qua kiểm tra.
-app.use('/render', (req, res, next) => {
+const kiemTraToken = (req, res, next) => {
   if (!TOKEN) return next()
   const got = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
   if (got !== TOKEN) return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Thiếu hoặc sai Bearer token (CHART_RENDER_TOKEN)' })
   next()
-})
+}
+app.use('/render', kiemTraToken)
+app.use('/render-batch', kiemTraToken)
 
 app.post('/render', async (req, res) => {
   try {
@@ -331,8 +333,32 @@ app.post('/render', async (req, res) => {
   }
 })
 
+// BATCH cho n8n (WF5 v2): 1 HTTP Request node lấy ĐỦ mọi biểu đồ của báo cáo.
+// Body: { items: [{key, type, data, options?, width?, height?}] } (tối đa 60 mục)
+// Trả:  { images: { key: "data:image/png;base64,…" } } — Code node thay thẳng
+// vào placeholder {{*_src}} của template (file tự chứa, không cần CID).
+app.post('/render-batch', async (req, res) => {
+  try {
+    const items = (req.body || {}).items
+    if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'BAD_REQUEST', message: 'Thiếu mảng "items"' })
+    if (items.length > 60) return res.status(400).json({ error: 'BAD_REQUEST', message: 'Tối đa 60 biểu đồ mỗi lần (giữ PDF nhẹ)' })
+    const images = {}
+    for (const it of items) {
+      if (!it || !it.key || !it.type) return res.status(400).json({ error: 'BAD_REQUEST', message: 'Mỗi item cần "key" và "type"' })
+      const png = await renderPng({ type: it.type, data: it.data, options: it.options, width: it.width, height: it.height, theme: it.theme })
+      images[it.key] = 'data:image/png;base64,' + png.toString('base64')
+    }
+    res.set('Cache-Control', 'no-store')
+    res.json({ images })
+  } catch (e) {
+    const status = e.status || 500
+    if (status >= 500) console.error('[render-batch] lỗi:', e)
+    res.status(status).json({ error: status === 400 ? 'BAD_REQUEST' : 'RENDER_FAILED', message: e.message })
+  }
+})
+
 app.listen(PORT, () => {
-  console.log(`chart-render lắng nghe cổng ${PORT} — POST /render, GET /healthz`)
+  console.log(`chart-render lắng nghe cổng ${PORT} — POST /render, POST /render-batch, GET /healthz`)
   if (!TOKEN) console.log('CẢNH BÁO: CHART_RENDER_TOKEN chưa đặt — /render KHÔNG yêu cầu xác thực (chỉ dùng trong mạng nội bộ).')
 })
 

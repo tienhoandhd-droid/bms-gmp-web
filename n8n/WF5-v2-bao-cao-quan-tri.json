@@ -1,0 +1,205 @@
+{
+  "name": "BMS WF5 v2 — Báo cáo quản trị tuần/tháng/quý (scorecard + PDF + email)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 7 * * 1" },
+            { "field": "cronExpression", "expression": "15 7 1 * *" }
+          ]
+        }
+      },
+      "id": "wf5v2-schedule",
+      "name": "Lịch chạy (T2 07:00 tuần · ngày 1 07:15 tháng/quý)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1080, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ====== Xác định KỲ BÁO CÁO theo giờ VN ======\n// Ngày 1 hằng tháng → THANG (ngày 1 của T1/4/7/10 → QUY, gộp cả quý trước).\n// Thứ 2 hằng tuần → TUAN (tuần trước, T2→CN).\nconst VN = 7 * 3600 * 1000;\nconst now = new Date(Date.now() + VN); // 'giờ VN' trên trục UTC\nconst d = (x) => x.toISOString().slice(0, 10);\nconst utc = (y, m, day) => new Date(Date.UTC(y, m, day));\nlet ky, tu, den, nhan;\nif (now.getUTCDate() === 1) {\n  const th = now.getUTCMonth(); // 0-11, tháng hiện tại (đầu tháng)\n  if ([0, 3, 6, 9].includes(th)) {\n    ky = 'QUY';\n    const qEndMonth = th; // tháng đầu quý mới → quý trước kết thúc tháng th-1\n    den = d(utc(now.getUTCFullYear(), qEndMonth, 0));\n    tu = d(utc(now.getUTCFullYear(), qEndMonth - 3, 1));\n    nhan = `QUÝ ${Math.floor((qEndMonth - 3) / 3) + 1}/${new Date(tu).getUTCFullYear()}`;\n  } else {\n    ky = 'THANG';\n    den = d(utc(now.getUTCFullYear(), th, 0));\n    tu = d(utc(now.getUTCFullYear(), th - 1, 1));\n    nhan = `THÁNG ${String(th === 0 ? 12 : th).padStart(2, '0')}/${new Date(tu).getUTCFullYear()}`;\n  }\n} else {\n  ky = 'TUAN';\n  const dow = now.getUTCDay() || 7; // 1=T2\n  const mon = utc(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dow + 1 - 7);\n  const sun = utc(mon.getUTCFullYear(), mon.getUTCMonth(), mon.getUTCDate() + 6);\n  tu = d(mon); den = d(sun);\n  // số tuần ISO gần đúng\n  const jan1 = utc(mon.getUTCFullYear(), 0, 1);\n  const tuanSo = Math.ceil(((mon - jan1) / 86400000 + jan1.getUTCDay() + 1) / 7);\n  nhan = `TUẦN ${tuanSo}/${mon.getUTCFullYear()}`;\n}\nconst maLanChay = `WF5-${ky}-${den}-${$execution.id}`;\nreturn [{ json: {\n  ky, tu, den, ky_bao_cao: nhan,\n  tu_hienthi: tu.split('-').reverse().join('/'), den_hienthi: den.split('-').reverse().join('/'),\n  tao_luc: new Date(Date.now() + VN).toISOString().slice(0, 16).replace('T', ' '),\n  ma_lan_chay: maLanChay,\n  ten_file: `BaoCao-GMP-${ky}-${den}`,\n} }];"
+      },
+      "id": "wf5v2-ky",
+      "name": "Xác định kỳ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-860, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT public.rpc_bao_cao_tong_hop('{{ $json.ky }}', '{{ $json.tu }}'::date, '{{ $json.den }}'::date)::text AS bao_cao;",
+        "options": {}
+      },
+      "id": "wf5v2-rpc",
+      "name": "Supabase — rpc_bao_cao_tong_hop",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [-640, 0],
+      "credentials": {
+        "postgres": { "id": "TODO_GAN_CREDENTIAL", "name": "Supabase Postgres (dùng chung WF1)" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ====== Chuẩn bị: parse JSON RPC + danh sách biểu đồ cho /render-batch ======\nconst meta = $('Xác định kỳ').first().json;\nconst bc = JSON.parse($json.bao_cao); // toàn bộ số liệu — 1 nguồn duy nhất\nconst mau = (v) => (v == null ? '#94a3b8' : v >= 95 ? '#0d9488' : v >= 80 ? '#d97706' : '#b91c1c');\nconst items = [];\nconst lineData = (bc.xu_huong?.nha_may || bc.chuoi_ngay || []).map((r) => ({ label: (r.ngay || '').slice(5).split('-').reverse().join('/'), value: r.ty_le }));\nitems.push({ key: 'chart_line', type: 'line', data: lineData, options: { markLine80: true }, width: 1200, height: 340 });\nitems.push({ key: 'chart_line_email', type: 'line', data: lineData, options: { markLine80: true }, width: 900, height: 280 });\nitems.push({ key: 'chart_heat', type: 'calendarHeatmap', data: (bc.xu_huong?.nha_may || bc.chuoi_ngay || []).map((r) => ({ ngay: r.ngay, gia_tri: r.ty_le })), width: 1200, height: 260 });\nfor (const ph of (bc.top_phong_xau || bc.top_phong_rui_ro || [])) items.push({ key: `spark_xau_${ph.ma_phong}`, type: 'sparkline', data: (ph.chuoi || []).map((r) => ({ label: r.ngay, value: r.ty_le })), width: 240, height: 72 });\nfor (const ph of (bc.top_phong_tot || [])) items.push({ key: `spark_tot_${ph.ma_phong}`, type: 'sparkline', data: (ph.chuoi || []).map((r) => ({ label: r.ngay, value: r.ty_le })), width: 240, height: 72 });\nfor (const k of (bc.xu_huong?.theo_khu || [])) items.push({ key: `khu_${k.khu_vuc}`, type: 'sparkline', data: (k.chuoi || []).map((r) => ({ label: r.ngay, value: r.ty_le })), width: 320, height: 90 });\nfor (const a of (bc.xu_huong?.theo_ahu || [])) items.push({ key: `ahu_${a.ahu}`, type: 'sparkline', data: (a.chuoi || []).map((r) => ({ label: r.ngay, value: r.ty_le })), width: 320, height: 90 });\nreturn [{ json: { ...meta, bao_cao: bc, render_items: items, mau_fn_ghi_chu: 'mau() tính lại ở node Ráp' } }];"
+      },
+      "id": "wf5v2-chuanbi",
+      "name": "Chuẩn bị biểu đồ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-420, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CHART_RENDER_URL || 'http://chart-render:8081' }}/render-batch",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ items: $json.render_items }) }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "wf5v2-charts",
+      "name": "chart-render /render-batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/tienhoandhd-droid/bms-gmp-web/main/report-templates/bao-cao-scorecard.html",
+        "options": { "response": { "response": { "responseFormat": "text", "outputPropertyName": "tpl_chi_tiet" } } }
+      },
+      "id": "wf5v2-tpl1",
+      "name": "Tải template chi tiết (GitHub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/tienhoandhd-droid/bms-gmp-web/main/report-templates/email-bao-cao.html",
+        "options": { "response": { "response": { "responseFormat": "text", "outputPropertyName": "tpl_email" } } }
+      },
+      "id": "wf5v2-tpl2",
+      "name": "Tải template email (GitHub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 380]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "id": "wf5v2-merge",
+      "name": "Gộp (charts + templates)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [20, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ====== RÁP BÁO CÁO: thay placeholder + nhân bản {{#each}} ======\nconst all = $input.all();\nconst nguon = Object.assign({}, ...all.map((i) => i.json));\nconst meta = $('Chuẩn bị biểu đồ').first().json;\nconst bc = meta.bao_cao;\nconst anh = nguon.images || {};\nlet tplChiTiet = nguon.tpl_chi_tiet;\nlet tplEmail = nguon.tpl_email;\nif (!tplChiTiet || !tplEmail) throw new Error('Thiếu template từ GitHub — kiểm tra 2 node Tải template');\nconst mau = (v) => (v == null ? '#94a3b8' : v >= 95 ? '#0d9488' : v >= 80 ? '#d97706' : '#b91c1c');\nconst fmt = (v, d = 1) => (v == null ? '—' : (+v).toFixed(d));\nconst muiTen = (v) => (v == null ? '' : v > 0 ? '▲' : v < 0 ? '▼' : '＝');\nconst deltaMau = (v, totKhiTang) => (v == null ? '#64748b' : (totKhiTang ? v >= 0 : v <= 0) ? '#0d9488' : '#b91c1c');\n// ---- KPI + delta ----\nconst k1 = bc.kpi_ky_nay || {}, k0 = bc.kpi_ky_truoc || {};\nconst dTuanThu = (k1.ty_le_tuan_thu != null && k0.ty_le_tuan_thu != null) ? +(k1.ty_le_tuan_thu - k0.ty_le_tuan_thu).toFixed(1) : null;\nconst dOos = (k1.so_gio_oos != null && k0.so_gio_oos != null) ? +(k1.so_gio_oos - k0.so_gio_oos).toFixed(1) : null;\nconst dSuCo = (k1.so_su_co != null && k0.so_su_co != null) ? (k1.so_su_co - k0.so_su_co) : null;\nconst dq = bc.do_phu_du_lieu || {};\nconst mktMax = (bc.mkt || [])[0] || {};\nconst batThuong = bc.phong_xau_bat_thuong || [];\nconst ngoaiLe = bc.ngoai_le || { tong_so: 0, theo_loai: [], chi_tiet: [] };\nconst LOAI_VI = { SENSOR_DUNG_HINH: 'Cảm biến đứng hình (giá trị không đổi bất thường)', FMS_HTTP_LOI: 'Lỗi kết nối FMS (mất phiên lấy dữ liệu)', MAT_DU_LIEU: 'Khoảng trống dữ liệu' };\nconst rep = {\n  ky: meta.ky, ky_bao_cao: meta.ky_bao_cao, tu_ngay: meta.tu_hienthi, den_ngay: meta.den_hienthi,\n  tu_ngay_iso: meta.tu, den_ngay_iso: meta.den, tao_luc: meta.tao_luc, ma_lan_chay: meta.ma_lan_chay,\n  ten_file_pdf: meta.ten_file + '.pdf', logo_src: anh.logo || '',\n  kpi_tuan_thu: fmt(k1.ty_le_tuan_thu), kpi_tuan_thu_mau: mau(k1.ty_le_tuan_thu),\n  delta_tuan_thu: (dTuanThu == null ? '—' : (dTuanThu > 0 ? '+' : '') + dTuanThu + '%'), delta_tuan_thu_mau: deltaMau(dTuanThu, true), delta_tuan_thu_mui_ten: muiTen(dTuanThu),\n  kpi_gio_oos: fmt(k1.so_gio_oos, 0) + 'h', delta_oos: (dOos == null ? '—' : (dOos > 0 ? '+' : '') + dOos + 'h'), delta_oos_mau: deltaMau(dOos, false), delta_oos_mui_ten: muiTen(dOos),\n  so_su_co_mo: k1.so_su_co_mo ?? '—', so_su_co_dong: k1.so_su_co_dong ?? '—', delta_su_co: (dSuCo == null ? '—' : (dSuCo > 0 ? '+' : '') + dSuCo), delta_su_co_mau: deltaMau(dSuCo, false), delta_su_co_mui_ten: muiTen(dSuCo), mttr_gio: fmt(k1.mttr_gio),\n  so_tin_hieu_spc: (bc.spc || {}).tong_tin_hieu ?? 0, kpi_spc_mau: ((bc.spc || {}).tong_tin_hieu || 0) > 0 ? '#d97706' : '#0d9488', so_scope_ngoai_ks: (bc.spc || {}).so_scope_ngoai_kiem_soat ?? 0,\n  kpi_dq: fmt(dq.dq_tb_pct), kpi_dq_mau: mau(dq.dq_tb_pct), so_ngay_thieu_dl: dq.so_ngay_thieu ?? '—',\n  phong_thieu_dl: (dq.phong_thieu_nhat || []).map((p) => `${p.ma_phong} (${fmt(p.dq_pct)}%)`).join(', ') || '—',\n  kpi_mkt_max: fmt(mktMax.mkt, 2), kpi_mkt_mau: mktMax.mkt != null && mktMax.mkt > 25 ? '#b91c1c' : '#0f172a', kpi_mkt_phong: mktMax.ma_phong || '—',\n  chart_line_src: anh.chart_line || '', chart_heat_src: anh.chart_heat || '',\n  nhan_dinh_ai: (bc.nhan_dinh_ai_gan_nhat || {}).noi_dung || 'Chưa có nhận định AI trong kỳ.',\n  ai_model_dung: (bc.nhan_dinh_ai_gan_nhat || {}).model_dung || '—', ai_tao_luc: (bc.nhan_dinh_ai_gan_nhat || {}).tao_luc || '—',\n  so_phong_bat_thuong: batThuong.length, so_ngoai_le: ngoaiLe.tong_so ?? 0,\n  ket_luan_kiem_soat: (((bc.spc || {}).tong_tin_hieu || 0) === 0 && batThuong.length === 0) ? 'Duy trì trạng thái kiểm soát trong kỳ — không có tín hiệu SPC, không có phòng xấu đi bất thường.' : `CÓ XU HƯỚNG BẤT LỢI cần điều tra: ${(bc.spc || {}).tong_tin_hieu || 0} tín hiệu SPC, ${batThuong.length} phòng xấu đi bất thường (mục 6) — QA lập phiếu điều tra/deviation trước kỳ tiếp theo.`,\n  tom_tat_dieu_hanh: `Kỳ ${meta.ky_bao_cao}: tuân thủ toàn nhà máy ${fmt(k1.ty_le_tuan_thu)}% (${dTuanThu == null ? 'không so được kỳ trước' : (dTuanThu >= 0 ? 'tăng ' : 'giảm ') + Math.abs(dTuanThu) + ' điểm so kỳ trước'}), ${fmt(k1.so_gio_oos, 0)} giờ OOS, ${k1.so_su_co_mo ?? 0} sự cố đang mở. ${batThuong.length ? '⚠ ' + batThuong.length + ' phòng xấu đi bất thường cần rà soát (mục 6).' : 'Không phát hiện phòng xấu đi bất thường.'} ${((bc.spc || {}).tong_tin_hieu || 0) > 0 ? (bc.spc.tong_tin_hieu + ' tín hiệu SPC cần theo dõi.') : 'SPC trong kiểm soát.'}`,\n};\n// ---- Khối lặp ----\nconst each = (tpl, ten, rows, build) => tpl.replace(new RegExp(`\\\\{\\\\{#each ${ten}\\\\}\\\\}([\\\\s\\\\S]*?)\\\\{\\\\{\\\\/each\\\\}\\\\}`), (_, than) => rows.map((r) => build(than, r)).join(''));\nconst thay = (than, obj) => Object.entries(obj).reduce((s, [k, v]) => s.replaceAll(`{{${k}}}`, String(v ?? '—')), than);\nconst topXau = (bc.top_phong_xau || bc.top_phong_rui_ro || []).slice(0, 5);\nconst topTot = (bc.top_phong_tot || []).slice(0, 5);\ntplChiTiet = each(tplChiTiet, 'top_phong_xau', topXau, (t, r) => thay(t, { ...r, ty_le_tuan_thu: fmt(r.ty_le_tuan_thu), so_gio_oos: fmt(r.so_gio_oos), mau: mau(r.ty_le_tuan_thu), spark_src: anh[`spark_xau_${r.ma_phong}`] || '' }));\ntplChiTiet = each(tplChiTiet, 'top_phong_tot', topTot, (t, r) => thay(t, { ...r, ty_le_tuan_thu: fmt(r.ty_le_tuan_thu), so_gio_oos: fmt(r.so_gio_oos), spark_src: anh[`spark_tot_${r.ma_phong}`] || '' }));\ntplChiTiet = each(tplChiTiet, 'xu_huong_khu', bc.xu_huong?.theo_khu || [], (t, r) => thay(t, { khu_vuc: r.khu_vuc, ty_le_tb: fmt(r.ty_le_tb), mau: mau(r.ty_le_tb), mini_src: anh[`khu_${r.khu_vuc}`] || '' }));\ntplChiTiet = each(tplChiTiet, 'xu_huong_ahu', bc.xu_huong?.theo_ahu || [], (t, r) => thay(t, { ahu: r.ahu, ty_le_tb: fmt(r.ty_le_tb), mau: mau(r.ty_le_tb), mini_src: anh[`ahu_${r.ahu}`] || '' }));\ntplChiTiet = each(tplChiTiet, 'phong_xau_bat_thuong', batThuong, (t, r) => thay(t, { ...r, tuan_thu_ky_nay: fmt(r.tuan_thu_ky_nay), tuan_thu_ky_truoc: fmt(r.tuan_thu_ky_truoc), delta: (r.delta > 0 ? '+' : '') + fmt(r.delta), ly_do_html: (r.ly_do || []).map((x) => `<span class=\"the-ly-do\">${x}</span>`).join(' ') }));\ntplChiTiet = each(tplChiTiet, 'ngoai_le_theo_loai', ngoaiLe.theo_loai || [], (t, r) => thay(t, { loai_vi: LOAI_VI[r.loai] || r.loai, so_lan: r.so_lan, dien_giai: r.dien_giai || '' }));\ntplChiTiet = each(tplChiTiet, 'su_co_tieu_bieu', (bc.su_co || {}).tieu_bieu || [], (t, r) => thay(t, r));\ntplChiTiet = each(tplChiTiet, 'spc_chi_tiet', (bc.spc || {}).chi_tiet || [], (t, r) => thay(t, r));\ntplChiTiet = each(tplChiTiet, 'mkt_chi_tiet', (bc.mkt || []).slice(0, 10), (t, r) => thay(t, { ...r, mkt: fmt(r.mkt, 2), t_tb: fmt(r.t_tb, 2), t_max: fmt(r.t_max, 2) }));\ntplChiTiet = each(tplChiTiet, 'gioi_han_tham_chieu', bc.gioi_han_tham_chieu || [], (t, r) => thay(t, r));\ntplChiTiet = thay(tplChiTiet, rep);\n// ---- Email (tóm tắt): line chart nhẹ + bảng, KHÔNG heatmap/spark ----\ntplEmail = each(tplEmail, 'top_phong_xau', topXau, (t, r) => thay(t, { ...r, ty_le_tuan_thu: fmt(r.ty_le_tuan_thu), so_gio_oos: fmt(r.so_gio_oos), mau: mau(r.ty_le_tuan_thu), delta: (r.delta_ky_truoc == null ? '—' : (r.delta_ky_truoc > 0 ? '+' : '') + fmt(r.delta_ky_truoc) + '%'), delta_mau: deltaMau(r.delta_ky_truoc, true) }));\ntplEmail = each(tplEmail, 'bat_thuong_tom_tat', batThuong.slice(0, 5), (t, r) => thay(t, { ...r, tuan_thu_ky_nay: fmt(r.tuan_thu_ky_nay), delta: (r.delta > 0 ? '+' : '') + fmt(r.delta) + '%', ly_do: (r.ly_do || []).join(' · ') }));\ntplEmail = thay(tplEmail, { ...rep, chart_line_src: anh.chart_line_email || anh.chart_line || '' });\nconst binHtml = await this.helpers.prepareBinaryData(Buffer.from(tplChiTiet, 'utf8'), meta.ten_file + '.html', 'text/html');\nreturn [{ json: { ...meta, html_email: tplEmail, tieu_de_email: `[BMS-GMP] Báo cáo ${meta.ky_bao_cao} — tuân thủ ${rep.kpi_tuan_thu}% ${rep.delta_tuan_thu_mui_ten}${rep.delta_tuan_thu}` }, binary: { bao_cao_html: binHtml } }];"
+      },
+      "id": "wf5v2-rap",
+      "name": "Ráp báo cáo (HTML chi tiết + email)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.GOTENBERG_URL || 'http://gotenberg:3000' }}/forms/chromium/convert/html",
+        "contentType": "multipart-form-data",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "parameterType": "formBinaryData", "name": "files", "inputDataFieldName": "bao_cao_html" },
+            { "name": "paperWidth", "value": "8.27" },
+            { "name": "paperHeight", "value": "11.69" },
+            { "name": "marginTop", "value": "0.4" },
+            { "name": "marginBottom", "value": "0.4" }
+          ]
+        },
+        "options": { "response": { "response": { "responseFormat": "file", "outputPropertyName": "bao_cao_pdf" } }, "timeout": 120000 }
+      },
+      "id": "wf5v2-pdf",
+      "name": "Gotenberg — HTML → PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 100]
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.ten_file }}.pdf",
+        "driveId": { "__rl": true, "mode": "list", "value": "My Drive" },
+        "folderId": { "__rl": true, "mode": "id", "value": "TODO_DRIVE_FOLDER_ID (lấy từ cau_hinh.drive_folder_id_bao_cao)" },
+        "options": { "binaryPropertyName": "bao_cao_pdf" }
+      },
+      "id": "wf5v2-drive-pdf",
+      "name": "Drive — lưu PDF (bản chính thức)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [680, 0],
+      "credentials": { "googleDriveOAuth2Api": { "id": "TODO_GAN_CREDENTIAL", "name": "Google Drive (dùng chung WF5 cũ)" } }
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.ten_file }}.html",
+        "driveId": { "__rl": true, "mode": "list", "value": "My Drive" },
+        "folderId": { "__rl": true, "mode": "id", "value": "TODO_DRIVE_FOLDER_ID (lấy từ cau_hinh.drive_folder_id_bao_cao)" },
+        "options": { "binaryPropertyName": "bao_cao_html" }
+      },
+      "id": "wf5v2-drive-html",
+      "name": "Drive — lưu HTML",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [680, 200],
+      "credentials": { "googleDriveOAuth2Api": { "id": "TODO_GAN_CREDENTIAL", "name": "Google Drive (dùng chung WF5 cũ)" } }
+    },
+    {
+      "parameters": {
+        "fromEmail": "bms-gmp@cpc1hn.com.vn",
+        "toEmail": "TODO_DANH_SACH_NHAN (lấy từ cau_hinh.email_nhan_bao_cao, phân cách dấu phẩy)",
+        "subject": "={{ $json.tieu_de_email }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html_email }}",
+        "options": { "attachments": "bao_cao_pdf" }
+      },
+      "id": "wf5v2-email",
+      "name": "Gửi email (tóm tắt + đính kèm PDF)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [900, 100],
+      "credentials": { "smtp": { "id": "TODO_GAN_CREDENTIAL", "name": "SMTP (dùng chung WF3)" } }
+    }
+  ],
+  "connections": {
+    "Lịch chạy (T2 07:00 tuần · ngày 1 07:15 tháng/quý)": { "main": [[{ "node": "Xác định kỳ", "type": "main", "index": 0 }]] },
+    "Xác định kỳ": { "main": [[{ "node": "Supabase — rpc_bao_cao_tong_hop", "type": "main", "index": 0 }]] },
+    "Supabase — rpc_bao_cao_tong_hop": { "main": [[{ "node": "Chuẩn bị biểu đồ", "type": "main", "index": 0 }]] },
+    "Chuẩn bị biểu đồ": { "main": [[
+      { "node": "chart-render /render-batch", "type": "main", "index": 0 },
+      { "node": "Tải template chi tiết (GitHub)", "type": "main", "index": 0 },
+      { "node": "Tải template email (GitHub)", "type": "main", "index": 0 }
+    ]] },
+    "chart-render /render-batch": { "main": [[{ "node": "Gộp (charts + templates)", "type": "main", "index": 0 }]] },
+    "Tải template chi tiết (GitHub)": { "main": [[{ "node": "Gộp (charts + templates)", "type": "main", "index": 1 }]] },
+    "Tải template email (GitHub)": { "main": [[{ "node": "Gộp (charts + templates)", "type": "main", "index": 2 }]] },
+    "Gộp (charts + templates)": { "main": [[{ "node": "Ráp báo cáo (HTML chi tiết + email)", "type": "main", "index": 0 }]] },
+    "Ráp báo cáo (HTML chi tiết + email)": { "main": [[{ "node": "Gotenberg — HTML → PDF", "type": "main", "index": 0 }]] },
+    "Gotenberg — HTML → PDF": { "main": [[
+      { "node": "Drive — lưu PDF (bản chính thức)", "type": "main", "index": 0 },
+      { "node": "Drive — lưu HTML", "type": "main", "index": 0 },
+      { "node": "Gửi email (tóm tắt + đính kèm PDF)", "type": "main", "index": 0 }
+    ]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "Asia/Ho_Chi_Minh", "errorWorkflow": "co2ICoNbvwSaGRA7" },
+  "meta": { "templateCredsSetupCompleted": false },
+  "pinData": {}
+}
