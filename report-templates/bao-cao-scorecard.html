@@ -106,7 +106,7 @@
       <div class="delta" style="color:{{delta_tuan_thu_mau}}">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}} so kỳ trước</div>
     </div>
     <div class="the-kpi">
-      <div class="nhan">Giờ OOS</div>
+      <div class="nhan">Giờ cảnh báo (W+C)</div>
       <div class="so">{{kpi_gio_oos}}</div>
       <div class="delta" style="color:{{delta_oos_mau}}">{{delta_oos_mui_ten}} {{delta_oos}} so kỳ trước</div>
     </div>
@@ -179,7 +179,7 @@
         <tr>
           <th>Phòng</th><th>Khu</th>
           <th style="text-align:right">Tuân thủ</th>
-          <th style="text-align:right">Giờ OOS</th>
+          <th style="text-align:right">Giờ cảnh báo</th>
           <th>Diễn biến trong kỳ</th>
         </tr>
       </thead>
@@ -204,7 +204,7 @@
         <tr>
           <th>Phòng</th><th>Khu</th>
           <th style="text-align:right">Tuân thủ</th>
-          <th style="text-align:right">Giờ OOS</th>
+          <th style="text-align:right">Giờ cảnh báo</th>
           <th>Diễn biến trong kỳ</th>
         </tr>
       </thead>
@@ -414,6 +414,7 @@
         <tr><td><strong>R²</strong></td><td>Độ tin cậy của xu hướng hồi quy (0–1; càng gần 1 xu hướng càng rõ).</td></tr>
         <tr><td><strong>P5 / P50 / P95</strong></td><td>Phân vị 5% / trung vị / 95% — dải phân bố giá trị đo trong kỳ.</td></tr>
         <tr><td><strong>MKT</strong></td><td>Mean Kinetic Temperature (ICH Q1A) — nhiệt độ động học trung bình, phạt nặng các đợt nhiệt cao; luôn ≥ nhiệt độ trung bình.</td></tr>
+        <tr><td><strong>Giờ cảnh báo (W+C)</strong></td><td>Tổng số giờ hệ thống ghi nhận trạng thái WARNING hoặc CRITICAL trong kỳ (nguồn: kpi_ngay_scope.so_gio_warning + so_gio_critical).</td></tr>
         <tr><td><strong>MTTR</strong></td><td>Mean Time To Repair — thời gian trung bình từ khi mở đến khi đóng sự cố (giờ).</td></tr>
         <tr><td><strong>DQ</strong></td><td>Data Quality / độ đầy đủ dữ liệu — % thời gian có dữ liệu hợp lệ trong kỳ.</td></tr>
         <tr><td><strong>Δ (delta)</strong></td><td>Chênh lệch so với kỳ liền trước có cùng độ dài.</td></tr>

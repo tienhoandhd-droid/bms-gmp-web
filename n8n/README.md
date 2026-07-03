@@ -1,52 +1,61 @@
-# n8n — Workflow định nghĩa sẵn (import thủ công)
+# n8n — WF5 v2: Báo cáo quản trị tuần/tháng/quý
 
-> Sinh ra vì phiên Claude không truy cập trực tiếp n8n được (network policy).
-> Import xong chỉ cần GẮN CREDENTIAL — logic đã hoàn chỉnh.
+> **TRẠNG THÁI: ĐÃ TRIỂN KHAI & ACTIVE trên n8n ngày 03/07/2026.**
+> Workflow id `cjingBRK1XGYVMz9` — https://n8n.cpc1hn.com/workflow/cjingBRK1XGYVMz9
+> (tạo trực tiếp qua n8n MCP, KHÔNG cần import thủ công nữa).
+> WF5 cũ `a4cutCMwmmFv1GOS` đã **tắt Active** để khỏi chạy trùng — giữ vài tuần để đối chiếu rồi archive.
 
-## WF5-v2-bao-cao-quan-tri.json — Báo cáo quản trị tuần/tháng/quý
+## Kiến trúc
 
-**Pipeline:** Lịch (T2 07:00 / ngày 1 07:15) → Xác định kỳ (TUAN/THANG/QUY, giờ VN)
-→ Postgres gọi `rpc_bao_cao_tong_hop` (1 nguồn số liệu duy nhất — truy vết GMP)
-→ chuẩn bị + render mọi biểu đồ qua `chart-render /render-batch`
-→ tải 2 template từ GitHub raw (`report-templates/bao-cao-scorecard.html`, `email-bao-cao.html`)
-→ ráp HTML chi tiết + email tóm tắt → Gotenberg xuất PDF
-→ Drive (PDF + HTML) + Email (thân thư tóm tắt, **đính kèm PDF chi tiết**).
+**2 trigger:**
+1. **Lịch (UTC)**: T2 00:00 (= 07:00 VN) → báo cáo TUẦN trước · ngày 1 00:15 (= 07:15 VN)
+   → báo cáo THÁNG trước (+ QUÝ trước nếu là tháng 1/4/7/10 — chạy 2 báo cáo trong 1 lần).
+2. **Webhook `POST /webhook/wf5-bao-cao-bu`** — nút **"Gửi báo cáo bù"** trên web (trang Báo cáo).
+   Body: `{"ky":"THANG"}` (mặc định) | `"TUAN"` | `"QUY"` — kỳ LIỀN TRƯỚC;
+   hoặc `{"ky":"THANG","tu":"2026-05-01","den":"2026-05-31"}` cho khoảng tùy chọn.
+   Trả lời ngay khi nhận (CORS `*`); báo cáo tạo + gửi trong nền (~30–60s).
 
-### Các bước sau khi Import from File
+**Pipeline:** Xác định kỳ (giờ VN) → Postgres: `rpc_bao_cao_tong_hop` (**1 nguồn số liệu — truy vết GMP,
+đã đối chiếu schema thật**) + cấu hình + người nhận (`nguoi_nhan_bao_cao`) → Ráp báo cáo (1 Code node:
+biểu đồ + template + email) → Gotenberg PDF → Drive (PDF + HTML) + Email (tóm tắt + đính kèm) + Nhật ký.
 
-1. **Chạy migration trước**: dán `supabase/migrations/20260703_rpc_bao_cao_tong_hop.sql`
-   vào Supabase Studio → SQL Editor → Run (đọc kỹ header "BẢN NHÁP" — đối chiếu tên cột
-   bằng `\d kpi_ngay` trước).
-2. Gắn credential cho 4 node (đều dùng lại credential sẵn có của WF cũ):
-   | Node | Credential |
-   |---|---|
-   | Supabase — rpc_bao_cao_tong_hop | Postgres của WF1 (ghi Supabase) |
-   | Drive — lưu PDF / lưu HTML | Google Drive OAuth2 của WF5 cũ |
-   | Gửi email | SMTP của WF3 |
-3. Sửa 2 chỗ `TODO_DRIVE_FOLDER_ID` = giá trị `cau_hinh.drive_folder_id_bao_cao`,
-   và `TODO_DANH_SACH_NHAN` = danh sách email lãnh đạo (phẩy ngăn cách).
-4. Dựng 2 container cạnh n8n (cùng docker network):
-   ```bash
-   # chart-render (services/chart-render trong repo)
-   docker build -t chart-render services/chart-render && \
-     docker run -d --name chart-render --network n8n_default -p 8081:8081 chart-render
-   # gotenberg (PDF)
-   docker run -d --name gotenberg --network n8n_default -p 3000:3000 gotenberg/gotenberg:8
-   ```
-   Nếu tên host khác `chart-render`/`gotenberg`: đặt biến môi trường n8n
-   `CHART_RENDER_URL`, `GOTENBERG_URL` (node HTTP đã đọc `$env` với fallback).
-5. Chạy thử thủ công (Execute Workflow) — node "Xác định kỳ" tự tính kỳ TUẦN gần nhất
-   nếu hôm chạy không phải ngày 1. Kiểm tra: file PDF/HTML trên Drive + email nhận được,
-   **dấu tiếng Việt trong biểu đồ** hiển thị đúng.
-6. Ổn rồi → bật Active. Workflow cũ "BMS WF5 — Báo cáo tuần/tháng/quý" (id `a4cutCMwmmFv1GOS`)
-   nên tắt Active để khỏi chạy trùng; giữ lại vài tuần để đối chiếu rồi archive.
+**Thiết kế chịu lỗi (đã kiểm chứng bằng execution thật `1673476`, `1673589`):**
+- **Biểu đồ**: thử service `chart-render` (env `CHART_RENDER_URL`, mặc định `http://chart-render:8081`);
+  không phản hồi → **tự vẽ SVG nội bộ** (line + heatmap lịch + sparkline), báo cáo KHÔNG chết.
+  Email luôn dùng QuickChart PNG (Gmail chặn SVG data-URI).
+- **PDF**: Gotenberg (env `GOTENBERG_URL`, mặc định `http://gotenberg:3000`); lỗi → email
+  **đính kèm HTML thay PDF**, Drive-PDF tự bỏ qua.
+- Drive/Email/Nhật ký chạy song song, node lỗi không chặn node khác (onError continue + retry).
 
-### Ghi chú thiết kế
-- Template tải từ GitHub raw mỗi lần chạy → sửa giao diện báo cáo chỉ cần commit repo,
-  KHÔNG phải sửa workflow. (Repo private thì thay 2 node Tải template bằng cách dán
-  template vào Code node.)
-- Email chủ động giữ < 102KB (giới hạn Gmail cắt thư): thân thư chỉ có 1 biểu đồ line
-  nhúng base64 + bảng số; heatmap/sparkline nằm trong PDF đính kèm.
-- `settings.errorWorkflow` đã trỏ về WF4 (Xử lý lỗi hệ thống báo IT, id `co2ICoNbvwSaGRA7`).
-- Múi giờ workflow: Asia/Ho_Chi_Minh (settings.timezone).
-- Mã lần chạy (`ma_lan_chay`) chứa `$execution.id` n8n → truy vết ngược execution log.
+## Người nhận email
+
+Bảng **`nguoi_nhan_bao_cao`** (Supabase): 3 dòng placeholder đã tạo sẵn (`kich_hoat=false`).
+→ Điền email thật + đặt `kich_hoat=true` (và cờ `nhan_tuan`/`nhan_thang`/`nhan_quy`).
+Chưa kích hoạt ai → fallback `cau_hinh.email_bao_cao_thang` / `email_bao_cao_tuan` (hiện: chanbonght@gmail.com).
+FROM lấy từ `cau_hinh.email_gui_tu` (phải trùng tài khoản Gmail SMTP).
+
+## Việc còn lại (tùy chọn — nâng chất lượng)
+
+| Việc | Vì sao | Cách làm |
+|---|---|---|
+| **Sửa thư mục Drive** | `drive_folder_id_bao_cao='root'` → service account bị **403** (SA không có quota My Drive riêng) — file hiện KHÔNG lưu được Drive (email vẫn gửi bình thường) | Tạo thư mục Drive (hoặc Shared Drive), **chia sẻ Editor** cho email service account của credential "kết nối google", rồi đặt `cau_hinh.drive_folder_id_bao_cao` = ID thư mục |
+| Dựng `chart-render` | Biểu đồ ECharts PNG đẹp hơn SVG fallback, có dấu tiếng Việt chuẩn font | `docker build -t chart-render services/chart-render && docker run -d --name chart-render --network n8n_default chart-render` |
+| Dựng Gotenberg | Có PDF đính kèm + lưu trữ (hiện đính kèm HTML) | `docker run -d --name gotenberg --network n8n_default gotenberg/gotenberg:8` |
+| errorWorkflow | Báo IT khi WF5 v2 lỗi | Mở workflow Settings → Error workflow → chọn WF4 (`co2ICoNbvwSaGRA7`) — MCP chưa đặt được mục này |
+
+## File trong thư mục này
+
+- `WF5-v2-bao-cao-quan-tri.json` — export từ n8n (bản đã deploy) để lưu vết/khôi phục.
+  Import lại chỉ cần gắn 3 credential: Supabase Postgres, kết nối google (service account), Gmail SMTP.
+- `WF5-v2-bao-cao-quan-tri.sdk.js` — mã nguồn n8n Workflow SDK (nguồn chuẩn để tái tạo qua MCP).
+
+## Ghi chú thiết kế
+
+- Template tải từ GitHub raw (`report-templates/bao-cao-scorecard.html`, `email-bao-cao.html`, nhánh `main`)
+  mỗi lần chạy → sửa giao diện chỉ cần merge vào main, KHÔNG sửa workflow.
+- Email giữ < 102KB (giới hạn Gmail cắt thư) — đo thật ~48KB.
+- `so_gio_oos` trong JSON = `so_gio_warning + so_gio_critical` (giờ ở trạng thái cảnh báo) —
+  schema thật không có cột "giờ OOS"; template đã ghi nhãn "Giờ cảnh báo (W+C)".
+- Nhật ký mỗi lần chạy: `nhat_ky_chay_workflow` (`ten_workflow='WF5_BAO_CAO_V2'`,
+  `ma_lan_chay_n8n='WF5V2-<KY>-<đến-ngày>-<execution.id>'`) — truy vết ngược execution log n8n.
+- Múi giờ tính kỳ: Asia/Ho_Chi_Minh (Luxon trong Code node — không phụ thuộc timezone n8n).
