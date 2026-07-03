@@ -4,6 +4,7 @@ import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
 import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
+import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
 import {
   Droplets, Thermometer, Sparkles, ShieldCheck, ShieldAlert, Activity,
@@ -29,7 +30,6 @@ function Chart({ h = 200, ...p }) {
 /* ============ AQUA CLINICAL NEO-MINIMALISM — HỆ THỦY ============ */
 /* Giữ tên biến, làm SÂU màu để đủ tương phản (WCAG): chữ đậm, teal/sky sâu,
    critical đỏ trầm chuyên nghiệp, warning amber đậm, không hồng/vàng nhạt. */
-const COLOR = { navy: "#102A3E", ink: "#33506e", teal: "#0E7C73", sky: "#1E72B8", coral: "#D9534F", coralDeep: "#B3261E", sand: "#C77E12", softCoral: "#D9534F" };
 const PAGE_BG = "linear-gradient(155deg,#EAF3F8 0%,#FAFDFF 45%,#E2F2EE 100%)";
 const cardShadow = { boxShadow: "0 12px 34px -18px rgba(16,40,55,0.30)" };
 const CARD = "rounded-3xl bg-white/95 backdrop-blur ring-1 ring-[#D8E6EC]";
@@ -78,7 +78,6 @@ function CpcLogo({ className = "h-9 w-auto" }) { return <img src={logoCpc1hn} al
 /* ============ TIỆN ÍCH ============ */
 function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
-const fmtPct = (v) => (v == null || isNaN(v) ? "—" : `${(+v).toFixed(1).replace(".0", "")}%`);
 const fmtH = (v) => (v == null || isNaN(v) ? "—" : `${(+v).toFixed(1).replace(".0", "")}h`);
 const fmtDelta = (v) => (v == null || isNaN(v) ? "—" : `${v > 0 ? "+" : ""}${(+v).toFixed(1).replace(".0", "")}%`);
 const deltaTone = (v) => (v == null ? "text-slate-400" : v >= 5 ? "text-teal-600" : v <= -5 ? "text-rose-600" : "text-slate-400");
@@ -150,11 +149,8 @@ function getSeries(scope, sensor, rangeKey) {
 /* ============ PHÒNG ============ */
 const AREAS = ["C1", "C4", "Q2"];
 const AHUS = ["AHU01", "AHU02", "AHU03", "AHU04", "AHU-K01", "AHU-K02"];
-const SENSOR_META = { DP: { label: "Chênh áp", unit: "Pa", icon: Gauge }, RH: { label: "Độ ẩm", unit: "%", icon: Droplets }, T: { label: "Nhiệt độ", unit: "°C", icon: Thermometer } };
-// Màu cố định cho từng chỉ tiêu (đồng bộ mọi biểu đồ): DP=teal, RH=sky, T=sand.
-const SENSOR_COLOR = { DP: "#0E7C73", RH: "#1E72B8", T: "#B26F0E" };
-const COMPLY_OK = "#0E7C73";    // đạt
-const COMPLY_BAD = "#B3261E";   // dưới ngưỡng (đỏ trầm)
+// Meta cơ bản (label/unit/màu) dùng chung với charts.jsx qua lib/designTokens — chỉ icon là riêng App.
+const SENSOR_META = { DP: { ...SENSOR_META_BASE.DP, icon: Gauge }, RH: { ...SENSOR_META_BASE.RH, icon: Droplets }, T: { ...SENSOR_META_BASE.T, icon: Thermometer } };
 const OOS_FILL = "#df7d62";     // vùng OOS
 function defSensors(priority) { return [{ k: "DP", min: priority === "P1" ? 12.5 : priority === "P2" ? 10 : 8, max: 30 }, { k: "RH", min: 30, max: priority === "P3" ? 60 : 55 }, { k: "T", min: 18, max: priority === "P3" ? 25 : 24 }]; }
 const ROOM_SEED = [
@@ -294,7 +290,7 @@ function RoomDetailModal({ room, onClose }) {
           <div key={s.k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-4">
             <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[s.k].label} ({s.k})</p><p className="text-[11px] text-slate-500">Giới hạn: {s.min != null ? `≥ ${s.min}` : "—"}{s.max != null ? ` · ≤ ${s.max}` : ""} {unit}</p></div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center">{[["Hiện tại", `${st.cur ?? "—"} ${unit}`], ["TB 1h", `${st.avg1h ?? "—"}`], ["TB 8h", mean == null ? "—" : `${mean}`], ["OOS 1h", st.oos1h == null ? "—" : `${st.oos1h}/60`], ["OOS 10′ cuối", st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-1.5"><p className="text-[9px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : <Chart type="roomDetail" pts={pts} smin={s.min} smax={s.max} mean={mean} unit={unit} h={182} />}
+            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-slate-400 italic rounded-xl bg-white ring-1 ring-slate-200">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : <Chart type="roomDetail" pts={pts} smin={s.min} smax={s.max} mean={mean} unit={unit} group={`rm-${room.id}`} h={182} />}
             {!noDL && <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.teal, opacity: 0.3 }} /> Khoảng đạt (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: COLOR.sky, opacity: 0.45 }} /> Dải min–max theo giờ</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.teal }} /> trong khoảng</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> ngoài khoảng</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.navy }} /> Trung bình 8h</span></div>}
           </div>
         ); })}</div>
@@ -691,6 +687,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [dangInBaoCao, setDangInBaoCao] = useState(false); // đang chuẩn bị in (chờ AI xong)
   const [aiNote, setAiNote] = useState(null);         // ghi chú trạng thái (vd: lỗi → dùng bản cục bộ)
   const [aiWebhook, setAiWebhook] = useState("");     // URL WF7 (nếu cấu hình)
+  const [soKyTruoc, setSoKyTruoc] = useState(!!prefs.prevCmp); // A3: bật đường "kỳ trước" (chỉ khung NGÀY)
+  const [prevSeries, setPrevSeries] = useState({});   // {trendKey: chuỗi kỳ TRƯỚC (cùng độ dài)}
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const u = await layWebhookAi(); if (!huy) setAiWebhook(u || ""); })(); return () => { huy = true; }; }, [isLive]);
   const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90 };
   // Độ phân giải: 30n/90n → NGÀY; 1n/7n → auto (1n=PHUT 30′, 7n=GIO) hoặc override PHUT/GIO.
@@ -700,7 +698,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const resLbl = donVi === "PHUT" ? "30 phút" : donVi === "GIO" ? "theo giờ" : "theo ngày";
   const isSubDay = donVi === "PHUT" || donVi === "GIO";
   // Lưu lựa chọn nhẹ
-  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ range, level, sensor, res: resOverride })); } catch { /* bỏ qua */ } }, [range, level, sensor, resOverride]);
+  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ range, level, sensor, res: resOverride, prevCmp: soKyTruoc })); } catch { /* bỏ qua */ } }, [range, level, sensor, resOverride, soKyTruoc]);
   const [liveSeries, setLiveSeries] = useState({});   // {scopeId: chuỗi 90 ngày ALL} — cho mini-scope & thẻ kỳ
   const [mainSeries, setMainSeries] = useState({});   // {`id|sensor|range`: chuỗi chính (giờ/ngày + đúng cảm biến)}
   const [roomBand, setRoomBand] = useState({});       // {`room|sensor|range`: chuỗi giá trị TB + giới hạn (phòng)}
@@ -810,6 +808,22 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     return () => { huy = true; };
   }, [isLive, activeId, sensor, range, donVi]); // eslint-disable-line
 
+  // A3 — SO KỲ TRƯỚC: chỉ khung NGÀY (30n/90n). Lấy 2× số ngày từ CÙNG RPC rồi
+  //   cắt NỬA ĐẦU làm "kỳ trước" — không cần sửa backend, canh theo index.
+  useEffect(() => {
+    if (!isLive || !activeId || !soKyTruoc || donVi !== "NGAY") return;
+    if (prevSeries[trendKey]) return;
+    const sc = lFind(activeId);
+    let huy = false;
+    (async () => {
+      const r = await layChuoiXuHuongChiTiet(sc ? sc.type : "TOTAL", activeId, sensor, "NGAY", soDiem * 2);
+      if (huy) return;
+      const s = (r && r.series) || [];
+      setPrevSeries((m) => ({ ...m, [trendKey]: s.slice(0, Math.max(0, s.length - soDiem)) }));
+    })();
+    return () => { huy = true; };
+  }, [isLive, activeId, sensor, range, donVi, soKyTruoc]); // eslint-disable-line
+
   // LIVE: chuỗi GIÁ TRỊ TRUNG BÌNH + giới hạn cho 1 PHÒNG · 1 CẢM BIẾN (#4)
   //   chỉ tải khi đang xem cấp PHÒNG và đã chọn 1 chỉ tiêu cụ thể (DP/RH/T).
   const roomBandKey = `${activeId}|${sensor}|${range}|${donVi}`;
@@ -891,6 +905,39 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const showMulti = wantMulti && sensor === "ALL" && viewMulti.length > 0 && sensorsPresent.length > 0;
   const isRoom = !!activeScope && activeScope.type === "ROOM";
   const isLargeScope = !!activeScope && !isRoom;  // TOTAL / AREA / AHU
+
+  // A3 — đường "kỳ trước" (mờ, đứt): chỉ khi khung NGÀY + không lọc thời gian con.
+  const prevData = (soKyTruoc && donVi === "NGAY" && !dtFrom && !dtTo && (prevSeries[trendKey] || []).length)
+    ? (prevSeries[trendKey] || []).map((p) => p.comp) : null;
+  // A3 — overlay SỰ CỐ (⚑) lên đường xu hướng: lọc theo phạm vi đang xem, tìm điểm gần nhất.
+  const incidentMarks = useMemo(() => {
+    if (!isLive || !liveIncidents || !liveIncidents.length || !view.length) return null;
+    const roomsById = {}; (liveRooms || []).forEach((r) => { roomsById[r.id] = r; });
+    const step = view.length > 1 ? Math.abs((view[view.length - 1].ts - view[0].ts) / (view.length - 1)) : 86400000;
+    const marks = [];
+    liveIncidents.forEach((s) => {
+      if (s.startTs == null) return;
+      const r = roomsById[s.room];
+      const ok = activeScope.type === "TOTAL" ? true
+        : activeScope.type === "ROOM" ? s.room === activeId
+        : activeScope.type === "AREA" ? (r && r.area === activeId)
+        : (r && r.ahu === activeId);
+      if (!ok) return;
+      if (s.startTs < view[0].ts - step / 2 || s.startTs > view[view.length - 1].ts + step / 2) return;
+      let best = 0, bd = Infinity;
+      view.forEach((p, i) => { const d = Math.abs(p.ts - s.startTs); if (d < bd) { bd = d; best = i; } });
+      marks.push({ idx: best, name: `${s.id} · ${s.room} ${s.sensor}` });
+    });
+    return marks.length ? marks : null;
+  }, [isLive, liveIncidents, liveRooms, view, activeScope, activeId]);
+  // A2 — lịch tuân thủ 90 ngày (ô ngày, giờ LOCAL để không lệch múi giờ VN)
+  const calDays = useMemo(() => {
+    if (!isLive) return [];
+    return (liveSeries[activeId] || []).map((p) => {
+      const d = new Date(p.ts);
+      return { date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, value: p.comp };
+    });
+  }, [isLive, liveSeries, activeId]);
 
   const latest = view[view.length - 1] || {};
   const prev = view[view.length - 2] || {};
@@ -1114,6 +1161,11 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Khoảng</span>{RANGES.map((r) => <Chip key={r.k} active={range === r.k} onClick={() => { setRange(r.k); setResOverride(null); setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }}>{r.label}</Chip>)}</div>
           <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Cấp xem</span>{SCOPE_LEVELS.map((s) => <Chip key={s.k} active={level === s.k} onClick={() => { setLevel(s.k); setSelId(""); setOptArea("ALL"); setOptAhu("ALL"); }}>{s.label}</Chip>)}</div>
           <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Chỉ tiêu</span>{SENSORS.map((s) => <Chip key={s.k} active={sensor === s.k} onClick={() => setSensor(s.k)}>{s.label}</Chip>)}</div>
+          {!isSubDay && (
+            <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">So sánh</span>
+              <Chip active={soKyTruoc} onClick={() => setSoKyTruoc((v) => !v)}>Kỳ trước</Chip>
+            </div>
+          )}
           {isSubDay && (
             <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Độ phân giải</span>
               <Chip active={donVi === "PHUT"} onClick={() => setResOverride("PHUT")}>30 phút</Chip>
@@ -1207,7 +1259,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
                 ) : ks.length === 0 ? (
                   <p className="mt-4 text-[13px] text-slate-500">Phòng này chưa ghi nhận giá trị (Chênh áp / Độ ẩm / Nhiệt độ) trong khoảng đã chọn.</p>
                 ) : (
-                  <div className="mt-4 divide-y divide-slate-100">{ks.map((k, idx) => <div key={k} className={idx > 0 ? "pt-6" : ""}><Chart type="roomBand" sensorKey={k} series={bands[k].series} baseline={bands[k].baseline} isHourly={isHourly} h={296} /></div>)}</div>
+                  <div className="mt-4 divide-y divide-slate-100">{ks.map((k, idx) => <div key={k} className={idx > 0 ? "pt-6" : ""}><Chart type="roomBand" sensorKey={k} series={bands[k].series} baseline={bands[k].baseline} isHourly={isHourly} group={`bands-${activeId}`} h={296} /></div>)}</div>
                 )}
               </Card>
             );
@@ -1217,8 +1269,25 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             <p className="text-[11px] text-slate-400 mt-1">% đạt = 100% − % ngoài giới hạn (OOS). Đường dưới mốc 80% là kỳ cần chú ý.</p>
             <div className="mt-3">{showMulti
               ? <Chart type="complyPerMetric" data={viewMulti} present={sensorsPresent} h={296} />
-              : <Chart type="complyTotal" data={view} idSuffix="RoomOne" h={296} />}</div>
+              : <Chart type="complyTotal" data={view} idSuffix="RoomOne" incidents={incidentMarks} prevData={prevData} h={296} />}</div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500">{showMulti ? sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: SENSOR_COLOR[k] }} /> {SENSOR_META[k]?.label || k}</span>) : (<><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_OK }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_BAD }} /> &lt; 80% (điểm đỏ)</span></>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
+          </Card>
+          {/* (3) SPC — Levey-Jennings quanh nền 30 ngày (A2) */}
+          <Card className="p-6"><SectionTitle icon={Activity} hint={`${activeScope.name} · vùng ±1/2/3σ quanh nền 30 ngày · tín hiệu Nelson`}>③ Kiểm soát thống kê (SPC — Levey-Jennings)</SectionTitle>
+            <p className="text-[11px] text-slate-400 mt-1">Phát hiện <b>dịch chuyển/xu hướng trước khi vượt ngưỡng OOS</b>: điểm cam = tín hiệu Nelson R2 (9 điểm cùng phía) / R3 (6 điểm đơn điệu), điểm đỏ = vượt 3σ (R1). Nền TB±σ do job đêm tính (tất định) — kết luận chính thức theo bảng SPC bên dưới trang.</p>
+            {(() => {
+              const bands = (wantRoomBands && roomBandsMulti[roomBandsKey]) || null;
+              const ks = bands ? ["DP", "RH", "T"].filter((k) => bands[k] && bands[k].series && bands[k].series.length) : [];
+              if (!isLive) return <p className="mt-4 text-[13px] text-slate-500">Biểu đồ SPC hiển thị ở chế độ <b>LIVE</b>.</p>;
+              if (!bands) return <p className="mt-4 text-[13px] text-amber-600">Đang tải dữ liệu…</p>;
+              if (!ks.length) return <p className="mt-4 text-[13px] text-slate-500">Chưa có chuỗi giá trị để dựng biểu đồ kiểm soát trong khoảng đã chọn.</p>;
+              return <div className="mt-4 divide-y divide-slate-100">{ks.map((k, idx) => (
+                <div key={k} className={idx > 0 ? "pt-6" : ""}>
+                  <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: SENSOR_COLOR[k] }} /><h4 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[k]?.label} ({k})</h4></div>
+                  <Chart type="spc" sensorKey={k} series={bands[k].series} baseline={bands[k].baseline} group={`bands-${activeId}`} h={230} />
+                </div>
+              ))}</div>;
+            })()}
           </Card>
         </>)}
 
@@ -1227,7 +1296,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           {/* (1) % đạt / OOS TOÀN PHẦN (hoặc theo chỉ tiêu đang chọn) */}
           <Card className="p-6"><SectionTitle icon={LineIcon} hint={`${activeScope.name} · ${sensor === "ALL" ? "toàn phần" : SENSOR_META[sensor]?.label} · theo ${isHourly ? "giờ" : "ngày"}`}>① % đạt / OOS {sensor === "ALL" ? "toàn phần" : `— ${SENSOR_META[sensor]?.label}`} theo thời gian</SectionTitle>
             <p className="text-[11px] text-slate-400 mt-1">{sensor === "ALL" ? "Tổng hợp mọi cảm biến trong phạm vi" : `Chỉ riêng ${SENSOR_META[sensor]?.label}`}. % đạt = 100% − % ngoài giới hạn (OOS). Vùng xanh nhạt minh hoạ mức đạt.</p>
-            <div className="mt-3"><Chart type="complyTotal" data={view} idSuffix="Large" h={296} /></div>
+            <div className="mt-3"><Chart type="complyTotal" data={view} idSuffix="Large" incidents={incidentMarks} prevData={prevData} h={296} /></div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_OK }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_BAD }} /> &lt; 80% (điểm đỏ)</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: COLOR.sand }} /> Ngưỡng 80%</span></div>
           </Card>
           {/* (2) % đạt / OOS THEO TỪNG CHỈ TIÊU */}
@@ -1241,6 +1310,14 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             )}
           </Card>
         </>)}
+
+        {/* ============ CHUNG: lịch tuân thủ 90 ngày (A2 — heatmap) ============ */}
+        {isLive && (
+          <Card className="p-6"><SectionTitle icon={History} hint={`${activeScope.name} · 90 ngày gần nhất · % đạt toàn phần theo ngày`}>Lịch tuân thủ 90 ngày</SectionTitle>
+            <p className="text-[11px] text-slate-400 mt-1">Mỗi ô = 1 ngày, màu theo % đạt (đèn giao thông). Cụm ô đỏ/cam liền nhau = giai đoạn cần điều tra; nhìn được ngay "tuần nào xấu" mà không cần dò từng biểu đồ.</p>
+            <div className="mt-3"><Chart type="calHeat" days={calDays} h={190} /></div>
+          </Card>
+        )}
 
         {/* ============ CHUNG: phân tích kỹ thuật phục vụ AI ============ */}
         <Card className="p-6"><SectionTitle icon={CircleDot} hint="dữ liệu phân tích kỹ thuật phục vụ AI đánh giá xu hướng">Phân tích kỹ thuật xu hướng</SectionTitle>
