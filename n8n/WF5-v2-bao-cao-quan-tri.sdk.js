@@ -112,7 +112,8 @@ const docSoLieu = node({
       resource: 'database',
       operation: 'executeQuery',
       query: `SELECT
-  public.rpc_bao_cao_tong_hop($1, $2::date, $3::date)::text        AS bao_cao,
+  (public.rpc_bao_cao_tong_hop($1, $2::date, $3::date)
+     || jsonb_build_object('tat_ca_phong', public.rpc_tat_ca_phong_ky($2::date, $3::date)))::text AS bao_cao,
   public.cfg_text('drive_folder_id_bao_cao','root')                AS folder_id,
   public.cfg_text('email_gui_tu','')                               AS email_tu,
   public.cfg_text('quickchart_base_url','https://quickchart.io')   AS qc_base,
