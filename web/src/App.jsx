@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -1442,10 +1442,22 @@ function LoginModal({ onClose, isLive }) {
 
 /* ===== BÁO CÁO ===== */
 function ReportsPage({ ai, aiRows = null }) {
-  const [sender, setSender] = useState(USERS[3].email);
-  const [recips, setRecips] = useState([USERS[3].email]);
-  const [sent, setSent] = useState(false);
-  const toggle = (em) => setRecips((r) => (r.includes(em) ? r.filter((x) => x !== em) : [...r, em]));
+  // ==== Gửi báo cáo bù qua WF5 v2 (n8n) — kỳ LIỀN TRƯỚC, chọn để gửi ====
+  const [wf5Url, setWf5Url] = useState("");
+  const [kyBu, setKyBu] = useState("THANG");           // mặc định: bù THÁNG trước
+  const [guiTT, setGuiTT] = useState(null);            // null | 'DANG_GUI' | {ok, message|error}
+  useEffect(() => { let huy = false; (async () => { const u = await layWebhookBaoCaoBu(); if (!huy) setWf5Url(u || ""); })(); return () => { huy = true; }; }, []);
+  const KY_BU = [
+    { key: "THANG", label: "Tháng trước" },
+    { key: "TUAN", label: "Tuần trước" },
+    { key: "QUY", label: "Quý trước" },
+  ];
+  const guiBu = async () => {
+    if (guiTT === "DANG_GUI") return;
+    setGuiTT("DANG_GUI");
+    const r = await guiBaoCaoBu(wf5Url, kyBu);
+    setGuiTT(r);
+  };
   const sel = "rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[13px] text-slate-700 outline-none";
   const AI_LV = ["text-teal-700 bg-teal-50 ring-teal-200", "text-sky-700 bg-sky-50 ring-sky-200", "text-amber-700 bg-amber-50 ring-amber-200", "text-rose-700 bg-rose-50 ring-rose-200"];
   return (
@@ -1465,13 +1477,25 @@ function ReportsPage({ ai, aiRows = null }) {
           </div>
         )}
       </Card>
-      <Card className="p-6"><SectionTitle icon={Mail}>Gửi email báo cáo</SectionTitle>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div><label className="text-[11px] uppercase text-slate-500 font-semibold">Email người gửi</label><select value={sender} onChange={(e) => setSender(e.target.value)} className={sel + " w-full mt-1.5"}>{USERS.map((u) => <option key={u.email} value={u.email}>{u.email}</option>)}</select></div>
-          <div><label className="text-[11px] uppercase text-slate-500 font-semibold">Email người nhận</label><div className="mt-1.5 flex flex-wrap gap-2">{USERS.map((u) => <button key={u.email} onClick={() => toggle(u.email)} className={`text-[12px] rounded-full px-3 py-1.5 ring-1 transition ${recips.includes(u.email) ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200"}`} style={recips.includes(u.email) ? { backgroundColor: COLOR.teal } : {}}>{u.email}</button>)}</div></div>
+      <Card className="p-6"><SectionTitle icon={Mail} hint="báo cáo quản trị WF5 v2 — kỳ liền trước">Gửi báo cáo bù (email)</SectionTitle>
+        <p className="text-[12px] text-slate-500 mt-3">Dùng khi cần gửi lại báo cáo của kỳ đã qua (ví dụ lịch tự động bị lỡ). Hệ thống tổng hợp số liệu thật từ Supabase (<code className="text-[11px]">rpc_bao_cao_tong_hop</code>), ráp scorecard + PDF rồi gửi email trong nền (~1 phút).</p>
+        <div className="mt-4 flex items-center gap-3 flex-wrap">
+          <label className="text-[11px] uppercase text-slate-500 font-semibold">Kỳ báo cáo</label>
+          <select value={kyBu} onChange={(e) => setKyBu(e.target.value)} className={sel}>
+            {KY_BU.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
+          </select>
+          <button onClick={guiBu} disabled={guiTT === "DANG_GUI" || !wf5Url}
+            className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${guiTT === "DANG_GUI" ? "opacity-60 cursor-wait" : !wf5Url ? "opacity-50 cursor-not-allowed" : ""}`}
+            style={{ backgroundColor: COLOR.coral }}>
+            <Mail className="w-3.5 h-3.5" strokeWidth={1.8} />
+            {guiTT === "DANG_GUI" ? "Đang gửi yêu cầu…" : "Gửi báo cáo bù"}
+          </button>
+          <button onClick={() => window.print()} className="text-xs font-medium rounded-xl px-4 py-2 text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> In / PDF</button>
         </div>
-        <div className="mt-5 flex items-center gap-3 flex-wrap"><button onClick={() => { setSent(true); setTimeout(() => setSent(false), 2500); }} className="text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5" style={{ backgroundColor: COLOR.coral }}><Mail className="w-3.5 h-3.5" strokeWidth={1.8} /> Gửi email</button><button onClick={() => window.print()} className="text-xs font-medium rounded-xl px-4 py-2 text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> In / PDF</button>{sent && <span className="text-xs text-teal-600 font-medium">✓ Đã gửi tới {recips.length} email (mô phỏng).</span>}</div>
-        <p className="text-[11px] text-slate-400 mt-3">Gửi từ <b>{sender}</b> tới {recips.length} email người nhận. Kèm phân tích AI ở trên (nếu có).</p>
+        {guiTT && guiTT !== "DANG_GUI" && (guiTT.ok
+          ? <p className="text-xs text-teal-600 font-medium mt-3">✓ {guiTT.message || "Đã nhận yêu cầu — báo cáo sẽ được tạo và gửi email trong vài phút."}</p>
+          : <p className="text-xs text-rose-600 font-medium mt-3">✗ Không gửi được yêu cầu ({guiTT.error === "CHUA_CAU_HINH_WEBHOOK" ? "chưa cấu hình cau_hinh.wf5_webhook_bao_cao_bu" : guiTT.error}). Thử lại hoặc báo IT.</p>)}
+        <p className="text-[11px] text-slate-400 mt-3">Người nhận quản lý trong bảng <b>nguoi_nhan_bao_cao</b> (Supabase — bật <code className="text-[10px]">kich_hoat</code> sau khi điền email thật); chưa kích hoạt ai thì gửi về địa chỉ trong <code className="text-[10px]">cau_hinh.email_bao_cao_thang/tuan</code>. File PDF/HTML đồng thời lưu Google Drive.</p>
       </Card>
     </div>
   );

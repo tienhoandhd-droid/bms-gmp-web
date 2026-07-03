@@ -548,6 +548,33 @@ export async function phanTichAiQuaWorkflow(url, payload, signal) {
   }
 }
 
+// Lấy URL webhook WF5 v2 — nút "Gửi báo cáo bù" (key 'wf5_webhook_bao_cao_bu'). Trả '' nếu chưa đặt.
+export async function layWebhookBaoCaoBu(signal) {
+  const { data, error } = await docView('xem_cau_hinh_he_thong',
+    (q) => q.select('key,value_hien_thi').eq('key', 'wf5_webhook_bao_cao_bu'), { signal })
+  if (error || !data || !data.length) return ''
+  return (data[0].value_hien_thi || '').trim()
+}
+
+// Gọi WF5 v2 (n8n) gửi báo cáo bù. ky: 'THANG' | 'TUAN' | 'QUY' (kỳ LIỀN TRƯỚC).
+// Webhook trả lời ngay khi NHẬN yêu cầu; báo cáo được tạo + gửi email trong nền (~1 phút).
+// Trả { ok, message, error }.
+export async function guiBaoCaoBu(url, ky, signal) {
+  if (!url) return { ok: false, error: 'CHUA_CAU_HINH_WEBHOOK' }
+  try {
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ky }), signal,
+    })
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
+    let message = ''
+    try { const j = await res.json(); message = (j && j.message) || '' } catch { /* thân trả lời không phải JSON — vẫn OK */ }
+    return { ok: true, message }
+  } catch (e) {
+    return { ok: false, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
+  }
+}
+
 // ---------- tiện ích ----------
 function mucCanhBaoToLevel(muc) {
   switch ((muc || '').toUpperCase()) {
