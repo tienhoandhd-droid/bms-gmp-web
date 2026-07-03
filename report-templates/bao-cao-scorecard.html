@@ -1,0 +1,181 @@
+<!doctype html>
+<!--
+  bao-cao-scorecard.html — Báo cáo scorecard BMS-GMP (bản HTML/PDF, WF5 v2 / mục B3)
+  ===================================================================================
+  - Dùng cho 2 đường: (a) upload HTML lên Google Drive, (b) POST tới Gotenberg
+    /forms/chromium/convert/html để xuất PDF (bản lưu trữ chính thức GMP).
+  - Placeholder {{handlebars}} do Code node n8n thay thế. KHÁC email: ảnh biểu đồ
+    ở đây nhúng qua {{chart_*_src}} — Code node điền data URI base64
+    ("data:image/png;base64,…") để file TỰ CHỨA (Gotenberg/Drive không có CID).
+  - In A4: có @page rules; Gotenberg convert với paperWidth=8.27 paperHeight=11.69.
+  - CSS inline toàn bộ, không tải tài nguyên ngoài (an toàn khi mở offline).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<title>Báo cáo {{ky_bao_cao}} — BMS-GMP</title>
+<style>
+  /* ---- In A4 ---- */
+  @page { size: A4 portrait; margin: 14mm 12mm 16mm 12mm; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .khong-cat { break-inside: avoid; page-break-inside: avoid; }
+    .sang-trang { break-before: page; page-break-before: always; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Be Vietnam Pro', 'Noto Sans', 'Segoe UI', Arial, sans-serif;
+    color: #334155; font-size: 12px; line-height: 1.55;
+    background: #ffffff; max-width: 186mm; margin: 0 auto; padding: 8px 0;
+  }
+  /* ---- Header ---- */
+  .header { display: flex; align-items: center; gap: 14px; background: #0f172a;
+            color: #fff; border-radius: 8px; padding: 14px 18px; }
+  .header img.logo { width: 48px; height: 48px; object-fit: contain; }
+  .header h1 { font-size: 17px; font-weight: 700; }
+  .header .phu-de { color: #94a3b8; font-size: 11px; margin-top: 2px; }
+  /* ---- KPI ---- */
+  .hang-kpi { display: flex; gap: 10px; margin: 14px 0 4px 0; }
+  .the-kpi { flex: 1; border: 1px solid #e2e8f0; border-radius: 8px;
+             padding: 10px 12px; text-align: center; }
+  .the-kpi .nhan { font-size: 9px; letter-spacing: .05em; text-transform: uppercase; color: #64748b; }
+  .the-kpi .so { font-size: 24px; font-weight: 700; color: #0f172a; margin: 2px 0; }
+  .the-kpi .delta { font-size: 11px; font-weight: 600; }
+  /* màu đèn giao thông — Code node gán class ok/warn/bad hoặc màu trực tiếp */
+  .ok   { color: #0d9488; } .warn { color: #d97706; } .bad  { color: #b91c1c; }
+  /* ---- Khối biểu đồ ---- */
+  h2 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 16px 0 6px 0; }
+  .khoi-bieu-do img { width: 100%; height: auto; display: block;
+                      border: 1px solid #f1f5f9; border-radius: 6px; }
+  /* ---- Bảng top phòng ---- */
+  table.bang { width: 100%; border-collapse: collapse; }
+  table.bang th { text-align: left; font-size: 9px; text-transform: uppercase;
+                  letter-spacing: .04em; color: #64748b; padding: 6px 8px;
+                  border-bottom: 2px solid #e2e8f0; }
+  table.bang td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+  table.bang td.so { text-align: right; font-variant-numeric: tabular-nums; }
+  table.bang img.spark { width: 120px; height: 36px; display: block; }
+  /* ---- Khối AI ---- */
+  .khoi-ai { background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 8px;
+             padding: 12px 14px; margin-top: 16px; }
+  .khoi-ai .tieu-de { color: #0d9488; font-weight: 700; font-size: 12px; margin-bottom: 6px; }
+  .khoi-ai .disclaimer { color: #64748b; font-size: 10px; font-style: italic; margin-top: 8px; }
+  /* ---- Footer truy vết ---- */
+  .footer { margin-top: 18px; padding-top: 10px; border-top: 1px solid #e2e8f0;
+            color: #94a3b8; font-size: 10px; }
+  .footer code { font-family: ui-monospace, 'Courier New', monospace; font-size: 9.5px;
+                 background: #f8fafc; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+  <!-- ================= HEADER ================= -->
+  <header class="header khong-cat">
+    <img class="logo" src="{{logo_src}}" alt="CPC1" />
+    <div>
+      <h1>Báo cáo {{ky_bao_cao}} — Giám sát môi trường GMP</h1>
+      <div class="phu-de">Kỳ: {{tu_ngay}} → {{den_ngay}} · Tạo lúc {{tao_luc}} (giờ VN) · Mã lần chạy: {{ma_lan_chay}}</div>
+    </div>
+  </header>
+
+  <!-- ================= HÀNG 4 KPI ================= -->
+  <section class="hang-kpi khong-cat">
+    <div class="the-kpi">
+      <div class="nhan">% Tuân thủ</div>
+      <div class="so" style="color:{{kpi_tuan_thu_mau}}">{{kpi_tuan_thu}}%</div>
+      <div class="delta" style="color:{{delta_tuan_thu_mau}}">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}} so kỳ trước</div>
+    </div>
+    <div class="the-kpi">
+      <div class="nhan">Giờ OOS</div>
+      <div class="so">{{kpi_gio_oos}}</div>
+      <div class="delta" style="color:{{delta_oos_mau}}">{{delta_oos_mui_ten}} {{delta_oos}} so kỳ trước</div>
+    </div>
+    <div class="the-kpi">
+      <div class="nhan">Sự cố (mở/đóng)</div>
+      <div class="so">{{so_su_co_mo}}/{{so_su_co_dong}}</div>
+      <div class="delta" style="color:{{delta_su_co_mau}}">{{delta_su_co_mui_ten}} {{delta_su_co}} · MTTR {{mttr_gio}}h</div>
+    </div>
+    <div class="the-kpi">
+      <div class="nhan">Tín hiệu SPC</div>
+      <div class="so" style="color:{{kpi_spc_mau}}">{{so_tin_hieu_spc}}</div>
+      <div class="delta" style="color:#64748b">{{so_scope_ngoai_ks}} scope ngoài kiểm soát</div>
+    </div>
+  </section>
+
+  <!-- ================= BIỂU ĐỒ CHÍNH ================= -->
+  <section class="khoi-bieu-do khong-cat">
+    <h2>Tỉ lệ tuân thủ theo ngày (ngưỡng 80%)</h2>
+    <img src="{{chart_line_src}}" alt="Biểu đồ tuân thủ theo ngày" />
+  </section>
+
+  <section class="khoi-bieu-do khong-cat">
+    <h2>Lịch tuân thủ trong kỳ</h2>
+    <img src="{{chart_heat_src}}" alt="Heatmap lịch tuân thủ" />
+  </section>
+
+  <!-- ================= TOP 5 PHÒNG RỦI RO ================= -->
+  <section class="khong-cat">
+    <h2>Top 5 phòng rủi ro</h2>
+    <table class="bang">
+      <thead>
+        <tr>
+          <th>Phòng</th><th>Khu</th>
+          <th style="text-align:right">Tuân thủ</th>
+          <th style="text-align:right">Giờ OOS</th>
+          <th>Diễn biến trong kỳ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Code node lặp mảng top_phong_rui_ro, nhân bản <tr>; spark_src = data URI -->
+        {{#each top_phong_rui_ro}}
+        <tr>
+          <td><strong>{{ten_phong}}</strong><br /><span style="color:#94a3b8;font-size:10px">{{ma_phong}}</span></td>
+          <td>{{khu_vuc}}</td>
+          <td class="so" style="color:{{mau}};font-weight:700">{{ty_le_tuan_thu}}%</td>
+          <td class="so">{{so_gio_oos}}</td>
+          <td><img class="spark" src="{{spark_src}}" alt="xu hướng {{ma_phong}}" /></td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ================= KHỐI SPC ================= -->
+  <section class="khong-cat">
+    <h2>Kiểm soát thống kê (SPC) — {{so_tin_hieu_spc}} tín hiệu / {{so_scope_ngoai_ks}} scope</h2>
+    <table class="bang">
+      <thead>
+        <tr><th>Scope</th><th>Cảm biến</th><th style="text-align:right">Tín hiệu</th><th>Loại (EWMA/CUSUM/Nelson)</th></tr>
+      </thead>
+      <tbody>
+        {{#each spc_chi_tiet}}
+        <tr>
+          <td>{{ten_scope}}</td>
+          <td>{{sensor_type}}</td>
+          <td class="so">{{so_tin_hieu}}</td>
+          <td>{{cac_loai}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ================= NHẬN ĐỊNH AI ================= -->
+  <section class="khoi-ai khong-cat">
+    <div class="tieu-de">Nhận định AI (đã thẩm định Writer–Judge)</div>
+    <div>{{nhan_dinh_ai}}</div>
+    <div class="disclaimer">
+      Số liệu do hệ thống tính — AI chỉ viết nhận định. Kết luận GMP do IPC/QA.
+      Mô hình: {{ai_model_dung}} · {{ai_tao_luc}}
+    </div>
+  </section>
+
+  <!-- ================= FOOTER TRUY VẾT ================= -->
+  <footer class="footer">
+    Truy vết GMP: mã lần chạy WF5 <strong>{{ma_lan_chay}}</strong> · Tạo lúc {{tao_luc}} ·
+    Nguồn số liệu: <code>rpc_bao_cao_tong_hop('{{ky}}', '{{tu_ngay_iso}}', '{{den_ngay_iso}}')</code><br />
+    Hệ thống BMS-GMP (CPC1HN). Bản PDF trên Google Drive là bản ghi lưu trữ chính thức.
+  </footer>
+
+</body>
+</html>
