@@ -356,17 +356,19 @@ export async function layChuoiGiaTriPhong(maPhong, sensor, donVi, soDiem, signal
   const { data, error } = await goiRPC('rpc_chuoi_gia_tri_phong', {
     p_ma_phong: maPhong, p_sensor: sensor, p_don_vi: donVi || 'GIO', p_so_diem: soDiem,
   }, { signal })
-  if (error || !Array.isArray(data)) return { error, series: [] }
-  const series = data.map((r) => ({
+  // RPC (mới) trả { series, baseline }; vẫn chấp nhận MẢNG cũ để tương thích.
+  const rows = Array.isArray(data) ? data : (data && Array.isArray(data.series) ? data.series : [])
+  if (error || !rows) return { error, series: [], baseline: null }
+  const num = (v) => (v != null ? Number(v) : null)
+  const series = rows.map((r) => ({
     label: r.label,
     ts: r.ts != null ? Number(r.ts) : null,
-    avg: r.avg != null ? Number(r.avg) : null,
-    lo: r.lo != null ? Number(r.lo) : null,
-    hi: r.hi != null ? Number(r.hi) : null,
-    vmin: r.vmin != null ? Number(r.vmin) : null,
-    vmax: r.vmax != null ? Number(r.vmax) : null,
+    avg: num(r.avg), lo: num(r.lo), hi: num(r.hi), vmin: num(r.vmin), vmax: num(r.vmax),
+    p5: num(r.p5), p50: num(r.p50), p95: num(r.p95),
   }))
-  return { error: null, series }
+  const b = (data && !Array.isArray(data) && data.baseline) || null
+  const baseline = b ? { tb: num(b.tb), sigma: num(b.sigma), n: b.n != null ? Number(b.n) : 0 } : null
+  return { error: null, series, baseline }
 }
 
 // ============================================================

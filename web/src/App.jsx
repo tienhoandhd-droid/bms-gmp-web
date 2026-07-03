@@ -606,10 +606,14 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
 }
 
 function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, liveIncidents = null, onSaveAI = null }) {
-  const [range, setRange] = useState("30n");
-  const [level, setLevel] = useState("TOTAL");
+  // Ghi nhớ lựa chọn giữa các lần vào (localStorage) — chỉ lưu tuỳ chọn nhẹ, không lưu dữ liệu.
+  const LS_KEY = "bms_trend_prefs";
+  const prefs = (() => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } })();
+  const [range, setRange] = useState(["1n", "7n", "30n", "90n"].includes(prefs.range) ? prefs.range : "30n");
+  const [level, setLevel] = useState(["TOTAL", "AREA", "AHU", "ROOM"].includes(prefs.level) ? prefs.level : "TOTAL");
   const [selId, setSelId] = useState("");
-  const [sensor, setSensor] = useState("ALL");
+  const [sensor, setSensor] = useState(["ALL", "DP", "RH", "T"].includes(prefs.sensor) ? prefs.sensor : "ALL");
+  const [resOverride, setResOverride] = useState(["PHUT", "GIO"].includes(prefs.res) ? prefs.res : null); // độ phân giải khung dưới-ngày: null=auto
   const [optArea, setOptArea] = useState("ALL");
   const [optAhu, setOptAhu] = useState("ALL");
   const [dtFrom, setDtFrom] = useState("");
@@ -622,6 +626,14 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [aiWebhook, setAiWebhook] = useState("");     // URL WF7 (nếu cấu hình)
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const u = await layWebhookAi(); if (!huy) setAiWebhook(u || ""); })(); return () => { huy = true; }; }, [isLive]);
   const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90 };
+  // Độ phân giải: 30n/90n → NGÀY; 1n/7n → auto (1n=PHUT 30′, 7n=GIO) hoặc override PHUT/GIO.
+  const donVi = (range === "30n" || range === "90n") ? "NGAY"
+    : ((resOverride === "PHUT" || resOverride === "GIO") ? resOverride : (range === "1n" ? "PHUT" : "GIO"));
+  const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);  // GIO/PHUT: số GIỜ; NGAY: số ngày
+  const resLbl = donVi === "PHUT" ? "30 phút" : donVi === "GIO" ? "theo giờ" : "theo ngày";
+  const isSubDay = donVi === "PHUT" || donVi === "GIO";
+  // Lưu lựa chọn nhẹ
+  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ range, level, sensor, res: resOverride })); } catch { /* bỏ qua */ } }, [range, level, sensor, resOverride]);
   const [liveSeries, setLiveSeries] = useState({});   // {scopeId: chuỗi 90 ngày ALL} — cho mini-scope & thẻ kỳ
   const [mainSeries, setMainSeries] = useState({});   // {`id|sensor|range`: chuỗi chính (giờ/ngày + đúng cảm biến)}
   const [roomBand, setRoomBand] = useState({});       // {`room|sensor|range`: chuỗi giá trị TB + giới hạn (phòng)}
@@ -699,7 +711,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   ), [allOptions, optArea, optAhu]);
   const activeId = selId && options.some((o) => o.id === selId) ? selId : (options[0] ? options[0].id : "ALL");
   const activeScope = (isLive ? lFind(activeId) : findScope(activeId)) || (isLive ? (liveScopes[0] || { id: "ALL", name: "—", daily: [{}], latest: {} }) : findScope("ALL"));
-  const trendKey = `${activeId}|${sensor}|${range}`;   // khóa cache chuỗi chính
+  const trendKey = `${activeId}|${sensor}|${range}|${donVi}`;   // khóa cache chuỗi chính (kèm độ phân giải)
 
   // LIVE: tải chuỗi 90 ngày cho scope đang chọn + 4 scope mini (cache theo id)
   const miniIds = useMemo(() => isLive ? [lByType("TOTAL")[0], lByType("AREA")[0], lByType("AHU")[0], lByType("ROOM")[0]].map((s) => s && s.id).filter(Boolean) : [], [isLive, liveScopes]); // eslint-disable-line
@@ -721,8 +733,6 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   useEffect(() => {
     if (!isLive || !activeId) return;
     if (mainSeries[trendKey]) return;                 // đã có cache
-    const donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
-    const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
     const sc = lFind(activeId);
     let huy = false;
     (async () => {
@@ -731,17 +741,15 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       setMainSeries((m) => ({ ...m, [trendKey]: (r && r.series) || [] }));
     })();
     return () => { huy = true; };
-  }, [isLive, activeId, sensor, range]); // eslint-disable-line
+  }, [isLive, activeId, sensor, range, donVi]); // eslint-disable-line
 
   // LIVE: chuỗi GIÁ TRỊ TRUNG BÌNH + giới hạn cho 1 PHÒNG · 1 CẢM BIẾN (#4)
   //   chỉ tải khi đang xem cấp PHÒNG và đã chọn 1 chỉ tiêu cụ thể (DP/RH/T).
-  const roomBandKey = `${activeId}|${sensor}|${range}`;
+  const roomBandKey = `${activeId}|${sensor}|${range}|${donVi}`;
   const wantRoomBand = isLive && activeScope && activeScope.type === "ROOM" && ["DP", "RH", "T"].includes(sensor);
   useEffect(() => {
     if (!wantRoomBand) return;
     if (roomBand[roomBandKey]) return;
-    const donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
-    const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
     let huy = false;
     (async () => {
       const r = await layChuoiGiaTriPhong(activeId, sensor, donVi, soDiem);
@@ -749,16 +757,14 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       setRoomBand((m) => ({ ...m, [roomBandKey]: (r && r.series) || [] }));
     })();
     return () => { huy = true; };
-  }, [wantRoomBand, activeId, sensor, range]); // eslint-disable-line
+  }, [wantRoomBand, activeId, sensor, range, donVi]); // eslint-disable-line
 
   // LIVE: nạp band TB + giới hạn cho CẢ 3 chỉ tiêu (DP/RH/T) của phòng — để hiện đồng thời.
-  const roomBandsKey = `${activeId}|${range}`;
+  const roomBandsKey = `${activeId}|${range}|${donVi}`;
   const wantRoomBands = isLive && activeScope && activeScope.type === "ROOM";
   useEffect(() => {
     if (!wantRoomBands) return;
     if (roomBandsMulti[roomBandsKey]) return;
-    const donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
-    const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
     let huy = false;
     (async () => {
       const out = {};
@@ -766,21 +772,19 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         const r = await layChuoiGiaTriPhong(activeId, k, donVi, soDiem);
         if (huy) return;
         const s = (r && r.series) || [];
-        if (s.length) out[k] = s;
+        if (s.length) out[k] = { series: s, baseline: r.baseline || null };   // kèm baseline 30 ngày
       }
       if (!huy) setRoomBandsMulti((m) => ({ ...m, [roomBandsKey]: out }));
     })();
     return () => { huy = true; };
-  }, [wantRoomBands, activeId, range]); // eslint-disable-line
+  }, [wantRoomBands, activeId, range, donVi]); // eslint-disable-line
 
   // chuỗi ĐA CẢM BIẾN (vẽ đủ DP/RH/T) — tải cho MỌI cấp: phòng/khu/AHU/tổng.
-  const multiKey = `${activeScope?.type || "TOTAL"}|${activeId}|${range}`;
+  const multiKey = `${activeScope?.type || "TOTAL"}|${activeId}|${range}|${donVi}`;
   const wantMulti = isLive && !!activeScope;
   useEffect(() => {
     if (!wantMulti) return;
     if (multiSensor[multiKey]) return;
-    const donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
-    const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
     const scType = activeScope.type || "TOTAL";
     let huy = false;
     (async () => {
@@ -789,7 +793,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       setMultiSensor((m) => ({ ...m, [multiKey]: (r && r.perSensor) || [] }));
     })();
     return () => { huy = true; };
-  }, [wantMulti, activeId, range, activeScope]); // eslint-disable-line
+  }, [wantMulti, activeId, range, donVi, activeScope]); // eslint-disable-line
 
   // Gộp chuỗi đa cảm biến theo mốc thời gian → {ts,label,comp_DP,oos_DP,comp_RH,...}
   const multiMerged = useMemo(() => {
@@ -969,7 +973,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       }).slice(0, 12).map((i) => ({ ma: i.id, phong: i.room, chi_tieu: i.sensor || null, muc: i.priority, trang_thai: i.status }));
       const roomRec = (liveRooms || []).find((r) => r.id === activeScope.id) || {};
       // ===== Dữ liệu PHÂN TÍCH SÂU (Supabase tính) =====
-      const _donVi = (range === "1n" || range === "7n") ? "GIO" : "NGAY";
+      const _donVi = donVi === "NGAY" ? "NGAY" : "GIO";   // phân tích sâu chỉ có GIO/NGAY (PHUT→GIO)
       const _soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
       const _soGio = range === "1n" ? 24 : range === "7n" ? 168 : ((RANGE_DAYS[range] || 30) * 24);
       const _canDrill = activeScope.type === "TOTAL" || activeScope.type === "AREA" || activeScope.type === "AHU";
@@ -1027,9 +1031,15 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
 
       <Card className="relative z-30 p-5">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Khoảng</span>{RANGES.map((r) => <Chip key={r.k} active={range === r.k} onClick={() => { setRange(r.k); setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }}>{r.label}</Chip>)}</div>
+          <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Khoảng</span>{RANGES.map((r) => <Chip key={r.k} active={range === r.k} onClick={() => { setRange(r.k); setResOverride(null); setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }}>{r.label}</Chip>)}</div>
           <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Cấp xem</span>{SCOPE_LEVELS.map((s) => <Chip key={s.k} active={level === s.k} onClick={() => { setLevel(s.k); setSelId(""); setOptArea("ALL"); setOptAhu("ALL"); }}>{s.label}</Chip>)}</div>
           <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Chỉ tiêu</span>{SENSORS.map((s) => <Chip key={s.k} active={sensor === s.k} onClick={() => setSensor(s.k)}>{s.label}</Chip>)}</div>
+          {isSubDay && (
+            <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Độ phân giải</span>
+              <Chip active={donVi === "PHUT"} onClick={() => setResOverride("PHUT")}>30 phút</Chip>
+              <Chip active={donVi === "GIO"} onClick={() => setResOverride("GIO")}>1 giờ</Chip>
+            </div>
+          )}
         </div>
         {/* Lọc nhanh + chọn khoảng thời gian (có nút Áp dụng) — #2 */}
         <div className="mt-3 rounded-2xl bg-sky-50/50 ring-1 ring-sky-100 px-3 py-2.5">
@@ -1048,7 +1058,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             <input type="datetime-local" value={dtToDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtToDraft(e.target.value)} className={sel} />
             <button onClick={() => { setDtFrom(dtFromDraft); setDtTo(dtToDraft); }} className="text-[12px] font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: COLOR.teal }}><Search className="w-3.5 h-3.5" strokeWidth={1.8} /> Áp dụng</button>
             {(dtFrom || dtTo || dtFromDraft || dtToDraft) && <button onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }} className="text-[11px] text-slate-500 underline">Đặt lại</button>}
-            <span className="text-[11px] text-slate-400 ml-1">Đang xem {view.length}/{full.length} điểm{isHourly ? " (theo giờ)" : " (theo ngày)"}</span>
+            <span className="text-[11px] text-slate-400 ml-1">Đang xem {view.length}/{full.length} điểm ({resLbl})</span>
           </div>
         </div>
         {level !== "TOTAL" && (
@@ -1073,7 +1083,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <span className="text-[12px] text-slate-600">Đang chọn: <b style={{ color: COLOR.navy }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {RANGES.find((r) => r.k === range).label}{(dtFrom || dtTo) ? ` · ${view[0]?.label}→${view[view.length - 1]?.label}` : ""}</span>
         <div className="flex gap-2">
           <button onClick={printTrend} className="text-xs font-medium rounded-xl px-4 py-2 text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> In biểu đồ từ lựa chọn này</button>
-          <button onClick={runAI} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: COLOR.teal }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "Đang phân tích…" : (isLive && aiWebhook ? "AI phân tích (OpenAI)" : "AI phân tích & cảnh báo")}</button>
+          <button onClick={runAI} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: COLOR.teal }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "AI gợi ý đọc biểu đồ"}</button>
         </div>
       </Card>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1095,7 +1105,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         )}
         {!aiBusy && aiResult && (() => { const al = [{ l: "Kiểm soát tốt", c: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200" }, { l: "Cần chú ý", c: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200" }, { l: "Cảnh báo", c: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200" }, { l: "Hành động", c: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200" }][aiResult.level]; return (
           <Card className={`p-5 ring-1 ${al.ring}`}>
-            <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Kết quả AI phân tích &amp; cảnh báo</SectionTitle><div className="flex items-center gap-2">{aiResult.nguon === "openai" && <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-teal-50 text-teal-700 ring-1 ring-teal-200">OpenAI</span>}{aiResult.nguon === "cuc_bo" && <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-500">Phân tích cục bộ</span>}<span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Mức cảnh báo: {al.l}</span></div></div>
+            <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Gợi ý đọc biểu đồ (AI hỗ trợ)</SectionTitle><div className="flex items-center gap-2">{aiResult.nguon === "openai" && <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-teal-50 text-teal-700 ring-1 ring-teal-200">OpenAI</span>}{aiResult.nguon === "cuc_bo" && <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-500">Tự luận cục bộ</span>}<span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Gợi ý mức: {al.l}</span></div></div>
+            <p className="mt-1 mb-2 text-[11px] text-slate-500 bg-slate-50 ring-1 ring-slate-200/70 rounded-lg px-3 py-1.5">ℹ️ AI chỉ <b>đọc số liệu và gợi ý</b> — mọi con số do hệ thống tính (SQL/thống kê), <b>không phải AI</b>. Kết luận &amp; quyết định GMP do IPC/QA phê duyệt.</p>
             <AiSections text={aiResult.text} />
             {aiNote && <p className="mt-3 text-[12px] text-amber-700 bg-amber-50 ring-1 ring-amber-100 rounded-xl px-3 py-2">⚠ {aiNote}</p>}
             <p className="mt-3 text-[11px] text-slate-400">Đã lưu vào tab <b>Báo cáo</b> để gửi email · {aiResult.time}</p>
@@ -1106,7 +1117,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           {/* (1) Giá trị trung bình mỗi giờ + dải giới hạn — hiện CẢ 3 chỉ tiêu của phòng */}
           {(() => {
             const bands = (wantRoomBands && roomBandsMulti[roomBandsKey]) || null;
-            const ks = bands ? ["DP", "RH", "T"].filter((k) => bands[k] && bands[k].length) : [];
+            const ks = bands ? ["DP", "RH", "T"].filter((k) => bands[k] && bands[k].series && bands[k].series.length) : [];
             return (
               <Card className="p-6"><SectionTitle icon={Minus} hint={`${activeScope.name} · trung bình mỗi ${isHourly ? "giờ" : "ngày"} · tất cả chỉ tiêu`}>① Giá trị trung bình &amp; dải giới hạn</SectionTitle>
                 {!isLive ? (
@@ -1116,7 +1127,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
                 ) : ks.length === 0 ? (
                   <p className="mt-4 text-[13px] text-slate-500">Phòng này chưa ghi nhận giá trị (Chênh áp / Độ ẩm / Nhiệt độ) trong khoảng đã chọn.</p>
                 ) : (
-                  <div className="mt-4 divide-y divide-slate-100">{ks.map((k, idx) => <div key={k} className={idx > 0 ? "pt-6" : ""}><Chart type="roomBand" sensorKey={k} series={bands[k]} isHourly={isHourly} h={296} /></div>)}</div>
+                  <div className="mt-4 divide-y divide-slate-100">{ks.map((k, idx) => <div key={k} className={idx > 0 ? "pt-6" : ""}><Chart type="roomBand" sensorKey={k} series={bands[k].series} baseline={bands[k].baseline} isHourly={isHourly} h={296} /></div>)}</div>
                 )}
               </Card>
             );
@@ -1162,7 +1173,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             ["Tổng điểm OOS", `${tech.totOos ?? 0}`, "text-rose-600"],
           ].map(([k, v, c]) => <div key={k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold leading-tight">{k}</p><p className={`text-lg font-light mt-1 tabular-nums ${c}`}>{v}</p></div>)}</div>
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">{[["Đạt 1 ngày", fmtPct(activeScope.dat1n)], ["Đạt 3 ngày", fmtPct(activeScope.dat3n)], ["Đạt 7 ngày", fmtPct(activeScope.dat7n)], ["Min–Max kỳ", tech.n ? `${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%` : "—"]].map(([k, v]) => <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 py-2"><p className="text-[9px] uppercase text-slate-400 font-semibold">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
-          <p className="text-[11px] text-slate-400 mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Bấm <b>“AI phân tích &amp; cảnh báo”</b> để tổng hợp thành kết luận và mức cảnh báo.</p>
+          <p className="text-[11px] text-slate-400 mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Đây là <b>số liệu tất định</b> (hệ thống tính). Bấm <b>“AI gợi ý đọc biểu đồ”</b> để AI diễn giải &amp; gợi ý (không thay thế kết luận GMP).</p>
         </Card>
       </div>
 
