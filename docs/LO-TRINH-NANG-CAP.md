@@ -56,7 +56,7 @@
 - **3 job đêm** xem tại: `select * from cron.job;` — `bms-xu-huong-dem` (01:15 VN), `bms-spc-dem` (01:45 VN, nạp SPC vào `dac_trung_xu_huong.du_lieu.spc`), `bms-don-dep-du-lieu` (02:30 VN).
 - **Phân tích GMP (MKT/SPC)**: MKT xem `select * from xem_mkt_phong;`; SPC gắn trong `dac_trung_xu_huong.du_lieu->'spc'` (in_control, tin_hieu[]). Tinh chỉnh độ nhạy ở `cau_hinh`: `spc_ewma_lambda` (0.2), `spc_ewma_L` (2.7), `spc_cusum_k` (0.5), `spc_cusum_h` (4.0); ΔH của MKT ở `mkt_delta_h_kj`.
 - **Đã vá (session này)**: `rpc_tinh_xu_huong_hang_ngay` trước xóa idempotent theo `current_date` — sai khi chạy qua nửa đêm/khác ngày (đụng UNIQUE không gồm ngày). Nay xóa theo `thuoc_thu_nghiem`.
-- **Chưa surface lên UI**: MKT + SPC hiện chỉ ở DB (view + jsonb). Bước kế: thêm vào báo cáo WF5 + tab web (tùy chọn).
+- **Đã surface MKT/SPC**: ✅ Báo cáo WF5 thêm mục 6 (MKT) + 7 (SPC), AI thành mục 8 (đã publish, verify query trả 10 MKT + 10 SPC). ✅ Tab web "Xu hướng GMP" thêm card "Phân tích GMP chuyên sâu" (bảng MKT + SPC), đọc qua `xem_mkt_phong` + `xem_spc_canh_bao` (view mới) → `layPhanTichGmp` trong supabaseData/useLiveData. Build + smoke-test OK; **xem trực quan ở LIVE** để thấy số thật.
 - **Telegram cảnh báo**: điền `telegram_chat_id_c1/c4/q2` trong `cau_hinh` (mỗi bot post vào nhóm khu của nó); `telegram_bat_canh_bao=false` để tắt toàn bộ.
 - **AI đa mô hình (WF3)**: điền `gemini_api_key`, `groq_api_key`; đổi thứ tự ưu tiên tại `ai_thu_tu_uu_tien`.
 - **Biểu đồ web lazy-load**: sau khi build, `web/dist/index.html` KHÔNG còn preload chunk Recharts; biểu đồ nằm ở chunk async `charts-*.js`, chỉ tải khi cần. Nếu thêm biểu đồ mới, đặt vào `src/components/charts.jsx` và gọi qua `<Chart type="…" />` để giữ tính lazy.
