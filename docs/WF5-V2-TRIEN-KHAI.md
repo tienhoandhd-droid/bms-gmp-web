@@ -44,6 +44,23 @@ Nguồn số liệu đối chiếu thật: `kpi_ngay_scope` (TOTAL/AREA/AHU) + `
   số liệu = `so_gio_warning + so_gio_critical`), thêm giải thích ở phụ lục thuật ngữ.
 - Lưu ý: workflow tải template từ nhánh `main` → nhãn mới có hiệu lực **sau khi merge nhánh này vào main**.
 
+### Dashboard chi tiết hơn + danh sách dài thu gọn (04/07/2026 — theo yêu cầu)
+
+Yêu cầu: "cần dashboard chi tiết hơn" + "danh sách dài nên ẩn đi / hiện khi chọn".
+
+- **`rpc_tat_ca_phong_ky(p_tu, p_den)`** (migration MỚI `20260704`): trả TOÀN BỘ phòng có KPI
+  trong kỳ (khu/ahu/ưu tiên/tuân thủ/critical/warning/oos/dq + chuỗi ngày). **Giữ nguyên
+  `rpc_bao_cao_tong_hop`** đã kiểm chứng — WF5 gộp ở node query:
+  `(rpc_bao_cao_tong_hop(...) || jsonb_build_object('tat_ca_phong', rpc_tat_ca_phong_ky(...)))`.
+- **Dashboard 13 mục** (dashboard-tuong-tac.html dựng lại): thêm **bảng TẤT CẢ phòng** tương tác
+  (tìm mã/tên, lọc Khu/AHU/ưu tiên, sắp xếp cột, bấm dòng → xem chuỗi phòng đó trên biểu đồ mục 1),
+  mục **Sự cố** (tiêu biểu + đang mở), **Độ phủ dữ liệu** + ngoại lệ, **SPC + MKT**, **Baseline +
+  xu hướng đáng chú ý**, **Giới hạn GHD–GHT**.
+- **Danh sách DÀI thu gọn**: mỗi mục dài để trong `<details>` — ẩn mặc định, kèm số đếm, **bấm để mở**
+  (chỉ "Bất thường" mở sẵn). Tránh dashboard quá dài mà vẫn đủ chi tiết khi cần.
+- Kiểm chứng: render 57 phòng không lỗi JS (tìm/sắp/bấm-xem OK); execution live `1676359` — dashboard
+  build 113KB (tuần) gồm tat_ca_phong, email gửi OK (~270KB kèm dashboard + scorecard). Người xem dùng máy tính.
+
 ### Email text-only + Dashboard tương tác (04/07/2026 — theo yêu cầu)
 
 Yêu cầu: "thông tin vào mail đủ màn hình, hình ảnh nén vào mail xấu" → "link đính kèm là 1 dashboard

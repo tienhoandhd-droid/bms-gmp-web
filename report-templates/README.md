@@ -6,7 +6,7 @@ Báo cáo tuần/tháng/quý — 1 nguồn số liệu duy nhất (`rpc_bao_cao_
 | File | Dùng cho |
 |---|---|
 | `email-bao-cao.html` | **Email TÓM TẮT — CHỈ TEXT, KHÔNG ẢNH** (KPI/top phòng/bất thường/AI dạng bảng) + nút "Mở dashboard tương tác". n8n interpolate `{{ }}` + `{{#each}}`. Nhẹ (~17KB). |
-| `dashboard-tuong-tac.html` | **Dashboard TƯƠNG TÁC tự chứa** — nhúng JSON kỳ vào `{{DATA_JSON}}`, vanilla JS + SVG (hover/lọc Khu-AHU). Mở offline. Đính kèm email + lưu Drive. |
+| `dashboard-tuong-tac.html` | **Dashboard TƯƠNG TÁC tự chứa** — nhúng JSON kỳ vào `{{DATA_JSON}}`, vanilla JS + SVG. 13 mục: biểu đồ hover + lọc Nhà máy/Khu/AHU, heatmap, top phòng, **bảng TẤT CẢ phòng** (tìm/lọc/sắp/bấm-xem), Sự cố, DQ, SPC/MKT, Baseline, Giới hạn, AI. Danh sách DÀI để trong `<details>` — **thu gọn mặc định, bấm để mở**. Mở offline. Đính kèm email + lưu Drive. Cần `bc.tat_ca_phong` (từ `rpc_tat_ca_phong_ky`, gộp ở node query). |
 | `bao-cao-scorecard.html` | HTML → Gotenberg → **PDF ký duyệt GMP** (ALCOA+); ảnh biểu đồ nhúng **data URI base64** (chart-render/SVG). |
 | `email-bao-cao.mjml` | ⚠ **Không dùng nữa** — email cũ (MJML/ảnh CID). Giữ để tham khảo; email hiện là `email-bao-cao.html` viết tay text-only. |
 
