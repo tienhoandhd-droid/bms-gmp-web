@@ -804,7 +804,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     return [...byTs.values()].sort((a, b) => a.ts - b.ts);
   }, [wantMulti, multiSensor, multiKey]);
   const sensorsPresent = useMemo(() => (wantMulti ? (multiSensor[multiKey] || []).map((g) => g.k) : []), [wantMulti, multiSensor, multiKey]);
-  const full = isLive ? (mainSeries[trendKey] || []) : demoFull;
+  const full = isLive ? (mainSeries[trendKey] || []) : getSeries(activeScope, sensor, range);
   const minTs = full[0]?.ts, maxTs = full[full.length - 1]?.ts;
   const fromMs = dtFrom ? new Date(dtFrom).getTime() : minTs;
   const toMs = dtTo ? new Date(dtTo).getTime() : maxTs;
