@@ -684,6 +684,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [dtToDraft, setDtToDraft] = useState("");
   const [aiResult, setAiResult] = useState(null);
   const [aiBusy, setAiBusy] = useState(false);        // đang gọi AI qua workflow
+  const [dangInBaoCao, setDangInBaoCao] = useState(false); // đang chuẩn bị in (chờ AI xong)
   const [aiNote, setAiNote] = useState(null);         // ghi chú trạng thái (vd: lỗi → dùng bản cục bộ)
   const [aiWebhook, setAiWebhook] = useState("");     // URL WF7 (nếu cấu hình)
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const u = await layWebhookAi(); if (!huy) setAiWebhook(u || ""); })(); return () => { huy = true; }; }, [isLive]);
@@ -1074,6 +1075,17 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     finishAI(loc.text, loc.level, "cuc_bo");
   };
 
+  // In báo cáo A4 — LUÔN kèm phân tích AI: nếu chưa có nhận định thì chạy AI trước rồi mới in.
+  const inBaoCaoA4 = async () => {
+    const meta = { scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor)?.label, range: RANGES.find((r) => r.k === range)?.label, res: resLbl, window: (dtFrom || dtTo) ? `${view[0]?.label}→${view[view.length - 1]?.label}` : "" };
+    if (!aiResult) {
+      setDangInBaoCao(true);
+      try { await runAI(); await new Promise((r) => setTimeout(r, 650)); } catch { /* vẫn in phần còn lại */ }
+      setDangInBaoCao(false);
+    }
+    printTrend(meta);
+  };
+
   const Chip = ({ active, onClick, children }) => <button onClick={onClick} className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${active ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={active ? { backgroundColor: COLOR.teal } : {}}>{children}</button>;
   const sel = "rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[12px] text-slate-700 outline-none";
 
@@ -1144,7 +1156,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       <Card className="p-4 flex items-center justify-between flex-wrap gap-3">
         <span className="text-[12px] text-slate-600">Đang chọn: <b style={{ color: COLOR.navy }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {RANGES.find((r) => r.k === range).label}{(dtFrom || dtTo) ? ` · ${view[0]?.label}→${view[view.length - 1]?.label}` : ""}</span>
         <div className="flex gap-2">
-          <button onClick={() => printTrend({ scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor)?.label, range: RANGES.find((r) => r.k === range)?.label, res: resLbl, window: (dtFrom || dtTo) ? `${view[0]?.label}→${view[view.length - 1]?.label}` : "" })} className="text-xs font-medium rounded-xl px-4 py-2 text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> In báo cáo A4 (từ lựa chọn này)</button>
+          <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo (chờ AI)…" : "In báo cáo A4 (kèm phân tích AI)"}</button>
           <button onClick={runAI} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: COLOR.teal }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "AI gợi ý đọc biểu đồ"}</button>
         </div>
       </Card>
