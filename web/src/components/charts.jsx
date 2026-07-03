@@ -54,10 +54,14 @@ function EChart({ option, height = 200, width = "100%", className = "" }) {
   const elRef = useRef(null);
   const instRef = useRef(null);
   useEffect(() => {
-    instRef.current = echarts.init(elRef.current, null, { renderer: "canvas" });
+    const inst = echarts.init(elRef.current, null, { renderer: "canvas" });
+    instRef.current = inst;
+    // Đăng ký instance để chức năng IN có thể xuất ảnh biểu đồ SẠCH (loại toolbox/dataZoom).
+    const reg = (window.__bmsEcharts = window.__bmsEcharts || new Map());
+    reg.set(elRef.current, inst);
     const ro = new ResizeObserver(() => instRef.current && instRef.current.resize());
     ro.observe(elRef.current);
-    return () => { ro.disconnect(); instRef.current && instRef.current.dispose(); instRef.current = null; };
+    return () => { ro.disconnect(); reg.delete(elRef.current); inst.dispose(); instRef.current = null; };
   }, []);
   useEffect(() => { if (instRef.current && option) instRef.current.setOption(option, true); }, [option]);
   return <div ref={elRef} className={className} style={{ width, height }} />;
