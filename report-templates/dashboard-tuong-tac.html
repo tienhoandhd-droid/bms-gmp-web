@@ -4,9 +4,11 @@
   =============================================================================
   - File TỰ CHỨA: mở bằng trình duyệt bất kỳ (kể cả OFFLINE), không tải thư viện
     ngoài. Biểu đồ vẽ bằng vanilla JS + SVG.
-  - Dữ liệu 1 kỳ báo cáo nhúng trong <script id="bms-du-lieu"> — Code node n8n thay
-    {{DATA_JSON}} = JSON.stringify({ meta, bc }) (đã escape '<'). bc = rpc_bao_cao_tong_hop
-    (+ tat_ca_phong từ rpc_tat_ca_phong_ky).
+  - Dữ liệu 1 kỳ báo cáo nhúng trong thẻ script id="bms-du-lieu" (ở cuối file) — Code
+    node n8n thay chỗ giữ chỗ (placeholder) đó = JSON.stringify({ meta, bc }) (đã escape
+    '<'). bc = rpc_bao_cao_tong_hop (+ tat_ca_phong từ rpc_tat_ca_phong_ky).
+    LƯU Ý: KHÔNG viết lại chuỗi placeholder dạng ngoặc-nhọn-kép ở BẤT KỲ đâu phía trên
+    thẻ script — node dùng replace() chỉ thay lần xuất hiện đầu tiên, sẽ chèn nhầm.
   - v3: bảng TẤT CẢ phòng (tìm/lọc/sắp/bấm xem biểu đồ), mục Sự cố / Độ phủ dữ liệu /
     Giới hạn / Baseline. Danh sách DÀI để trong <details> — ẩn mặc định, BẤM ĐỂ MỞ.
   - Bản KÝ DUYỆT chính thức là PDF scorecard đính kèm.
