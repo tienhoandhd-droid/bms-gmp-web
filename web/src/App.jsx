@@ -814,6 +814,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     if (!isLive || !activeId) { setDuBao(null); setMaTran(null); return; }
     let huy = false;
     const st = activeScope.type || "TOTAL";
+    // Heatmap phòng×ngày chỉ có nghĩa ở cấp có NHIỀU phòng (Tổng/Khu); AHU/Phòng → bỏ.
+    const capHeatmap = st === "TOTAL" || st === "AREA";
     const hmType = st === "AREA" ? "AREA" : "TOTAL";
     const hmId = st === "AREA" ? activeId : "ALL";
     const soNgayHm = Math.min(14, RANGE_DAYS[range] || 30);
@@ -822,7 +824,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       try {
         const [fc, mt] = await Promise.all([
           layDuBaoXuHuong(st, activeId, sensor, 30, 7),
-          layMaTranPhongNgay(hmType, hmId, sensor, soNgayHm, 20),
+          capHeatmap ? layMaTranPhongNgay(hmType, hmId, sensor, soNgayHm, 20) : Promise.resolve({ rooms: [] }),
         ]);
         if (huy) return;
         setDuBao(fc && fc.du_bao ? fc.du_bao : null);
