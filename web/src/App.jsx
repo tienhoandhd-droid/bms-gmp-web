@@ -241,6 +241,27 @@ function KpiCard({ icon: Icon, label, value, total, sub, accent, onClick }) {
   );
 }
 
+/* ===== OOS mini 8h — cột thuần CSS (KHÔNG dùng ECharts) =====
+   Trước đây thẻ phòng ở tab Tổng quan (trang mặc định) render <Chart type="oosMini">
+   → kéo cả chunk ECharts (~730KB) ngay màn hình đầu, dù chỉ để vẽ 8 cột đơn giản.
+   Thay bằng cột div nhẹ → ECharts chỉ nạp khi mở Xu hướng / chi tiết phòng. */
+function OosMiniBars({ data, h = 70 }) {
+  const max = Math.max(1, ...data.map((d) => d.oos || 0));
+  const barsH = h - 16;   // chừa ~16px cho nhãn giờ ở dưới
+  return (
+    <div className="w-full select-none" style={{ height: h }}>
+      <div className="flex items-end gap-[3px]" style={{ height: barsH }}>
+        {data.map((d, i) => { const v = d.oos || 0; const hb = v > 0 ? Math.max(2, Math.round((v / max) * barsH)) : 0; return (
+          <div key={i} className="flex-1 flex items-end justify-center" title={`Giờ ${d.label} · ${v} điểm OOS`}>
+            <div className="w-full rounded-t" style={{ height: hb, background: COLOR.softCoral }} />
+          </div>
+        ); })}
+      </div>
+      <div className="flex gap-[3px] mt-1">{data.map((d, i) => <div key={i} className="flex-1 text-center text-[8px] text-slate-400 tabular-nums leading-none truncate">{i % 2 === 0 ? d.label : ""}</div>)}</div>
+    </div>
+  );
+}
+
 /* ===== THẺ PHÒNG ===== */
 function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
   const lvl = roomLevel(room, cfg); const comp = roomCompliance(room); const failing = comp != null && comp < 80; const lm = lvl < 0 ? null : LEVELS[lvl];
@@ -270,7 +291,7 @@ function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
         </div>
       )}
 
-      {!room.noData && (() => { const oos8 = roomHourlyOOS(room); const tong8 = oos8.reduce((a, h) => a + (h.oos || 0), 0); return <div className="mt-3"><div className="flex items-center justify-between"><span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Điểm OOS theo giờ — 8h</span>{oos8.length > 0 && tong8 === 0 && <span className="text-[10px] text-teal-600 font-medium">0 điểm OOS · đạt</span>}</div>{oos8.length === 0 ? <p className="text-[11px] text-slate-400 italic py-3 text-center">chưa có dữ liệu 8h</p> : <Chart type="oosMini" data={oos8} h={70} />}</div>; })()}
+      {!room.noData && (() => { const oos8 = roomHourlyOOS(room); const tong8 = oos8.reduce((a, h) => a + (h.oos || 0), 0); return <div className="mt-3"><div className="flex items-center justify-between"><span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Điểm OOS theo giờ — 8h</span>{oos8.length > 0 && tong8 === 0 && <span className="text-[10px] text-teal-600 font-medium">0 điểm OOS · đạt</span>}</div>{oos8.length === 0 ? <p className="text-[11px] text-slate-400 italic py-3 text-center">chưa có dữ liệu 8h</p> : <OosMiniBars data={oos8} h={70} />}</div>; })()}
       {room.note && <p className="mt-3 text-[11px] text-slate-500 bg-sky-50/60 ring-1 ring-sky-100 rounded-xl px-3 py-2">📝 {room.note}</p>}
       <div className="mt-3 flex gap-2">
         <button onClick={() => onDetail(room)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-xl py-2 ring-1 ring-sky-200 transition"><Eye className="w-3.5 h-3.5" strokeWidth={1.8} /> Chi tiết &amp; biểu đồ</button>
