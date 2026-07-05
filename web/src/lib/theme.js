@@ -4,9 +4,9 @@
 // Design tokens cho AquaBMS: nền sáng – hệ thủy – sạch – kiểm soát cao,
 // cảnh báo NỔI BẬT, tương phản đạt WCAG (text ≥ 4.5:1, UI ≥ 3:1).
 //
-// Cách dùng: import { TOKEN } from "./lib/theme"  rồi thay COLOR cũ.
-// File này CHỈ là nguồn token — chưa áp vào giao diện. Bạn có thể chỉnh
-// hex tại đây để duyệt bảng màu trước khi áp dụng toàn hệ thống.
+// Cách dùng: import { TOKEN, STATUS, TYPE… } from "./lib/designTokens"
+// (designTokens.js re-export toàn bộ token dưới đây — Mảng 4 đã nối, không còn
+// dead-code). Chỉnh hex tại đây để đổi bảng màu toàn hệ thống từ 1 chỗ.
 // ============================================================
 
 // ---------- 1. MÀU NỀN TẢNG (base) ----------
