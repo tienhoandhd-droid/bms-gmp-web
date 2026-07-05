@@ -1466,6 +1466,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
                  <span className="text-[11px] text-slate-400">R²={(+duBao.r2).toFixed(2)}</span>
                </div>
                <p className="mt-2 text-[12px] leading-relaxed text-slate-600">{duBao.ghi_chu}</p>
+               {(duBao.chuoi || []).length >= 2 && <div className="mt-3"><Chart type="forecast" chuoi={duBao.chuoi} duBao={duBao.du_bao} h={180} /></div>}
              </div>
            );
          })() : (

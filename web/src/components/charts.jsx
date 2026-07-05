@@ -513,6 +513,50 @@ export function RoomDayHeatmap({ rooms, days, values, height, cellH = 18 }) {
   return <EChart option={option} height={h} />;
 }
 
+// ====== Dự báo xu hướng (Mảng 3): lịch sử + đường chiếu + dải tin cậy ======
+// chuoi=[{ngay,y}] (lịch sử) · duBao=[{ngay,gia_tri,canh_duoi,canh_tren}] (chiếu tới).
+// Dải tin cậy dựng bằng kỹ thuật stack 2 series (nền trong suốt + phần tô).
+export function ForecastChart({ chuoi, duBao, height = 180 }) {
+  const hist = (chuoi || []).map((p) => (p.y == null ? null : +p.y));
+  const fc = duBao || [];
+  if (!hist.length || !fc.length) return <p className="text-[12px] text-slate-400 italic">Chưa đủ dữ liệu để vẽ dự báo.</p>;
+  const fmtD = (s) => String(s).slice(5).split("-").reverse().join("/");
+  const N = hist.length, F = fc.length;
+  const labels = [...(chuoi || []).map((p) => fmtD(p.ngay)), ...fc.map((p) => fmtD(p.ngay))];
+  const lastY = hist[hist.length - 1];
+  const histData = [...hist, ...Array(F).fill(null)];
+  const fcData = [...Array(N - 1).fill(null), lastY, ...fc.map((p) => +p.gia_tri)];      // nối từ điểm cuối lịch sử
+  const bandLow = [...Array(N).fill(null), ...fc.map((p) => +p.canh_duoi)];               // nền dải (ẩn)
+  const bandDelta = [...Array(N).fill(null), ...fc.map((p) => +p.canh_tren - +p.canh_duoi)]; // phần tô = trên − dưới
+  const allV = [...hist.filter((v) => v != null), ...fc.map((p) => +p.canh_duoi), ...fc.map((p) => +p.canh_tren)];
+  const ymin = Math.max(0, Math.floor(Math.min.apply(null, allV) - 2));
+  const ymax = Math.min(100, Math.ceil(Math.max.apply(null, allV) + 2));
+  const option = {
+    animation: false,
+    grid: { top: 10, right: 12, bottom: 22, left: 8, containLabel: true },
+    tooltip: {
+      trigger: "axis", ...tooltipBase,
+      formatter: (ps) => {
+        const l = ps[0].axisValue;
+        const h = ps.find((x) => x.seriesName === "Lịch sử" && x.data != null);
+        const f = ps.find((x) => x.seriesName === "Dự báo" && x.data != null);
+        const row = h || f;
+        return `${l}<br/>${row ? fmtPct(row.data) : "—"}${f && !h ? " (dự báo)" : ""}`;
+      },
+    },
+    xAxis: { ...axisX(labels, xTickEvery(labels.length), true) },
+    yAxis: { type: "value", scale: true, min: ymin, max: ymax, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: (v) => v + "%" }, splitLine: { lineStyle: { color: "#eef3f7" } } },
+    series: [
+      { name: "band-nen", type: "line", data: bandLow, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 }, silent: true, tooltip: { show: false } },
+      { name: "band-to", type: "line", data: bandDelta, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: echarts.color.modifyAlpha(COMPLY_OK, 0.13) }, silent: true, tooltip: { show: false } },
+      { name: "Lịch sử", type: "line", data: histData, showSymbol: false, connectNulls: false, lineStyle: { color: COMPLY_OK, width: 2.2 } },
+      { name: "Dự báo", type: "line", data: fcData, showSymbol: false, connectNulls: true, lineStyle: { color: COMPLY_OK, width: 2, type: "dashed" } },
+      { name: "nguong", type: "line", data: [], markLine: { silent: true, symbol: "none", label: { formatter: "80%", fontSize: 9, color: COLOR.sand, position: "insideEndTop" }, data: [{ yAxis: 80 }], lineStyle: { color: COLOR.sand, type: "dashed", width: 1 } } },
+    ],
+  };
+  return <EChart option={option} height={height} />;
+}
+
 // ====== Điểm vào điều phối ======
 export default function LazyChart({ type, ...p }) {
   switch (type) {
@@ -527,6 +571,7 @@ export default function LazyChart({ type, ...p }) {
     case "spc": return <SpcChart sensorKey={p.sensorKey} series={p.series} baseline={p.baseline} group={p.group} />;
     case "calHeat": return <CalendarHeat days={p.days} />;
     case "roomDayHeat": return <RoomDayHeatmap rooms={p.rooms} days={p.days} values={p.values} height={p.height} cellH={p.cellH} />;
+    case "forecast": return <ForecastChart chuoi={p.chuoi} duBao={p.duBao} height={p.height} />;
     default: return null;
   }
 }
