@@ -277,6 +277,23 @@ export async function layDuBaoXuHuong(scopeType, scopeId, sensor, soNgayCuaSo, s
 }
 
 // ============================================================
+// MA TRẬN PHÒNG×NGÀY (Mảng 3) · RPC: rpc_ma_tran_phong_ngay
+// Nguồn cho RoomDayHeatmap. RPC trả {days, rooms:[{ma_phong,ten_phong}], values[y][x]};
+// wrapper map rooms→nhãn "MÃ · Tên" để đưa thẳng vào LazyChart type="roomDayHeat".
+// LƯU Ý: RPC cần được DEPLOY (migration 20260705_rpc_ma_tran_phong_ngay.sql);
+// chưa có → trả { error, rooms:[], days:[], values:[] } và web tự fail-mềm.
+// ============================================================
+export async function layMaTranPhongNgay(scopeType, scopeId, sensor, soNgay, topPhong, signal) {
+  const { data, error } = await goiRPC('rpc_ma_tran_phong_ngay', {
+    p_scope_type: scopeType || 'TOTAL', p_scope_id: scopeId || 'ALL', p_sensor: sensor || 'ALL',
+    p_so_ngay: soNgay || 7, p_top_phong: topPhong || 20,
+  }, { signal })
+  if (error || !data || typeof data !== 'object') return { error, rooms: [], days: [], values: [] }
+  const rooms = (data.rooms || []).map((r) => (r.ten_phong ? `${r.ma_phong} · ${r.ten_phong}` : r.ma_phong))
+  return { error: null, rooms, days: data.days || [], values: data.values || [] }
+}
+
+// ============================================================
 // PHÂN TÍCH SÂU cho AI · RPC: rpc_phan_tich_xu_huong_sau
 // → { do_phu_du_lieu, theo_chi_tieu, tong_hop, so_sanh_lich_su }
 // ============================================================
