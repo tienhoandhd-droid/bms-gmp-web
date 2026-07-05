@@ -19,7 +19,11 @@ import {
   DataZoomComponent, ToolboxComponent, CalendarComponent, VisualMapComponent
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-import { COLOR, SENSOR_COLOR, SENSOR_META_BASE as SENSOR_META, COMPLY_OK, COMPLY_BAD, fmtPct } from "../lib/designTokens";
+import { COLOR, SENSOR_COLOR, SENSOR_META_BASE as SENSOR_META, COMPLY_OK, COMPLY_BAD, COMPLY_SCALE, complyColor, fmtPct } from "../lib/designTokens";
+
+// Mảng 3: pieces cho visualMap piecewise dựng TỪ thang màu chuẩn duy nhất
+// (COMPLY_SCALE) → mọi heatmap dùng chung ngưỡng, sửa 1 chỗ đồng bộ.
+const complyPieces = () => COMPLY_SCALE.map((b) => ({ ...(b.gte != null ? { gte: b.gte } : {}), ...(b.lt != null ? { lt: b.lt } : {}), label: b.label, color: b.color }));
 
 echarts.use([LineChart, BarChart, CustomChart, HeatmapChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, MarkPointComponent, LegendComponent, DataZoomComponent, ToolboxComponent, CalendarComponent, VisualMapComponent, CanvasRenderer]);
 
@@ -454,13 +458,7 @@ export function CalendarHeat({ days, height = 190 }) {
     tooltip: { ...tooltipBase, formatter: (p) => `${p.data[0]}<br/><b>${fmtPct(p.data[1])}</b> đạt` },
     visualMap: {
       type: "piecewise", orient: "horizontal", left: "center", bottom: 0,
-      pieces: [
-        { lt: 70, label: "< 70%", color: COMPLY_BAD },
-        { gte: 70, lt: 80, label: "70–80", color: "#e26a4f" },
-        { gte: 80, lt: 88, label: "80–88", color: "#d99a2b" },
-        { gte: 88, lt: 95, label: "88–95", color: "#7fbdb5" },
-        { gte: 95, label: "≥ 95%", color: COMPLY_OK },
-      ],
+      pieces: complyPieces(),   // Mảng 3: dùng thang màu chuẩn duy nhất
       textStyle: { fontSize: 9, color: "#5f7a90" }, itemWidth: 12, itemHeight: 12,
     },
     calendar: {
@@ -477,6 +475,44 @@ export function CalendarHeat({ days, height = 190 }) {
   return <EChart option={option} height={height} />;
 }
 
+// ====== Heatmap PHÒNG × NGÀY (cartesian2d) — "phòng NÀO xấu, ngày nào xấu" ======
+// Mảng 3: bổ sung trục PHÒNG (CalendarHeat cũ chỉ 1 chiều nhà máy×ngày). Dùng
+// ECharts heatmap trên cartesian2d: X=ngày, Y=phòng, visualMap piecewise theo
+// thang màu tuân thủ chuẩn. Nhận:
+//   rooms  : ['C1.R19', …]           (nhãn trục Y — thứ tự do caller sắp, vd theo Khu/AHU, xấu lên trên)
+//   days   : ['01/07', …]            (nhãn trục X)
+//   values : number[rooms][days]     (%-đạt hoặc null nếu thiếu dữ liệu)
+export function RoomDayHeatmap({ rooms, days, values, height, cellH = 18 }) {
+  if (!rooms?.length || !days?.length) return <p className="text-[12px] text-slate-400 italic">Chưa đủ dữ liệu phòng×ngày để dựng bản đồ tuân thủ.</p>;
+  const data = [];
+  for (let y = 0; y < rooms.length; y++) {
+    const row = values[y] || [];
+    for (let x = 0; x < days.length; x++) {
+      const v = row[x];
+      data.push([x, y, v == null || isNaN(v) ? "-" : +(+v).toFixed(1)]);   // "-" = ô trống (ECharts bỏ qua)
+    }
+  }
+  const h = height || Math.max(140, rooms.length * cellH + 70);
+  const option = {
+    animation: false,
+    grid: { top: 8, right: 12, bottom: 46, left: 8, containLabel: true },
+    tooltip: {
+      position: "top", ...tooltipBase,
+      formatter: (p) => `${rooms[p.data[1]]} · ${days[p.data[0]]}<br/><b>${p.data[2] === "-" ? "thiếu dữ liệu" : fmtPct(p.data[2])}</b>`,
+    },
+    xAxis: { type: "category", data: days, splitArea: { show: true }, axisTick: { show: false }, axisLine: { lineStyle: { color: "#cbdde8" } }, axisLabel: { fontSize: 9, color: "#5f7a90", interval: xTickEvery(days.length) } },
+    yAxis: { type: "category", data: rooms, splitArea: { show: true }, axisTick: { show: false }, axisLine: { lineStyle: { color: "#cbdde8" } }, axisLabel: { fontSize: 10, color: "#4a6072" } },
+    visualMap: { type: "piecewise", orient: "horizontal", left: "center", bottom: 6, pieces: complyPieces(), textStyle: { fontSize: 9, color: "#5f7a90" }, itemWidth: 12, itemHeight: 12 },
+    series: [{
+      name: "% đạt", type: "heatmap", data,
+      label: { show: rooms.length * days.length <= 240, fontSize: 8, color: "#1f2d3a", formatter: (p) => (p.data[2] === "-" ? "" : Math.round(p.data[2])) },
+      itemStyle: { borderColor: "#fff", borderWidth: 1.5 },
+      emphasis: { itemStyle: { shadowBlur: 6, shadowColor: "rgba(35,80,110,0.4)" } },
+    }],
+  };
+  return <EChart option={option} height={h} />;
+}
+
 // ====== Điểm vào điều phối ======
 export default function LazyChart({ type, ...p }) {
   switch (type) {
@@ -490,6 +526,7 @@ export default function LazyChart({ type, ...p }) {
     case "trendMain": return <TrendMainChart data={p.data} range={p.range} />;
     case "spc": return <SpcChart sensorKey={p.sensorKey} series={p.series} baseline={p.baseline} group={p.group} />;
     case "calHeat": return <CalendarHeat days={p.days} />;
+    case "roomDayHeat": return <RoomDayHeatmap rooms={p.rooms} days={p.days} values={p.values} height={p.height} cellH={p.cellH} />;
     default: return null;
   }
 }

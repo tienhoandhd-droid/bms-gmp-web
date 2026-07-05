@@ -260,6 +260,23 @@ export async function layChuoiXuHuongDaSensor(scopeType, scopeId, donVi, soDiem,
 }
 
 // ============================================================
+// DỰ BÁO XU HƯỚNG (Mảng 3) · RPC: rpc_du_bao_xu_huong
+// OLS native + gate R²≥0.5 + robust median/MAD. Trả jsonb (xem migration
+// 20260705_rpc_du_bao_xu_huong.sql). p_chi_thuc=true → chỉ dữ liệu THẬT.
+// LƯU Ý: RPC cần được DEPLOY lên DB trước; nếu chưa có, trả { error, du_bao:null }
+// và web tự fail-mềm (không hiện dự báo).
+// → { error, du_bao:{ du_bao_dang_tin, huong, r2, chuoi, du_bao:[…], ghi_chu } }
+// ============================================================
+export async function layDuBaoXuHuong(scopeType, scopeId, sensor, soNgayCuaSo, soNgayDuBao, signal) {
+  const { data, error } = await goiRPC('rpc_du_bao_xu_huong', {
+    p_scope_type: scopeType || 'TOTAL', p_scope_id: scopeId || 'ALL', p_sensor: sensor || 'ALL',
+    p_so_ngay_cua_so: soNgayCuaSo || 30, p_so_ngay_du_bao: soNgayDuBao || 7,
+  }, { signal })
+  if (error || !data || typeof data !== 'object') return { error, du_bao: null }
+  return { error: null, du_bao: data }
+}
+
+// ============================================================
 // PHÂN TÍCH SÂU cho AI · RPC: rpc_phan_tich_xu_huong_sau
 // → { do_phu_du_lieu, theo_chi_tieu, tong_hop, so_sanh_lich_su }
 // ============================================================

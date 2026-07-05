@@ -20,6 +20,30 @@ export const SENSOR_COLOR = { DP: "#0E7C73", RH: "#1E72B8", T: "#B26F0E" };
 export const SENSOR_META_BASE = { DP: { label: "Chênh áp", unit: "Pa" }, RH: { label: "Độ ẩm", unit: "%" }, T: { label: "Nhiệt độ", unit: "°C" } };
 export const COMPLY_OK = "#0E7C73";    // đạt
 export const COMPLY_BAD = "#B3261E";   // dưới ngưỡng (đỏ trầm)
+export const COMPLY_NA = "#94a3b8";    // thiếu dữ liệu
 export const fmtPct = (v) => (v == null || isNaN(v) ? "—" : `${(+v).toFixed(1).replace(".0", "")}%`);
-// Đèn giao thông thống nhất web + báo cáo: <70 đỏ, 70–<88 vàng, ≥88 xanh.
-export const pctColor = (p) => (p == null ? "#94a3b8" : p < 70 ? COMPLY_BAD : p < 88 ? "#d99a2b" : COMPLY_OK);
+
+// ============================================================
+// Mảng 3 — THANG MÀU TUÂN THỦ DUY NHẤT (nguồn sự thật cho web + heatmap + báo cáo).
+// Trước đây ngưỡng màu lệch ở 4 nơi (visualMap lịch 70/80/88/95 vs pctColor 70/88
+// vs dot 80…). Nay MỌI biểu đồ phân-hạng-%-đạt phải gọi complyBucket/complyColor
+// dưới đây → đổi 1 chỗ đồng bộ toàn hệ. 5 bậc: nhìn 1 phát biết phòng/ngày nào xấu.
+// (Đèn nhị phân đạt/không-đạt tại mốc 80% là ngữ nghĩa RIÊNG — giữ COMPLY_OK/BAD.)
+// ============================================================
+export const COMPLY_SCALE = [
+  { lt: 70,          label: "< 70%",  color: "#B3261E" },  // đỏ trầm — nguy cấp
+  { gte: 70, lt: 80, label: "70–80%", color: "#E26A4F" },  // cam đỏ — không đạt
+  { gte: 80, lt: 88, label: "80–88%", color: "#D99A2B" },  // vàng đậm — chớm đạt
+  { gte: 88, lt: 95, label: "88–95%", color: "#7FBDB5" },  // teal nhạt — khá
+  { gte: 95,         label: "≥ 95%",  color: "#0E7C73" },  // teal sâu — tốt
+];
+export function complyBucket(p) {
+  if (p == null || isNaN(p)) return { label: "—", color: COMPLY_NA };
+  for (const b of COMPLY_SCALE) {
+    if ((b.gte == null || p >= b.gte) && (b.lt == null || p < b.lt)) return b;
+  }
+  return COMPLY_SCALE[COMPLY_SCALE.length - 1];
+}
+export const complyColor = (p) => complyBucket(p).color;
+// Giữ TÊN pctColor cũ (nhiều nơi import) nhưng nay ủy quyền về thang chuẩn duy nhất.
+export const pctColor = complyColor;
