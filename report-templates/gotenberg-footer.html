@@ -1,0 +1,33 @@
+<!doctype html>
+<!--
+  gotenberg-footer.html — Footer số trang "Trang X/Y" cho PDF (Mảng 2, P0).
+  ============================================================================
+  VÌ SAO file riêng: Chromium (engine Gotenberg dùng) KHÔNG hỗ trợ CSS paged-media
+  margin-box (@bottom-right { content: counter(page) }) → không thể đánh số trang
+  bằng CSS trong template chính. Cách đúng của Gotenberg/Chromium: truyền footer
+  HTML riêng, dùng các class ĐẶC BIỆT mà Chromium tự thay số:
+    .pageNumber  → số trang hiện tại
+    .totalPages  → tổng số trang
+    .date .title .url .totalPages  (các trường Chromium hỗ trợ)
+
+  CÁCH WIRING (node "Ráp báo cáo" / bước gọi Gotenberg — việc n8n, cần xác nhận):
+   - Gotenberg route /forms/chromium/convert/html: đính kèm phần này dưới tên
+     `footer.html` (multipart field 'files'), và đặt marginBottom đủ chỗ (vd 15mm).
+   - Font/size phải nhỏ; Chromium footer mặc định rất nhỏ nên set inline như dưới.
+  Giới hạn: Chromium footer KHÔNG kế thừa CSS template chính → phải style inline ở đây.
+-->
+<html>
+<head><style>
+  body{margin:0;font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;font-size:8px;color:#6B7686;-webkit-print-color-adjust:exact}
+  .ft{width:100%;padding:0 12mm;display:flex;justify-content:space-between;align-items:center}
+  .ft .l{font-family:ui-monospace,Consolas,monospace}
+  .ft .c{color:#9AA6B2}
+</style></head>
+<body>
+  <div class="ft">
+    <span class="l">BMS-GMP · CPC1HN</span>
+    <span class="c">Bản lưu trữ có kiểm soát — không sao chép ngoài nơi nhận</span>
+    <span>Trang <span class="pageNumber"></span>/<span class="totalPages"></span></span>
+  </div>
+</body>
+</html>

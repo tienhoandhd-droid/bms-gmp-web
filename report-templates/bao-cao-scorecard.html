@@ -2,7 +2,7 @@
 <!--
   bao-cao-scorecard.html — Báo cáo giám sát môi trường GMP (v3 — REDESIGN)
   =========================================================================
-  - Drop-in cho node "Ráp báo cáo" (WF5 v2): CHỈ dùng các token {{...}} / {{#each}} đã có sẵn.
+  - Drop-in cho node "Ráp báo cáo" (WF5 v2): dùng token dạng ngoặc-nhọn + vòng lặp each đã có sẵn.
     Không cần đổi node cho bản này. Ảnh biểu đồ (chart_line_src / chart_heat_src / mini_src /
     spark_src) do node bơm data-URI base64 (hoặc SVG fallback) → file tự chứa.
   - Xuất PDF qua Gotenberg (Chromium): @page A4 portrait; print-color-adjust:exact.
@@ -157,9 +157,45 @@
   .sbox .g{font-size:9px;color:var(--faint)}
   .foot{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);color:var(--faint);font-size:9.5px}
   .foot code{font-family:var(--mono);font-size:9px;background:#F5F8FA;padding:1px 5px;border-radius:4px;color:var(--ink2)}
+
+  /* ===== Mảng 2 (GMP) — bổ sung chuẩn phát hành ===== */
+  /* Banner chế độ thử: node bơm {{{banner_thu_nghiem}}} = khối .banner-test khi che_do_thu_nghiem=true */
+  .banner-test{background:repeating-linear-gradient(45deg,#B3261E,#B3261E 14px,#8E1B1B 14px,#8E1B1B 28px);
+       color:#fff;font-weight:800;text-align:center;padding:9px 12px;border-radius:8px;margin-bottom:10px;
+       font-size:12px;letter-spacing:.03em;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35)}
+  /* Khối mã kiểm soát tài liệu trong masthead */
+  .docctrl{margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.18);font-size:9.5px;color:#AFD0D8;line-height:1.7}
+  .docctrl b{color:#fff;font-weight:700}
+  /* Bảng OOS/OOT 2 tầng — tô mức alert/action */
+  .lvl{font-size:8.5px;font-weight:800;letter-spacing:.03em;padding:2px 7px;border-radius:5px;white-space:nowrap}
+  .lvl-alert{background:var(--warn-wash);color:#8A5300}
+  .lvl-action{background:var(--crit-wash);color:#A62E2E}
+  .capa-st{font-size:8.5px;font-weight:700;padding:2px 7px;border-radius:5px}
+  .capa-open{background:var(--crit-wash);color:#A62E2E}.capa-doing{background:var(--warn-wash);color:#8A5300}.capa-done{background:var(--ok-wash);color:#166A48}
+  /* Chữ ký điện tử — metadata Part 11 */
+  .sbox .who{font-size:10px;font-weight:700;color:var(--ink);margin-top:8px}
+  .sbox .role2{font-size:9px;color:var(--muted)}
+  .sbox .mean{font-size:8.5px;color:var(--accent-deep);font-style:italic;margin-top:2px}
+  .sbox .dt{font-size:8.5px;color:var(--faint);font-family:var(--mono);margin-top:2px}
+  /* Nơi nhận + lưu trữ bất biến */
+  .dist{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .dist span{font-size:9px;color:var(--ink2);background:var(--line2);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
+  .archive{display:flex;align-items:center;gap:12px;margin-top:10px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#F7F9FB}
+  .archive .qr{width:58px;height:58px;flex:none}
+  .archive .qr img,.archive .qr svg{width:58px;height:58px;display:block}
+  .archive .meta2{font-size:9px;color:var(--muted);line-height:1.7;word-break:break-all}
+  .archive .meta2 code{font-family:var(--mono);font-size:8.5px;background:#EEF3F6;padding:1px 4px;border-radius:3px;color:var(--ink2)}
 </style>
 </head>
 <body>
+
+  <!-- ===== Mảng 2 · CỔNG AN TOÀN: banner chế độ thử =====
+       Node bơm token RAW "banner_thu_nghiem" (dạng 3 ngoặc để chèn HTML thô):
+         • che_do_thu_nghiem=true  → '<div class="banner-test">⚠ CHẾ ĐỘ THỬ NGHIỆM — SỐ LIỆU KHÔNG DÙNG CHO QUYẾT ĐỊNH GMP</div>'
+         • che_do_thu_nghiem=false → '' (rỗng)
+       Đồng thời node NÊN chặn GỬI khi true (chỉ lưu nháp). Kiểm bằng:
+         select value from cau_hinh where key='che_do_thu_nghiem';  (hiện = false) -->
+  {{{banner_thu_nghiem}}}
 
   <!-- ===== MASTHEAD ===== -->
   <header class="mast avoid">
@@ -175,6 +211,13 @@
       <div class="kick" style="color:#8FBAC4">Kỳ</div><div><b>{{tu_ngay}} → {{den_ngay}}</b></div>
       <div class="kick" style="color:#8FBAC4;margin-top:6px">Phát hành</div><div><b>{{tao_luc}}</b> (VN)</div>
       <div class="kick" style="color:#8FBAC4;margin-top:6px">Mã lần chạy</div><div>{{ma_lan_chay}}</div>
+      <!-- Mảng 2 · Mã kiểm soát tài liệu (P0). Node bơm: ma_tai_lieu, phien_ban, ngay_hieu_luc.
+           Quy tắc mã do QA cơ sở quyết (vd BMS-RP-<kỳ>-YYYYMM-rev). Số trang X/Y: xem footer Gotenberg. -->
+      <div class="docctrl">
+        <div>Mã tài liệu: <b>{{ma_tai_lieu}}</b></div>
+        <div>Phiên bản: <b>{{phien_ban}}</b> · Hiệu lực: <b>{{ngay_hieu_luc}}</b></div>
+        <div>Trang <b>{{so_trang}}</b></div>
+      </div>
     </div>
   </header>
 
@@ -326,6 +369,38 @@
     </table>
   </div>
 
+  <!-- ===== Mảng 2 · ĐÁNH GIÁ OOS/OOT 2 TẦNG + CAPA (Annex 1 §9.9–9.13) =====
+       BẮT BUỘC cho bản ghi GMP: mỗi excursion vượt giới hạn phải có mức (alert→
+       đánh giá / action→điều tra + đánh giá tác động lô + CAPA), nguyên nhân gốc,
+       trạng thái CAPA. Node bơm mảng "oos_capa" (each) với các trường:
+         muc ('alert'|'action'), muc_vi, phong, chi_tieu, gia_tri, gioi_han,
+         bat_dau, nguyen_nhan, tac_dong_lo, capa_ma, capa_trang_thai
+                                 ('open'|'doing'|'done'), capa_trang_thai_vi, capa_han.
+       Nếu chưa có dữ liệu → mảng rỗng (section vẫn hợp lệ, bảng trống). -->
+  <section class="sec avoid">
+    <div class="sec-h"><h2>Đánh giá excursion OOS/OOT &amp; CAPA</h2><span class="note">alert = đánh giá · action = điều tra + CAPA (Annex 1 §9.9–9.13)</span></div>
+    <table>
+      <thead><tr><th>Mức</th><th>Phòng · chỉ tiêu</th><th class="r">Giá trị / GH</th><th>Bắt đầu</th><th>Nguyên nhân gốc</th><th>Tác động lô</th><th>CAPA</th><th class="r">Hạn</th></tr></thead>
+      <tbody>
+        {{#each oos_capa}}
+        <tr>
+          <td><span class="lvl lvl-{{muc}}">{{muc_vi}}</span></td>
+          <td class="room"><b>{{phong}}</b> <span>{{chi_tieu}}</span></td>
+          <td class="r num">{{gia_tri}} / {{gioi_han}}</td>
+          <td class="num">{{bat_dau}}</td>
+          <td style="color:var(--ink2)">{{nguyen_nhan}}</td>
+          <td style="color:var(--muted)">{{tac_dong_lo}}</td>
+          <td><b>{{capa_ma}}</b> <span class="capa-st capa-{{capa_trang_thai}}">{{capa_trang_thai_vi}}</span></td>
+          <td class="r num">{{capa_han}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <div class="note-box" style="margin-top:9px"><b style="color:var(--ink)">Quy ước 2 tầng:</b>
+      <b style="color:#8A5300">Alert</b> (chớm ngưỡng) → đánh giá, chưa bắt buộc CAPA ·
+      <b style="color:#A62E2E">Action</b> (vượt giới hạn hành động) → điều tra nguyên nhân gốc, đánh giá tác động lô/sản phẩm, mở CAPA & theo dõi tới khi đóng.</div>
+  </section>
+
   <!-- ===== NHẬN ĐỊNH AI ===== -->
   <section class="ai avoid">
     <div class="hd"><b>Nhận định &amp; hành động</b><span class="ai-tag">◆ Phân tích AI</span></div>
@@ -334,7 +409,7 @@
     <!-- ============================================================
          PHASE 2 — CAPA & KHUYẾN NGHỊ (từ WF7 "Phân tích xu hướng").
          Kích hoạt khi node "Ráp báo cáo" bơm thêm các token:
-           {{phan_tich_chuyen_gia}}  và vòng lặp {{#each capa}} với
+           phan_tich_chuyen_gia  và vòng lặp "capa" (each) với
            {{hanh_dong}} {{bo_phan}} {{uu_tien}} {{uu_tien_mau}} {{han}}.
          Cần: (a) WF5 gọi webhook WF7 phan-tich-xu-huong, (b) WF7 xuất CAPA
          có cấu trúc. Bỏ comment khối dưới sau khi wiring xong.
@@ -377,13 +452,41 @@
     </table>
     <div class="note-box"><b style="color:var(--ink)">Phương pháp &amp; phạm vi:</b> Mọi so sánh dùng đúng giới hạn cấu hình của từng phòng tại thời điểm chạy báo cáo;
       cắt lát theo giờ. Khoảng thiếu dữ liệu được đánh dấu, không nội suy — kết luận chỉ áp dụng cho khoảng đủ dữ liệu.</div>
+    <!-- Mảng 2 · Chữ ký điện tử (Part 11 §11.50): mỗi ô nêu HỌ TÊN · CHỨC DANH ·
+         Ý NGHĨA ký (lập/soát xét/phê duyệt) · NGÀY-GIỜ. Node bơm: lap_ten/lap_chuc,
+         soat_ten/soat_chuc/soat_luc, duyet_ten/duyet_chuc/duyet_luc. Bước 2 (e-sig có
+         audit trail chống chối bỏ) chỉ cần khi xuất khẩu — xem ghi chú kế hoạch §3. -->
     <div class="signoff">
-      <div class="sbox"><div class="r">Người lập (hệ thống)</div><div class="sign"></div><div class="g">WF5 tự động · {{tao_luc}}</div></div>
-      <div class="sbox"><div class="r">Soát xét (IPC/Kỹ thuật)</div><div class="sign"></div><div class="g">Ký &amp; ghi ngày</div></div>
-      <div class="sbox"><div class="r">Phê duyệt (QA)</div><div class="sign"></div><div class="g">Ký &amp; ghi ngày</div></div>
+      <div class="sbox"><div class="r">Người lập</div><div class="sign"></div>
+        <div class="who">{{lap_ten}}</div><div class="role2">{{lap_chuc}}</div>
+        <div class="mean">Ý nghĩa: Lập báo cáo (hệ thống WF5)</div><div class="dt">{{tao_luc}} (VN)</div></div>
+      <div class="sbox"><div class="r">Soát xét</div><div class="sign"></div>
+        <div class="who">{{soat_ten}}</div><div class="role2">{{soat_chuc}}</div>
+        <div class="mean">Ý nghĩa: Đã soát xét (IPC/Kỹ thuật)</div><div class="dt">{{soat_luc}}</div></div>
+      <div class="sbox"><div class="r">Phê duyệt</div><div class="sign"></div>
+        <div class="who">{{duyet_ten}}</div><div class="role2">{{duyet_chuc}}</div>
+        <div class="mean">Ý nghĩa: Phê duyệt phát hành (QA)</div><div class="dt">{{duyet_luc}}</div></div>
     </div>
-    <div class="foot">Truy vết GMP · mã lần chạy <b>{{ma_lan_chay}}</b> · tạo lúc {{tao_luc}} ·
-      nguồn <code>rpc_bao_cao_tong_hop('{{ky}}','{{tu_ngay_iso}}','{{den_ngay_iso}}')</code> ·
+
+    <!-- Mảng 2 · Phân phối có kiểm soát (P0): node bơm mảng "noi_nhan" (each), mỗi phần tử có vai_tro. -->
+    <div class="kick" style="margin:14px 0 6px">Nơi nhận (phân phối có kiểm soát)</div>
+    <div class="dist">
+      {{#each noi_nhan}}<span>{{vai_tro}}</span>{{/each}}
+    </div>
+
+    <!-- Mảng 2 · Bản lưu trữ bất biến (ALCOA+ Enduring, P1): tên file có phiên bản +
+         SHA-256 của PDF + QR mã xác minh. Node bơm: ten_file, sha256, "qr_svg" (3 ngoặc, hoặc qr_src). -->
+    <div class="archive">
+      <div class="qr">{{{qr_svg}}}</div>
+      <div class="meta2">
+        <div>Tên file lưu trữ: <code>{{ten_file}}</code></div>
+        <div>SHA-256: <code>{{sha256}}</code></div>
+        <div>Quét QR để xác minh bản gốc trên Google Drive · bản PDF là bản lưu trữ chính thức.</div>
+      </div>
+    </div>
+
+    <div class="foot">Truy vết GMP · mã lần chạy <b>{{ma_lan_chay}}</b> · mã tài liệu <b>{{ma_tai_lieu}}</b> ·
+      tạo lúc {{tao_luc}} · nguồn <code>rpc_bao_cao_tong_hop('{{ky}}','{{tu_ngay_iso}}','{{den_ngay_iso}}')</code> ·
       BMS-GMP (CPC1HN). Bản PDF trên Google Drive là bản lưu trữ chính thức.</div>
   </section>
 
