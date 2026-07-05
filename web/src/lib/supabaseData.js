@@ -556,6 +556,43 @@ export async function xoaCamBien(p, signal)   { return goiRPC('rpc_xoa_cam_bien'
 export async function suaNguong(p, signal)    { return goiRPC('rpc_sua_nguong_canh_bao', p, { signal }) }
 export async function luuPhanTichAi(p, signal){ return goiRPC('rpc_luu_phan_tich_ai', p, { signal }) }
 
+// ============================================================
+// TAB CẤU HÌNH NGƯỜI NHẬN  ·  email cảnh báo (cau_hinh) + người nhận báo cáo
+// (nguoi_nhan_bao_cao). Ghi qua RPC SECURITY DEFINER (migration
+// 20260705_rpc_cau_hinh_email_nguoi_nhan.sql) — chỉ ADMIN/QA, có audit.
+// ============================================================
+export const EMAIL_KEYS_CANH_BAO = ['email_ipc', 'email_co_dien', 'email_qa', 'email_truc_hsl', 'email_it_gmp']
+export const EMAIL_KEYS_HE_THONG = ['email_gui_tu', 'email_test']
+export const EMAIL_KEYS_BAO_CAO = ['email_bao_cao_tuan', 'email_bao_cao_thang', 'email_bao_cao_ngay']
+
+export async function layCauHinhEmail(signal) {
+  const keys = [...EMAIL_KEYS_CANH_BAO, ...EMAIL_KEYS_HE_THONG, ...EMAIL_KEYS_BAO_CAO]
+  const { data, error } = await docView('xem_cau_hinh_he_thong',
+    (q) => q.select('key,value_hien_thi').in('key', keys), { signal })
+  if (error) return { error, cfg: null }
+  const cfg = {}
+  ;(data || []).forEach((r) => { cfg[r.key] = r.value_hien_thi || '' })
+  return { error: null, cfg }
+}
+export async function datCauHinhEmail(key, value, actor, signal) {
+  return goiRPC('rpc_dat_cau_hinh_email', { p_key: key, p_value: value ?? '', p_actor: actor || null }, { signal })
+}
+export async function layNguoiNhanBaoCao(signal) {
+  const { data, error } = await goiRPC('rpc_lay_nguoi_nhan_bao_cao', {}, { signal })
+  if (error) return { error, rows: [] }
+  return { error: null, rows: Array.isArray(data) ? data : [] }
+}
+export async function luuNguoiNhanBaoCao(nn, actor, signal) {
+  return goiRPC('rpc_luu_nguoi_nhan_bao_cao', {
+    p_id: nn.id ?? null, p_ho_ten: nn.ho_ten, p_email: nn.email, p_vai_tro: nn.vai_tro || null,
+    p_nhan_tuan: !!nn.nhan_tuan, p_nhan_thang: !!nn.nhan_thang, p_nhan_quy: !!nn.nhan_quy,
+    p_kich_hoat: nn.kich_hoat !== false, p_ghi_chu: nn.ghi_chu || null, p_actor: actor || null,
+  }, { signal })
+}
+export async function xoaNguoiNhanBaoCao(id, actor, signal) {
+  return goiRPC('rpc_xoa_nguoi_nhan_bao_cao', { p_id: id, p_actor: actor || null }, { signal })
+}
+
 // Lấy URL webhook WF7 (cấu hình trong cau_hinh: key 'wf7_webhook_url'). Trả '' nếu chưa đặt.
 export async function layWebhookAi(signal) {
   const { data, error } = await docView('xem_cau_hinh_he_thong',

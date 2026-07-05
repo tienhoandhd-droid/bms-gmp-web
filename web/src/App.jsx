@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, EMAIL_KEYS_CANH_BAO, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -1755,7 +1755,117 @@ function PhanTichGmpCard({ mkt, spc, isLive }) {
   );
 }
 
-const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "rooms", label: "Phòng", icon: Building2 }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "settings", label: "Cài đặt", icon: Cog }];
+// ====== Tab NGƯỜI NHẬN: email cảnh báo (cau_hinh) + người nhận báo cáo (nguoi_nhan_bao_cao) ======
+const NHAN_EMAIL_LABEL = {
+  email_ipc: "IPC (Hiện trường)", email_co_dien: "Cơ điện", email_qa: "QA",
+  email_truc_hsl: "Trực hồ sơ lô", email_it_gmp: "IT / Kỹ thuật",
+  email_gui_tu: "Địa chỉ GỬI ĐI (from)", email_test: "Địa chỉ TEST (chế độ thử)",
+  email_bao_cao_tuan: "Fallback báo cáo TUẦN", email_bao_cao_thang: "Fallback báo cáo THÁNG", email_bao_cao_ngay: "Fallback báo cáo NGÀY",
+};
+function CauHinhNguoiNhan({ isLive, canManage, actor }) {
+  const [emailCfg, setEmailCfg] = useState({});
+  const [nguoiNhan, setNguoiNhan] = useState([]);
+  const [tai, setTai] = useState(true);
+  const [tb, setTb] = useState(null);          // {ok, text}
+  const [form, setForm] = useState(null);      // form thêm/sửa người nhận
+  const goc = useRef({});                       // giá trị email đã lưu (so sánh khi blur)
+  const flash = (ok, text) => { setTb({ ok, text }); setTimeout(() => setTb(null), 4000); };
+  const napLai = async () => {
+    if (!isLive) { setTai(false); return; }
+    setTai(true);
+    const [e, n] = await Promise.all([layCauHinhEmail(), layNguoiNhanBaoCao()]);
+    if (e.cfg) { setEmailCfg(e.cfg); goc.current = { ...e.cfg }; }
+    setNguoiNhan(n.rows || []);
+    setTai(false);
+  };
+  useEffect(() => { napLai(); /* eslint-disable-next-line */ }, [isLive]);
+  const luuEmail = async (key, value) => {
+    if (!canManage) return;
+    const { error } = await datCauHinhEmail(key, value, actor);
+    if (error) flash(false, error.thong_bao || "Không lưu được");
+    else { const v = (value || "").trim(); goc.current = { ...goc.current, [key]: v }; setEmailCfg((m) => ({ ...m, [key]: v })); flash(true, "Đã lưu " + (NHAN_EMAIL_LABEL[key] || key)); }
+  };
+  const luuNN = async () => {
+    if (!form) return;
+    const { error } = await luuNguoiNhanBaoCao(form, actor);
+    if (error) { flash(false, error.thong_bao || "Không lưu được"); return; }
+    flash(true, "Đã lưu người nhận"); setForm(null); await napLai();
+  };
+  const toggleNN = async (nn, field) => {
+    if (!canManage) return;
+    const { error } = await luuNguoiNhanBaoCao({ ...nn, [field]: !nn[field] }, actor);
+    if (error) flash(false, error.thong_bao || "Không cập nhật được"); else await napLai();
+  };
+  const xoaNN = async (id) => {
+    if (!canManage || !window.confirm("Xoá người nhận này?")) return;
+    const { error } = await xoaNguoiNhanBaoCao(id, actor);
+    if (error) { flash(false, error.thong_bao || "Không xoá được"); return; }
+    flash(true, "Đã xoá"); await napLai();
+  };
+  const emailFields = (keys) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">{keys.map((k) => (
+      <div key={k} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4">
+        <label className="text-[11px] uppercase text-slate-500 font-semibold">{NHAN_EMAIL_LABEL[k] || k}</label>
+        <input type="email" value={emailCfg[k] || ""} disabled={!canManage} placeholder="email@cpc1hn.vn"
+          onChange={(e) => setEmailCfg((m) => ({ ...m, [k]: e.target.value }))}
+          onBlur={(e) => { if ((e.target.value || "").trim() !== (goc.current[k] || "")) luuEmail(k, e.target.value); }}
+          className="w-full mt-2 rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm disabled:bg-slate-100" />
+        <p className="text-[10px] text-slate-400 mt-1 font-mono">{k}</p>
+      </div>))}</div>
+  );
+  if (!isLive) return <Card className="p-6"><p className="text-sm text-amber-600">Cần chế độ LIVE (kết nối Supabase) để cấu hình người nhận.</p></Card>;
+  return (
+    <div className="space-y-5">
+      <SectionTitle icon={Mail}>Người nhận email</SectionTitle>
+      {tb && <div className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tb.ok ? "bg-teal-50 text-teal-700 ring-1 ring-teal-200" : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"}`}>{tb.ok ? "✓ " : "✗ "}{tb.text}</div>}
+      {!canManage && <p className="text-[12px] text-amber-600">Bạn đang xem ở chế độ chỉ-đọc. Cần quyền <b>QA/Quản trị</b> để chỉnh.</p>}
+
+      <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="WF8 định tuyến cảnh báo theo vai trò tới các địa chỉ này">Email nhận CẢNH BÁO (theo vai trò)</SectionTitle>
+        {tai ? <div className="h-24 rounded-2xl bg-slate-50 animate-pulse mt-4" /> : emailFields(EMAIL_KEYS_CANH_BAO)}
+        <p className="text-[11px] text-slate-400 mt-3">IPC nhận trước; chưa xử lý sẽ leo thang sang Cơ điện → Trực hồ sơ lô. Sự cố hạ tầng (cảm biến đứng hình) gửi Cơ điện.</p>
+      </Card>
+
+      <Card className="p-6"><SectionTitle icon={Cog} hint="địa chỉ gửi đi + nhận khi ở chế độ thử + fallback báo cáo">Địa chỉ hệ thống & fallback</SectionTitle>
+        {tai ? <div className="h-24 rounded-2xl bg-slate-50 animate-pulse mt-4" /> : emailFields([...EMAIL_KEYS_HE_THONG, ...EMAIL_KEYS_BAO_CAO])}
+      </Card>
+
+      <Card className="p-6">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <SectionTitle icon={FileBarChart} hint="ai nhận báo cáo quản trị tuần / tháng / quý (WF5)">Người nhận BÁO CÁO</SectionTitle>
+          {canManage && <button onClick={() => setForm({ ho_ten: "", email: "", vai_tro: "", nhan_tuan: true, nhan_thang: true, nhan_quy: true, kich_hoat: true })} className="text-xs font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: COLOR.coral }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm người</button>}
+        </div>
+        {form && (
+          <div className="rounded-2xl bg-sky-50/60 ring-1 ring-sky-200 p-4 mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <input value={form.ho_ten} onChange={(e) => setForm({ ...form, ho_ten: e.target.value })} placeholder="Họ tên" className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm" />
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm" />
+            <input value={form.vai_tro || ""} onChange={(e) => setForm({ ...form, vai_tro: e.target.value })} placeholder="Vai trò (QA, Quản lý…)" className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm" />
+            <div className="flex items-center gap-3 flex-wrap text-[12px] text-slate-600">
+              {[["nhan_tuan", "Tuần"], ["nhan_thang", "Tháng"], ["nhan_quy", "Quý"], ["kich_hoat", "Kích hoạt"]].map(([f, l]) => <label key={f} className="flex items-center gap-1.5"><input type="checkbox" checked={!!form[f]} onChange={(e) => setForm({ ...form, [f]: e.target.checked })} />{l}</label>)}
+            </div>
+            <div className="sm:col-span-2 lg:col-span-4 flex gap-2">
+              <button onClick={luuNN} className="text-xs font-medium text-white rounded-xl px-4 py-2 flex items-center gap-1.5" style={{ backgroundColor: COLOR.teal }}><Save className="w-3.5 h-3.5" strokeWidth={2} /> Lưu</button>
+              <button onClick={() => setForm(null)} className="text-xs font-medium text-slate-600 rounded-xl px-4 py-2 ring-1 ring-slate-200 flex items-center gap-1.5"><X className="w-3.5 h-3.5" strokeWidth={2} /> Huỷ</button>
+            </div>
+          </div>
+        )}
+        {tai ? <div className="h-24 rounded-2xl bg-slate-50 animate-pulse mt-4" /> :
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Họ tên", "Email", "Vai trò", "Tuần", "Tháng", "Quý", "Hoạt động", ""].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+            <tbody>{nguoiNhan.length === 0 ? <tr><td colSpan={8} className="py-4 text-slate-400 italic">Chưa có người nhận. Bấm “Thêm người”.</td></tr> : nguoiNhan.map((n) => (
+              <tr key={n.id} className={`border-t border-slate-100 ${n.kich_hoat ? "" : "opacity-50"}`}>
+                <td className="py-2.5 pr-4 font-semibold" style={{ color: COLOR.navy }}>{n.ho_ten}</td>
+                <td className="py-2.5 pr-4 text-slate-600 font-mono text-[12px]">{n.email}</td>
+                <td className="py-2.5 pr-4 text-slate-500">{n.vai_tro || "—"}</td>
+                {["nhan_tuan", "nhan_thang", "nhan_quy"].map((f) => <td key={f} className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleNN(n, f)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${n[f] ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-300"} disabled:opacity-60`}>{n[f] ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
+                <td className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleNN(n, "kich_hoat")} className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-teal-100 text-teal-700" : "bg-slate-200 text-slate-500"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
+                <td className="py-2.5 pr-4">{canManage && <div className="flex gap-1.5"><button onClick={() => setForm({ ...n })} className="text-sky-600 hover:text-sky-800"><Pencil className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => xoaNN(n.id)} className="text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button></div>}</td>
+              </tr>))}</tbody></table></div>}
+        <p className="text-[11px] text-slate-400 mt-3">Chỉ người <b>Kích hoạt</b> mới nhận báo cáo; chưa kích hoạt ai thì WF5 gửi về địa chỉ fallback (mục Địa chỉ hệ thống · Fallback). Mỗi thao tác được ghi nhật ký cấu hình.</p>
+      </Card>
+    </div>
+  );
+}
+
+const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "rooms", label: "Phòng", icon: Building2 }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 export default function App() {
   const [tab, setTab] = useState("home");
@@ -2058,6 +2168,8 @@ export default function App() {
             </div>
             );
           })()}
+
+          {tab === "recipients" && <CauHinhNguoiNhan isLive={isLive} canManage={canManage} actor={user?.email} />}
 
           {tab === "settings" && (
             <div className="space-y-5">
