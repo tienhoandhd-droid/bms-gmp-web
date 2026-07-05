@@ -34,6 +34,19 @@ export const supabase = HAS_SUPABASE
     })
   : null
 
+// Làm ấm kết nối tới Supabase NGAY khi module được nạp (trước khi React mount &
+// bắn truy vấn đầu tiên) → tiết kiệm ~100–300ms bắt tay DNS/TLS lúc vào dashboard.
+if (HAS_SUPABASE && typeof document !== 'undefined') {
+  try {
+    const origin = new URL(SUPABASE_URL).origin
+    for (const rel of ['preconnect', 'dns-prefetch']) {
+      const l = document.createElement('link')
+      l.rel = rel; l.href = origin; l.crossOrigin = 'anonymous'
+      document.head.appendChild(l)
+    }
+  } catch { /* URL không hợp lệ → bỏ qua, không ảnh hưởng chức năng */ }
+}
+
 // ---- Phân loại lỗi: TẠM THỜI (nên retry) vs NGHIỆP VỤ (không retry) ----
 // Chỉ retry lỗi hạ tầng (mạng, timeout, 5xx, 429). KHÔNG retry {ok:false}
 // (vd KHONG_DUOC_PHEP) — retry vô nghĩa và có thể gây tác dụng phụ.

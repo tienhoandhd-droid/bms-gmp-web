@@ -21,6 +21,10 @@ import {
 
 const ENRICH_TTL_MS = 4 * 60 * 1000   // thống kê 8h chỉ đổi mỗi giờ → cache 4'
 const SO_SONG = 6                      // số request thống kê phòng chạy đồng thời tối đa
+// Dữ liệu tab phụ (nhật ký/cấu hình/rủi ro/SOP/AI/GMP) đổi CHẬM (mỗi giờ hoặc do
+// job đêm). Ở nhịp tự động 60s KHÔNG cần kéo lại mỗi phút — chỉ làm mới khi quá
+// hạn để giảm tải mạng & tránh giật. Lần nạp đầu và thao tác thủ công luôn kéo đủ.
+const TIER2_TTL_MS = 5 * 60 * 1000
 
 // Chạy fn trên từng phần tử nhưng giới hạn số chạy song song (chống burst).
 async function chayTheoLo(items, fn, soSong = SO_SONG) {
@@ -54,6 +58,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
   const huy = useRef(false)
   const ctrlRef = useRef(null)
   const cacheSensor = useRef({ luc: 0, theoPhong: {} })
+  const tier2Luc = useRef(0)   // lần cuối nạp dữ liệu tab phụ (để bỏ qua trong TTL ở nhịp tự động)
 
   // Làm giàu phòng với thống kê 8h (cache + giới hạn đồng thời + abort)
   const lamGiauPhong = useCallback(async (ds, { batBuoc, signal }) => {
@@ -98,34 +103,53 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
     const signal = ctrl.signal
     if (!nen) setDangTai(true)
     setLoi(null)
-    const [tq, sc, cb, nk, ls, ph, rr, sop, ai, ng, sk, pg] = await Promise.all([
-      layTongQuan(signal), laySuCoDangMo(signal), layCanhBaoHeThong(signal), layNhatKyThaoTac(signal), layLichSuCauHinh(signal),
-      layDanhSachPhong(signal), layXepHangRuiRo(signal), layQuyTrinhSop(signal), layBaoCaoAi(signal), layNguongCanhBao(signal),
-      laySucKhoeHeThong(null, signal), layPhanTichGmp(signal),
-    ])
-    if (huy.current || signal.aborted) return
-    const cacLoi = [tq, sc, cb, nk, ls, ph, rr, sop, ai, ng, sk, pg].map((x) => x.error).filter(Boolean)
-    const loiThat = cacLoi.find((e) => e && e.name !== 'AbortError')
-    if (loiThat) setLoi(loiThat)
-    if (tq.kpis) setKpis(tq.kpis)
-    if (sc.incidents) setIncidents(sc.incidents)
-    if (cb.alerts) setSystemAlerts(cb.alerts)
-    if (nk.rows) setAudit(nk.rows)
-    if (ls.rows) setConfigHistory(ls.rows)
-    if (rr.rows) setRiskRows(rr.rows)
-    if (sop.rows) setSopRows(sop.rows)
-    if (ai.rows) setAiRows(ai.rows)
-    if (ng.cfg) setNguong(ng.cfg)
-    if (sk.suc_khoe) setSucKhoe(sk.suc_khoe)
-    if (pg.mkt) setGmpMkt(pg.mkt)
-    if (pg.spc) setGmpSpc(pg.spc)
-    if (ph.rooms) {
+
+    // Còn hiệu lực? (component chưa gỡ & request chưa bị hủy)
+    const con = () => !huy.current && !signal.aborted
+    // Ghi nhận lỗi ĐẦU TIÊN không phải abort (giữ hành vi cũ: chỉ báo 1 lỗi ra UI)
+    const nhanLoi = (x) => { if (con() && x && x.error && x.error.name !== 'AbortError') setLoi((cur) => cur || x.error); return x }
+
+    // ============================================================
+    // TẦNG 1 — dữ liệu "trên màn hình đầu" (Tổng quan): KPIs, sự cố, cảnh báo,
+    // sức khỏe, ngưỡng, phòng. Set state NGAY khi TỪNG truy vấn xong (progressive
+    // rendering) → màn hình đầu KHÔNG chờ các truy vấn nặng của tab phụ.
+    // ============================================================
+    const pTongQuan = layTongQuan(signal).then((x) => { nhanLoi(x); if (con() && x.kpis) setKpis(x.kpis); return x })
+    const pSuCo     = laySuCoDangMo(signal).then((x) => { nhanLoi(x); if (con() && x.incidents) setIncidents(x.incidents); return x })
+    const pCanhBao  = layCanhBaoHeThong(signal).then((x) => { nhanLoi(x); if (con() && x.alerts) setSystemAlerts(x.alerts); return x })
+    const pSucKhoe  = laySucKhoeHeThong(null, signal).then((x) => { nhanLoi(x); if (con() && x.suc_khoe) setSucKhoe(x.suc_khoe); return x })
+    const pNguong   = layNguongCanhBao(signal).then((x) => { nhanLoi(x); if (con() && x.cfg) setNguong(x.cfg); return x })
+    // Phòng: làm giàu thống kê 8h khởi động NGAY khi có danh sách (không còn chờ
+    // cả 12 truy vấn xong mới bắt đầu như trước → thẻ phòng hiện sớm hơn nhiều).
+    const pPhong = layDanhSachPhong(signal).then(async (x) => {
+      nhanLoi(x)
+      if (!con() || !x.rooms) return x
       try {
-        const full = await lamGiauPhong(ph.rooms, { batBuoc: !tuDong, signal })   // manual ⇒ làm mới ngay; auto ⇒ theo TTL
-        if (!huy.current && !signal.aborted) setRooms(full)
-      } catch { if (!huy.current && !signal.aborted) setRooms(ph.rooms) }
+        const full = await lamGiauPhong(x.rooms, { batBuoc: !tuDong, signal })   // manual ⇒ làm mới ngay; auto ⇒ theo TTL
+        if (con()) setRooms(full)
+      } catch { if (con()) setRooms(x.rooms) }
+      return x
+    })
+
+    // Tầng 1 hoàn tất → tắt "đang tải" + đóng dấu thời điểm. KHÔNG chờ tầng 2.
+    Promise.all([pTongQuan, pSuCo, pCanhBao, pSucKhoe, pNguong, pPhong]).then(() => {
+      if (con()) { setCapNhatLuc(new Date()); setDangTai(false) }
+    })
+
+    // ============================================================
+    // TẦNG 2 — dữ liệu tab phụ (Nhật ký/Cấu hình/Rủi ro/SOP/AI/GMP): nạp NỀN,
+    // không chặn màn hình đầu. Ở nhịp tự động chỉ nạp lại khi quá TTL (đổi chậm).
+    // ============================================================
+    const nenTier2 = !tuDong || (Date.now() - tier2Luc.current > TIER2_TTL_MS)
+    if (nenTier2) {
+      tier2Luc.current = Date.now()
+      layNhatKyThaoTac(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setAudit(x.rows) })
+      layLichSuCauHinh(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setConfigHistory(x.rows) })
+      layXepHangRuiRo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setRiskRows(x.rows) })
+      layQuyTrinhSop(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSopRows(x.rows) })
+      layBaoCaoAi(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setAiRows(x.rows) })
+      layPhanTichGmp(signal).then((x) => { nhanLoi(x); if (con()) { if (x.mkt) setGmpMkt(x.mkt); if (x.spc) setGmpSpc(x.spc) } })
     }
-    if (!huy.current && !signal.aborted) { setCapNhatLuc(new Date()); setDangTai(false) }
   }, [isLive, lamGiauPhong])
 
   useEffect(() => {
