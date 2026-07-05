@@ -44,6 +44,10 @@ const LEVELS = [
 ];
 // Thứ tự ưu tiên theo dõi: phòng nguy cơ cao nhất (Hành động) xếp trước. -1 = mất dữ liệu.
 const LEVEL_PRIORITY = (lvl) => (lvl == null || lvl < 0 ? -0.5 : lvl);
+// WCAG 1.4.1 — mỗi mức có GLYPH riêng (không phân biệt chỉ bằng màu): người mù màu
+// vẫn đọc được qua hình dạng. Kiểm soát tốt ✓ · Chú ý ◦ · Cảnh báo ▲ · Hành động ■.
+const LEVEL_GLYPH = ["✓", "◦", "▲", "■"];
+const levelGlyph = (lvl) => (lvl == null || lvl < 0 ? "–" : (LEVEL_GLYPH[lvl] || "•"));
 
 /* ============ NGƯỜI DÙNG & PHÂN QUYỀN ============ */
 const USERS = [
@@ -278,9 +282,9 @@ function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
       {!room.noData && (
         <div className="mt-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 overflow-hidden">
           <div className="grid grid-cols-5 px-3 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold border-b border-slate-200/70"><span>Chỉ tiêu</span><span className="text-center">Hiện tại</span><span className="text-center">TB 1h</span><span className="text-center">OOS 1h</span><span className="text-center">10′</span></div>
-          {room.sensors.map((s) => { const st = sensorStats(room.id, s, room._isLive); const noDL = st.khongCoDL; const lvl = noDL ? -1 : ((s._live && s._live.level != null) ? s._live.level : sensorLevel(st, cfg)); const dotCls = noDL ? "bg-slate-300" : LEVELS[lvl].dot; return (
+          {room.sensors.map((s) => { const st = sensorStats(room.id, s, room._isLive); const noDL = st.khongCoDL; const lvl = noDL ? -1 : ((s._live && s._live.level != null) ? s._live.level : sensorLevel(st, cfg)); const dotCls = noDL ? "bg-slate-300" : LEVELS[lvl].dot; const lblMuc = noDL ? "Chưa có dữ liệu" : LEVELS[lvl].label; return (
             <div key={s.k} className="grid grid-cols-5 items-center px-3 py-2 text-[12px] border-b border-slate-200/50 last:border-0">
-              <span className="flex items-center gap-1.5 text-slate-600 font-medium">{s.k}<span className={`w-1.5 h-1.5 rounded-full ${dotCls}`} /></span>
+              <span className="flex items-center gap-1.5 text-slate-600 font-medium">{s.k}<span title={lblMuc} aria-label={lblMuc} className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[8px] leading-none font-bold text-white ${dotCls}`}>{levelGlyph(lvl)}</span></span>
               {noDL ? <span className="col-span-4 text-center text-[11px] text-slate-400 italic">chưa có dữ liệu</span> : (<>
               <span className="text-center tabular-nums font-semibold" style={{ color: COLOR.navy }}>{st.cur}<span className="text-[11px] text-slate-400">{SENSOR_META[s.k].unit}</span></span>
               <span className="text-center tabular-nums text-slate-500">{st.avg1h}</span>
