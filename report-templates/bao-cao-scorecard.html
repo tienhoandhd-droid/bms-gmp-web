@@ -190,12 +190,11 @@
 <body>
 
   <!-- ===== Mảng 2 · CỔNG AN TOÀN: banner chế độ thử =====
-       Node bơm token RAW "banner_thu_nghiem" (dạng 3 ngoặc để chèn HTML thô):
-         • che_do_thu_nghiem=true  → '<div class="banner-test">⚠ CHẾ ĐỘ THỬ NGHIỆM — SỐ LIỆU KHÔNG DÙNG CHO QUYẾT ĐỊNH GMP</div>'
+       Node "Ráp báo cáo" bơm token "banner_thu_nghiem" (thay() chèn HTML thô, không escape):
+         • che_do_thu_nghiem=true  → '<div class="banner-test">⚠ CHẾ ĐỘ THỬ NGHIỆM …</div>'
          • che_do_thu_nghiem=false → '' (rỗng)
-       Đồng thời node NÊN chặn GỬI khi true (chỉ lưu nháp). Kiểm bằng:
-         select value from cau_hinh where key='che_do_thu_nghiem';  (hiện = false) -->
-  {{{banner_thu_nghiem}}}
+       Node cũng NÊN chặn GỬI khi true (chỉ lưu nháp). (Hiện production = false.) -->
+  {{banner_thu_nghiem}}
 
   <!-- ===== MASTHEAD ===== -->
   <header class="mast avoid">
@@ -216,7 +215,6 @@
       <div class="docctrl">
         <div>Mã tài liệu: <b>{{ma_tai_lieu}}</b></div>
         <div>Phiên bản: <b>{{phien_ban}}</b> · Hiệu lực: <b>{{ngay_hieu_luc}}</b></div>
-        <div>Trang <b>{{so_trang}}</b></div>
       </div>
     </div>
   </header>
@@ -475,9 +473,9 @@
     </div>
 
     <!-- Mảng 2 · Bản lưu trữ bất biến (ALCOA+ Enduring, P1): tên file có phiên bản +
-         SHA-256 của PDF + QR mã xác minh. Node bơm: ten_file, sha256, "qr_svg" (3 ngoặc, hoặc qr_src). -->
+         SHA-256 (của snapshot dữ liệu bao_cao) + QR xác minh. Node bơm: ten_file, sha256, qr_svg (HTML thô). -->
     <div class="archive">
-      <div class="qr">{{{qr_svg}}}</div>
+      <div class="qr">{{qr_svg}}</div>
       <div class="meta2">
         <div>Tên file lưu trữ: <code>{{ten_file}}</code></div>
         <div>SHA-256: <code>{{sha256}}</code></div>
