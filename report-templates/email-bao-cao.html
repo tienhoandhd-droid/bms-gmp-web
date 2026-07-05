@@ -6,7 +6,7 @@
     bảng/chữ. KHÔNG nhúng biểu đồ ảnh (tránh mờ/nén + để email nhẹ, không phụ thuộc
     tải ảnh ngoài).
   - Nút "Mở dashboard tương tác" trỏ tới {{link_dashboard}} (web dashboard).
-    File dashboard tương tác (.html) + Báo cáo PDF ký duyệt được ĐÍNH KÈM email.
+    File dashboard tương tác (.html) đính kèm email, kèm báo cáo PDF ký duyệt khi có.
   - Placeholder {{ten}} do Code node n8n thay từ JSON rpc_bao_cao_tong_hop.
     Khối lặp {{#each ...}}…{{/each}} — Code node nhân bản phần thân.
 -->
@@ -33,7 +33,7 @@
         <!-- HƯỚNG DẪN MỞ dashboard + PDF đính kèm -->
         <tr><td style="background:#fffbeb;border-left:1px solid #fde68a;border-right:1px solid #fde68a;padding:16px 24px;">
           <div style="font-size:13px;color:#0f172a;line-height:1.6;">
-            <strong>📊 Dashboard tương tác (.html)</strong> — biểu đồ, bộ lọc theo Khu/AHU, bảng tất cả phòng — cùng <strong>Báo cáo PDF ký duyệt</strong> được <strong>đính kèm</strong> ở cuối email này.
+            <strong>📊 Dashboard tương tác (.html)</strong> — biểu đồ, bộ lọc theo Khu/AHU, bảng tất cả phòng — được <strong>đính kèm</strong> ở cuối email này, kèm <strong>báo cáo PDF ký duyệt</strong> khi dịch vụ tạo PDF sẵn sàng.
           </div>
           <div style="font-size:12px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.65;">
             ⬇ <strong>Cách mở dashboard:</strong> ở thẻ tệp đính kèm bên dưới, bấm biểu tượng <strong>Tải xuống</strong> tệp <b>Dashboard-….html</b> về máy, rồi <strong>mở bằng trình duyệt</strong> (Chrome / Edge / Cốc Cốc) — dashboard sẽ hiện đầy đủ và tương tác được.
@@ -102,7 +102,7 @@
             </tr>
             {{/each}}
           </table>
-          <div style="font-size:10.5px;color:#7f1d1d;margin-top:6px;">Tiêu chí: giảm ≥ 5 điểm % so kỳ trước · tín hiệu SPC mới (EWMA/CUSUM/Nelson) · độ dốc âm với R² ≥ 0,5. Cảnh báo sớm trước khi vượt ngưỡng OOS. Chi tiết đầy đủ ở dashboard + PDF đính kèm.</div>
+          <div style="font-size:10.5px;color:#7f1d1d;margin-top:6px;">Tiêu chí: giảm ≥ 5 điểm % so kỳ trước · tín hiệu SPC mới (EWMA/CUSUM/Nelson) · độ dốc âm với R² ≥ 0,5. Cảnh báo sớm trước khi vượt ngưỡng OOS. Chi tiết đầy đủ ở dashboard (và PDF ký duyệt khi có).</div>
         </td></tr>
 
         <!-- NHẬN ĐỊNH AI -->
@@ -115,7 +115,7 @@
         <!-- FOOTER -->
         <tr><td style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;padding:14px 24px;">
           <div style="font-size:11px;color:#94a3b8;line-height:1.6;">
-            Đính kèm: <b>dashboard tương tác (.html)</b> + <b>{{ten_file_pdf}}</b> (bản ký duyệt lưu trữ).
+            Đính kèm: <b>dashboard tương tác (.html)</b>; báo cáo PDF ký duyệt <b>{{ten_file_pdf}}</b> (bản lưu trữ) khi dịch vụ PDF sẵn sàng.
             Bản lưu Google Drive: <a href="{{link_drive}}" style="color:#0d9488;">thư mục báo cáo</a>.<br>
             Truy vết GMP: mã lần chạy <b>{{ma_lan_chay}}</b> · Nguồn: <span style="font-family:monospace;">rpc_bao_cao_tong_hop('{{ky}}','{{tu_ngay_iso}}','{{den_ngay_iso}}')</span>.
             Báo cáo tự động WF5 — BMS-GMP (CPC1HN).
