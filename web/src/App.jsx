@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -711,6 +711,10 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [aiWebhook, setAiWebhook] = useState("");     // URL WF7 (nếu cấu hình)
   const [soKyTruoc, setSoKyTruoc] = useState(!!prefs.prevCmp); // A3: bật đường "kỳ trước" (chỉ khung NGÀY)
   const [prevSeries, setPrevSeries] = useState({});   // {trendKey: chuỗi kỳ TRƯỚC (cùng độ dài)}
+  // Mảng 3: dự báo (RPC gate R²) + bản đồ nhiệt phòng×ngày. Cache theo khoá scope|sensor.
+  const [duBao, setDuBao] = useState(null);           // {du_bao_dang_tin, huong, r2, ghi_chu, chuoi, du_bao[]}
+  const [maTran, setMaTran] = useState(null);         // {rooms[], days[], values[][]}
+  const [dbBusy, setDbBusy] = useState(false);
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const u = await layWebhookAi(); if (!huy) setAiWebhook(u || ""); })(); return () => { huy = true; }; }, [isLive]);
   const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90 };
   // Độ phân giải: 30n/90n → NGÀY; 1n/7n → auto (1n=PHUT 30′, 7n=GIO) hoặc override PHUT/GIO.
@@ -799,6 +803,31 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const activeId = selId && options.some((o) => o.id === selId) ? selId : (options[0] ? options[0].id : "ALL");
   const activeScope = (isLive ? lFind(activeId) : findScope(activeId)) || (isLive ? (liveScopes[0] || { id: "ALL", name: "—", daily: [{}], latest: {} }) : findScope("ALL"));
   const trendKey = `${activeId}|${sensor}|${range}|${donVi}`;   // khóa cache chuỗi chính (kèm độ phân giải)
+
+  // Mảng 3 — LIVE: dự báo (gate R²) + ma trận phòng×ngày cho scope/cảm biến đang chọn.
+  // Heatmap chỉ có nghĩa ở cấp Tổng/Khu (nhiều phòng); Tổng/AHU/Phòng đều dự báo được.
+  useEffect(() => {
+    if (!isLive || !activeId) { setDuBao(null); setMaTran(null); return; }
+    let huy = false;
+    const st = activeScope.type || "TOTAL";
+    const hmType = st === "AREA" ? "AREA" : "TOTAL";
+    const hmId = st === "AREA" ? activeId : "ALL";
+    const soNgayHm = Math.min(14, RANGE_DAYS[range] || 30);
+    (async () => {
+      setDbBusy(true);
+      try {
+        const [fc, mt] = await Promise.all([
+          layDuBaoXuHuong(st, activeId, sensor, 30, 7),
+          layMaTranPhongNgay(hmType, hmId, sensor, soNgayHm, 20),
+        ]);
+        if (huy) return;
+        setDuBao(fc && fc.du_bao ? fc.du_bao : null);
+        setMaTran(mt && mt.rooms && mt.rooms.length ? mt : null);
+      } catch { if (!huy) { setDuBao(null); setMaTran(null); } }
+      finally { if (!huy) setDbBusy(false); }
+    })();
+    return () => { huy = true; };
+  }, [isLive, activeScope.type, activeId, sensor, range]); // eslint-disable-line
 
   // LIVE: tải chuỗi 90 ngày cho scope đang chọn + 4 scope mini (cache theo id)
   const miniIds = useMemo(() => isLive ? [lByType("TOTAL")[0], lByType("AREA")[0], lByType("AHU")[0], lByType("ROOM")[0]].map((s) => s && s.id).filter(Boolean) : [], [isLive, liveScopes]); // eslint-disable-line
@@ -1415,6 +1444,41 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", "Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày", "Xu hướng 14n", "Risk", "Đánh giá"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; const a = comp == null ? ["Chờ dữ liệu", "text-slate-400"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-rose-600"] : comp < 88 ? ["Cần chú ý", "text-amber-600"] : ["Tốt", "text-teal-600"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-slate-100 hover:bg-sky-50/40 ${r.type === "TOTAL" ? "bg-teal-50/30" : ""}`}><td className="py-2.5 pr-4 text-slate-500 whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4"><button disabled={!canPick} onClick={() => { if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left ${canPick ? "hover:underline" : ""}`}><span className="font-semibold" style={{ color: COLOR.navy }}>{r.id}</span> <span className="text-slate-500">{r.name}</span></button></td><td className="py-2.5 pr-4 text-slate-500 whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-slate-600">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-slate-600">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td><td className="py-2.5 pr-4"><Chart type="sparkline" chuoi={r.chuoi} h={30} /></td><td className="py-2.5 pr-4"><span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: COLOR.coralDeep }}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
         <p className="text-[11px] text-slate-400 mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó. Tỉ lệ đạt = trung bình tuân thủ trong 1 / 3 / 7 ngày gần nhất.</p>
       </Card>
+
+      {/* Mảng 3 — Dự báo xu hướng (RPC gate R²) */}
+      {isLive && (
+      <Card className="p-6"><SectionTitle icon={LineIcon} hint="hồi quy OLS + cổng R²≥0.5 · dải tin cậy robust (MAD) · dữ liệu thật">Dự báo xu hướng 7 ngày</SectionTitle>
+        {dbBusy && !duBao ? <div className="mt-3 h-16 rounded-2xl bg-slate-50 animate-pulse" /> :
+         !duBao ? <p className="mt-3 text-[13px] text-slate-400 italic">Chưa đủ dữ liệu để dự báo cho phạm vi đang chọn.</p> :
+         (duBao.du_bao_dang_tin && (duBao.du_bao || []).length) ? (() => {
+           const last = duBao.du_bao[duBao.du_bao.length - 1];
+           const hv = { cai_thien: ["Cải thiện", COMPLY_OK], xau_di: ["Xấu đi", COMPLY_BAD], on_dinh: ["Ổn định", "#5f7a90"] }[duBao.huong] || ["—", "#5f7a90"];
+           return (
+             <div className="mt-3">
+               <div className="flex items-baseline gap-3 flex-wrap">
+                 <span className="text-3xl font-light tabular-nums" style={{ color: COMPLY_OK }}>{fmtPct(last.gia_tri)}</span>
+                 <span className="text-[12px] text-slate-500">dự kiến sau 7 ngày · dải {fmtPct(last.canh_duoi)}–{fmtPct(last.canh_tren)}</span>
+                 <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: hv[1] + "22", color: hv[1] }}>{hv[0]}</span>
+                 <span className="text-[11px] text-slate-400">R²={(+duBao.r2).toFixed(2)}</span>
+               </div>
+               <p className="mt-2 text-[12px] leading-relaxed text-slate-600">{duBao.ghi_chu}</p>
+             </div>
+           );
+         })() : (
+           <div className="mt-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 p-4">
+             <p className="text-[13px] font-semibold text-slate-600">Không chiếu dự báo</p>
+             <p className="text-[12px] text-slate-500 mt-1">{duBao.ghi_chu}</p>
+           </div>
+         )}
+      </Card>
+      )}
+
+      {/* Mảng 3 — Bản đồ tuân thủ phòng × ngày (chỉ cấp Tổng/Khu) */}
+      {isLive && maTran && (
+      <Card className="p-6"><SectionTitle icon={CircleDot} hint="% đạt mỗi phòng theo ngày · phòng rủi ro nhất xếp trên">Bản đồ tuân thủ phòng × ngày</SectionTitle>
+        <div className="mt-3"><Chart type="roomDayHeat" rooms={maTran.rooms} days={maTran.days} values={maTran.values} height={Math.max(180, maTran.rooms.length * 20 + 70)} h={Math.max(180, maTran.rooms.length * 20 + 70)} /></div>
+      </Card>
+      )}
     </div>
   );
 }
