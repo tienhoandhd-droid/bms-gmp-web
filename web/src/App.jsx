@@ -64,7 +64,6 @@ const TAB_ROLES = {
   home:     ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   events:   ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   trend:    ["LOT", "QA", "ADMIN", "IT"],
-  rooms:    FULL_ACCESS,
   reports:  FULL_ACCESS,
   audit:    FULL_ACCESS,
   settings: FULL_ACCESS,
@@ -2096,11 +2095,12 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
   );
 }
 
-const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "rooms", label: "Phòng", icon: Building2 }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
+const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 export default function App() {
   const [tab, setTab] = useState("home");
   const [auditTab, setAuditTab] = useState("audit");   // tab con Nhật ký & SOP: audit | config | sop
+  const [cfgTab, setCfgTab] = useState("canhbao");     // tab con Cài đặt: canhbao | phong | phantuyen | hethong
   const [dataSource, setDataSource] = useState(DEFAULT_DATA_SOURCE);   // 'demo' | 'live'
   const LIVE_MAC_DINH = DEFAULT_DATA_SOURCE === "live";   // LIVE → KHÔNG nhồi dữ liệu demo (tránh "thông tin không khớp")
   const [rooms, setRooms] = useState(LIVE_MAC_DINH ? [] : INITIAL_ROOMS);
@@ -2399,10 +2399,6 @@ export default function App() {
             );
           })()}
 
-          {tab === "rooms" && (
-            <div className="space-y-5"><SectionTitle icon={Building2}>Quản lý phòng</SectionTitle><RoomManager rooms={rooms} cfg={cfg} canManage={canManage} onAdd={addRoom} onEdit={editRoom} onDelete={deleteRoom} onUpdateLimit={updateLimit} onAddSensor={addSensor} onRemoveSensor={removeSensor} /></div>
-          )}
-
           {tab === "trend" && <div className="space-y-6"><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? live.rooms : null} liveIncidents={isLive ? incidents : null} onSaveAI={handleSaveAI} /><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
           {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
 
@@ -2437,24 +2433,71 @@ export default function App() {
 
           {tab === "recipients" && <CauHinhNguoiNhan isLive={isLive} canManage={canManage} actor={user?.email} />}
 
-          {tab === "settings" && (
+          {tab === "settings" && (() => {
+            const cfgSubTabs = [
+              { k: "canhbao", label: "Nguyên tắc cảnh báo", icon: SlidersHorizontal },
+              { k: "phong", label: "Phòng & cảm biến", icon: Building2 },
+              { k: "phantuyen", label: "Tự phân tuyến", icon: ShieldCheck },
+              { k: "hethong", label: "Hệ thống", icon: Wifi },
+            ];
+            const pct = (v) => Math.max(0, Math.min(100, (Number(v) || 0) / 60 * 100));
+            return (
             <div className="space-y-5">
               <SectionTitle icon={Cog}>Cài đặt</SectionTitle>
-              <Card className="p-6"><SectionTitle icon={SlidersHorizontal} hint="kiểm soát tốt · chú ý · cảnh báo · hành động">Nguyên tắc cảnh báo (4 mức)</SectionTitle><p className="text-[12px] text-slate-500 mt-2">Mỗi giờ chấm tối đa <b>60 điểm</b>. Số điểm vượt giới hạn trong 1 giờ (OOS 1h, x/60) quyết định mức; số điểm lỗi <b>10 phút cuối</b> (x/10) dùng để nâng <b>Cảnh báo → Hành động</b>.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mt-4">
-                  {[
-                    { c: COLOR.teal, bg: "bg-teal-50", ring: "ring-teal-200", txt: "text-teal-700", t: "Kiểm soát tốt", d: `OOS 1h < ${cfg.notice}/60` },
-                    { c: COLOR.sky, bg: "bg-sky-50", ring: "ring-sky-200", txt: "text-sky-700", t: "Cần chú ý", d: `${cfg.notice}–${cfg.warn}/60 điểm OOS 1h` },
-                    { c: COLOR.sand, bg: "bg-amber-50", ring: "ring-amber-200", txt: "text-amber-700", t: "Cảnh báo", d: `OOS 1h > ${cfg.warn}/60 và lỗi 10′ < ${cfg.action}/10` },
-                    { c: COLOR.coralDeep, bg: "bg-rose-50", ring: "ring-rose-200", txt: "text-rose-700", t: "Hành động", d: `OOS 1h > ${cfg.warn}/60 và lỗi 10′ ≥ ${cfg.action}/10` },
-                  ].map((m) => <div key={m.t} className={`rounded-2xl ${m.bg} ring-1 ${m.ring} p-3`}><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: m.c }} /><span className={`text-[12px] font-semibold ${m.txt}`}>{m.t}</span></div><p className="text-[11px] text-slate-600 mt-1.5 leading-snug">{m.d}</p></div>)}
+              <div className="flex flex-wrap gap-2 sticky top-0 z-10 bg-white/80 backdrop-blur rounded-2xl ring-1 ring-slate-200 p-1.5">
+                {cfgSubTabs.map((s) => { const Ic = s.icon; const on = cfgTab === s.k; return (
+                  <button key={s.k} onClick={() => setCfgTab(s.k)} className={`flex-1 min-w-[150px] flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-medium transition ${on ? "text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`} style={on ? { backgroundColor: COLOR.teal } : {}}><Ic className="w-4 h-4" strokeWidth={1.8} /> {s.label}</button>
+                ); })}
+              </div>
+
+              {cfgTab === "canhbao" && (
+              <Card className="p-6">
+                <SectionTitle icon={SlidersHorizontal} hint="4 mức: kiểm soát tốt → chú ý → cảnh báo → hành động">Nguyên tắc cảnh báo</SectionTitle>
+                <p className="text-[12px] text-slate-500 mt-2">Mỗi giờ hệ thống chấm mỗi phòng tối đa <b>60 điểm</b> (mỗi phút lỗi = 1 điểm). Số điểm lỗi trong 1 giờ quyết định mức cảnh báo — kéo thanh trượt để chỉnh.</p>
+                <div className="mt-5">
+                  <div className="relative h-10 rounded-xl overflow-hidden ring-1 ring-slate-200 flex text-[11px] font-semibold text-white select-none">
+                    <div style={{ width: pct(cfg.notice) + "%", background: COLOR.teal }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Tốt</span></div>
+                    <div style={{ width: Math.max(0, pct(cfg.warn) - pct(cfg.notice)) + "%", background: "#f59e0b" }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Chú ý</span></div>
+                    <div style={{ width: Math.max(0, 100 - pct(cfg.warn)) + "%", background: "#ef4444" }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Cảnh báo</span></div>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-slate-400 mt-1 tabular-nums"><span>0</span><span>số điểm lỗi trong 1 giờ →</span><span>60</span></div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">{[["Ngưỡng CHÚ Ý — OOS 1h ≥", "notice", "/60"], ["Ngưỡng CẢNH BÁO — OOS 1h >", "warn", "/60"], ["Ngưỡng HÀNH ĐỘNG — lỗi 10′ ≥", "action", "/10"]].map(([lbl, key, suf]) => <div key={key} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4"><label className="text-[11px] uppercase text-slate-500 font-semibold">{lbl}</label><div className="flex items-center gap-2 mt-2"><input type="number" min="0" value={cfg[key]} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, [key]: Number(e.target.value) })} onBlur={() => saveCfg(cfg)} className="w-20 rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm disabled:bg-slate-100" /><span className="text-sm text-slate-400">{suf} điểm</span></div></div>)}</div>{!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh.</p>}</Card>
-              <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối Supabase</SectionTitle><div className="space-y-3 mt-4 text-sm">{(() => { const conn = !HAS_SUPABASE ? ["chưa cấu hình", "text-slate-600 bg-slate-100"] : !isLive ? ["DEMO", "text-amber-700 bg-amber-100"] : live.loi ? ["lỗi kết nối", "text-rose-700 bg-rose-100"] : live.dangTai ? ["đang tải…", "text-sky-700 bg-sky-100"] : ["đã kết nối", "text-teal-700 bg-teal-100"]; const keyState = HAS_SUPABASE ? ["đã nạp", "text-teal-700 bg-teal-100"] : ["thiếu .env", "text-rose-700 bg-rose-100"]; const rows = [{ k: "Nguồn dữ liệu", v: isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu", s: conn }, { k: "Khóa môi trường", v: HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập", s: keyState }, { k: "Cập nhật gần nhất", v: live.capNhatLuc ? live.capNhatLuc.toLocaleString("vi-VN") : "—", s: conn }]; return rows.map((r, i) => <div key={i} className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0"><span className="text-slate-500 w-44">{r.k}</span><code className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded-lg ring-1 ring-slate-200 flex-1">{r.v}</code><span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.s[1]}`}>{r.s[0]}</span></div>); })()}</div>{isLive && live.loi && <p className="text-[11px] text-rose-600 mt-3">Chi tiết lỗi: {live.loi.thong_bao || live.loi.message || "không xác định"}</p>}</Card>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+                  {[["Chuyển CHÚ Ý khi OOS 1 giờ ≥", "notice", "text-amber-600"], ["Chuyển CẢNH BÁO khi OOS 1 giờ >", "warn", "text-rose-600"]].map(([lbl, key, tone]) => (
+                    <div key={key} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4">
+                      <div className="flex items-center justify-between gap-2"><label className="text-[12px] font-semibold text-slate-600">{lbl}</label><span className={`text-[16px] font-bold tabular-nums ${tone}`}>{cfg[key]}<span className="text-[11px] text-slate-400 font-normal">/60</span></span></div>
+                      <input type="range" min="0" max="60" value={cfg[key]} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, [key]: Number(e.target.value) })} onMouseUp={() => saveCfg(cfg)} onTouchEnd={() => saveCfg(cfg)} className="w-full mt-3 accent-teal-600 disabled:opacity-50" />
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-2xl bg-rose-50/60 ring-1 ring-rose-100 p-4 mt-4 flex items-center justify-between flex-wrap gap-3">
+                  <div><label className="text-[12px] font-semibold text-rose-700">Nâng CẢNH BÁO → HÀNH ĐỘNG khi 10 phút cuối có ≥</label><p className="text-[11px] text-slate-500 mt-0.5">Bắt lỗi kéo dài liên tục sát hiện tại — khẩn cấp hơn, đẩy sự cố ngay.</p></div>
+                  <div className="flex items-center gap-2"><input type="number" min="0" max="10" value={cfg.action} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, action: Number(e.target.value) })} onBlur={() => saveCfg(cfg)} className="w-20 rounded-xl bg-white ring-1 ring-rose-200 px-3 py-2 text-sm text-center font-bold disabled:bg-slate-100" /><span className="text-sm text-slate-400">/10 điểm</span></div>
+                </div>
+                <div className="mt-4 rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-3 text-[12.5px] text-slate-600 leading-relaxed">
+                  <b className="text-slate-700">Diễn giải hiện tại:</b> trong 1 giờ, phòng có <b className="text-amber-600">≥ {cfg.notice}/60</b> điểm lỗi → <b>Chú ý</b>; <b className="text-rose-600">&gt; {cfg.warn}/60</b> → <b>Cảnh báo</b>. Khi đang Cảnh báo mà <b>10 phút cuối</b> có <b className="text-rose-700">≥ {cfg.action}/10</b> điểm lỗi → nâng lên <b>Hành động</b>.
+                </div>
+                {!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh.</p>}
+              </Card>
+              )}
+
+              {cfgTab === "phong" && (
+              <div className="space-y-5"><SectionTitle icon={Building2}>Quản lý phòng & cảm biến</SectionTitle><RoomManager rooms={rooms} cfg={cfg} canManage={canManage} onAdd={addRoom} onEdit={editRoom} onDelete={deleteRoom} onUpdateLimit={updateLimit} onAddSensor={addSensor} onRemoveSensor={removeSensor} /></div>
+              )}
+
+              {cfgTab === "phantuyen" && (
               <LuatPhanTuyenCard isLive={isLive} canManage={canManage} actor={user?.email} />
-              <DoiMatKhauCard user={user} isLive={isLive} />
+              )}
+
+              {cfgTab === "hethong" && (
+              <div className="space-y-5">
+                <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối Supabase</SectionTitle><div className="space-y-3 mt-4 text-sm">{(() => { const conn = !HAS_SUPABASE ? ["chưa cấu hình", "text-slate-600 bg-slate-100"] : !isLive ? ["DEMO", "text-amber-700 bg-amber-100"] : live.loi ? ["lỗi kết nối", "text-rose-700 bg-rose-100"] : live.dangTai ? ["đang tải…", "text-sky-700 bg-sky-100"] : ["đã kết nối", "text-teal-700 bg-teal-100"]; const keyState = HAS_SUPABASE ? ["đã nạp", "text-teal-700 bg-teal-100"] : ["thiếu .env", "text-rose-700 bg-rose-100"]; const rows = [{ k: "Nguồn dữ liệu", v: isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu", s: conn }, { k: "Khóa môi trường", v: HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập", s: keyState }, { k: "Cập nhật gần nhất", v: live.capNhatLuc ? live.capNhatLuc.toLocaleString("vi-VN") : "—", s: conn }]; return rows.map((r, i) => <div key={i} className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0"><span className="text-slate-500 w-44">{r.k}</span><code className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded-lg ring-1 ring-slate-200 flex-1">{r.v}</code><span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.s[1]}`}>{r.s[0]}</span></div>); })()}</div>{isLive && live.loi && <p className="text-[11px] text-rose-600 mt-3">Chi tiết lỗi: {live.loi.thong_bao || live.loi.message || "không xác định"}</p>}</Card>
+                <DoiMatKhauCard user={user} isLive={isLive} />
+              </div>
+              )}
             </div>
-          )}
+            );
+          })()}
         </main>
 
         <footer className="mt-8 text-center text-[11px] text-slate-400 tracking-wide leading-relaxed"><span className="font-semibold" style={{ color: COLOR.ink }}>Hệ thống giám sát HVAC phòng sạch GMP</span> · V/Q team — QLCL</footer>
