@@ -233,7 +233,11 @@ function ServerClock({ live }) {
   useEffect(() => { if (!live) return; const id = setInterval(() => setT(vnNow()), 1000); return () => clearInterval(id); }, [live]);
   return <span className="text-xs font-semibold tabular-nums" style={{ color: COLOR.ink }}>{t}</span>;
 }
-function KpiCard({ icon: Icon, label, value, total, sub, accent, onClick, loading }) {
+/* Memo (nâng cấp 07/07): 4 thẻ KPI + lưới thẻ phòng re-render toàn bộ mỗi nhịp 60s và
+   mỗi lần bấm bất kỳ nút nào trên trang. Comparator BỎ QUA identity của prop hàm/objeto
+   trang trí (onClick, accent tạo inline) — chỉ so giá trị hiển thị; hành vi hàm không đổi
+   giữa các render nên bỏ qua identity là an toàn. */
+const KpiCard = React.memo(function KpiCard({ icon: Icon, label, value, total, sub, accent, onClick, loading }) {
   const clickable = typeof onClick === "function";
   return (
     <Card className={`relative p-6 overflow-hidden ${clickable ? "cursor-pointer transition hover:-translate-y-0.5 hover:ring-teal-200" : ""}`}>
@@ -244,13 +248,16 @@ function KpiCard({ icon: Icon, label, value, total, sub, accent, onClick, loadin
       {clickable && <div className="relative mt-2 flex items-center gap-1 text-[10px] font-medium text-slate-400"><Eye className="w-3 h-3" strokeWidth={1.8} /> bấm để xem danh sách phòng</div>}
     </Card>
   );
-}
+}, (t, s) => t.label === s.label && t.value === s.value && t.total === s.total && t.sub === s.sub
+   && t.loading === s.loading && t.icon === s.icon
+   && (typeof t.onClick === "function") === (typeof s.onClick === "function")
+   && t.accent.txt === s.accent.txt && t.accent.bg === s.accent.bg && t.accent.glow === s.accent.glow);
 
 /* ===== OOS mini 8h — cột thuần CSS (KHÔNG dùng ECharts) =====
    Trước đây thẻ phòng ở tab Tổng quan (trang mặc định) render <Chart type="oosMini">
    → kéo cả chunk ECharts (~730KB) ngay màn hình đầu, dù chỉ để vẽ 8 cột đơn giản.
    Thay bằng cột div nhẹ → ECharts chỉ nạp khi mở Xu hướng / chi tiết phòng. */
-function OosMiniBars({ data, h = 70 }) {
+const OosMiniBars = React.memo(function OosMiniBars({ data, h = 70 }) {
   const max = Math.max(1, ...data.map((d) => d.oos || 0));
   const barsH = h - 16;   // chừa ~16px cho nhãn giờ ở dưới
   return (
@@ -265,10 +272,13 @@ function OosMiniBars({ data, h = 70 }) {
       <div className="flex gap-[3px] mt-1">{data.map((d, i) => <div key={i} className="flex-1 text-center text-[10px] text-slate-400 tabular-nums leading-none truncate">{i % 2 === 0 ? d.label : ""}</div>)}</div>
     </div>
   );
-}
+});
 
-/* ===== THẺ PHÒNG ===== */
-function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
+/* ===== THẺ PHÒNG =====
+   Memo: chỉ render lại khi room/cfg/incident đổi THAM CHIẾU (đều là state/phần tử state —
+   identity ổn định giữa 2 nhịp làm mới). Prop hàm (onDetail/onIncident) bỏ qua identity:
+   hành vi không đổi giữa render, tránh 58 thẻ re-render mỗi lần bấm nút bất kỳ. */
+const RoomCard = React.memo(function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
   const lvl = roomLevel(room, cfg); const comp = roomCompliance(room); const failing = comp != null && comp < 80; const lm = lvl < 0 ? null : LEVELS[lvl];
   return (
     <Card className="p-5 transition hover:-translate-y-0.5">
@@ -305,7 +315,7 @@ function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
       </div>
     </Card>
   );
-}
+}, (t, s) => t.room === s.room && t.cfg === s.cfg && t.incident === s.incident);
 
 function RoomDetailModal({ room, onClose }) {
   return (
