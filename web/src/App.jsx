@@ -393,6 +393,9 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onEdit, onDelete, onUpdateL
   const [editId, setEditId] = useState(null);
   const blank = { id: "", name: "", area: "C1", ahu: "AHU01", priority: "P3", note: "", noData: false, DP: true, RH: true, T: true, DPmin: 12.5, DPmax: 30, RHmin: 30, RHmax: 55, Tmin: 18, Tmax: 24 };
   const [f, setF] = useState(blank);
+  const [qTim, setQTim] = useState("");        // tìm kiếm phòng
+  const [locKhu, setLocKhu] = useState("ALL");  // lọc theo khu
+  const roomsHienThi = rooms.filter((r) => (locKhu === "ALL" || r.area === locKhu) && (!qTim.trim() || (r.id + " " + (r.name || "")).toLowerCase().includes(qTim.trim().toLowerCase())));
   const submit = () => {
     const id = f.id.trim(); if (!id) return alert("Nhập mã phòng (vd C1.R09)"); if (rooms.some((r) => r.id === id)) return alert("Mã phòng đã tồn tại");
     const sensors = f.noData ? [] : [f.DP && { k: "DP", min: Number(f.DPmin), max: Number(f.DPmax) }, f.RH && { k: "RH", min: Number(f.RHmin), max: Number(f.RHmax) }, f.T && { k: "T", min: Number(f.Tmin), max: Number(f.Tmax) }].filter(Boolean);
@@ -428,11 +431,18 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onEdit, onDelete, onUpdateL
         </div>
       )}
 
-      <div className="overflow-x-auto mt-4">
+      <div className="flex items-center gap-2 mt-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]"><Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" strokeWidth={1.8} /><input value={qTim} onChange={(e) => setQTim(e.target.value)} placeholder="Tìm mã hoặc tên phòng…" className="w-full rounded-xl bg-white ring-1 ring-slate-200 pl-9 pr-3 py-2 text-[12px] text-slate-700 outline-none focus:ring-2 focus:ring-teal-300" />{qTim && <button onClick={() => setQTim("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>}</div>
+        <div className="flex items-center gap-1.5">
+          {["ALL", ...DS_KHU].map((k) => { const on = locKhu === k; return <button key={k} onClick={() => setLocKhu(k)} className={`px-3 py-2 rounded-xl text-[12px] font-medium ring-1 transition ${on ? "text-white ring-transparent" : "text-slate-500 bg-white ring-slate-200 hover:ring-teal-300"}`} style={on ? { backgroundColor: COLOR.teal } : {}}>{k === "ALL" ? "Tất cả khu" : k}</button>; })}
+        </div>
+        <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{roomsHienThi.length}/{rooms.length} phòng</span>
+      </div>
+      <div className="overflow-x-auto mt-3">
         <table className="w-full text-[13px]">
           <thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Tên", "Khu", "AHU", "Ưu tiên", "Loại DL", "Mức cảnh báo", ""].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead>
           <tbody>
-            {rooms.map((r) => { const lvl = roomLevel(r, cfg); const lm = lvl < 0 ? null : LEVELS[lvl]; return (
+            {roomsHienThi.length === 0 ? <tr><td colSpan={8} className="py-6 text-center text-[12px] text-slate-400">Không có phòng khớp bộ lọc.</td></tr> : roomsHienThi.map((r) => { const lvl = roomLevel(r, cfg); const lm = lvl < 0 ? null : LEVELS[lvl]; return (
               <tr key={r.id} className="border-t border-slate-100 hover:bg-sky-50/40 transition">
                 <td className="py-2 pr-4 font-semibold" style={{ color: COLOR.navy }}>{r.id}</td>
                 <td className="py-2 pr-4 text-slate-600">{r.name}</td>
