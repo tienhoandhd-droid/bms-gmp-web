@@ -2474,9 +2474,6 @@ export default function App() {
                   <div><label className="text-[12px] font-semibold text-rose-700">Nâng CẢNH BÁO → HÀNH ĐỘNG khi 10 phút cuối có ≥</label><p className="text-[11px] text-slate-500 mt-0.5">Bắt lỗi kéo dài liên tục sát hiện tại — khẩn cấp hơn, đẩy sự cố ngay.</p></div>
                   <div className="flex items-center gap-2"><input type="number" min="0" max="10" value={cfg.action} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, action: Number(e.target.value) })} onBlur={() => saveCfg(cfg)} className="w-20 rounded-xl bg-white ring-1 ring-rose-200 px-3 py-2 text-sm text-center font-bold disabled:bg-slate-100" /><span className="text-sm text-slate-400">/10 điểm</span></div>
                 </div>
-                <div className="mt-4 rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-3 text-[12.5px] text-slate-600 leading-relaxed">
-                  <b className="text-slate-700">Diễn giải hiện tại:</b> trong 1 giờ, phòng có <b className="text-amber-600">≥ {cfg.notice}/60</b> điểm lỗi → <b>Chú ý</b>; <b className="text-rose-600">&gt; {cfg.warn}/60</b> → <b>Cảnh báo</b>. Khi đang Cảnh báo mà <b>10 phút cuối</b> có <b className="text-rose-700">≥ {cfg.action}/10</b> điểm lỗi → nâng lên <b>Hành động</b>.
-                </div>
                 {!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh.</p>}
               </Card>
               )}
