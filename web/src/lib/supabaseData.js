@@ -583,9 +583,11 @@ export async function suaNguong(p, signal)    { return goiRPC('rpc_sua_nguong_ca
 export async function luuPhanTichAi(p, signal){ return goiRPC('rpc_luu_phan_tich_ai', p, { signal }) }
 
 // ============================================================
-// TAB CẤU HÌNH NGƯỜI NHẬN  ·  email cảnh báo (cau_hinh) + người nhận báo cáo
-// (nguoi_nhan_bao_cao). Ghi qua RPC SECURITY DEFINER (migration
-// 20260705_rpc_cau_hinh_email_nguoi_nhan.sql) — chỉ ADMIN/QA, có audit.
+// TAB CẤU HÌNH NGƯỜI NHẬN  ·  danh bạ cảnh báo (nguoi_nhan_canh_bao, vai trò × khu)
+// + người nhận báo cáo (nguoi_nhan_bao_cao, có khu_vuc) + email hệ thống (cau_hinh).
+// Ghi qua RPC SECURITY DEFINER (migration 20260705_rpc_cau_hinh_email_nguoi_nhan.sql
+// + 20260707_nguoi_nhan_theo_khu.sql) — chỉ ADMIN/QA, có audit.
+// Lưu ý: các key email_ipc/email_co_dien/… chỉ còn là DỰ PHÒNG tầng 3 của định tuyến.
 // ============================================================
 export const EMAIL_KEYS_CANH_BAO = ['email_ipc', 'email_co_dien', 'email_qa', 'email_truc_hsl', 'email_it_gmp']
 export const EMAIL_KEYS_HE_THONG = ['email_gui_tu', 'email_test']
@@ -603,20 +605,54 @@ export async function layCauHinhEmail(signal) {
 export async function datCauHinhEmail(key, value, actor, signal) {
   return goiRPC('rpc_dat_cau_hinh_email', { p_key: key, p_value: value ?? '', p_actor: actor || null }, { signal })
 }
+// khu_vuc từ PostgREST thường là mảng JSON ['C1','C4']; phòng hờ cả dạng chuỗi
+// Postgres '{C1,C4}' (tuỳ cách serialize) → luôn chuẩn hoá về mảng string sạch.
+function chuanHoaKhuVuc(v) {
+  if (Array.isArray(v)) return v
+  if (typeof v === 'string') {
+    return v.replace(/^\{|\}$/g, '').split(',')
+      .map((s) => s.trim().replace(/^"|"$/g, '')).filter(Boolean)
+  }
+  return []
+}
 export async function layNguoiNhanBaoCao(signal) {
   const { data, error } = await goiRPC('rpc_lay_nguoi_nhan_bao_cao', {}, { signal })
   if (error) return { error, rows: [] }
-  return { error: null, rows: Array.isArray(data) ? data : [] }
+  const rows = (Array.isArray(data) ? data : []).map((r) => ({ ...r, khu_vuc: chuanHoaKhuVuc(r.khu_vuc) }))
+  return { error: null, rows }
 }
 export async function luuNguoiNhanBaoCao(nn, actor, signal) {
   return goiRPC('rpc_luu_nguoi_nhan_bao_cao', {
     p_id: nn.id ?? null, p_ho_ten: nn.ho_ten, p_email: nn.email, p_vai_tro: nn.vai_tro || null,
     p_nhan_tuan: !!nn.nhan_tuan, p_nhan_thang: !!nn.nhan_thang, p_nhan_quy: !!nn.nhan_quy,
     p_kich_hoat: nn.kich_hoat !== false, p_ghi_chu: nn.ghi_chu || null, p_actor: actor || null,
+    // null = giữ nguyên khu hiện có (khi tạo mới RPC tự đặt đủ 3 khu)
+    p_khu_vuc: Array.isArray(nn.khu_vuc) ? nn.khu_vuc : null,
   }, { signal })
 }
 export async function xoaNguoiNhanBaoCao(id, actor, signal) {
   return goiRPC('rpc_xoa_nguoi_nhan_bao_cao', { p_id: id, p_actor: actor || null }, { signal })
+}
+
+// ---- Danh bạ email CẢNH BÁO theo vai trò × khu (nguoi_nhan_canh_bao) ----
+// Migration 20260707_nguoi_nhan_theo_khu.sql: định tuyến WF8/WF2 đọc bảng này
+// (lọc theo khu sự cố, fallback 3 tầng); RPC gate ADMIN/QA, trả jsonb {ok,...}.
+export async function layNguoiNhanCanhBao(signal) {
+  const { data, error } = await goiRPC('rpc_lay_nguoi_nhan_canh_bao', {}, { signal })
+  if (error) return { error, rows: [] }
+  const rows = (Array.isArray(data) ? data : []).map((r) => ({ ...r, khu_vuc: chuanHoaKhuVuc(r.khu_vuc) }))
+  return { error: null, rows }
+}
+export async function luuNguoiNhanCanhBao(nn, actor, signal) {
+  return goiRPC('rpc_luu_nguoi_nhan_canh_bao', {
+    p_id: nn.id ?? null, p_email: nn.email, p_ho_ten: nn.ho_ten || null, p_vai_tro: nn.vai_tro,
+    // luôn gửi mảng từ UI; bỏ tích hết → RPC tự đặt lại đủ 3 khu (chống "mất cảnh báo im lặng")
+    p_khu_vuc: Array.isArray(nn.khu_vuc) ? nn.khu_vuc : null,
+    p_kich_hoat: nn.kich_hoat !== false, p_ghi_chu: nn.ghi_chu || null, p_actor: actor || null,
+  }, { signal })
+}
+export async function xoaNguoiNhanCanhBao(id, actor, signal) {
+  return goiRPC('rpc_xoa_nguoi_nhan_canh_bao', { p_id: id, p_actor: actor || null }, { signal })
 }
 
 // Lấy URL webhook WF7 (cấu hình trong cau_hinh: key 'wf7_webhook_url'). Trả '' nếu chưa đặt.

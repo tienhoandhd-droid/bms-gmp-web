@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, EMAIL_KEYS_CANH_BAO, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -1762,30 +1762,65 @@ function PhanTichGmpCard({ mkt, spc, isLive }) {
   );
 }
 
-// ====== Tab NGƯỜI NHẬN: email cảnh báo (cau_hinh) + người nhận báo cáo (nguoi_nhan_bao_cao) ======
+// ====== Tab NGƯỜI NHẬN: danh bạ cảnh báo (nguoi_nhan_canh_bao, vai trò × khu C1/C4/Q2)
+// + người nhận báo cáo (nguoi_nhan_bao_cao, có khu_vuc) + email hệ thống (cau_hinh) ======
 const NHAN_EMAIL_LABEL = {
   email_ipc: "IPC (Hiện trường)", email_co_dien: "Cơ điện", email_qa: "QA",
   email_truc_hsl: "Trực hồ sơ lô", email_it_gmp: "IT / Kỹ thuật",
   email_gui_tu: "Địa chỉ GỬI ĐI (from)", email_test: "Địa chỉ TEST (chế độ thử)",
   email_bao_cao_tuan: "Fallback báo cáo TUẦN", email_bao_cao_thang: "Fallback báo cáo THÁNG", email_bao_cao_ngay: "Fallback báo cáo NGÀY",
 };
+const DS_KHU = ["C1", "C4", "Q2"];                 // 3 khu của nhà máy — khớp check trong RPC
+const DS_VAI_TRO_CB = [["IPC", "IPC hiện trường"], ["MEP", "Cơ điện"], ["QA", "QA"], ["LOT", "Trực HSL"], ["IT", "IT"]];
+const DB_MOI_MAC_DINH = () => ({ email: "", ho_ten: "", vai_tro: "IPC", khu_vuc: [...DS_KHU], kich_hoat: true });
 function CauHinhNguoiNhan({ isLive, canManage, actor }) {
   const [emailCfg, setEmailCfg] = useState({});
   const [nguoiNhan, setNguoiNhan] = useState([]);
+  const [danhBa, setDanhBa] = useState([]);    // danh bạ cảnh báo vai trò × khu
+  const [dbMoi, setDbMoi] = useState(DB_MOI_MAC_DINH());   // hàng "thêm mới" cuối bảng danh bạ
   const [tai, setTai] = useState(true);
   const [tb, setTb] = useState(null);          // {ok, text}
-  const [form, setForm] = useState(null);      // form thêm/sửa người nhận
+  const [form, setForm] = useState(null);      // form thêm/sửa người nhận báo cáo
   const goc = useRef({});                       // giá trị email đã lưu (so sánh khi blur)
+  const gocDB = useRef({});                     // email/họ tên danh bạ đã lưu theo id (so sánh khi blur)
   const flash = (ok, text) => { setTb({ ok, text }); setTimeout(() => setTb(null), 4000); };
   const napLai = async () => {
     if (!isLive) { setTai(false); return; }
     setTai(true);
-    const [e, n] = await Promise.all([layCauHinhEmail(), layNguoiNhanBaoCao()]);
+    const [e, n, d] = await Promise.all([layCauHinhEmail(), layNguoiNhanBaoCao(), layNguoiNhanCanhBao()]);
     if (e.cfg) { setEmailCfg(e.cfg); goc.current = { ...e.cfg }; }
     setNguoiNhan(n.rows || []);
+    setDanhBa(d.rows || []);
+    gocDB.current = Object.fromEntries((d.rows || []).map((r) => [r.id, { email: r.email || "", ho_ten: r.ho_ten || "" }]));
     setTai(false);
   };
   useEffect(() => { napLai(); /* eslint-disable-next-line */ }, [isLive]);
+  // ---- Danh bạ CẢNH BÁO (ghi qua rpc_luu/xoa_nguoi_nhan_canh_bao, gate ADMIN/QA) ----
+  const luuDB = async (nn, textOk) => {
+    if (!canManage) return false;
+    const { error } = await luuNguoiNhanCanhBao(nn, actor);
+    if (error) { flash(false, error.thong_bao || "Không lưu được"); await napLai(); return false; }
+    flash(true, textOk || "Đã lưu danh bạ cảnh báo"); await napLai(); return true;
+  };
+  const toggleKhuDB = (nn, khu) => {
+    const cu = nn.khu_vuc || [];
+    // bỏ tích cả 3 khu → RPC tự đặt lại đủ 3 khu (an toàn, không mất cảnh báo im lặng)
+    luuDB({ ...nn, khu_vuc: cu.includes(khu) ? cu.filter((k) => k !== khu) : [...cu, khu] });
+  };
+  const suaDB = (id, field, value) => setDanhBa((ds) => ds.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+  const blurDB = (nn, field) => {  // chỉ ghi khi email/họ tên thật sự đổi
+    if ((nn[field] || "").trim() !== (gocDB.current[nn.id]?.[field] || "")) luuDB(nn);
+  };
+  const xoaDB = async (id) => {
+    if (!canManage || !window.confirm("Xoá địa chỉ này khỏi danh bạ cảnh báo?")) return;
+    const { error } = await xoaNguoiNhanCanhBao(id, actor);
+    if (error) { flash(false, error.thong_bao || "Không xoá được"); return; }
+    flash(true, "Đã xoá"); await napLai();
+  };
+  const themDB = async () => {
+    if (!(dbMoi.email || "").trim()) { flash(false, "Cần nhập email trước khi thêm"); return; }
+    if (await luuDB({ ...dbMoi, id: null }, "Đã thêm vào danh bạ cảnh báo")) setDbMoi(DB_MOI_MAC_DINH());
+  };
   const luuEmail = async (key, value) => {
     if (!canManage) return;
     const { error } = await datCauHinhEmail(key, value, actor);
@@ -1801,6 +1836,13 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
   const toggleNN = async (nn, field) => {
     if (!canManage) return;
     const { error } = await luuNguoiNhanBaoCao({ ...nn, [field]: !nn[field] }, actor);
+    if (error) flash(false, error.thong_bao || "Không cập nhật được"); else await napLai();
+  };
+  const toggleKhuNN = async (nn, khu) => {   // tích/bỏ khu C1/C4/Q2 cho người nhận báo cáo
+    if (!canManage) return;
+    const cu = nn.khu_vuc || [];
+    const khuMoi = cu.includes(khu) ? cu.filter((k) => k !== khu) : [...cu, khu];
+    const { error } = await luuNguoiNhanBaoCao({ ...nn, khu_vuc: khuMoi }, actor);
     if (error) flash(false, error.thong_bao || "Không cập nhật được"); else await napLai();
   };
   const xoaNN = async (id) => {
@@ -1827,13 +1869,37 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
       {tb && <div className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tb.ok ? "bg-teal-50 text-teal-700 ring-1 ring-teal-200" : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"}`}>{tb.ok ? "✓ " : "✗ "}{tb.text}</div>}
       {!canManage && <p className="text-[12px] text-amber-600">Bạn đang xem ở chế độ chỉ-đọc. Cần quyền <b>QA/Quản trị</b> để chỉnh.</p>}
 
-      <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="WF8 định tuyến cảnh báo theo vai trò tới các địa chỉ này">Email nhận CẢNH BÁO (theo vai trò)</SectionTitle>
-        {tai ? <div className="h-24 rounded-2xl bg-slate-50 animate-pulse mt-4" /> : emailFields(EMAIL_KEYS_CANH_BAO)}
-        <p className="text-[11px] text-slate-400 mt-3">IPC nhận trước; chưa xử lý sẽ leo thang sang Cơ điện → Trực hồ sơ lô. Sự cố hạ tầng (cảm biến đứng hình) gửi Cơ điện.</p>
+      <Card className="p-6">
+        <SectionTitle icon={AlertOctagon} hint="định tuyến cảnh báo theo vai trò × khu — sự cố khu nào gửi người tích khu đó">Danh bạ email CẢNH BÁO (vai trò × khu)</SectionTitle>
+        {tai ? <div className="h-24 rounded-2xl bg-slate-50 animate-pulse mt-4" /> :
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Email", "Họ tên", "Vai trò", "C1", "C4", "Q2", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+            <tbody>
+              {danhBa.length === 0 && !canManage && <tr><td colSpan={8} className="py-4 text-slate-400 italic">Chưa có địa chỉ nào trong danh bạ.</td></tr>}
+              {danhBa.map((n) => (
+                <tr key={n.id} className={`border-t border-slate-100 ${n.kich_hoat ? "" : "opacity-50"}`}>
+                  <td className="py-2 pr-4"><input type="email" value={n.email || ""} disabled={!canManage} onChange={(e) => suaDB(n.id, "email", e.target.value)} onBlur={() => blurDB(n, "email")} className="w-full min-w-[190px] rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] font-mono disabled:bg-slate-50 disabled:ring-0" /></td>
+                  <td className="py-2 pr-4"><input value={n.ho_ten || ""} disabled={!canManage} placeholder="—" onChange={(e) => suaDB(n.id, "ho_ten", e.target.value)} onBlur={() => blurDB(n, "ho_ten")} className="w-full min-w-[110px] rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-50 disabled:ring-0" /></td>
+                  <td className="py-2 pr-4"><select value={n.vai_tro} disabled={!canManage} onChange={(e) => luuDB({ ...n, vai_tro: e.target.value })} className="rounded-xl bg-white ring-1 ring-slate-200 px-2 py-1.5 text-sm disabled:bg-slate-50">{DS_VAI_TRO_CB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
+                  {DS_KHU.map((k) => <td key={k} className="py-2 pr-4"><button disabled={!canManage} onClick={() => toggleKhuDB(n, k)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${(n.khu_vuc || []).includes(k) ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-300"} disabled:opacity-60`}>{(n.khu_vuc || []).includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
+                  <td className="py-2 pr-4"><button disabled={!canManage} onClick={() => luuDB({ ...n, kich_hoat: !n.kich_hoat })} className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-teal-100 text-teal-700" : "bg-slate-200 text-slate-500"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
+                  <td className="py-2 pr-4">{canManage && <button onClick={() => xoaDB(n.id)} className="text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button>}</td>
+                </tr>))}
+              {canManage && (  /* hàng THÊM MỚI cuối bảng */
+                <tr className="border-t border-slate-200 bg-sky-50/50">
+                  <td className="py-2.5 pr-4"><input type="email" value={dbMoi.email} placeholder="email@cpc1hn.vn" onChange={(e) => setDbMoi({ ...dbMoi, email: e.target.value })} onKeyDown={(e) => e.key === "Enter" && themDB()} className="w-full min-w-[190px] rounded-xl bg-white ring-1 ring-sky-200 px-3 py-1.5 text-[12px] font-mono" /></td>
+                  <td className="py-2.5 pr-4"><input value={dbMoi.ho_ten} placeholder="Họ tên (tuỳ chọn)" onChange={(e) => setDbMoi({ ...dbMoi, ho_ten: e.target.value })} className="w-full min-w-[110px] rounded-xl bg-white ring-1 ring-sky-200 px-3 py-1.5 text-sm" /></td>
+                  <td className="py-2.5 pr-4"><select value={dbMoi.vai_tro} onChange={(e) => setDbMoi({ ...dbMoi, vai_tro: e.target.value })} className="rounded-xl bg-white ring-1 ring-sky-200 px-2 py-1.5 text-sm">{DS_VAI_TRO_CB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
+                  {DS_KHU.map((k) => <td key={k} className="py-2.5 pr-4"><button onClick={() => setDbMoi({ ...dbMoi, khu_vuc: dbMoi.khu_vuc.includes(k) ? dbMoi.khu_vuc.filter((x) => x !== k) : [...dbMoi.khu_vuc, k] })} className={`w-6 h-6 rounded-lg flex items-center justify-center ${dbMoi.khu_vuc.includes(k) ? "bg-teal-100 text-teal-700" : "bg-white ring-1 ring-slate-200 text-slate-300"}`}>{dbMoi.khu_vuc.includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
+                  <td className="py-2.5 pr-4 text-[11px] text-slate-400">Kích hoạt</td>
+                  <td className="py-2.5 pr-4"><button onClick={themDB} className="text-xs font-medium text-white rounded-xl px-3 py-1.5 flex items-center gap-1" style={{ backgroundColor: COLOR.coral }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm</button></td>
+                </tr>)}
+            </tbody></table></div>}
+        <p className="text-[11px] text-slate-400 mt-3">Sự cố ở khu nào chỉ gửi người có tích khu đó. Khu chưa ai tích → gửi <b>toàn bộ</b> người kích hoạt của vai trò (không bỏ sót). Bỏ tích cả 3 khu khi lưu = hệ thống tự đặt lại đủ 3 khu. IPC nhận trước; chưa xử lý leo thang Cơ điện → Trực HSL.</p>
       </Card>
 
       <Card className="p-6"><SectionTitle icon={Cog} hint="địa chỉ gửi đi + nhận khi ở chế độ thử + fallback báo cáo">Địa chỉ hệ thống & fallback</SectionTitle>
         {tai ? <div className="h-24 rounded-2xl bg-slate-50 animate-pulse mt-4" /> : emailFields([...EMAIL_KEYS_HE_THONG, ...EMAIL_KEYS_BAO_CAO])}
+        <p className="text-[11px] text-slate-400 mt-3">Các key cảnh báo cũ (email_ipc, email_co_dien, email_qa, email_truc_hsl, email_it_gmp) trong Cài đặt chỉ còn là <b>dự phòng tầng 3</b> — hệ thống chỉ dùng khi danh bạ cảnh báo phía trên trống hoàn toàn.</p>
       </Card>
 
       <Card className="p-6">
@@ -1856,17 +1922,18 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
           </div>
         )}
         {tai ? <div className="h-24 rounded-2xl bg-slate-50 animate-pulse mt-4" /> :
-          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Họ tên", "Email", "Vai trò", "Tuần", "Tháng", "Quý", "Hoạt động", ""].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
-            <tbody>{nguoiNhan.length === 0 ? <tr><td colSpan={8} className="py-4 text-slate-400 italic">Chưa có người nhận. Bấm “Thêm người”.</td></tr> : nguoiNhan.map((n) => (
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Họ tên", "Email", "Vai trò", "Tuần", "Tháng", "Quý", "C1", "C4", "Q2", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+            <tbody>{nguoiNhan.length === 0 ? <tr><td colSpan={11} className="py-4 text-slate-400 italic">Chưa có người nhận. Bấm “Thêm người”.</td></tr> : nguoiNhan.map((n) => (
               <tr key={n.id} className={`border-t border-slate-100 ${n.kich_hoat ? "" : "opacity-50"}`}>
                 <td className="py-2.5 pr-4 font-semibold" style={{ color: COLOR.navy }}>{n.ho_ten}</td>
                 <td className="py-2.5 pr-4 text-slate-600 font-mono text-[12px]">{n.email}</td>
                 <td className="py-2.5 pr-4 text-slate-500">{n.vai_tro || "—"}</td>
                 {["nhan_tuan", "nhan_thang", "nhan_quy"].map((f) => <td key={f} className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleNN(n, f)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${n[f] ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-300"} disabled:opacity-60`}>{n[f] ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
+                {DS_KHU.map((k) => <td key={k} className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleKhuNN(n, k)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${(n.khu_vuc || []).includes(k) ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-300"} disabled:opacity-60`}>{(n.khu_vuc || []).includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
                 <td className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleNN(n, "kich_hoat")} className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-teal-100 text-teal-700" : "bg-slate-200 text-slate-500"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
                 <td className="py-2.5 pr-4">{canManage && <div className="flex gap-1.5"><button onClick={() => setForm({ ...n })} className="text-sky-600 hover:text-sky-800"><Pencil className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => xoaNN(n.id)} className="text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button></div>}</td>
               </tr>))}</tbody></table></div>}
-        <p className="text-[11px] text-slate-400 mt-3">Chỉ người <b>Kích hoạt</b> mới nhận báo cáo; chưa kích hoạt ai thì WF5 gửi về địa chỉ fallback (mục Địa chỉ hệ thống · Fallback). Mỗi thao tác được ghi nhật ký cấu hình.</p>
+        <p className="text-[11px] text-slate-400 mt-3">Tích 1 khu = nhận báo cáo riêng khu đó · tích ≥2 khu = nhận bản Tổng (áp dụng khi bật báo cáo theo khu). Chỉ người <b>Kích hoạt</b> mới nhận báo cáo; chưa kích hoạt ai thì WF5 gửi về địa chỉ fallback (mục Địa chỉ hệ thống · Fallback). Mỗi thao tác được ghi nhật ký cấu hình.</p>
       </Card>
     </div>
   );
