@@ -706,7 +706,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [level, setLevel] = useState(["TOTAL", "AREA", "AHU", "ROOM"].includes(prefs.level) ? prefs.level : "TOTAL");
   const [selId, setSelId] = useState("");
   const [sensor, setSensor] = useState(["ALL", "DP", "RH", "T"].includes(prefs.sensor) ? prefs.sensor : "ALL");
-  const [resOverride, setResOverride] = useState(["PHUT", "GIO"].includes(prefs.res) ? prefs.res : null); // độ phân giải khung dưới-ngày: null=auto
+  const [resOverride, setResOverride] = useState(["GIO"].includes(prefs.res) ? prefs.res : null); // độ phân giải khung dưới-ngày (chỉ còn GIO sau khi bỏ 30 phút)
   const [optArea, setOptArea] = useState("ALL");
   const [optAhu, setOptAhu] = useState("ALL");
   const [dtFrom, setDtFrom] = useState("");
@@ -733,12 +733,11 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   // WF7b: URL gửi email/lưu Drive + điền sẵn người nhận email từ danh sách người nhận báo cáo.
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, ds] = await Promise.all([layWebhookWf7b(), layNguoiNhanBaoCao().catch(() => ({ rows: [] }))]); if (huy) return; setWf7bUrl(u || ""); const emails = ((ds && ds.rows) || []).map((r) => r.email).filter(Boolean); setEmailTo(emails.join(", ")); })(); return () => { huy = true; }; }, [isLive]);
   const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90 };
-  // Độ phân giải: 30n/90n → NGÀY; 1n/7n → auto (1n=PHUT 30′, 7n=GIO) hoặc override PHUT/GIO.
-  const donVi = (range === "30n" || range === "90n") ? "NGAY"
-    : ((resOverride === "PHUT" || resOverride === "GIO") ? resOverride : (range === "1n" ? "PHUT" : "GIO"));
-  const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);  // GIO/PHUT: số GIỜ; NGAY: số ngày
-  const resLbl = donVi === "PHUT" ? "30 phút" : donVi === "GIO" ? "theo giờ" : "theo ngày";
-  const isSubDay = donVi === "PHUT" || donVi === "GIO";
+  // Độ phân giải: 30n/90n → NGÀY; 1n/7n → THEO GIỜ (dữ liệu thu thập 1 giờ/lần, bỏ mốc 30 phút cũ).
+  const donVi = (range === "30n" || range === "90n") ? "NGAY" : "GIO";
+  const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);  // GIO: số GIỜ; NGAY: số ngày
+  const resLbl = donVi === "GIO" ? "theo giờ" : "theo ngày";
+  const isSubDay = donVi === "GIO";
   // Lưu lựa chọn nhẹ
   useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ range, level, sensor, res: resOverride, prevCmp: soKyTruoc })); } catch { /* bỏ qua */ } }, [range, level, sensor, resOverride, soKyTruoc]);
   const [liveSeries, setLiveSeries] = useState({});   // {scopeId: chuỗi 90 ngày ALL} — cho mini-scope & thẻ kỳ
@@ -1274,8 +1273,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           )}
           {isSubDay && (
             <div className="flex items-center gap-2 flex-wrap"><span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Độ phân giải</span>
-              <Chip active={donVi === "PHUT"} onClick={() => setResOverride("PHUT")}>30 phút</Chip>
-              <Chip active={donVi === "GIO"} onClick={() => setResOverride("GIO")}>1 giờ</Chip>
+              <span className="text-[12px] text-slate-500">Theo giờ (dữ liệu thu thập 1 giờ/lần)</span>
             </div>
           )}
         </div>
@@ -1470,7 +1468,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
                 const st = regStat(vals);
                 const within = vals.filter((v) => (lo == null || v >= lo) && (hi == null || v <= hi)).length;
                 const pctIn = vals.length ? (within / vals.length * 100) : null;
-                const perUnit = donVi === "NGAY" ? `${unit}/ngày` : `${unit}/${donVi === "PHUT" ? "30′" : "giờ"}`;
+                const perUnit = donVi === "NGAY" ? `${unit}/ngày` : `${unit}/giờ`;
                 const b = bands[k].baseline;
                 const evalCards = [
                   ["TB kỳ", `${fv(st.mean)} ${unit}`], ["Min–Max", `${fv(st.vmin)}–${fv(st.vmax)} ${unit}`],
