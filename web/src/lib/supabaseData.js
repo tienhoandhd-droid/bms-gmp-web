@@ -505,6 +505,21 @@ export async function layNguongCanhBao(signal) {
   }
 }
 
+// Phạm vi cảnh báo theo ưu tiên phòng (config canh_bao_muc_uu_tien). Trả mảng ['P1','P2','P3'].
+export async function layCanhBaoUuTien(signal) {
+  const { data, error } = await docView('xem_cau_hinh_he_thong',
+    (q) => q.select('key,value_hien_thi').eq('key', 'canh_bao_muc_uu_tien'), { signal })
+  const v = (!error && data && data.length ? (data[0].value_hien_thi || '') : '').trim() || 'P1,P2,P3'
+  return v.split(',').map((s) => s.trim()).filter(Boolean)
+}
+// Lưu phạm vi ưu tiên. dsCap: mảng con của ['P1','P2','P3']. Trả { ok, gia_tri } hoặc { ok:false, thong_bao }.
+export async function datCanhBaoUuTien(dsCap, actor, signal) {
+  const { data, error } = await goiRPC('rpc_dat_canh_bao_uu_tien',
+    { p_gia_tri: (Array.isArray(dsCap) ? dsCap : []).join(','), p_actor: actor || null }, { signal })
+  if (error) return { ok: false, thong_bao: error.thong_bao || error.message || 'Không lưu được' }
+  return data || { ok: false, thong_bao: 'Không rõ kết quả' }
+}
+
 // ============================================================
 // SỨC KHỎE HỆ THỐNG (data freshness)  ·  RPC: rpc_kiem_tra_suc_khoe_he_thong(nguong_gio)
 // → OBJECT: { bucket_moi_nhat, tre_gio, mat_du_lieu, nguong_gio,
