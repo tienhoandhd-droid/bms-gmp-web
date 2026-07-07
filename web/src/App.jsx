@@ -12,7 +12,7 @@ import {
   TrendingDown, TrendingUp, Gauge, CircleDot, Check, ChevronDown, Bell, BellOff, Mail, Cpu,
   Wind, FileBarChart, LayoutDashboard, AlertOctagon, Building2, LineChart as LineIcon,
   ScrollText, Settings as Cog, Wifi, Printer, Plus, Trash2, Search, LogIn, LogOut,
-  User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus
+  User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus, Save
 } from "lucide-react";
 import logoCpc1hn from "./assets/logo-cpc1hn.png";
 
