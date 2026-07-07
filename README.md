@@ -19,8 +19,6 @@ https://github.com/tienhoandhd-droid/bms-gmp-web
 - Git repo da ket noi voi `origin/main`.
 - Ung dung frontend nam trong `web/`.
 - Supabase client da co san trong `web/src/lib/bmsClient.js`.
-- Supabase CLI config local nam trong `supabase/config.toml`.
-- n8n MCP endpoint dung chung cau hinh Codex: `https://n8n.cpc1hn.com/mcp-server/http`.
 
 ## Luat n8n cho BMS
 
@@ -71,31 +69,3 @@ SUPABASE_TELEMETRY_DISABLED=1 supabase link --project-ref <project-ref>
 Lenh `supabase link` chi thiet lap lien ket local/CLI. Cac lenh ghi schema/du lieu
 nhu `supabase db push`, migration apply, hoac SQL write can duoc xac nhan rieng
 truoc khi chay.
-
-## Quyen API cho web BMS
-
-Migration local da duoc tao tai:
-
-```text
-supabase/migrations/20260702134151_bms_authenticated_api_grants.sql
-```
-
-Migration nay cap quyen cho role `authenticated` doc cac view va goi cac RPC ma
-frontend BMS dang dung. Khong grant du lieu nghiep vu cho role `anon`.
-
-Rollback thu cong nam tai:
-
-```text
-supabase/rollbacks/20260702134151_bms_authenticated_api_grants_down.sql
-```
-
-De apply len Supabase cloud rieng, may can dang nhap Supabase CLI:
-
-```bash
-supabase login
-SUPABASE_TELEMETRY_DISABLED=1 supabase link --project-ref jfonqwhjhsylruwfllbk
-SUPABASE_TELEMETRY_DISABLED=1 supabase db push --linked
-```
-
-Chi chay `supabase db push --linked` sau khi da xac nhan day la project dung va
-duoc phep ghi schema/quyen.

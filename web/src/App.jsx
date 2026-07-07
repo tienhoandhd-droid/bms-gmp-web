@@ -50,13 +50,8 @@ const LEVEL_GLYPH = ["✓", "◦", "▲", "■"];
 const levelGlyph = (lvl) => (lvl == null || lvl < 0 ? "–" : (LEVEL_GLYPH[lvl] || "•"));
 
 /* ============ NGƯỜI DÙNG & PHÂN QUYỀN ============ */
-const USERS = [
-  { email: "nam.ipc@cpc1hn.vn", name: "Nam", role: "IPC" },
-  { email: "codien@cpc1hn.vn", name: "Tuấn", role: "MEP" },
-  { email: "lan.lot@cpc1hn.vn", name: "Lan", role: "LOT" },
-  { email: "hoan.qa@cpc1hn.vn", name: "Hoàn", role: "QA" },
-  { email: "admin@cpc1hn.vn", name: "Quản trị", role: "ADMIN" },
-];
+// Danh sách người dùng + vai trò lấy từ bảng Supabase `nguoi_dung` theo email (xem lib/auth.js),
+// KHÔNG hardcode ở đây (tránh lộ email nội bộ ra source công khai).
 const ROLE_VI = { IPC: "IPC Hiện trường", MEP: "Cơ điện", LOT: "Trực HSL", QA: "QA Kiểm soát", ADMIN: "Quản trị (IT)", IT: "IT / Quản trị" };
 const FULL_ACCESS = ["QA", "ADMIN", "IT"];                 // QA và IT: xem TẤT CẢ các tab
 const canManageRooms = (role) => FULL_ACCESS.includes(role);
