@@ -1198,24 +1198,25 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     finishAI(loc.text, loc.level, "cuc_bo");
   };
 
-  // Chụp biểu đồ xu hướng đang hiển thị → ảnh PNG (data URI) để kèm email/Drive.
+  // Chụp TẤT CẢ biểu đồ đang hiển thị ở tab Xu hướng (#trendPrintArea) → mảng ảnh PNG (data URI).
   // Dùng registry window.__bmsEcharts (map DOM→instance) như hàm in A4; fallback canvas.toDataURL.
-  const capTrendChart = () => {
+  const capTrendCharts = () => {
     try {
       const node = document.getElementById("trendPrintArea");
-      const canvas = node && node.querySelector("canvas");
-      if (!canvas) return "";
+      if (!node) return [];
       const reg = window.__bmsEcharts;
-      let el = canvas.parentElement, inst = null;
-      while (el) { if (reg && reg.has(el)) { inst = reg.get(el); break; } el = el.parentElement; }
-      return inst ? inst.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff", excludeComponents: ["toolbox", "dataZoom"] }) : canvas.toDataURL("image/png");
-    } catch { return ""; }
+      const instFor = (canvas) => { let el = canvas.parentElement; while (el) { if (reg && reg.has(el)) return reg.get(el); el = el.parentElement; } return null; };
+      return Array.from(node.querySelectorAll("canvas")).map((c) => {
+        try { const inst = instFor(c); return inst ? inst.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff", excludeComponents: ["toolbox", "dataZoom"] }) : c.toDataURL("image/png"); }
+        catch { try { return c.toDataURL("image/png"); } catch { return null; } }
+      }).filter(Boolean);
+    } catch { return []; }
   };
   // Lưu bản nhận định AI hiện tại (.html, kèm biểu đồ) vào Google Drive (folder con "Nhan-dinh-xu-huong") qua WF7b.
   const luuDriveNhanDinh = async () => {
     if (!aiResult || sendBusy) return;
     setSendBusy("drive"); setSendMsg(null);
-    const r = await guiNhanDinhXuHuong(wf7bUrl, "drive", aiResult, "", capTrendChart());
+    const r = await guiNhanDinhXuHuong(wf7bUrl, "drive", aiResult, "", capTrendCharts());
     setSendBusy("");
     setSendMsg(r.ok ? { ok: true, text: "Đã lưu nhận định (kèm biểu đồ) vào Google Drive." } : { ok: false, text: `Không lưu được (${r.error}).` });
   };
@@ -1225,7 +1226,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     const to = emailTo.trim();
     if (!to) { setSendMsg({ ok: false, text: "Nhập ít nhất 1 email người nhận." }); return; }
     setSendBusy("email"); setSendMsg(null);
-    const r = await guiNhanDinhXuHuong(wf7bUrl, "email", aiResult, to, capTrendChart());
+    const r = await guiNhanDinhXuHuong(wf7bUrl, "email", aiResult, to, capTrendCharts());
     setSendBusy("");
     if (r.ok) { setSendMsg({ ok: true, text: `Đã gửi email (kèm biểu đồ) tới: ${to}` }); setEmailOpen(false); }
     else setSendMsg({ ok: false, text: `Không gửi được (${r.error}).` });

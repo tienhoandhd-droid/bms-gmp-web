@@ -693,14 +693,14 @@ export async function layWebhookWf7b(signal) {
 
 // Gửi nhận định xu hướng qua WF7b. action: 'email' | 'drive'.
 // nhanDinh: { scope, sensor, range, text, time, level, nguon }. to: chuỗi email (chỉ khi 'email').
-// chart: data URI ảnh biểu đồ (image/png) — kèm vào email (cid) + file Drive (data-uri). '' nếu không có.
+// charts: MẢNG data URI ảnh (image/png) của TẤT CẢ biểu đồ ở tab Xu hướng — nhúng vào file .html đính kèm.
 // Trả { ok, kind, link, error }.
-export async function guiNhanDinhXuHuong(url, action, nhanDinh, to, chart, signal) {
+export async function guiNhanDinhXuHuong(url, action, nhanDinh, to, charts, signal) {
   if (!url) return { ok: false, error: 'CHUA_CAU_HINH_WEBHOOK' }
   try {
     const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
-      body: JSON.stringify({ action, to: to || '', chart: chart || '', ...nhanDinh }),
+      body: JSON.stringify({ action, to: to || '', charts: Array.isArray(charts) ? charts : (charts ? [charts] : []), ...nhanDinh }),
     })
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const j = await res.json().catch(() => ({}))
