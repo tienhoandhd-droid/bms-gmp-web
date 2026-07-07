@@ -1173,9 +1173,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         phan_tich_sau: phanTichSau,       // độ phủ DL + OOS tách trên/dưới + lịch sử (kỳ trước, TB 7/30 ngày)
         quet_bat_thuong: quetBatThuong,   // (Tổng quan/Khu vực) xếp hạng khu vực + phòng tốt/xấu + đợt bất thường có mốc thời gian
       };
-      const r = await phanTichAiQuaWorkflow(aiWebhook, payload);
+      const r = await phanTichAiQuaWorkflow(aiWebhook, payload, undefined, (m) => setAiNote(m));
       setAiBusy(false);
-      if (r.ok) { const loc = buildLocalAnalysis(); finishAI(r.text, r.level != null ? r.level : loc.level, "openai"); return; }
+      if (r.ok) { setAiNote(null); const loc = buildLocalAnalysis(); finishAI(r.text, r.level != null ? r.level : loc.level, "openai"); return; }
       // lỗi → rơi về bản cục bộ + ghi chú trạng thái (KHÔNG nối vào nội dung để giữ 4 mục sạch)
       const loc = buildLocalAnalysis();
       setAiNote(`Chưa gọi được AI qua workflow (${r.error}). Đang hiển thị phân tích cục bộ — kiểm tra WF7 / khóa OpenAI nếu cần.`);

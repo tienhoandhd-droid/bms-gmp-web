@@ -9,7 +9,7 @@
 // Quy ước trả về: mọi hàm đọc trả { error, <khóa-dữ-liệu> }.
 //   error=null khi OK. Nếu lỗi, phần dữ liệu = null/[] (UI tự fail-mềm).
 // ============================================================
-import { docView, goiRPC } from './bmsClient'
+import { docView, goiRPC, supabase } from './bmsClient'
 
 // ---- Máy trạng thái sự cố: MÃ trong DB ↔ NHÃN mà UI (STATUS_FLOW) dùng ----
 // DB lưu MÃ (CHUA_XU_LY,…); UI mockup khóa state bằng nhãn tiếng Việt.
@@ -664,7 +664,12 @@ export async function layWebhookAi(signal) {
 }
 
 // Gọi WF7 (n8n) để AI phân tích dữ liệu biểu đồ thật. Trả { ok, text, level, error }.
-export async function phanTichAiQuaWorkflow(url, payload, signal) {
+// 07/2026 — WF7 ASYNC: có cache → webhook trả kết quả ngay (như cũ); chưa có cache →
+// webhook trả ngay {pending:true, input_hash} rồi AI Agent chạy nền (~0.5–2 phút, 6 tool
+// truy vấn DB) và ghi kết quả vào nhat_ky_ai — web poll bảng đó theo input_hash.
+// (Tránh lỗi NETWORK cũ: agent 31–90s vượt timeout gateway ~100s của lời gọi đồng bộ.)
+// onTienTrinh(msg): callback tùy chọn — cập nhật dòng trạng thái chờ lên UI.
+export async function phanTichAiQuaWorkflow(url, payload, signal, onTienTrinh) {
   if (!url) return { ok: false, error: 'CHUA_CAU_HINH_WEBHOOK' }
   try {
     const res = await fetch(url, {
@@ -674,11 +679,45 @@ export async function phanTichAiQuaWorkflow(url, payload, signal) {
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const j = await res.json()
     const text = (j && (j.text || j.ket_qua || j.content)) || ''
-    if (!text) return { ok: false, error: 'EMPTY' }
-    return { ok: true, text, level: j.level != null ? Number(j.level) : null }
+    if (text) return { ok: true, text, level: j.level != null ? Number(j.level) : null }
+    if (j && j.pending && j.input_hash) return await doiKetQuaAiWf7(j.input_hash, signal, onTienTrinh)
+    return { ok: false, error: 'EMPTY' }
   } catch (e) {
     return { ok: false, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
   }
+}
+
+// Chờ AI Agent WF7 (chạy nền) ghi kết quả vào nhat_ky_ai — poll 4s/lần, tối đa 3 phút.
+// RLS nhat_ky_ai: authenticated ĐỌC được, anon không → chưa đăng nhập thì khỏi poll (fail-mềm).
+async function doiKetQuaAiWf7(inputHash, signal, onTienTrinh) {
+  const CHO_TOI_DA_MS = 180000, NHIP_MS = 4000
+  const tBatDau = Date.now()
+  try {
+    const { data: { session } = {} } = await supabase.auth.getSession()
+    if (!session) return { ok: false, error: 'CAN_DANG_NHAP_DE_CHO_AI' }
+  } catch { /* không đọc được phiên → cứ thử poll */ }
+  // Mốc id: chỉ nhận dòng ghi SAU lượt gọi này (id tăng đơn điệu — không lệ thuộc đồng hồ máy;
+  // tránh nhặt nhầm dòng cũ cùng hash bị judge chặn nên không thành cache).
+  let idMoc = 0
+  {
+    const { data } = await docView('nhat_ky_ai',
+      (q) => q.select('id').eq('workflow', 'WF7').eq('input_hash', inputHash).order('id', { ascending: false }).limit(1), { signal })
+    if (data && data.length) idMoc = data[0].id
+  }
+  try { if (onTienTrinh) onTienTrinh('AI đang phân tích sâu — agent truy vấn thêm dữ liệu gốc từ hệ thống, thường mất 1–2 phút. Kết quả sẽ tự hiện ở đây.') } catch { /* UI không chặn poll */ }
+  while (Date.now() - tBatDau < CHO_TOI_DA_MS) {
+    if (signal && signal.aborted) return { ok: false, error: 'ABORT' }
+    await new Promise((r) => setTimeout(r, NHIP_MS))
+    const { data, error } = await docView('nhat_ky_ai',
+      (q) => q.select('id,ket_qua,trang_thai').eq('workflow', 'WF7').eq('input_hash', inputHash).gt('id', idMoc).order('id', { ascending: false }).limit(1), { signal })
+    if (error) return { ok: false, error: 'LOI_DOC_KET_QUA_AI' }
+    if (data && data.length) {
+      const r = data[0]
+      if (r.trang_thai === 'FAILED' || !r.ket_qua) return { ok: false, error: 'AI_FAILED' }
+      return { ok: true, text: r.ket_qua, level: null }   // level null → UI dùng level cục bộ
+    }
+  }
+  return { ok: false, error: 'TIMEOUT_AI' }
 }
 
 // Lấy URL webhook WF5 v2 — nút "Gửi báo cáo bù" (key 'wf5_webhook_bao_cao_bu'). Trả '' nếu chưa đặt.
