@@ -655,6 +655,26 @@ export async function xoaNguoiNhanCanhBao(id, actor, signal) {
   return goiRPC('rpc_xoa_nguoi_nhan_canh_bao', { p_id: id, p_actor: actor || null }, { signal })
 }
 
+// ---------- Luật tự phân tuyến sự cố (tab Cài đặt) ----------
+export async function layLuatPhanTuyen(signal) {
+  const { data, error } = await goiRPC('rpc_lay_luat_phan_tuyen', {}, { signal })
+  if (error) return { error, bat: false, luat: [] }
+  return { error: null, bat: !!(data && data.bat), luat: (data && Array.isArray(data.luat)) ? data.luat : [] }
+}
+export async function luuLuatPhanTuyen(l, actor, signal) {
+  return goiRPC('rpc_luu_luat_phan_tuyen', {
+    p_id: l.id ?? null, p_loai_cam_bien: l.loai_cam_bien, p_muc_canh_bao: l.muc_canh_bao,
+    p_cho_it_nhat_phut: l.cho_it_nhat_phut, p_ly_do_mau: l.ly_do_mau || null,
+    p_kich_hoat: l.kich_hoat !== false, p_actor: actor || null,
+  }, { signal })
+}
+export async function xoaLuatPhanTuyen(id, actor, signal) {
+  return goiRPC('rpc_xoa_luat_phan_tuyen', { p_id: id, p_actor: actor || null }, { signal })
+}
+export async function datCongTacPhanTuyen(bat, actor, signal) {
+  return goiRPC('rpc_dat_cong_tac_phan_tuyen', { p_bat: !!bat, p_actor: actor || null }, { signal })
+}
+
 // Lấy URL webhook WF7 (cấu hình trong cau_hinh: key 'wf7_webhook_url'). Trả '' nếu chưa đặt.
 export async function layWebhookAi(signal) {
   const { data, error } = await docView('xem_cau_hinh_he_thong',

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -12,7 +12,7 @@ import {
   TrendingDown, TrendingUp, Gauge, CircleDot, Check, ChevronDown, Bell, BellOff, Mail, Cpu,
   Wind, FileBarChart, LayoutDashboard, AlertOctagon, Building2, LineChart as LineIcon,
   ScrollText, Settings as Cog, Wifi, Printer, Plus, Trash2, Search, LogIn, LogOut,
-  User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus, Save
+  User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus, Save, GitBranch, Power
 } from "lucide-react";
 import logoCpc1hn from "./assets/logo-cpc1hn.png";
 
@@ -1949,6 +1949,103 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
   );
 }
 
+/* ===== LUẬT TỰ PHÂN TUYẾN SỰ CỐ (tab Cài đặt) =====
+   Bảng luật loại cảm biến × mức → sau X phút chờ, hệ thống tự chuyển sự cố sang
+   Cơ điện (không đợi người bấm nút). Công tắc tổng bật/tắt. Chỉ QA/Quản trị sửa. */
+function LuatPhanTuyenCard({ isLive, canManage, actor }) {
+  const [bat, setBat] = React.useState(false);
+  const [luat, setLuat] = React.useState([]);
+  const [tai, setTai] = React.useState(true);
+  const [luu, setLuu] = React.useState(false);
+  const [note, setNote] = React.useState(null);
+  const [moi, setMoi] = React.useState({ loai_cam_bien: "DP", muc_canh_bao: "CRITICAL", cho_it_nhat_phut: 15, ly_do_mau: "" });
+
+  const nap = React.useCallback(async () => {
+    if (!isLive) { setTai(false); return; }
+    setTai(true);
+    const r = await layLuatPhanTuyen();
+    if (!r.error) { setBat(r.bat); setLuat(r.luat); }
+    setTai(false);
+  }, [isLive]);
+  React.useEffect(() => { nap(); }, [nap]);
+
+  const baoLoi = (r) => { setNote({ loi: true, msg: (r.error && (r.error.thong_bao || r.error.ma_loi)) || "Lỗi — thử lại." }); setTimeout(() => setNote(null), 4000); };
+  const toggleTong = async () => {
+    if (!canManage) return;
+    const r = await datCongTacPhanTuyen(!bat, actor);
+    if (r.error) return baoLoi(r);
+    setBat(!bat); setNote({ loi: false, msg: r.data?.thong_bao || "Đã cập nhật." }); setTimeout(() => setNote(null), 4000);
+  };
+  const themLuat = async () => {
+    if (!canManage) return; setLuu(true);
+    const r = await luuLuatPhanTuyen(moi, actor); setLuu(false);
+    if (r.error) return baoLoi(r);
+    setMoi({ loai_cam_bien: "DP", muc_canh_bao: "CRITICAL", cho_it_nhat_phut: 15, ly_do_mau: "" });
+    nap();
+  };
+  const doiKichHoat = async (l) => { if (!canManage) return; const r = await luuLuatPhanTuyen({ ...l, kich_hoat: !l.kich_hoat }, actor); if (r.error) return baoLoi(r); nap(); };
+  const xoa = async (id) => { if (!canManage) return; const r = await xoaLuatPhanTuyen(id, actor); if (r.error) return baoLoi(r); nap(); };
+
+  const SENSOR_VI = { DP: "Chênh áp (DP)", RH: "Độ ẩm (RH)", T: "Nhiệt độ (T)", "*": "Mọi loại" };
+  const MUC_VI = { CRITICAL: "Nghiêm trọng", WARNING: "Cảnh báo", "*": "Mọi mức" };
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <SectionTitle icon={GitBranch} hint="tự chuyển sự cố sang Cơ điện theo bản chất — không đợi bấm nút">Luật tự phân tuyến sự cố</SectionTitle>
+        <button onClick={toggleTong} disabled={!canManage} title={canManage ? "" : "Cần quyền QA/Quản trị"}
+          className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-[12px] font-semibold ring-1 transition ${bat ? "bg-teal-50 text-teal-700 ring-teal-200" : "bg-slate-50 text-slate-500 ring-slate-200"} ${canManage ? "hover:ring-teal-300" : "opacity-60 cursor-not-allowed"}`}>
+          <Power className="w-3.5 h-3.5" strokeWidth={2} /> {bat ? "ĐANG BẬT" : "ĐANG TẮT"}
+        </button>
+      </div>
+      <p className="text-[12px] text-slate-500 mt-2">Khi <b>BẬT</b>: mỗi 15 phút hệ thống quét sự cố <b>chưa xử lý</b> (mở trong 48h) khớp luật bên dưới và đã chờ đủ số phút → tự chuyển sang <b>Cơ điện</b> (ghi nhật ký, IPC vẫn nhận bản digest). Bản chất kỹ thuật (vd chênh áp nghiêm trọng = nghi lỗi AHU) không còn nằm chờ khi IPC vắng.</p>
+      {note && <p className={`mt-3 text-[12px] rounded-xl px-3 py-2 ring-1 ${note.loi ? "text-rose-700 bg-rose-50 ring-rose-100" : "text-teal-700 bg-teal-50 ring-teal-100"}`}>{note.msg}</p>}
+
+      {tai ? <div className="h-24 rounded-2xl bg-slate-50 animate-pulse mt-4" /> : (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-[12.5px] border-collapse min-w-[640px]">
+            <thead><tr className="text-left text-slate-400 text-[10px] uppercase tracking-wide">
+              <th className="py-2 px-2">Loại cảm biến</th><th className="py-2 px-2">Mức</th><th className="py-2 px-2 text-right">Chờ trước (phút)</th><th className="py-2 px-2">Diễn giải</th><th className="py-2 px-2 text-center">Bật</th><th className="py-2 px-2"></th>
+            </tr></thead>
+            <tbody>
+              {luat.map((l) => (
+                <tr key={l.id} className="border-t border-slate-100">
+                  <td className="py-2 px-2 font-semibold" style={{ color: COLOR.navy }}>{SENSOR_VI[l.loai_cam_bien] || l.loai_cam_bien}</td>
+                  <td className="py-2 px-2">{MUC_VI[l.muc_canh_bao] || l.muc_canh_bao}</td>
+                  <td className="py-2 px-2 text-right tabular-nums">{l.cho_it_nhat_phut}′</td>
+                  <td className="py-2 px-2 text-slate-500 text-[11px] max-w-[280px]">{l.ly_do_mau}</td>
+                  <td className="py-2 px-2 text-center"><button onClick={() => doiKichHoat(l)} disabled={!canManage} className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${l.kich_hoat ? "text-teal-700 bg-teal-50" : "text-slate-400 bg-slate-100"} ${canManage ? "" : "opacity-60"}`}>{l.kich_hoat ? "bật" : "tắt"}</button></td>
+                  <td className="py-2 px-2 text-right">{canManage && <button onClick={() => xoa(l.id)} className="text-slate-400 hover:text-rose-500 p-1" title="Xoá luật"><Trash2 className="w-3.5 h-3.5" strokeWidth={1.8} /></button>}</td>
+                </tr>
+              ))}
+              {luat.length === 0 && <tr><td colSpan={6} className="py-4 text-center text-slate-400 text-[12px]">Chưa có luật nào.</td></tr>}
+            </tbody>
+          </table>
+
+          {canManage && (
+            <div className="mt-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4">
+              <p className="text-[11px] uppercase text-slate-500 font-semibold mb-3">Thêm luật mới</p>
+              <div className="flex items-end gap-3 flex-wrap">
+                <label className="flex flex-col gap-1"><span className="text-[10px] text-slate-500 font-medium">Loại cảm biến</span>
+                  <select value={moi.loai_cam_bien} onChange={(e) => setMoi({ ...moi, loai_cam_bien: e.target.value })} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[12px]">{["DP", "RH", "T", "*"].map((k) => <option key={k} value={k}>{SENSOR_VI[k]}</option>)}</select></label>
+                <label className="flex flex-col gap-1"><span className="text-[10px] text-slate-500 font-medium">Mức</span>
+                  <select value={moi.muc_canh_bao} onChange={(e) => setMoi({ ...moi, muc_canh_bao: e.target.value })} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[12px]">{["CRITICAL", "WARNING", "*"].map((k) => <option key={k} value={k}>{MUC_VI[k]}</option>)}</select></label>
+                <label className="flex flex-col gap-1"><span className="text-[10px] text-slate-500 font-medium">Chờ trước (phút)</span>
+                  <input type="number" min="0" max="1440" value={moi.cho_it_nhat_phut} onChange={(e) => setMoi({ ...moi, cho_it_nhat_phut: Number(e.target.value) })} className="w-24 rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[12px]" /></label>
+                <label className="flex flex-col gap-1 flex-1 min-w-[180px]"><span className="text-[10px] text-slate-500 font-medium">Diễn giải (tuỳ chọn)</span>
+                  <input value={moi.ly_do_mau} onChange={(e) => setMoi({ ...moi, ly_do_mau: e.target.value })} placeholder="vd: chênh áp nghiêm trọng — nghi lỗi AHU" className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[12px]" /></label>
+                <button onClick={themLuat} disabled={luu} className={`flex items-center gap-1.5 text-[12px] font-medium text-white rounded-xl px-4 py-2 ${luu ? "opacity-60" : ""}`} style={{ backgroundColor: COLOR.teal }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh luật.</p>}
+      <p className="text-[10.5px] text-slate-400 mt-3">Tuyến hiện hỗ trợ: sự cố → <b>Cơ điện</b> (qua đúng máy trạng thái duyệt sự cố, có nhật ký người thao tác “hệ thống”). Sự cố hạ tầng cảm biến (đứng hình, mất FMS) đã có nhánh cảnh báo Cơ điện riêng.</p>
+    </Card>
+  );
+}
+
 const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "rooms", label: "Phòng", icon: Building2 }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 export default function App() {
@@ -2280,6 +2377,7 @@ export default function App() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">{[["Ngưỡng CHÚ Ý — OOS 1h ≥", "notice", "/60"], ["Ngưỡng CẢNH BÁO — OOS 1h >", "warn", "/60"], ["Ngưỡng HÀNH ĐỘNG — lỗi 10′ ≥", "action", "/10"]].map(([lbl, key, suf]) => <div key={key} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4"><label className="text-[11px] uppercase text-slate-500 font-semibold">{lbl}</label><div className="flex items-center gap-2 mt-2"><input type="number" min="0" value={cfg[key]} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, [key]: Number(e.target.value) })} onBlur={() => saveCfg(cfg)} className="w-20 rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm disabled:bg-slate-100" /><span className="text-sm text-slate-400">{suf} điểm</span></div></div>)}</div>{!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh.</p>}</Card>
               <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối Supabase</SectionTitle><div className="space-y-3 mt-4 text-sm">{(() => { const conn = !HAS_SUPABASE ? ["chưa cấu hình", "text-slate-600 bg-slate-100"] : !isLive ? ["DEMO", "text-amber-700 bg-amber-100"] : live.loi ? ["lỗi kết nối", "text-rose-700 bg-rose-100"] : live.dangTai ? ["đang tải…", "text-sky-700 bg-sky-100"] : ["đã kết nối", "text-teal-700 bg-teal-100"]; const keyState = HAS_SUPABASE ? ["đã nạp", "text-teal-700 bg-teal-100"] : ["thiếu .env", "text-rose-700 bg-rose-100"]; const rows = [{ k: "Nguồn dữ liệu", v: isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu", s: conn }, { k: "Khóa môi trường", v: HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập", s: keyState }, { k: "Cập nhật gần nhất", v: live.capNhatLuc ? live.capNhatLuc.toLocaleString("vi-VN") : "—", s: conn }]; return rows.map((r, i) => <div key={i} className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0"><span className="text-slate-500 w-44">{r.k}</span><code className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded-lg ring-1 ring-slate-200 flex-1">{r.v}</code><span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.s[1]}`}>{r.s[0]}</span></div>); })()}</div>{isLive && live.loi && <p className="text-[11px] text-rose-600 mt-3">Chi tiết lỗi: {live.loi.thong_bao || live.loi.message || "không xác định"}</p>}</Card>
+              <LuatPhanTuyenCard isLive={isLive} canManage={canManage} actor={user?.email} />
               <DoiMatKhauCard user={user} isLive={isLive} />
             </div>
           )}
