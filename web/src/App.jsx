@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -2119,6 +2119,7 @@ export default function App() {
   const [evtAhu, setEvtAhu] = useState("ALL");   // Sự cố: lọc theo AHU trong khu đã chọn
   const [cfg, setCfg] = useState({ notice: 10, warn: 20, action: 4 }); // #4 — DEMO; chế độ LIVE đọc từ DB (cau_hinh)
   const [alertUuTien, setAlertUuTien] = useState(["P1", "P2", "P3"]); // cấp độ phòng được cảnh báo (config)
+  const [alertHuong, setAlertHuong] = useState({ DP: { su_co: "CA_HAI", canh_bao: "CA_HAI" }, RH: { su_co: "CA_HAI", canh_bao: "CA_HAI" }, T: { su_co: "CA_HAI", canh_bao: "CA_HAI" } }); // hướng cảnh báo
   const [user, setUser] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [modal, setModal] = useState(null);
@@ -2164,6 +2165,7 @@ export default function App() {
   useEffect(() => { if (isLive && live.rooms) setRooms(live.rooms); }, [isLive, live.rooms]);
   useEffect(() => { if (isLive && live.nguong) setCfg(live.nguong); }, [isLive, live.nguong]);
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const ds = await layCanhBaoUuTien(); if (!huy && Array.isArray(ds) && ds.length) setAlertUuTien(ds); })(); return () => { huy = true; }; }, [isLive]);
+  useEffect(() => { if (!isLive) return; let huy = false; (async () => { const h = await layCanhBaoHuong(); if (!huy && h) setAlertHuong(h); })(); return () => { huy = true; }; }, [isLive]);
 
   // #1 KHẮC PHỤC "phải F5 mới hiện dữ liệu" đã chuyển vào useLiveData:
   // hook tự nạp lại NGAY khi Supabase phát INITIAL_SESSION/SIGNED_IN (phiên sẵn sàng),
@@ -2266,6 +2268,14 @@ export default function App() {
     setAlertUuTien(arr);
     if (isLive) { const r = await datCanhBaoUuTien(arr, user?.email); if (r && r.ok && r.gia_tri) setAlertUuTien(r.gia_tri.split(",")); }
     else logConfig(`Phạm vi cảnh báo theo ưu tiên: ${arr.join(", ")}`);
+  };
+  // Đổi hướng cảnh báo cho 1 chỉ tiêu × 1 loại ngưỡng.
+  const doiHuong = async (chiTieu, loai, giaTri) => {
+    if (!canManage) return;
+    const next = { ...alertHuong, [chiTieu]: { ...(alertHuong[chiTieu] || {}), [loai]: giaTri } };
+    setAlertHuong(next);
+    if (isLive) { const r = await datCanhBaoHuong(next, user?.email); if (r && r.ok && r.gia_tri) setAlertHuong(r.gia_tri); }
+    else logConfig(`Hướng cảnh báo ${chiTieu}/${loai === "su_co" ? "sự cố" : "cảnh báo sớm"}: ${giaTri}`);
   };
 
   const requireLogin = () => { if (!user) { setLoginOpen(true); return false; } return true; };
@@ -2408,7 +2418,7 @@ export default function App() {
                     <td className="py-3 px-3 font-semibold" style={{ color: COLOR.navy }}>{inc.id}</td>
                     <td className="py-3 px-3">{inc.room}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[10px] text-slate-400">{kh}</span> : null; })()}</td>
                     <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
-                    <td className="py-3 px-3 text-slate-600">{inc.sensor}</td>
+                    <td className="py-3 px-3 text-slate-600">{inc.sensor}{inc.huong && <span className={`ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-rose-50 text-rose-600" : inc.huong === "THAP" ? "bg-sky-50 text-sky-600" : "bg-amber-50 text-amber-600"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}</td>
                     <td className="py-3 px-3 text-slate-500 tabular-nums text-[12px]">{inc.start.slice(11)}</td>
                     <td className="py-3 px-3 text-amber-600 font-medium">{inc.duration}h</td>
                     <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-slate-700 font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span></td>
@@ -2505,6 +2515,22 @@ export default function App() {
                     ); })}
                   </div>
                   <p className="text-[11px] text-slate-400 mt-2">Đang cảnh báo: <b className="text-slate-600">{alertUuTien.join(" · ") || "—"}</b>{alertUuTien.length === 3 ? " (tất cả phòng)" : ""}. Phải giữ ít nhất 1 cấp.</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4 mt-4">
+                  <label className="text-[12px] font-semibold text-slate-600">Hướng cảnh báo theo chỉ tiêu</label>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Chọn cảnh báo khi vượt <b>dưới</b>, <b>trên</b> hay <b>cả hai</b> giới hạn — theo từng chỉ tiêu. Vd: chênh áp (DP) thường chỉ nguy hiểm khi <b>thấp</b> (mất áp dương). Dữ liệu thô luôn ghi đủ; đổi lúc nào cũng được.</p>
+                  <div className="overflow-x-auto mt-3">
+                    <table className="text-[12px]"><thead><tr className="text-slate-500 text-left text-[10px] uppercase"><th className="py-1 pr-4 font-semibold">Chỉ tiêu</th><th className="py-1 pr-4 font-semibold">Mở sự cố</th><th className="py-1 pr-4 font-semibold">Cảnh báo sớm</th></tr></thead>
+                    <tbody>{[["DP", "Chênh áp"], ["RH", "Độ ẩm"], ["T", "Nhiệt độ"]].map(([k, ten]) => (
+                      <tr key={k} className="border-t border-slate-100">
+                        <td className="py-2 pr-4 font-medium text-slate-700">{ten} <span className="text-slate-400">({k})</span></td>
+                        {["su_co", "canh_bao"].map((loai) => (
+                          <td key={loai} className="py-2 pr-4"><select disabled={!canManage} value={(alertHuong[k] || {})[loai] || "CA_HAI"} onChange={(e) => doiHuong(k, loai, e.target.value)} className="rounded-lg bg-white ring-1 ring-slate-200 px-2 py-1.5 text-[12px] disabled:bg-slate-100"><option value="CA_HAI">Cả hai (dưới + trên)</option><option value="DUOI">Chỉ khi THẤP (dưới)</option><option value="TREN">Chỉ khi CAO (trên)</option></select></td>
+                        ))}
+                      </tr>
+                    ))}</tbody></table>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-2">"Mở sự cố" áp dụng ngay (từ giờ chạy WF1 kế). "Cảnh báo sớm" (chỉ báo trước) sẽ áp ở bản cập nhật WF1 tiếp theo.</p>
                 </div>
                 {!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh.</p>}
               </Card>

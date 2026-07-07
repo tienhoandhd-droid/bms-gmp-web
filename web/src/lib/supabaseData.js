@@ -177,7 +177,7 @@ export async function layThongKeSensorNhieuPhong(maPhongArr, signal) {
 // ============================================================
 export async function laySuCoDangMo(signal) {
   const { data, error } = await docView('xem_su_co_dang_mo',
-    (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,bat_dau,keo_dai_gio,da_tat_canh_bao,lich_su'),
+    (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,bat_dau,keo_dai_gio,da_tat_canh_bao,lich_su,huong_vi_pham'),
     { signal })
   if (error) return { error, incidents: null }
   const incidents = (data || []).map((r) => ({
@@ -186,6 +186,8 @@ export async function laySuCoDangMo(signal) {
     room: r.phong,
     roomName: r.ten_phong,
     sensor: r.cam_bien_vi || SENSOR_LABEL[r.loai_cam_bien] || r.loai_cam_bien || '—',
+    huong: r.huong_vi_pham || null,   // 'THAP' | 'CAO' | 'HAI' | null — hướng vi phạm
+
     priority: r.uu_tien || 'P3',
     start: fmtTS(r.bat_dau),
     startTs: r.bat_dau ? new Date(r.bat_dau).getTime() : null,   // ms — overlay ⚑ lên biểu đồ xu hướng
@@ -516,6 +518,20 @@ export async function layCanhBaoUuTien(signal) {
 export async function datCanhBaoUuTien(dsCap, actor, signal) {
   const { data, error } = await goiRPC('rpc_dat_canh_bao_uu_tien',
     { p_gia_tri: (Array.isArray(dsCap) ? dsCap : []).join(','), p_actor: actor || null }, { signal })
+  if (error) return { ok: false, thong_bao: error.thong_bao || error.message || 'Không lưu được' }
+  return data || { ok: false, thong_bao: 'Không rõ kết quả' }
+}
+
+// Hướng cảnh báo theo chỉ tiêu × loại ngưỡng (config canh_bao_huong). Trả object {DP:{su_co,canh_bao},...}.
+const HUONG_MAC_DINH = { DP: { su_co: 'CA_HAI', canh_bao: 'CA_HAI' }, RH: { su_co: 'CA_HAI', canh_bao: 'CA_HAI' }, T: { su_co: 'CA_HAI', canh_bao: 'CA_HAI' } }
+export async function layCanhBaoHuong(signal) {
+  const { data, error } = await docView('xem_cau_hinh_he_thong',
+    (q) => q.select('key,value_hien_thi').eq('key', 'canh_bao_huong'), { signal })
+  if (error || !data || !data.length) return HUONG_MAC_DINH
+  try { const o = JSON.parse(data[0].value_hien_thi || '{}'); return { ...HUONG_MAC_DINH, ...o } } catch { return HUONG_MAC_DINH }
+}
+export async function datCanhBaoHuong(huong, actor, signal) {
+  const { data, error } = await goiRPC('rpc_dat_canh_bao_huong', { p_json: huong || {}, p_actor: actor || null }, { signal })
   if (error) return { ok: false, thong_bao: error.thong_bao || error.message || 'Không lưu được' }
   return data || { ok: false, thong_bao: 'Không rõ kết quả' }
 }
