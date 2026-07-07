@@ -167,32 +167,19 @@ const A_AMBER = "text-amber-700 bg-amber-50 hover:bg-amber-100 ring-amber-200";
 const A_INFO = "text-sky-700 bg-sky-50 hover:bg-sky-100 ring-sky-200";
 const A_ROSE = "text-rose-700 bg-rose-50 hover:bg-rose-100 ring-rose-200";
 const A_SLATE = "text-slate-600 bg-slate-100 hover:bg-slate-200 ring-slate-200";
+// Luồng gọn: IPC (kiểm tra hiện trường) + Cơ điện (điều chỉnh). Luật DB dùng '*' nên đóng được từ mọi trạng thái.
+const A_IPC = { label: "Bình thường — đóng", code: "ipc_binh_thuong", next: "Đã khắc phục", dong: true, roles: ["IPC"], color: A_TEAL };
+const A_MEP_NHAN = { label: "Cơ điện đang xử lý", code: "mep_tiep_nhan", next: "Cơ điện đang xử lý", roles: ["MEP"], color: A_INFO };
+const A_MEP_XONG = { label: "Đã xử lý xong — đóng", code: "mep_xu_ly_xong", next: "Đã khắc phục", dong: true, roles: ["MEP"], color: A_TEAL };
+const A_MEP_KHONG = { label: "Không xử lý được", code: "mep_khong_xu_ly_duoc", next: "Không xử lý được", roles: ["MEP"], color: A_ROSE };
 const STATUS_ACTIONS = {
-  "Chưa xử lý": [
-    { label: "Đã kiểm tra — Bình thường", code: "ipc_binh_thuong", next: "Đã khắc phục", dong: true, roles: ["IPC"], color: A_TEAL },
-    { label: "Bất thường — Báo Cơ điện", code: "ipc_bao_co_dien", next: "Đã báo cơ điện", roles: ["IPC"], color: A_AMBER },
-    { label: "Không có ở hiện trường", code: "ipc_vang", next: "Chưa xử lý", roles: ["IPC"], color: A_SLATE },
-  ],
-  "Đã báo cơ điện": [
-    { label: "Đang xử lý", code: "mep_tiep_nhan", next: "Cơ điện đang xử lý", roles: ["MEP"], color: A_INFO },
-    { label: "Đã xử lý xong", code: "mep_xu_ly_xong", next: "Chờ IPC kiểm lại", roles: ["MEP"], color: A_TEAL },
-    { label: "Không xử lý được", code: "mep_khong_xu_ly_duoc", next: "Không xử lý được", roles: ["MEP"], color: A_ROSE },
-    { label: "Không có ở hiện trường", code: "mep_vang", next: "Đã báo cơ điện", roles: ["MEP"], color: A_SLATE },
-  ],
-  "Cơ điện đang xử lý": [
-    { label: "Đã xử lý xong", code: "mep_xu_ly_xong", next: "Chờ IPC kiểm lại", roles: ["MEP"], color: A_TEAL },
-    { label: "Không xử lý được", code: "mep_khong_xu_ly_duoc", next: "Không xử lý được", roles: ["MEP"], color: A_ROSE },
-    { label: "Không có ở hiện trường", code: "mep_vang", next: "Cơ điện đang xử lý", roles: ["MEP"], color: A_SLATE },
-  ],
-  "Chờ IPC kiểm lại": [
-    { label: "Đạt — Đóng sự cố", code: "ipc_kiem_lai_dat", next: "Đã khắc phục", dong: true, roles: ["IPC"], color: A_TEAL },
-    { label: "Không đạt — Mở lại", code: "ipc_kiem_lai_khong_dat", next: "Đã báo cơ điện", roles: ["IPC"], color: A_ROSE },
-  ],
-  "Không xử lý được": [
-    { label: "Nhắc IPC + Cơ điện", code: "lot_nhac_nho", next: "Không xử lý được", roles: ["LOT"], color: A_INFO },
-    { label: "Ghi chú hồ sơ lô", code: "lot_ghi_chu", next: "Không xử lý được", roles: ["LOT"], color: A_SLATE },
-    { label: "Leo thang cấp trên", code: "lot_leo_thang", next: "Không xử lý được", roles: ["LOT"], color: A_AMBER },
-  ],
+  "Chưa xử lý": [A_IPC, A_MEP_NHAN, A_MEP_XONG],
+  "Cơ điện đang xử lý": [A_MEP_XONG, A_MEP_KHONG, A_IPC],
+  "Không xử lý được": [A_MEP_XONG, A_IPC],
+  // Nhãn cũ (sự cố mở trước khi đổi luồng) — vẫn đóng được
+  "Đã báo cơ điện": [A_MEP_NHAN, A_MEP_XONG, A_IPC],
+  "Chờ IPC kiểm lại": [A_MEP_XONG, A_IPC],
+  "IPC: bất thường": [A_MEP_NHAN, A_IPC],
 };
 // gộp mọi vai trò có thể thao tác ở 1 trạng thái (để hiện "Chờ …")
 const rolesOfStatus = (st) => [...new Set((STATUS_ACTIONS[st] || []).flatMap((a) => a.roles))];
