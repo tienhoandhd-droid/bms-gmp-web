@@ -1983,6 +1983,17 @@ export default function App() {
     let off = () => {};
     layPhienHienTai().then((u) => { if (u) setUser(u); });
     off = theoDoiPhien((u) => setUser(u));
+    // Phiên hết hạn giữa chừng (RPC trả CHUA_DANG_NHAP dù UI đang hiện đã đăng nhập):
+    // báo rõ + đăng xuất → AuthGate tự hiện màn đăng nhập lại. Chặn lặp bằng cờ 1 lần.
+    let daBao = false;
+    const onHetHan = () => {
+      if (daBao) return; daBao = true;
+      alert("Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại để tiếp tục thao tác.\n(Dữ liệu giám sát không bị ảnh hưởng.)");
+      setUser(null); authDangXuat();
+    };
+    window.addEventListener("bms:phien-het-han", onHetHan);
+    const offHetHan = () => window.removeEventListener("bms:phien-het-han", onHetHan);
+    const offCu = off; off = () => { offCu && offCu(); offHetHan(); };
     return () => off();
   }, [isLive]);
 

@@ -98,6 +98,11 @@ export async function goiRPC(ten, thamSo = {}, { soLanThu = 3, timeoutMs = 12000
       if (error) throw error
       // RPC hệ thống trả {ok:false, loi} cho lỗi nghiệp vụ → KHÔNG retry
       if (data && data.ok === false) {
+        // Phiên JWT hết hạn (autoRefresh lỗi trên GitHub Pages): báo App đăng xuất +
+        // đưa về màn đăng nhập, thay vì để từng nút ghi báo lỗi khó hiểu (bài học 07/07).
+        if (data.loi === 'CHUA_DANG_NHAP' && typeof window !== 'undefined') {
+          try { window.dispatchEvent(new CustomEvent('bms:phien-het-han')) } catch { /* môi trường không có CustomEvent — bỏ qua */ }
+        }
         return { data, error: { nghiep_vu: true, ma_loi: data.loi, thong_bao: data.thong_bao || data.loi } }
       }
       return { data, error: null }
