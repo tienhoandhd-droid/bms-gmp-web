@@ -177,7 +177,7 @@ export async function layThongKeSensorNhieuPhong(maPhongArr, signal) {
 // ============================================================
 export async function laySuCoDangMo(signal) {
   const { data, error } = await docView('xem_su_co_dang_mo',
-    (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,bat_dau,keo_dai_gio,da_tat_canh_bao,lich_su,huong_vi_pham'),
+    (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,bat_dau,keo_dai_gio,da_tat_canh_bao,lich_su,huong_vi_pham,gia_tri_gan_nhat,gioi_han_duoi,gioi_han_tren,don_vi,thoi_diem_so_lieu,muc_gan_nhat'),
     { signal })
   if (error) return { error, incidents: null }
   const incidents = (data || []).map((r) => ({
@@ -187,6 +187,13 @@ export async function laySuCoDangMo(signal) {
     roomName: r.ten_phong,
     sensor: r.cam_bien_vi || SENSOR_LABEL[r.loai_cam_bien] || r.loai_cam_bien || '—',
     huong: r.huong_vi_pham || null,   // 'THAP' | 'CAO' | 'HAI' | null — hướng vi phạm
+    giaTriGanNhat: r.gia_tri_gan_nhat ?? null,   // số liệu giờ gần nhất
+    gioiHanDuoi: r.gioi_han_duoi ?? null,
+    gioiHanTren: r.gioi_han_tren ?? null,
+    donVi: r.don_vi || '',
+    thoiDiemSoLieu: r.thoi_diem_so_lieu || null,
+    mucGanNhat: r.muc_gan_nhat || null,   // NORMAL/WARNING/CRITICAL của giờ gần nhất
+
 
     priority: r.uu_tien || 'P3',
     start: fmtTS(r.bat_dau),
