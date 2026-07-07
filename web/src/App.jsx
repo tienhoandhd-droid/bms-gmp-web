@@ -2173,6 +2173,12 @@ export default function App() {
 
   // #5 — nếu vai trò không được phép xem tab đang mở (vd IPC đang ở Cài đặt khi đăng nhập) → đưa về Tổng quan
   useEffect(() => { if (role && !roleCanSeeTab(role, tab)) setTab("home"); }, [role, tab]);
+  // Prefetch chunk biểu đồ (ECharts ~243KB) khi trình duyệt rảnh → mở tab Xu hướng tức thì, không khựng.
+  useEffect(() => {
+    const warm = () => { import("./components/charts").catch(() => {}); };
+    if (typeof requestIdleCallback === "function") { const id = requestIdleCallback(warm, { timeout: 3000 }); return () => cancelIdleCallback(id); }
+    const tm = setTimeout(warm, 1500); return () => clearTimeout(tm);
+  }, []);
 
   // Giờ máy chủ UTC+7: trước đây dùng toISOString() (UTC) nên lệch -7h so với nhãn "UTC+7".
   // Định dạng theo đúng múi giờ Asia/Ho_Chi_Minh, không phụ thuộc múi giờ trình duyệt.
@@ -2517,20 +2523,16 @@ export default function App() {
                   <p className="text-[11px] text-slate-400 mt-2">Đang cảnh báo: <b className="text-slate-600">{alertUuTien.join(" · ") || "—"}</b>{alertUuTien.length === 3 ? " (tất cả phòng)" : ""}. Phải giữ ít nhất 1 cấp.</p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4 mt-4">
-                  <label className="text-[12px] font-semibold text-slate-600">Hướng cảnh báo theo chỉ tiêu</label>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Chọn cảnh báo khi vượt <b>dưới</b>, <b>trên</b> hay <b>cả hai</b> giới hạn — theo từng chỉ tiêu. Vd: chênh áp (DP) thường chỉ nguy hiểm khi <b>thấp</b> (mất áp dương). Dữ liệu thô luôn ghi đủ; đổi lúc nào cũng được.</p>
-                  <div className="overflow-x-auto mt-3">
-                    <table className="text-[12px]"><thead><tr className="text-slate-500 text-left text-[10px] uppercase"><th className="py-1 pr-4 font-semibold">Chỉ tiêu</th><th className="py-1 pr-4 font-semibold">Mở sự cố</th><th className="py-1 pr-4 font-semibold">Cảnh báo sớm</th></tr></thead>
-                    <tbody>{[["DP", "Chênh áp"], ["RH", "Độ ẩm"], ["T", "Nhiệt độ"]].map(([k, ten]) => (
-                      <tr key={k} className="border-t border-slate-100">
-                        <td className="py-2 pr-4 font-medium text-slate-700">{ten} <span className="text-slate-400">({k})</span></td>
-                        {["su_co", "canh_bao"].map((loai) => (
-                          <td key={loai} className="py-2 pr-4"><select disabled={!canManage} value={(alertHuong[k] || {})[loai] || "CA_HAI"} onChange={(e) => doiHuong(k, loai, e.target.value)} className="rounded-lg bg-white ring-1 ring-slate-200 px-2 py-1.5 text-[12px] disabled:bg-slate-100"><option value="CA_HAI">Cả hai (dưới + trên)</option><option value="DUOI">Chỉ khi THẤP (dưới)</option><option value="TREN">Chỉ khi CAO (trên)</option></select></td>
-                        ))}
-                      </tr>
-                    ))}</tbody></table>
+                  <label className="text-[12px] font-semibold text-slate-600">Hướng mở sự cố theo chỉ tiêu</label>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Chọn <b>mở sự cố</b> khi vượt giới hạn <b>DƯỚI</b>, <b>TRÊN</b> hay <b>CẢ HAI</b> — theo từng chỉ tiêu. Vd: chênh áp (DP) thường chỉ nguy hiểm khi <b>thấp</b> (mất áp dương). Dữ liệu thô luôn ghi đủ; đổi lúc nào cũng được, áp dụng từ giờ chạy kế tiếp.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                    {[["DP", "Chênh áp"], ["RH", "Độ ẩm"], ["T", "Nhiệt độ"]].map(([k, ten]) => (
+                      <div key={k} className="rounded-xl bg-white ring-1 ring-slate-200 p-3">
+                        <div className="text-[12px] font-medium text-slate-700 mb-1.5">{ten} <span className="text-slate-400">({k})</span></div>
+                        <select disabled={!canManage} value={(alertHuong[k] || {}).su_co || "CA_HAI"} onChange={(e) => doiHuong(k, "su_co", e.target.value)} className="w-full rounded-lg bg-slate-50 ring-1 ring-slate-200 px-2 py-1.5 text-[12px] disabled:bg-slate-100"><option value="CA_HAI">Cả hai (dưới + trên)</option><option value="DUOI">Chỉ khi THẤP (dưới)</option><option value="TREN">Chỉ khi CAO (trên)</option></select>
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-2">"Mở sự cố" áp dụng ngay (từ giờ chạy WF1 kế). "Cảnh báo sớm" (chỉ báo trước) sẽ áp ở bản cập nhật WF1 tiếp theo.</p>
                 </div>
                 {!canManage && <p className="text-[11px] text-amber-600 mt-3">Cần quyền QA/Quản trị để chỉnh.</p>}
               </Card>
