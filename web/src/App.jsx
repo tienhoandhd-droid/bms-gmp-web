@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -718,6 +718,11 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [dangInBaoCao, setDangInBaoCao] = useState(false); // đang chuẩn bị in (chờ AI xong)
   const [aiNote, setAiNote] = useState(null);         // ghi chú trạng thái (vd: lỗi → dùng bản cục bộ)
   const [aiWebhook, setAiWebhook] = useState("");     // URL WF7 (nếu cấu hình)
+  const [wf7bUrl, setWf7bUrl] = useState("");         // URL WF7b — gửi email / lưu Drive nhận định
+  const [emailTo, setEmailTo] = useState("");         // người nhận email (điền sẵn từ người nhận báo cáo)
+  const [emailOpen, setEmailOpen] = useState(false);  // mở ô nhập email
+  const [sendBusy, setSendBusy] = useState("");       // "" | "email" | "drive"
+  const [sendMsg, setSendMsg] = useState(null);       // { ok, text }
   const [soKyTruoc, setSoKyTruoc] = useState(!!prefs.prevCmp); // A3: bật đường "kỳ trước" (chỉ khung NGÀY)
   const [prevSeries, setPrevSeries] = useState({});   // {trendKey: chuỗi kỳ TRƯỚC (cùng độ dài)}
   // Mảng 3: dự báo (RPC gate R²) + bản đồ nhiệt phòng×ngày. Cache theo khoá scope|sensor.
@@ -725,6 +730,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [maTran, setMaTran] = useState(null);         // {rooms[], days[], values[][]}
   const [dbBusy, setDbBusy] = useState(false);
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const u = await layWebhookAi(); if (!huy) setAiWebhook(u || ""); })(); return () => { huy = true; }; }, [isLive]);
+  // WF7b: URL gửi email/lưu Drive + điền sẵn người nhận email từ danh sách người nhận báo cáo.
+  useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, ds] = await Promise.all([layWebhookWf7b(), layNguoiNhanBaoCao().catch(() => ({ rows: [] }))]); if (huy) return; setWf7bUrl(u || ""); const emails = ((ds && ds.rows) || []).map((r) => r.email).filter(Boolean); setEmailTo(emails.join(", ")); })(); return () => { huy = true; }; }, [isLive]);
   const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90 };
   // Độ phân giải: 30n/90n → NGÀY; 1n/7n → auto (1n=PHUT 30′, 7n=GIO) hoặc override PHUT/GIO.
   const donVi = (range === "30n" || range === "90n") ? "NGAY"
@@ -1192,6 +1199,26 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     finishAI(loc.text, loc.level, "cuc_bo");
   };
 
+  // Lưu bản nhận định AI hiện tại (.html) vào Google Drive (folder con "Nhan-dinh-xu-huong") qua WF7b.
+  const luuDriveNhanDinh = async () => {
+    if (!aiResult || sendBusy) return;
+    setSendBusy("drive"); setSendMsg(null);
+    const r = await guiNhanDinhXuHuong(wf7bUrl, "drive", aiResult, "");
+    setSendBusy("");
+    setSendMsg(r.ok ? { ok: true, text: "Đã lưu nhận định (.html) vào Google Drive." } : { ok: false, text: `Không lưu được (${r.error}).` });
+  };
+  // Gửi bản nhận định AI qua email (tuỳ chọn) tới người nhập.
+  const guiEmailNhanDinh = async () => {
+    if (!aiResult || sendBusy) return;
+    const to = emailTo.trim();
+    if (!to) { setSendMsg({ ok: false, text: "Nhập ít nhất 1 email người nhận." }); return; }
+    setSendBusy("email"); setSendMsg(null);
+    const r = await guiNhanDinhXuHuong(wf7bUrl, "email", aiResult, to);
+    setSendBusy("");
+    if (r.ok) { setSendMsg({ ok: true, text: `Đã gửi email tới: ${to}` }); setEmailOpen(false); }
+    else setSendMsg({ ok: false, text: `Không gửi được (${r.error}).` });
+  };
+
   // In báo cáo A4 — LUÔN kèm phân tích AI: nếu chưa có nhận định thì chạy AI trước rồi mới in.
   const inBaoCaoA4 = async () => {
     const LVL = { TOTAL: "Toàn hệ thống", AREA: "Khu vực", AHU: "AHU", ROOM: "Phòng" };
@@ -1307,7 +1334,23 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             <p className="mt-1 mb-2 text-[11px] text-slate-500 bg-slate-50 ring-1 ring-slate-200/70 rounded-lg px-3 py-1.5">ℹ️ AI chỉ <b>đọc số liệu và gợi ý</b> — mọi con số do hệ thống tính (SQL/thống kê), <b>không phải AI</b>. Kết luận &amp; quyết định GMP do IPC/QA phê duyệt.</p>
             <AiSections text={aiResult.text} />
             {aiNote && <p className="mt-3 text-[12px] text-amber-700 bg-amber-50 ring-1 ring-amber-100 rounded-xl px-3 py-2">⚠ {aiNote}</p>}
-            <p className="mt-3 text-[11px] text-slate-400">Đã lưu vào tab <b>Báo cáo</b> để gửi email · {aiResult.time}</p>
+            {wf7bUrl && (
+              <div className="mt-4 border-t border-slate-100 pt-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={() => { setEmailOpen((v) => !v); setSendMsg(null); }} disabled={!!sendBusy} className="text-xs font-medium rounded-xl px-3.5 py-2 text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 flex items-center gap-1.5 disabled:opacity-60"><Mail className="w-3.5 h-3.5" strokeWidth={1.8} /> Gửi email (tuỳ chọn)</button>
+                  <button onClick={luuDriveNhanDinh} disabled={!!sendBusy} className="text-xs font-medium rounded-xl px-3.5 py-2 text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: COLOR.teal }}><Save className={`w-3.5 h-3.5 ${sendBusy === "drive" ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {sendBusy === "drive" ? "Đang lưu…" : "Lưu vào Drive"}</button>
+                  <span className="text-[11px] text-slate-400">Lưu bản nhận định này (.html) vào Google Drive; email là tuỳ chọn.</span>
+                </div>
+                {emailOpen && (
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && guiEmailNhanDinh()} placeholder="email1@…, email2@… (phân tách bằng dấu phẩy)" className="flex-1 min-w-[240px] rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[12px] text-slate-700 outline-none focus:ring-2 focus:ring-teal-300" />
+                    <button onClick={guiEmailNhanDinh} disabled={sendBusy === "email"} className="text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: COLOR.teal }}>{sendBusy === "email" ? "Đang gửi…" : "Gửi email"}</button>
+                  </div>
+                )}
+                {sendMsg && <p className={`mt-2 text-[12px] rounded-xl px-3 py-2 ring-1 ${sendMsg.ok ? "text-teal-700 bg-teal-50 ring-teal-100" : "text-rose-600 bg-rose-50 ring-rose-100"}`}>{sendMsg.ok ? "✓ " : "✗ "}{sendMsg.text}</p>}
+              </div>
+            )}
+            <p className="mt-3 text-[11px] text-slate-400">Nhận định lúc {aiResult.time} · đã lưu vào hệ thống (tab Báo cáo).</p>
           </Card>
         ); })()}
         {/* ============ PHÒNG: phân tích chi tiết khi có lỗi ============ */}

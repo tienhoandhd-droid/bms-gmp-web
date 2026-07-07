@@ -683,6 +683,33 @@ export async function layWebhookAi(signal) {
   return (data[0].value_hien_thi || '').trim()
 }
 
+// Lấy URL webhook WF7b — gửi email / lưu Drive nhận định xu hướng (key 'wf7b_webhook_url').
+export async function layWebhookWf7b(signal) {
+  const { data, error } = await docView('xem_cau_hinh_he_thong',
+    (q) => q.select('key,value_hien_thi').eq('key', 'wf7b_webhook_url'), { signal })
+  if (error || !data || !data.length) return ''
+  return (data[0].value_hien_thi || '').trim()
+}
+
+// Gửi nhận định xu hướng qua WF7b. action: 'email' | 'drive'.
+// nhanDinh: { scope, sensor, range, text, time, level, nguon }. to: chuỗi email (chỉ khi 'email').
+// Trả { ok, kind, link, error }.
+export async function guiNhanDinhXuHuong(url, action, nhanDinh, to, signal) {
+  if (!url) return { ok: false, error: 'CHUA_CAU_HINH_WEBHOOK' }
+  try {
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
+      body: JSON.stringify({ action, to: to || '', ...nhanDinh }),
+    })
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
+    const j = await res.json().catch(() => ({}))
+    if (j && j.ok) return { ok: true, kind: j.kind, link: j.link || null }
+    return { ok: false, error: (j && j.error) || 'EMPTY' }
+  } catch (e) {
+    return { ok: false, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
+  }
+}
+
 // Gọi WF7 (n8n) để AI phân tích dữ liệu biểu đồ thật. Trả { ok, text, level, error }.
 // 07/2026 — WF7 ASYNC: có cache → webhook trả kết quả ngay (như cũ); chưa có cache →
 // webhook trả ngay {pending:true, input_hash} rồi AI Agent chạy nền (~0.5–2 phút, 6 tool
