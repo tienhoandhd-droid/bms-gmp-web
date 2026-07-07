@@ -1199,23 +1199,36 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     finishAI(loc.text, loc.level, "cuc_bo");
   };
 
-  // Lưu bản nhận định AI hiện tại (.html) vào Google Drive (folder con "Nhan-dinh-xu-huong") qua WF7b.
+  // Chụp biểu đồ xu hướng đang hiển thị → ảnh PNG (data URI) để kèm email/Drive.
+  // Dùng registry window.__bmsEcharts (map DOM→instance) như hàm in A4; fallback canvas.toDataURL.
+  const capTrendChart = () => {
+    try {
+      const node = document.getElementById("trendPrintArea");
+      const canvas = node && node.querySelector("canvas");
+      if (!canvas) return "";
+      const reg = window.__bmsEcharts;
+      let el = canvas.parentElement, inst = null;
+      while (el) { if (reg && reg.has(el)) { inst = reg.get(el); break; } el = el.parentElement; }
+      return inst ? inst.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff", excludeComponents: ["toolbox", "dataZoom"] }) : canvas.toDataURL("image/png");
+    } catch { return ""; }
+  };
+  // Lưu bản nhận định AI hiện tại (.html, kèm biểu đồ) vào Google Drive (folder con "Nhan-dinh-xu-huong") qua WF7b.
   const luuDriveNhanDinh = async () => {
     if (!aiResult || sendBusy) return;
     setSendBusy("drive"); setSendMsg(null);
-    const r = await guiNhanDinhXuHuong(wf7bUrl, "drive", aiResult, "");
+    const r = await guiNhanDinhXuHuong(wf7bUrl, "drive", aiResult, "", capTrendChart());
     setSendBusy("");
-    setSendMsg(r.ok ? { ok: true, text: "Đã lưu nhận định (.html) vào Google Drive." } : { ok: false, text: `Không lưu được (${r.error}).` });
+    setSendMsg(r.ok ? { ok: true, text: "Đã lưu nhận định (kèm biểu đồ) vào Google Drive." } : { ok: false, text: `Không lưu được (${r.error}).` });
   };
-  // Gửi bản nhận định AI qua email (tuỳ chọn) tới người nhập.
+  // Gửi bản nhận định AI (kèm biểu đồ) qua email (tuỳ chọn) tới người nhập.
   const guiEmailNhanDinh = async () => {
     if (!aiResult || sendBusy) return;
     const to = emailTo.trim();
     if (!to) { setSendMsg({ ok: false, text: "Nhập ít nhất 1 email người nhận." }); return; }
     setSendBusy("email"); setSendMsg(null);
-    const r = await guiNhanDinhXuHuong(wf7bUrl, "email", aiResult, to);
+    const r = await guiNhanDinhXuHuong(wf7bUrl, "email", aiResult, to, capTrendChart());
     setSendBusy("");
-    if (r.ok) { setSendMsg({ ok: true, text: `Đã gửi email tới: ${to}` }); setEmailOpen(false); }
+    if (r.ok) { setSendMsg({ ok: true, text: `Đã gửi email (kèm biểu đồ) tới: ${to}` }); setEmailOpen(false); }
     else setSendMsg({ ok: false, text: `Không gửi được (${r.error}).` });
   };
 
@@ -2093,6 +2106,8 @@ export default function App() {
   const LIVE_MAC_DINH = DEFAULT_DATA_SOURCE === "live";   // LIVE → KHÔNG nhồi dữ liệu demo (tránh "thông tin không khớp")
   const [rooms, setRooms] = useState(LIVE_MAC_DINH ? [] : INITIAL_ROOMS);
   const [incidents, setIncidents] = useState(LIVE_MAC_DINH ? [] : INCIDENTS0);
+  const [evtKhu, setEvtKhu] = useState("ALL");   // Sự cố: lọc theo khu (ALL/C1/C4/Q2)
+  const [evtAhu, setEvtAhu] = useState("ALL");   // Sự cố: lọc theo AHU trong khu đã chọn
   const [cfg, setCfg] = useState({ notice: 10, warn: 20, action: 4 }); // #4 — DEMO; chế độ LIVE đọc từ DB (cau_hinh)
   const [user, setUser] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -2334,10 +2349,29 @@ export default function App() {
             </div>
           )}
 
-          {tab === "events" && (
+          {tab === "events" && (() => {
+            const metaPhong = {}; (rooms || []).forEach((r) => { metaPhong[r.id] = { area: r.area, ahu: r.ahu }; });
+            const incKhu = (i) => (metaPhong[i.room] || {}).area || "";
+            const incAhu = (i) => (metaPhong[i.room] || {}).ahu || "";
+            const ahus = [...new Set((rooms || []).filter((r) => evtKhu === "ALL" || r.area === evtKhu).map((r) => r.ahu).filter(Boolean))].sort();
+            const incFiltered = incidents.filter((i) => (evtKhu === "ALL" || incKhu(i) === evtKhu) && (evtAhu === "ALL" || incAhu(i) === evtAhu));
+            const locChip = (v, label, on, click) => <button key={v} onClick={click} className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${on ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={on ? { backgroundColor: COLOR.teal } : {}}>{label}</button>;
+            return (
             <div className="space-y-5">
               <SectionTitle icon={AlertOctagon} hint={user ? `vai trò: ${ROLE_VI[role]}` : "đăng nhập để thao tác"}>Sự cố đang xử lý</SectionTitle>
-              <Card className="p-2 sm:p-4">{incidents.length === 0 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
+                {locChip("ALL", "Tất cả", evtKhu === "ALL", () => { setEvtKhu("ALL"); setEvtAhu("ALL"); })}
+                {DS_KHU.map((k) => locChip(k, `Khu ${k}`, evtKhu === k, () => { setEvtKhu(k); setEvtAhu("ALL"); }))}
+                {evtKhu !== "ALL" && ahus.length > 0 && (
+                  <select value={evtAhu} onChange={(e) => setEvtAhu(e.target.value)} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] text-slate-700 outline-none ml-1">
+                    <option value="ALL">AHU: tất cả</option>
+                    {ahus.map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                )}
+                <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidents.length} sự cố</span>
+              </div>
+              <Card className="p-2 sm:p-4">{incFiltered.length === 0 ? (incidents.length === 0 ? (
                 <div className="px-5 py-10 text-center">
                   <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div>
                   <p className="mt-3 text-[14px] font-semibold" style={{ color: COLOR.navy }}>Chưa có sự cố nào đang mở</p>
@@ -2345,11 +2379,13 @@ export default function App() {
                   {isLive && <p className="mt-3 text-[11px] text-slate-400 max-w-md mx-auto">Nếu bạn chắc chắn đang có cảnh báo mà vẫn trống, kiểm tra: WF1 có đang chạy theo lịch · ngưỡng trong <b>Cài đặt</b> · và bạn đã <b>đăng nhập</b> đúng vai trò để xem.</p>}
                 </div>
               ) : (
+                <div className="px-5 py-8 text-center text-[13px] text-slate-500">Không có sự cố khớp bộ lọc{evtKhu !== "ALL" ? ` · Khu ${evtKhu}` : ""}{evtAhu !== "ALL" ? ` · ${evtAhu}` : ""}. <button onClick={() => { setEvtKhu("ALL"); setEvtAhu("ALL"); }} className="text-teal-600 font-semibold underline">Bỏ lọc</button></div>
+              )) : (
               <div className="overflow-x-auto"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
-                <tbody>{incidents.map((inc) => { const acts = STATUS_ACTIONS[inc.status] || []; const terminal = acts.length === 0; const myActs = user ? acts.filter((a) => role === "ADMIN" || a.roles.includes(role)) : []; return (
+                <tbody>{incFiltered.map((inc) => { const acts = STATUS_ACTIONS[inc.status] || []; const terminal = acts.length === 0; const myActs = user ? acts.filter((a) => role === "ADMIN" || a.roles.includes(role)) : []; return (
                   <tr key={inc.id} className={`border-t border-slate-100 hover:bg-sky-50/40 transition ${inc.silenced ? "opacity-60" : ""}`}>
                     <td className="py-3 px-3 font-semibold" style={{ color: COLOR.navy }}>{inc.id}</td>
-                    <td className="py-3 px-3">{inc.room}</td>
+                    <td className="py-3 px-3">{inc.room}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[10px] text-slate-400">{kh}</span> : null; })()}</td>
                     <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
                     <td className="py-3 px-3 text-slate-600">{inc.sensor}</td>
                     <td className="py-3 px-3 text-slate-500 tabular-nums text-[12px]">{inc.start.slice(11)}</td>
@@ -2361,7 +2397,8 @@ export default function App() {
                 ); })}</tbody></table></div>)}</Card>
               <p className="text-[11px] text-slate-500 text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
             </div>
-          )}
+            );
+          })()}
 
           {tab === "rooms" && (
             <div className="space-y-5"><SectionTitle icon={Building2}>Quản lý phòng</SectionTitle><RoomManager rooms={rooms} cfg={cfg} canManage={canManage} onAdd={addRoom} onEdit={editRoom} onDelete={deleteRoom} onUpdateLimit={updateLimit} onAddSensor={addSensor} onRemoveSensor={removeSensor} /></div>
