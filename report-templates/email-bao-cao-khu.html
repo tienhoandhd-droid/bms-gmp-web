@@ -1,0 +1,139 @@
+<!doctype html>
+<!--
+  email-bao-cao-khu.html — Email TÓM TẮT báo cáo GMP BẢN THEO KHU (WF5 fan-out khu)
+  =================================================================================
+  - Biến thể của email-bao-cao.html cho bản khu C1/C4/Q2: CÙNG bộ token, thêm:
+      {{khu}}  — mã khu (C1/C4/Q2), node "Ráp báo cáo" bơm từ meta.khu.
+    + băng nhận diện "BÁO CÁO RIÊNG KHU" (màu chàm, phân biệt bản Tổng)
+    + footer truy vết rpc_bao_cao_tong_hop có tham số khu.
+  - Số liệu trong email đã được LỌC THEO KHU từ nguồn (rpc_bao_cao_tong_hop p_khu)
+    — template chỉ trình bày, không lọc lại.
+  - Node "Ráp báo cáo" (WF5) fetch file này từ GitHub raw main khi meta.khu != null;
+    nếu file không tải được → tự rơi về email-bao-cao.html (bản Tổng).
+  - Khối lặp {{#each ...}}…{{/each}} — Code node nhân bản phần thân.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Báo cáo {{ky_bao_cao}} — BMS-GMP</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Khu {{khu}} · Tuân thủ {{kpi_tuan_thu}}% ({{delta_tuan_thu_mui_ten}}{{delta_tuan_thu}}) · {{so_su_co_mo}} sự cố mở · {{so_tin_hieu_spc}} tín hiệu SPC · {{so_phong_bat_thuong}} phòng bất thường</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;">
+    <tr><td align="center" style="padding:20px 12px;">
+      <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:100%;font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;color:#334155;">
+
+        <!-- HEADER -->
+        <tr><td style="background:#1e1b4b;border-radius:10px 10px 0 0;padding:20px 24px;">
+          <div style="color:#ffffff;font-size:18px;font-weight:700;line-height:1.4;">Báo cáo {{ky_bao_cao}} — Giám sát môi trường GMP</div>
+          <div style="color:#a5b4fc;font-size:12px;margin-top:3px;">Kỳ: {{tu_ngay}} → {{den_ngay}} · Tạo lúc {{tao_luc}} (giờ VN) · CPC1HN</div>
+        </td></tr>
+
+        <!-- BĂNG NHẬN DIỆN BẢN KHU -->
+        <tr><td style="background:#eef2ff;border-left:1px solid #c7d2fe;border-right:1px solid #c7d2fe;border-bottom:1px solid #c7d2fe;padding:12px 24px;">
+          <div style="font-size:13px;color:#312e81;line-height:1.6;">
+            🏭 <strong>BÁO CÁO RIÊNG KHU {{khu}}</strong> — mọi số liệu (KPI, top phòng, bất thường, nhận định AI) chỉ gồm các phòng thuộc <strong>Khu {{khu}}</strong>.
+            <span style="color:#6366f1;">Bản Tổng toàn nhà máy là bản kiểm soát chính (lưu Drive &amp; hồ sơ QLCL).</span>
+          </div>
+        </td></tr>
+
+        <!-- HƯỚNG DẪN MỞ dashboard + PDF đính kèm -->
+        <tr><td style="background:#fffbeb;border-left:1px solid #fde68a;border-right:1px solid #fde68a;padding:16px 24px;">
+          <div style="font-size:13px;color:#0f172a;line-height:1.6;">
+            <strong>📊 Dashboard tương tác (.html)</strong> — biểu đồ, bộ lọc theo Khu/AHU, bảng tất cả phòng — được <strong>đính kèm</strong> ở cuối email này, kèm <strong>báo cáo PDF ký duyệt</strong> khi dịch vụ tạo PDF sẵn sàng.
+          </div>
+          <div style="font-size:12px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.65;">
+            ⬇ <strong>Cách mở dashboard:</strong> ở thẻ tệp đính kèm bên dưới, bấm biểu tượng <strong>Tải xuống</strong> tệp <b>Dashboard-….html</b> về máy, rồi <strong>mở bằng trình duyệt</strong> (Chrome / Edge / Cốc Cốc) — dashboard sẽ hiện đầy đủ và tương tác được.
+            <br><span style="color:#b45309;">⚠ Đừng bấm <b>“Xem trực tiếp”</b> trong Gmail: Gmail không mở tệp .html như trang web nên chỉ hiển thị <b>mã nguồn (chữ)</b> — hãy tải tệp về rồi mở bằng trình duyệt.</span>
+          </div>
+        </td></tr>
+
+        <!-- TÓM TẮT ĐIỀU HÀNH -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:18px 24px 6px;">
+          <div style="background:#f8fafc;border-left:4px solid #4f46e5;border-radius:0 8px 8px 0;padding:12px 14px;font-size:13px;line-height:1.6;color:#334155;">
+            <strong style="color:#0f172a;">Tóm tắt điều hành (Khu {{khu}}):</strong> {{tom_tat_dieu_hanh}}
+          </div>
+        </td></tr>
+
+        <!-- KPI (bảng chữ) -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:14px 24px 4px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
+            <tr>
+              <td width="50%" style="padding:9px 10px;border:1px solid #eef2f6;">% Tuân thủ (Khu {{khu}})<br><span style="font-size:20px;font-weight:700;color:{{kpi_tuan_thu_mau}};">{{kpi_tuan_thu}}%</span> <span style="font-size:12px;color:{{delta_tuan_thu_mau}};">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}}</span></td>
+              <td width="50%" style="padding:9px 10px;border:1px solid #eef2f6;">Giờ cảnh báo (W+C)<br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{kpi_gio_oos}}</span> <span style="font-size:12px;color:{{delta_oos_mau}};">{{delta_oos_mui_ten}} {{delta_oos}}</span></td>
+            </tr>
+            <tr>
+              <td style="padding:9px 10px;border:1px solid #eef2f6;">Sự cố (mở/đóng)<br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{so_su_co_mo}}/{{so_su_co_dong}}</span> <span style="font-size:12px;color:#64748b;">MTTR {{mttr_gio}}h</span></td>
+              <td style="padding:9px 10px;border:1px solid #eef2f6;">Tín hiệu SPC<br><span style="font-size:20px;font-weight:700;color:{{kpi_spc_mau}};">{{so_tin_hieu_spc}}</span> <span style="font-size:12px;color:#64748b;">{{so_scope_ngoai_ks}} scope</span></td>
+            </tr>
+          </table>
+        </td></tr>
+
+        <!-- TOP PHÒNG CẦN CHÚ Ý -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:16px 24px 4px;">
+          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:8px;">Top phòng cần chú ý trong Khu {{khu}} (tuân thủ thấp nhất)</div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12.5px;">
+            <tr>
+              <th align="left" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Phòng</th>
+              <th align="left" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Khu</th>
+              <th align="right" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Tuân thủ</th>
+              <th align="right" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Giờ CB</th>
+            </tr>
+            {{#each top_phong_xau}}
+            <tr>
+              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;"><strong>{{ten_phong}}</strong> <span style="color:#94a3b8;font-size:10px;">{{ma_phong}}</span></td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;">{{khu_vuc}}</td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #f1f5f9;color:{{mau}};font-weight:700;">{{ty_le_tuan_thu}}%</td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #f1f5f9;">{{so_gio_oos}}</td>
+            </tr>
+            {{/each}}
+          </table>
+        </td></tr>
+
+        <!-- BẤT THƯỜNG TRONG KỲ -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:16px 24px 4px;">
+          <div style="font-size:14px;font-weight:700;color:#b91c1c;margin-bottom:6px;">⚠ Bất thường trong kỳ (Khu {{khu}}): {{so_phong_bat_thuong}} phòng xấu đi · {{so_ngoai_le}} ngoại lệ dữ liệu</div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12.5px;">
+            <tr>
+              <th align="left" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #fecaca;">Phòng</th>
+              <th align="right" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #fecaca;">Kỳ này</th>
+              <th align="right" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #fecaca;">Δ</th>
+              <th align="left" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #fecaca;">Lý do</th>
+            </tr>
+            {{#each bat_thuong_tom_tat}}
+            <tr>
+              <td style="padding:6px 8px;border-bottom:1px solid #fef2f2;"><strong>{{ten_phong}}</strong> <span style="color:#94a3b8;font-size:10px;">{{ma_phong}}</span></td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #fef2f2;">{{tuan_thu_ky_nay}}%</td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #fef2f2;color:#b91c1c;font-weight:700;">{{delta}}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #fef2f2;font-size:11px;color:#64748b;">{{ly_do}}</td>
+            </tr>
+            {{/each}}
+          </table>
+          <div style="font-size:10.5px;color:#7f1d1d;margin-top:6px;">Tiêu chí: giảm ≥ 5 điểm % so kỳ trước · tín hiệu SPC mới (EWMA/CUSUM/Nelson) · độ dốc âm với R² ≥ 0,5. Cảnh báo sớm trước khi vượt ngưỡng OOS. Chi tiết đầy đủ ở dashboard (và PDF ký duyệt khi có).</div>
+        </td></tr>
+
+        <!-- NHẬN ĐỊNH AI -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:16px 24px 6px;">
+          <div style="font-size:14px;font-weight:700;color:#4f46e5;margin-bottom:6px;">Nhận định AI cho Khu {{khu}} (đã thẩm định Writer–Judge)</div>
+          <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.6;color:#334155;white-space:pre-wrap;">{{nhan_dinh_ai}}</div>
+          <div style="font-size:10.5px;color:#94a3b8;margin-top:6px;">Số liệu do hệ thống tính — AI chỉ viết nhận định. Kết luận GMP do IPC/QA. Mô hình: {{ai_model_dung}} · {{ai_tao_luc}}</div>
+        </td></tr>
+
+        <!-- FOOTER -->
+        <tr><td style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;padding:14px 24px;">
+          <div style="font-size:11px;color:#94a3b8;line-height:1.6;">
+            Đính kèm: <b>dashboard tương tác (.html)</b>; báo cáo PDF ký duyệt <b>{{ten_file_pdf}}</b> (bản lưu trữ) khi dịch vụ PDF sẵn sàng.
+            Bản lưu Google Drive: <a href="{{link_drive}}" style="color:#4f46e5;">thư mục báo cáo</a>.<br>
+            Truy vết GMP: mã lần chạy <b>{{ma_lan_chay}}</b> · Nguồn: <span style="font-family:monospace;">rpc_bao_cao_tong_hop('{{ky}}','{{tu_ngay_iso}}','{{den_ngay_iso}}','{{khu}}')</span>.
+            Bản riêng Khu {{khu}} — báo cáo tự động WF5 — BMS-GMP (CPC1HN).
+          </div>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
