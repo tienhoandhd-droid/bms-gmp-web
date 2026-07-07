@@ -3,10 +3,54 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#EAF3F8" />
     <title>Giám sát HVAC phòng sạch GMP — CPC1 Hà Nội</title>
+
+    <!-- Bắt tay DNS/TLS tới Supabase NGAY lúc parse HTML (thay vì đợi chunk
+         supabase-js ~182KB tải xong mới chạy preconnect runtime). Vite thay
+         %VITE_SUPABASE_URL% bằng giá trị .env lúc build. -100…300ms cho truy
+         vấn/đăng nhập đầu tiên. URL Supabase là public (đã nằm trong frontend). -->
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
+    <link rel="dns-prefetch" href="%VITE_SUPABASE_URL%" />
+
+    <!-- Critical CSS cho skeleton: hiển thị NGAY, chống "màn trắng" tới khi
+         ~600KB JS (react+app+supabase) parse xong. React thay #root khi mount. -->
+    <style>
+      html, body { margin: 0; padding: 0; }
+      #root { min-height: 100vh; }
+      .boot {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: linear-gradient(155deg, #EAF3F8 0%, #FAFDFF 45%, #E2F2EE 100%);
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #1E3A56;
+      }
+      .boot__ring {
+        width: 42px; height: 42px;
+        border: 4px solid #CFE4EC;
+        border-top-color: #0E7C6B;
+        border-radius: 50%;
+        animation: boot-spin 0.9s linear infinite;
+      }
+      .boot__title { font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
+      .boot__sub { font-size: 12px; color: #4A6072; }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .boot__ring { animation-duration: 2.4s; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Skeleton khởi động — bị React thay thế toàn bộ khi App mount. -->
+      <div class="boot" role="status" aria-live="polite" aria-label="Đang tải bảng giám sát">
+        <div class="boot__ring"></div>
+        <div class="boot__title">Đang tải bảng giám sát GMP…</div>
+        <div class="boot__sub">CPC1 Hà Nội · HVAC phòng sạch</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

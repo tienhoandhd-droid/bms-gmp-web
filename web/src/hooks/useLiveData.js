@@ -15,7 +15,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/bmsClient'
 import {
   layTongQuan, laySuCoDangMo, layCanhBaoHeThong, layNhatKyThaoTac, layLichSuCauHinh,
-  layDanhSachPhong, layThongKeSensorPhong, layXepHangRuiRo, layQuyTrinhSop, layBaoCaoAi,
+  layDanhSachPhong, layThongKeSensorPhong, layThongKeSensorNhieuPhong, layXepHangRuiRo, layQuyTrinhSop, layBaoCaoAi,
   layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp,
 } from '../lib/supabaseData'
 
@@ -66,10 +66,19 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
     const quaHan = Date.now() - cacheSensor.current.luc > ENRICH_TTL_MS
     const chuaCache = Object.keys(cacheSensor.current.theoPhong).length === 0
     if (batBuoc || quaHan || chuaCache) {
-      const ket = await chayTheoLo(canTai, (r) => layThongKeSensorPhong(r.id, signal))
+      // Ưu tiên BATCH 1 round-trip (diệt N+1: 1 request thay ~57). Nếu RPC batch
+      // CHƯA deploy hoặc lỗi → tự lùi về per-phòng (hành vi cũ, đã kiểm chứng)
+      // nên web CHẠY ĐÚNG dù migration đã áp hay chưa.
+      const batch = await layThongKeSensorNhieuPhong(canTai.map((r) => r.id), signal)
       if (signal?.aborted) return ds
-      const theoPhong = {}
-      canTai.forEach((r, i) => { theoPhong[r.id] = (ket[i] && ket[i].sensors) || cacheSensor.current.theoPhong[r.id] || [] })
+      let theoPhong = {}
+      if (!batch.error && batch.theoPhong) {
+        canTai.forEach((r) => { theoPhong[r.id] = batch.theoPhong[r.id] || cacheSensor.current.theoPhong[r.id] || [] })
+      } else {
+        const ket = await chayTheoLo(canTai, (r) => layThongKeSensorPhong(r.id, signal))
+        if (signal?.aborted) return ds
+        canTai.forEach((r, i) => { theoPhong[r.id] = (ket[i] && ket[i].sensors) || cacheSensor.current.theoPhong[r.id] || [] })
+      }
       cacheSensor.current = { luc: Date.now(), theoPhong }
     }
     const theoPhong = cacheSensor.current.theoPhong

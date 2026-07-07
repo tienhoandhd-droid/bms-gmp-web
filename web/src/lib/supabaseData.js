@@ -122,10 +122,10 @@ export async function layDanhSachPhong(signal) {
 // RPC: rpc_thong_ke_sensor_phong(p_ma_phong) → MẢNG
 //   [{loai_cam_bien, hourly_8:[{label,avg,min,max,oos,oos_pct,severity}],
 //     gia_tri_tb_1h, oos_1h (ĐẾM điểm/giờ 0..60), dq_1h, muc_canh_bao_1h}]
-export async function layThongKeSensorPhong(maPhong, signal) {
-  const { data, error } = await goiRPC('rpc_thong_ke_sensor_phong', { p_ma_phong: maPhong }, { signal })
-  if (error || !Array.isArray(data)) return { error, sensors: [] }
-  const sensors = data.map((s) => ({
+// Map 1 dòng sensor thô (RPC/view) → hình dạng UI. DÙNG CHUNG cho cả bản
+// per-phòng và bản batch nhiều-phòng để đảm bảo KHÔNG lệch shape (an toàn GMP).
+function mapSensorRow(s) {
+  return {
     k: s.loai_cam_bien,
     cur: s.gia_tri_tb_1h,
     avg1h: s.gia_tri_tb_1h,
@@ -139,8 +139,34 @@ export async function layThongKeSensorPhong(maPhong, signal) {
     lanCuoi: s.lan_cuoi || null,
     // map cả min/max theo giờ → vmin/vmax để biểu đồ chi tiết vẽ dải min–max
     hourly8: (s.hourly_8 || []).map((h) => ({ label: h.label, avg: h.avg, oos: h.oos, vmin: h.min ?? null, vmax: h.max ?? null })),
-  }))
-  return { error: null, sensors }
+  }
+}
+
+export async function layThongKeSensorPhong(maPhong, signal) {
+  const { data, error } = await goiRPC('rpc_thong_ke_sensor_phong', { p_ma_phong: maPhong }, { signal })
+  if (error || !Array.isArray(data)) return { error, sensors: [] }
+  return { error: null, sensors: data.map(mapSensorRow) }
+}
+
+// ============================================================
+// BATCH thống kê 8h cho NHIỀU phòng trong 1 round-trip (diệt N+1)
+// RPC: rpc_thong_ke_sensor_nhieu_phong(p_ma_phong text[]) → jsonb
+//   { "<ma_phong>": [ {loai_cam_bien, hourly_8, gia_tri_tb_1h, oos_1h, dq_1h,
+//     muc_canh_bao_1h, gioi_han_duoi/tren, oos_10phut_cuoi, lan_cuoi}, … ], … }
+// Trả { error, theoPhong: { maPhong: [mappedSensors] } }. Nếu RPC CHƯA deploy
+// hoặc lỗi → error != null & theoPhong=null → caller tự lùi về per-phòng (N+1).
+// ============================================================
+export async function layThongKeSensorNhieuPhong(maPhongArr, signal) {
+  const arr = Array.isArray(maPhongArr) && maPhongArr.length ? maPhongArr : null
+  const { data, error } = await goiRPC('rpc_thong_ke_sensor_nhieu_phong', { p_ma_phong: arr }, { signal })
+  if (error || !data || typeof data !== 'object' || Array.isArray(data)) {
+    return { error: error || new Error('BATCH_EMPTY'), theoPhong: null }
+  }
+  const theoPhong = {}
+  for (const [ma, rows] of Object.entries(data)) {
+    theoPhong[ma] = Array.isArray(rows) ? rows.map(mapSensorRow) : []
+  }
+  return { error: null, theoPhong }
 }
 
 // ============================================================
