@@ -15,3 +15,11 @@ Thumbs.db
 
 # Handoff nâng cấp — CHỈ LOCAL, không push
 HANDOFF-NANG-CAP-LOCAL.md
+
+# CHỈ LƯU LOCAL — không công khai trên GitHub (kế hoạch, sao lưu, nguyên tắc, service không dùng)
+n8n/
+supabase/
+docs/
+scripts/
+services/
+AGENTS.md
