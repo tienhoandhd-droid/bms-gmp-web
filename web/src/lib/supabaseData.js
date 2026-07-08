@@ -713,6 +713,17 @@ export async function datCongTacPhanTuyen(bat, actor, signal) {
   return goiRPC('rpc_dat_cong_tac_phan_tuyen', { p_bat: !!bat, p_actor: actor || null }, { signal })
 }
 
+// Khóa xác thực webhook (cau_hinh.webhook_token_web, cấp qua RPC cho user đăng nhập) —
+// gửi kèm body `_token` mỗi lần gọi webhook n8n; workflow so khớp trước khi làm việc.
+// Cache theo phiên trang; lỗi/chưa đăng nhập → '' (workflow phía n8n sẽ từ chối).
+let _webhookToken = null
+async function layWebhookToken(signal) {
+  if (_webhookToken != null) return _webhookToken
+  const { data, error } = await goiRPC('rpc_lay_webhook_token', {}, { signal })
+  _webhookToken = (!error && typeof data === 'string') ? data.trim() : ''
+  return _webhookToken
+}
+
 // Lấy URL webhook WF7 (cấu hình trong cau_hinh: key 'wf7_webhook_url'). Trả '' nếu chưa đặt.
 export async function layWebhookAi(signal) {
   const { data, error } = await docView('xem_cau_hinh_he_thong',
@@ -738,7 +749,7 @@ export async function guiNhanDinhXuHuong(url, action, nhanDinh, to, charts, sign
   try {
     const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
-      body: JSON.stringify({ action, to: to || '', charts: Array.isArray(charts) ? charts : (charts ? [charts] : []), ...nhanDinh }),
+      body: JSON.stringify({ _token: await layWebhookToken(signal), action, to: to || '', charts: Array.isArray(charts) ? charts : (charts ? [charts] : []), ...nhanDinh }),
     })
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const j = await res.json().catch(() => ({}))
@@ -760,7 +771,7 @@ export async function phanTichAiQuaWorkflow(url, payload, signal, onTienTrinh) {
   try {
     const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload), signal,
+      body: JSON.stringify({ _token: await layWebhookToken(signal), ...payload }), signal,
     })
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const j = await res.json()
@@ -822,7 +833,7 @@ export async function guiBaoCaoBu(url, ky, signal) {
   try {
     const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ky }), signal,
+      body: JSON.stringify({ _token: await layWebhookToken(signal), ky }), signal,
     })
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     let message = ''
