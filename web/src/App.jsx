@@ -1305,7 +1305,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
               ? [["6 giờ qua", 6], ["12 giờ qua", 12], ["24 giờ qua", 24]]
               : [["7 ngày qua", 7 * 24], ["14 ngày qua", 14 * 24], ["30 ngày qua", 30 * 24]]
             ).map(([lab, hrs]) => <Chip key={lab} active={false} onClick={() => { if (!maxTs) return; const f = maxTs - hrs * 3600000; const fs = toLocalInput(f), ts2 = toLocalInput(maxTs); setDtFrom(fs); setDtTo(ts2); setDtFromDraft(fs); setDtToDraft(ts2); }}>{lab}</Chip>)}
-            <Chip active={!dtFrom && !dtTo} onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }}>Toàn khoảng</Chip>
+            {/* Toàn khoảng: bỏ lọc (xem hết) nhưng 2 ô Từ→đến HIỂN THỊ mốc dữ liệu thật (điểm đầu có dữ liệu → điểm cuối) */}
+            <Chip active={!dtFrom && !dtTo} onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(minTs ? toLocalInput(minTs) : ""); setDtToDraft(maxTs ? toLocalInput(maxTs) : ""); }}>Toàn khoảng</Chip>
           </div>
           <div className="mt-2 flex items-center gap-2 flex-wrap">
             <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Từ → đến</span>
