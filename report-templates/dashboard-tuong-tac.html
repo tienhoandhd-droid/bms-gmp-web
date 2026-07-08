@@ -333,16 +333,16 @@
       var d0=new Date(days[0].ngay+'T00:00:00Z'),thu0=(d0.getUTCDay()+6)%7,maxT=0;
       var cells=days.map(function(p,i){var idx=thu0+i,t=Math.floor(idx/7),th=idx%7;if(t>maxT)maxT=t;return {t:t,th:th,v:p.ty_le==null?null:+p.ty_le,ngay:p.ngay};});
       var soTuan=maxT+1,padL=30,padT=6,W=box.clientWidth||900,cw=Math.min(46,Math.floor((W-padL-6)/soTuan)-4),ch=Math.max(18,Math.min(30,cw)),H=padT+7*(ch+3)+4;
-      var mauO=function(v){return v==null?'#f1f5f9':v>=95?'#0d9488':v>=90?'#5eead4':v>=80?'#fcd34d':'#fca5a5';},thuN=['T2','T3','T4','T5','T6','T7','CN'];
+      var mauO=function(v){return v==null?'#f1f5f9':v>=95?'#0d9488':v>=90?'#5eead4':v>=80?'#fcd34d':v>=50?'#fca5a5':'#b91c1c';},thuN=['T2','T3','T4','T5','T6','T7','CN'];
       var svg=['<svg class="chart" viewBox="0 0 '+W+' '+H+'" id="svg-heat" style="height:'+H+'px">'];
       thuN.forEach(function(t,i){svg.push('<text x="'+(padL-6)+'" y="'+(padT+i*(ch+3)+ch/2+3)+'" text-anchor="end" font-size="9" fill="#94a3b8">'+t+'</text>');});
-      cells.forEach(function(c,i){var x=padL+c.t*(cw+4),y=padT+c.th*(ch+3);svg.push('<rect data-i="'+i+'" x="'+x+'" y="'+y+'" width="'+cw+'" height="'+ch+'" rx="3" fill="'+mauO(c.v)+'" style="cursor:pointer"/><text x="'+(x+cw/2)+'" y="'+(y+ch/2+3)+'" text-anchor="middle" font-size="9" fill="#334155" pointer-events="none">'+String(c.ngay).slice(8)+'</text>');});
+      cells.forEach(function(c,i){var x=padL+c.t*(cw+4),y=padT+c.th*(ch+3);var mauChu=(c.v!=null&&(c.v<50||c.v>=95))?'#fff':'#334155';svg.push('<rect data-i="'+i+'" x="'+x+'" y="'+y+'" width="'+cw+'" height="'+ch+'" rx="3" fill="'+mauO(c.v)+'" style="cursor:pointer"/><text x="'+(x+cw/2)+'" y="'+(y+ch/2+3)+'" text-anchor="middle" font-size="9" fill="'+mauChu+'" pointer-events="none">'+String(c.ngay).slice(8)+'</text>');});
       svg.push('</svg>');
       // CHÚ GIẢI MÀU (08/07/2026): nói rõ 5 mức màu — trước đây không có chú giải, dễ tưởng chỉ 2 màu.
       var oCG=function(m,t){return '<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;white-space:nowrap"><span style="width:14px;height:14px;border-radius:3px;background:'+m+';display:inline-block"></span>'+t+'</span>';};
       var chuGiai='<div style="margin-top:8px;font-size:11px;color:#475569;display:flex;flex-wrap:wrap;align-items:center">'
         +'<b style="margin-right:10px;color:#334155">Chú giải (mỗi ô = 1 ngày, số trong ô = ngày):</b>'
-        +oCG('#0d9488','≥ 95% — kiểm soát tốt')+oCG('#5eead4','90–95% — đạt')+oCG('#fcd34d','80–90% — cần chú ý')+oCG('#fca5a5','&lt; 80% — kém, cần xử lý')+oCG('#f1f5f9','không có dữ liệu')
+        +oCG('#0d9488','≥ 95% — kiểm soát tốt')+oCG('#5eead4','90–95% — đạt')+oCG('#fcd34d','80–90% — cần chú ý')+oCG('#fca5a5','50–80% — kém, cần xử lý')+oCG('#b91c1c','&lt; 50% — CỰC KÉM, ưu tiên cao nhất')+oCG('#f1f5f9','không có dữ liệu')
         +'</div>';
       box.innerHTML=svg.join('')+chuGiai+'<div class="tip" id="tip-heat"></div>';
       var tip=el('tip-heat'),svgEl=el('svg-heat');
