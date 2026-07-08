@@ -1219,7 +1219,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           cap_sach: roomRec.cap_phong_sach || roomRec.capPhong || null, uu_tien: roomRec.priority || roomRec.muc_uu_tien || null },
         rangeLabel: RANGES.find((r) => r.k === range).label, isHourly,
         metrics: { mean: tech.mean, std: tech.std, slope: tech.slope, r2: tech.r2, totOos: tech.totOos, dq: tech.dqAvg, vmin: tech.vmin, vmax: tech.vmax, n: tech.n },
-        series: view.map((r) => ({ label: r.label, comp: r.comp, oos: r.oos })),
+        series: view.map((r) => ({ label: r.label, ts: r.ts, comp: r.comp, oos: r.oos, dq: r.dq })),
         perSensor: showMulti ? sensorsPresent.map((k) => ({ k, label: SENSOR_META[k]?.label, series: viewMulti.map((r) => ({ label: r.label, comp: r[`comp_${k}`], oos: r[`oos_${k}`] })) })) : [],
         gia_tri_thuc_3: giaTriThuc3,      // giá trị đo thực + GHD/GHT cho cả 3 chỉ tiêu
         phong_cung_ahu: phongCungAhu,     // tình trạng các phòng cùng AHU (suy luận hệ thống)
