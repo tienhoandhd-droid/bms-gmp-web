@@ -207,6 +207,33 @@
       </div>
     </details>
 
+    <!-- CHÚ GIẢI THUẬT NGỮ (08/07/2026 — yêu cầu user: mọi viết tắt phải có chú thích) -->
+    <details class="thu-gon" id="dt-cg">
+      <summary><span class="tg">▸</span><span class="stt" style="background:#0284c7">?</span> Chú giải thuật ngữ &amp; từ viết tắt (bấm để mở)</summary>
+      <div class="noi-dung">
+        <div class="grid2" style="font-size:12px;line-height:1.7">
+          <div>
+            <p><b>DP</b> — chênh áp (Pa) giữa phòng và khu vực kế cận; DP thấp hơn giới hạn dưới → nguy cơ nhiễm chéo giữa các cấp sạch.</p>
+            <p><b>RH</b> — độ ẩm tương đối (%); RH cao kéo dài → nguy cơ vi sinh.</p>
+            <p><b>T</b> — nhiệt độ (°C).</p>
+            <p><b>AHU</b> — Air Handling Unit, tổ hợp xử lý không khí; một AHU cấp khí cho nhiều phòng, nhiều phòng cùng AHU cùng xấu → nghi tại AHU.</p>
+            <p><b>GHD / GHT</b> — Giới Hạn Dưới / Giới Hạn Trên của từng chỉ tiêu theo cấu hình phòng.</p>
+            <p><b>Tuân thủ / % đạt</b> — % thời gian giá trị đo nằm TRONG dải GHD–GHT.</p>
+            <p><b>OOS</b> — Out Of Specification: ngoài giới hạn quy định; <b>Giờ CB</b> — số giờ ở mức cảnh báo (Warning + Critical).</p>
+          </div>
+          <div>
+            <p><b>DQ</b> — Data Quality, % số giờ có dữ liệu ghi nhận so với kỳ vọng; DQ thấp = số liệu kém tin cậy (không nội suy — ALCOA+).</p>
+            <p><b>ALCOA+</b> — nguyên tắc toàn vẹn dữ liệu GMP (Attributable, Legible, Contemporaneous, Original, Accurate…).</p>
+            <p><b>Độ dốc</b> — mức thay đổi trung bình mỗi bước thời gian (điểm %/ngày); âm = đang xấu đi. <b>R²</b> — độ tin cậy của xu hướng (0–1); R² ≥ 0,5 mới coi là xu hướng thật, thấp hơn là dao động ngẫu nhiên.</p>
+            <p><b>SPC</b> — kiểm soát quá trình bằng thống kê (xem chú thích mục 10). <b>σ (sigma)</b> — độ lệch chuẩn.</p>
+            <p><b>MKT</b> — nhiệt độ động học trung bình theo ICH Q1A (xem chú thích mục 10).</p>
+            <p><b>Baseline</b> — mức nền tham chiếu của giai đoạn ổn định trước đó, dùng để so phòng đang tốt lên hay tệ đi.</p>
+            <p><b>Δ (delta)</b> — mức chênh so với kỳ trước (điểm %).</p>
+          </div>
+        </div>
+      </div>
+    </details>
+
     <h2><span class="stt">14</span> Nhận định AI (đã thẩm định Writer–Judge)</h2>
     <div class="khoi-ai"><span id="ai-noi-dung">—</span><div class="dis" id="ai-dis"></div></div>
 
@@ -311,7 +338,13 @@
       thuN.forEach(function(t,i){svg.push('<text x="'+(padL-6)+'" y="'+(padT+i*(ch+3)+ch/2+3)+'" text-anchor="end" font-size="9" fill="#94a3b8">'+t+'</text>');});
       cells.forEach(function(c,i){var x=padL+c.t*(cw+4),y=padT+c.th*(ch+3);svg.push('<rect data-i="'+i+'" x="'+x+'" y="'+y+'" width="'+cw+'" height="'+ch+'" rx="3" fill="'+mauO(c.v)+'" style="cursor:pointer"/><text x="'+(x+cw/2)+'" y="'+(y+ch/2+3)+'" text-anchor="middle" font-size="9" fill="#334155" pointer-events="none">'+String(c.ngay).slice(8)+'</text>');});
       svg.push('</svg>');
-      box.innerHTML=svg.join('')+'<div class="tip" id="tip-heat"></div>';
+      // CHÚ GIẢI MÀU (08/07/2026): nói rõ 5 mức màu — trước đây không có chú giải, dễ tưởng chỉ 2 màu.
+      var oCG=function(m,t){return '<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;white-space:nowrap"><span style="width:14px;height:14px;border-radius:3px;background:'+m+';display:inline-block"></span>'+t+'</span>';};
+      var chuGiai='<div style="margin-top:8px;font-size:11px;color:#475569;display:flex;flex-wrap:wrap;align-items:center">'
+        +'<b style="margin-right:10px;color:#334155">Chú giải (mỗi ô = 1 ngày, số trong ô = ngày):</b>'
+        +oCG('#0d9488','≥ 95% — kiểm soát tốt')+oCG('#5eead4','90–95% — đạt')+oCG('#fcd34d','80–90% — cần chú ý')+oCG('#fca5a5','&lt; 80% — kém, cần xử lý')+oCG('#f1f5f9','không có dữ liệu')
+        +'</div>';
+      box.innerHTML=svg.join('')+chuGiai+'<div class="tip" id="tip-heat"></div>';
       var tip=el('tip-heat'),svgEl=el('svg-heat');
       svgEl.addEventListener('mousemove',function(ev){var r=ev.target;if(r.tagName!=='rect'){tip.style.opacity=0;return;}var c=cells[+r.getAttribute('data-i')],rect=svgEl.getBoundingClientRect(),ratio=W/rect.width;tip.style.left=((+r.getAttribute('x')+cw/2)/ratio)+'px';tip.style.top=((+r.getAttribute('y'))/ratio)+'px';tip.style.opacity=1;tip.innerHTML=esc(String(c.ngay).split('-').reverse().join('/'))+': <b>'+(c.v==null?'—':fmt(c.v)+'%')+'</b>';});
       svgEl.addEventListener('mouseleave',function(){tip.style.opacity=0;});
@@ -393,16 +426,28 @@
     (function(){
       var tb=(sc.tieu_bieu||[]),mo=(sc.danh_sach_dang_mo||[]);
       el('dem-sc').textContent=(sc.dang_mo||mo.length)+' đang mở';
-      el('tb-sc-tb').innerHTML=tb.length?('<table><thead><tr><th>Sự cố</th><th>Phòng · chỉ tiêu</th><th>Bắt đầu</th><th class="num">Kéo dài (h)</th><th>Trạng thái</th></tr></thead><tbody>'+tb.map(function(r){return '<tr><td><b>'+esc(r.ma_su_co)+'</b></td><td>'+esc(r.ten_phong||r.phong)+' · '+esc(r.chi_tieu||'')+'</td><td>'+esc(r.bat_dau)+'</td><td class="num">'+fmt(r.keo_dai_gio)+'</td><td>'+esc(r.trang_thai||'')+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có sự cố tiêu biểu.</p>';
-      el('tb-sc-mo').innerHTML=mo.length?('<table><thead><tr><th>Mã</th><th>Phòng</th><th>Ưu tiên</th><th>Mức</th><th>Cảm biến</th><th>Bắt đầu</th><th class="num">Giờ</th></tr></thead><tbody>'+mo.map(function(o){return '<tr><td>'+esc(o.ma_su_co)+'</td><td><b>'+esc(o.phong)+'</b> <span style="color:#94a3b8;font-size:10px">'+esc(o.ten_phong||'')+'</span></td><td>'+esc(o.uu_tien||'—')+'</td><td>'+esc(o.muc_canh_bao||'—')+'</td><td>'+esc(o.loai_cam_bien||o.cam_bien_vi||'—')+'</td><td>'+esc(o.bat_dau||'')+'</td><td class="num">'+fmt(o.keo_dai_gio)+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có sự cố đang mở.</p>';
+      // 08/07/2026: thêm MÃ PHÒNG + KHU VỰC (khu lấy từ trường khu_vuc nếu có, không thì suy từ tiền tố mã phòng C1./C4./Q2.)
+      var khuCua=function(r){ return r.khu_vuc || (String(r.phong||r.ma_phong||'').split('.')[0] || '—'); };
+      el('tb-sc-tb').innerHTML=tb.length?('<table><thead><tr><th>Sự cố</th><th>Mã phòng</th><th>Khu</th><th>Tên phòng · chỉ tiêu</th><th>Bắt đầu</th><th class="num">Kéo dài (h)</th><th>Trạng thái</th></tr></thead><tbody>'+tb.map(function(r){return '<tr><td><b>'+esc(r.ma_su_co)+'</b></td><td><b>'+esc(r.phong||r.ma_phong||'—')+'</b></td><td>'+esc(khuCua(r))+'</td><td>'+esc(r.ten_phong||'')+' · '+esc(r.chi_tieu||'')+'</td><td>'+esc(r.bat_dau)+'</td><td class="num">'+fmt(r.keo_dai_gio)+'</td><td>'+esc(r.trang_thai||'')+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có sự cố tiêu biểu.</p>';
+      el('tb-sc-mo').innerHTML=mo.length?('<table><thead><tr><th>Mã</th><th>Mã phòng</th><th>Khu</th><th>Tên phòng</th><th>Ưu tiên</th><th>Mức</th><th>Cảm biến</th><th>Bắt đầu</th><th class="num">Giờ</th></tr></thead><tbody>'+mo.map(function(o){return '<tr><td>'+esc(o.ma_su_co)+'</td><td><b>'+esc(o.phong||'—')+'</b></td><td>'+esc(khuCua(o))+'</td><td><span style="color:#64748b;font-size:11px">'+esc(o.ten_phong||'—')+'</span></td><td>'+esc(o.uu_tien||'—')+'</td><td>'+esc(o.muc_canh_bao||'—')+'</td><td>'+esc(o.loai_cam_bien||o.cam_bien_vi||'—')+'</td><td>'+esc(o.bat_dau||'')+'</td><td class="num">'+fmt(o.keo_dai_gio)+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có sự cố đang mở.</p>';
     })();
 
     // ================= 9. ĐỘ PHỦ DỮ LIỆU =================
     (function(){
       el('dem-dq').textContent=fmt(dq.dq_tb_pct)+'% TB';
       var pt=(dq.phong_thieu_nhat||[]);
-      var html='<p style="font-size:13px">DQ trung bình toàn nhà máy: <strong style="color:'+mau(dq.dq_tb_pct)+'">'+fmt(dq.dq_tb_pct)+'%</strong> · Số ngày có khoảng trống: <strong>'+(dq.so_ngay_thieu==null?'—':dq.so_ngay_thieu)+'</strong></p>';
-      if(pt.length){html+='<h3 style="font-size:12px;color:#64748b;margin:10px 0 6px">Phòng thiếu dữ liệu nhiều nhất</h3><table><thead><tr><th>Phòng</th><th class="num">DQ %</th></tr></thead><tbody>'+pt.map(function(p){return '<tr><td>'+esc(p.ma_phong)+'</td><td class="num" style="color:'+mau(p.dq_pct)+'">'+fmt(p.dq_pct)+'</td></tr>';}).join('')+'</tbody></table>';}
+      var html='<p style="font-size:13px">DQ (chất lượng dữ liệu — % số giờ ghi nhận được so với kỳ vọng) trung bình toàn nhà máy: <strong style="color:'+mau(dq.dq_tb_pct)+'">'+fmt(dq.dq_tb_pct)+'%</strong> · Số ngày có khoảng trống: <strong>'+(dq.so_ngay_thieu==null?'—':dq.so_ngay_thieu)+'</strong></p>';
+      // 08/07/2026: LIỆT KÊ CỤ THỂ ngày nào KHÔNG có dữ liệu (từ chuỗi toàn nhà máy — ty_le null), gom ngày liền nhau thành khoảng.
+      (function(){
+        var trong=(xh.nha_may||[]).filter(function(r){return r.ngay&&r.ty_le==null;}).map(function(r){return r.ngay;});
+        var lbl=function(iso){return String(iso).split('-').reverse().join('/');};
+        if(trong.length){
+          var doan=[];var s=trong[0],p=trong[0];
+          for(var i=1;i<=trong.length;i++){var c=trong[i];var ke=c&&(new Date(c+'T00:00:00Z')-new Date(p+'T00:00:00Z')===86400000);if(!ke){doan.push(s===p?lbl(s):lbl(s)+' → '+lbl(p));s=c;}p=c||p;}
+          html+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:9px 12px;margin:8px 0;font-size:12px"><b style="color:#b45309">⚠ Ngày KHÔNG có dữ liệu toàn nhà máy ('+trong.length+' ngày):</b> '+doan.map(esc).join(' · ')+'. Các ngày này KHÔNG được tính vào kết luận (không nội suy); nếu trùng giai đoạn vận hành bình thường → nghi FMS/WF1 ngừng thu, đề nghị IT kiểm tra.</div>';
+        } else { html+='<p style="font-size:12px;color:#0d9488;margin:6px 0">✓ Không có ngày nào trống dữ liệu toàn nhà máy trong kỳ (thiếu cục bộ từng phòng — nếu có — xem bảng dưới và Bảng 1 mục 13: tỉ lệ thiếu theo tuần/tháng).</p>'; }
+      })();
+      if(pt.length){html+='<h3 style="font-size:12px;color:#64748b;margin:10px 0 6px">Phòng thiếu dữ liệu nhiều nhất (DQ thấp = nhiều giờ không ghi nhận — số liệu phòng đó kém tin cậy)</h3><table><thead><tr><th>Phòng</th><th>Khu</th><th class="num">DQ %</th><th>Mức độ</th></tr></thead><tbody>'+pt.map(function(p){var v=(p.dq_pct==null?null:+p.dq_pct);var nx=v==null?'—':(v>=95?'đủ tốt':(v>=85?'thiếu nhẹ — theo dõi':'thiếu NHIỀU — kiểm tra cảm biến/FMS'));return '<tr'+(v!=null&&v<85?' class="bad"':'')+'><td><b>'+esc(p.ma_phong)+'</b></td><td>'+esc(String(p.ma_phong||'').split('.')[0]||'—')+'</td><td class="num" style="color:'+mau(p.dq_pct)+';font-weight:700">'+fmt(p.dq_pct)+'</td><td style="font-size:11px">'+nx+'</td></tr>';}).join('')+'</tbody></table>';}
       var ct=(bc.ngoai_le||{}).chi_tiet||[];
       if(ct.length){var LOAI={SENSOR_DUNG_HINH:'Cảm biến đứng hình',FMS_HTTP_LOI:'Lỗi kết nối FMS',MAT_DU_LIEU:'Khoảng trống dữ liệu'};html+='<h3 style="font-size:12px;color:#64748b;margin:12px 0 6px">Ngoại lệ dữ liệu gần đây</h3><table><thead><tr><th>Loại</th><th>Phòng</th><th>Bắt đầu</th><th>Mô tả</th></tr></thead><tbody>'+ct.map(function(e){return '<tr><td>'+esc(LOAI[e.loai]||e.loai)+'</td><td>'+esc(e.ma_phong||'—')+'</td><td>'+esc(e.bat_dau||'')+'</td><td style="font-size:11px;color:#64748b">'+esc(e.mo_ta||'')+'</td></tr>';}).join('')+'</tbody></table>';}
       html+='<p style="font-size:11px;color:#94a3b8;margin-top:8px">Kết luận báo cáo chỉ có hiệu lực với khoảng đủ dữ liệu; khoảng thiếu được đánh dấu, không nội suy (ALCOA+ — dữ liệu nguyên bản).</p>';
@@ -413,9 +458,18 @@
     (function(){
       el('dem-spc').textContent=tinHieu+' tín hiệu · MKT '+fmt(mkt.mkt_max,2)+'°C';
       var s=(spc.chi_tiet||[]);
-      el('tb-spc').innerHTML=s.length?('<table><thead><tr><th>Scope</th><th>Cảm biến</th><th class="num">Tín hiệu</th><th>Loại</th></tr></thead><tbody>'+s.map(function(r){return '<tr><td>'+esc(r.ten_scope||r.scope_id)+'</td><td>'+esc(r.sensor_type)+'</td><td class="num">'+(r.so_tin_hieu==null?'—':r.so_tin_hieu)+'</td><td style="font-size:11px">'+esc(r.cac_loai||'—')+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Tất cả scope trong kiểm soát.</p>';
+      // 08/07/2026: thêm cột Ý NGHĨA + chú thích thuật ngữ SPC (yêu cầu user: viết tắt phải có chú thích + đánh giá ý nghĩa)
+      el('tb-spc').innerHTML=(s.length?('<table><thead><tr><th>Phạm vi</th><th>Cảm biến</th><th class="num">Tín hiệu</th><th>Loại</th><th>Ý nghĩa</th></tr></thead><tbody>'+s.map(function(r){
+        var loai=String(r.cac_loai||'');
+        var yn=/3SIGMA|SIGMA|VUOT/i.test(loai)?'lệch ĐỘT BIẾN khỏi mức thường — kiểm tra sự kiện/thao tác hôm đó'
+             :/RUN|CUNG_PHIA|8/i.test(loai)?'lệch HỆ THỐNG kéo dài một phía — nghi cài đặt/thiết bị trôi, không phải ngẫu nhiên'
+             :/TREND|TANG|GIAM|6/i.test(loai)?'đang TRÔI DẦN theo một hướng — can thiệp sớm trước khi vượt ngưỡng'
+             :'ngoài kiểm soát thống kê — cần xem chuỗi dữ liệu gốc';
+        return '<tr><td>'+esc(r.ten_scope||r.scope_id)+'</td><td>'+esc(r.sensor_type)+'</td><td class="num" style="font-weight:700;color:#b45309">'+(r.so_tin_hieu==null?'—':r.so_tin_hieu)+'</td><td style="font-size:11px">'+esc(loai||'—')+'</td><td style="font-size:11px;color:#64748b">'+yn+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#0d9488">✓ Tất cả phạm vi TRONG kiểm soát thống kê — biến động hiện tại là ngẫu nhiên bình thường, không có tín hiệu trôi/đột biến.</p>')
+        +'<p style="font-size:11px;color:#64748b;margin-top:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px"><b>Chú thích:</b> <b>SPC</b> (Statistical Process Control — kiểm soát quá trình bằng thống kê) phát hiện biến động BẤT THƯỜNG trước khi vượt ngưỡng: <b>±3σ</b> = điểm vượt 3 độ lệch chuẩn (đột biến); <b>chuỗi 8 điểm cùng phía</b> = lệch hệ thống; <b>6 điểm tăng/giảm liên tiếp</b> = trôi dần. Có tín hiệu ≠ vi phạm GMP — là CẢNH BÁO SỚM để kiểm tra nguyên nhân.</p>';
       var m=(mkt.chi_tiet||[]);
-      el('tb-mkt').innerHTML=m.length?('<table><thead><tr><th>Phòng</th><th>Khu</th><th class="num">MKT °C</th><th class="num">T TB</th><th class="num">T max</th></tr></thead><tbody>'+m.map(function(r){return '<tr><td><b>'+esc(r.ma_phong)+'</b></td><td>'+esc(r.khu_vuc||'—')+'</td><td class="num" style="font-weight:700">'+fmt(r.mkt,2)+'</td><td class="num">'+fmt(r.t_tb,2)+'</td><td class="num">'+fmt(r.t_max,2)+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Chưa có dữ liệu nhiệt độ.</p>';
+      el('tb-mkt').innerHTML=(m.length?('<table><thead><tr><th>Phòng</th><th>Khu</th><th class="num">MKT °C</th><th class="num">T TB</th><th class="num">T max</th><th>Đánh giá</th></tr></thead><tbody>'+m.map(function(r){var v=(r.mkt==null?null:+r.mkt);var yn=v==null?'—':(v<=25?'trong giới hạn bảo quản thường (≤25°C)':'CAO hơn 25°C — rà điều kiện bảo quản/tải nhiệt phòng');return '<tr'+(v!=null&&v>25?' class="bad"':'')+'><td><b>'+esc(r.ma_phong)+'</b></td><td>'+esc(r.khu_vuc||'—')+'</td><td class="num" style="font-weight:700;color:'+(v!=null&&v>25?'#b91c1c':'#0f172a')+'">'+fmt(r.mkt,2)+'</td><td class="num">'+fmt(r.t_tb,2)+'</td><td class="num">'+fmt(r.t_max,2)+'</td><td style="font-size:11px;color:#64748b">'+yn+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Chưa có dữ liệu nhiệt độ.</p>')
+        +'<p style="font-size:11px;color:#64748b;margin-top:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px"><b>Chú thích:</b> <b>MKT</b> (Mean Kinetic Temperature — nhiệt độ động học trung bình, ICH Q1A) là nhiệt độ "tương đương" phản ánh tác động nhiệt TÍCH LŨY lên sản phẩm — nhấn mạnh các đợt nóng hơn so với trung bình cộng thường. MKT sát/vượt giới hạn bảo quản dù T trung bình vẫn đẹp = có các đợt nóng ngắn đáng lưu ý.</p>';
     })();
 
     // ================= 11. BASELINE + XU HƯỚNG =================
