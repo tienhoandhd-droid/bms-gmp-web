@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { laySuCoPhut, capNhatPhut8h, thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -12,7 +12,8 @@ import {
   TrendingDown, TrendingUp, Gauge, CircleDot, Check, ChevronDown, Bell, BellOff, Mail, Cpu,
   Wind, FileBarChart, LayoutDashboard, AlertOctagon, Building2, LineChart as LineIcon,
   ScrollText, Settings as Cog, Wifi, Printer, Plus, Trash2, Search, LogIn, LogOut,
-  User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus, Save, GitBranch, Power
+  User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus, Save, GitBranch, Power,
+  Radio, RefreshCw
 } from "lucide-react";
 import logoCpc1hn from "./assets/logo-cpc1hn.png";
 
@@ -63,6 +64,7 @@ const canManageRooms = (role) => FULL_ACCESS.includes(role);
 const TAB_ROLES = {
   home:     ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   events:   ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
+  recent:   ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   trend:    ["LOT", "QA", "ADMIN", "IT"],
   reports:  FULL_ACCESS,
   audit:    FULL_ACCESS,
@@ -2103,7 +2105,117 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
   );
 }
 
-const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
+/* ===== SỰ CỐ GẦN ĐÂY — bản đồ phút cửa sổ 8h (chỉ phòng có sự cố) ===== */
+const RECENT_RANGES = [{ k: 1, label: "1 giờ" }, { k: 4, label: "4 giờ" }, { k: 8, label: "8 giờ" }];
+function SuCoGanDayPage({ isLive }) {
+  const [gio, setGio] = useState(8);            // khoảng xem: 1 / 4 / 8h (mặc định 8)
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [capNhatLuc, setCapNhatLuc] = useState(null);
+  const [loi, setLoi] = useState(null);
+  const [locKhu, setLocKhu] = useState("ALL");
+  const gioRef = useRef(gio); gioRef.current = gio;
+
+  const taiLai = useCallback(async (kichFms) => {
+    if (!isLive) { setLoading(false); return; }
+    // Kích Edge Function nạp điểm phút mới (fail-mềm nếu chưa deploy) rồi đọc bảng
+    if (kichFms) { try { await capNhatPhut8h(); } catch { /* Edge chưa sẵn — vẫn đọc bảng */ } }
+    const { error, rows: r } = await laySuCoPhut(gioRef.current);
+    if (error) setLoi(error); else { setLoi(null); setRows(r); setCapNhatLuc(new Date()); }
+    setLoading(false);
+  }, [isLive]);
+
+  useEffect(() => { setLoading(true); taiLai(true); }, [taiLai]);
+  useEffect(() => { taiLai(false); }, [gio, taiLai]);      // đổi khoảng → đọc lại (không cần kích FMS)
+  useEffect(() => {                                         // tự làm mới mỗi 60s
+    if (!isLive) return;
+    const id = setInterval(() => taiLai(true), 60000);
+    return () => clearInterval(id);
+  }, [isLive, taiLai]);
+
+  // gom theo phòng: { ma_phong, ten_phong, khu_vuc, ahu, sensors:[row], oosMax }
+  const phongList = useMemo(() => {
+    const m = new Map();
+    for (const r of rows) {
+      let p = m.get(r.ma_phong);
+      if (!p) { p = { ma_phong: r.ma_phong, ten_phong: r.ten_phong, khu_vuc: r.khu_vuc, ahu: r.ahu, sensors: [] }; m.set(r.ma_phong, p); }
+      p.sensors.push(r);
+    }
+    const arr = [...m.values()].map((p) => ({ ...p, oosMax: Math.max(0, ...p.sensors.map((s) => s.so_oos || 0)), oosTong: p.sensors.reduce((a, s) => a + (s.so_oos || 0), 0) }));
+    arr.sort((a, b) => b.oosTong - a.oosTong || a.ma_phong.localeCompare(b.ma_phong));
+    return arr;
+  }, [rows]);
+
+  const khus = useMemo(() => [...new Set(phongList.map((p) => p.khu_vuc).filter(Boolean))].sort(), [phongList]);
+  const phongHienThi = phongList.filter((p) => locKhu === "ALL" || p.khu_vuc === locKhu);
+
+  // 1 sensor phút → series cho RoomBandChart: {label, avg, lo, hi}
+  const seriesTu = (r) => (r.chuoi || []).map((pt) => ({
+    label: new Date(pt.t).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+    avg: pt.v, lo: r.gioi_han_duoi, hi: r.gioi_han_tren,
+  }));
+
+  if (!isLive) return <Card className="p-8 text-center text-[13px] text-slate-500">Cần kết nối dữ liệu thật (LIVE) để xem bản đồ sự cố theo phút.</Card>;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionTitle icon={Radio} hint="dữ liệu theo phút · chỉ phòng đang có sự cố ≤8h · tự làm mới mỗi phút">Sự cố gần đây — bản đồ theo phút</SectionTitle>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden text-[12px] font-medium">
+            {RECENT_RANGES.map((r) => <button key={r.k} onClick={() => setGio(r.k)} className={`px-3 py-1.5 ${gio === r.k ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={gio === r.k ? { backgroundColor: COLOR.teal } : {}}>{r.label}</button>)}
+          </div>
+          <button onClick={() => { setLoading(true); taiLai(true); }} className="flex items-center gap-1.5 text-[12px] font-medium text-slate-600 rounded-xl px-3 py-1.5 ring-1 ring-slate-200 bg-white hover:bg-slate-50"><RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} strokeWidth={1.8} /> Làm mới</button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
+        <button onClick={() => setLocKhu("ALL")} className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 ${locKhu === "ALL" ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200"}`} style={locKhu === "ALL" ? { backgroundColor: COLOR.teal } : {}}>Tất cả</button>
+        {khus.map((k) => <button key={k} onClick={() => setLocKhu(k)} className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 ${locKhu === k ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200"}`} style={locKhu === k ? { backgroundColor: COLOR.teal } : {}}>Khu {k}</button>)}
+        <span className="text-[11px] text-slate-400 ml-auto tabular-nums flex items-center gap-2">
+          {capNhatLuc && <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" /> Cập nhật {capNhatLuc.toLocaleTimeString("vi-VN")}</span>}
+          · {phongHienThi.length} phòng
+        </span>
+      </div>
+
+      {loi ? <Card className="p-6 text-center text-[13px] text-rose-600">Không tải được dữ liệu phút: {loi.thong_bao || loi.message || "lỗi kết nối"}.</Card>
+        : loading && !rows.length ? <Card className="p-8 text-center text-[13px] text-slate-500">Đang tải dữ liệu theo phút…</Card>
+        : phongHienThi.length === 0 ? (
+          <Card className="px-5 py-10 text-center">
+            <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div>
+            <p className="mt-3 text-[14px] font-semibold" style={{ color: COLOR.navy }}>Không có phòng nào đang có sự cố trong 8 giờ qua</p>
+            <p className="mt-1.5 text-[12px] text-slate-500 max-w-md mx-auto leading-relaxed">Tab này chỉ hiện các phòng phát sinh sự cố gần đây, với dữ liệu đo <b>từng phút</b> (làm mới mỗi 60 giây). Khi có sự cố, biểu đồ chi tiết sẽ xuất hiện ở đây.</p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {phongHienThi.map((p) => (
+              <Card key={p.ma_phong} className="p-4">
+                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                  <div className="min-w-0">
+                    <h3 className="text-[14px] font-semibold truncate" style={{ color: COLOR.navy }}>{p.ma_phong}<span className="text-slate-400 font-normal"> · {p.ten_phong}</span></h3>
+                    <p className="text-[11px] text-slate-500">Khu {p.khu_vuc} · {p.ahu}</p>
+                  </div>
+                  {p.oosTong > 0 && <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 ring-1 ring-rose-200 px-2 py-1 rounded-full shrink-0">{p.oosTong} điểm ngoài ngưỡng</span>}
+                </div>
+                <div className="space-y-4">
+                  {p.sensors.map((s) => (
+                    <div key={s.loai_cam_bien}>
+                      <Chart type="roomBand" sensorKey={s.loai_cam_bien} series={seriesTu(s)} baseline={null} group={"recent-" + p.ma_phong} />
+                      <p className="text-[10.5px] text-slate-400 mt-1">{s.so_diem} điểm/phút · {s.so_oos} điểm ngoài ngưỡng · mới nhất {s.gia_tri_cuoi == null ? "—" : (+s.gia_tri_cuoi).toFixed(2)}{SENSOR_META[s.loai_cam_bien]?.unit || ""}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      <p className="text-[11px] text-slate-400 text-center">Dữ liệu phút lấy trực tiếp từ FMS qua Supabase Edge Function (giữ mật khẩu phía máy chủ), lưu cửa sổ trượt 8 giờ và tự xoá điểm cũ hơn. Chọn 1/4/8 giờ để phóng to khoảng xem.</p>
+    </div>
+  );
+}
+
+const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Sự cố gần đây", icon: Radio }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 export default function App() {
   const [tab, setTab] = useState("home");
@@ -2436,6 +2548,7 @@ export default function App() {
             );
           })()}
 
+          {tab === "recent" && <SuCoGanDayPage isLive={isLive} />}
           {tab === "trend" && <div className="space-y-6"><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? live.rooms : null} liveIncidents={isLive ? incidents : null} onSaveAI={handleSaveAI} /><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
           {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
 

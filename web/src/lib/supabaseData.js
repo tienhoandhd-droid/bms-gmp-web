@@ -10,6 +10,7 @@
 //   error=null khi OK. Nếu lỗi, phần dữ liệu = null/[] (UI tự fail-mềm).
 // ============================================================
 import { docView, goiRPC, supabase } from './bmsClient'
+import { SUPABASE_URL } from './config'
 
 // ---- Máy trạng thái sự cố: MÃ trong DB ↔ NHÃN mà UI (STATUS_FLOW) dùng ----
 // DB lưu MÃ (CHUA_XU_LY,…); UI mockup khóa state bằng nhãn tiếng Việt.
@@ -839,6 +840,35 @@ export async function guiBaoCaoBu(url, ky, signal) {
     let message = ''
     try { const j = await res.json(); message = (j && j.message) || '' } catch { /* thân trả lời không phải JSON — vẫn OK */ }
     return { ok: true, message }
+  } catch (e) {
+    return { ok: false, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
+  }
+}
+
+// ---------- Tab "Sự cố gần đây" — dữ liệu PHÚT cửa sổ 8h ----------
+// Đọc dữ liệu phút đã gom theo phòng-sensor cho khoảng giờ p_gio (1/4/8).
+// Trả { error, rows }. Mỗi row: { ma_phong, ten_phong, khu_vuc, ahu, loai_cam_bien,
+//   gioi_han_duoi, gioi_han_tren, so_diem, so_oos, gia_tri_cuoi, chuoi:[{t,v,o}] }.
+export async function laySuCoPhut(gio = 8, signal) {
+  const { data, error } = await goiRPC('rpc_du_lieu_phut_gan_day', { p_gio: gio }, { signal })
+  if (error) return { error, rows: [] }
+  return { error: null, rows: Array.isArray(data) ? data : [] }
+}
+
+// Kích Edge Function capnhat-phut-8h: đăng nhập FMS phía server, nạp điểm phút
+// mới vào bảng du_lieu_phut_8h + tự dọn >8h. Gọi trước mỗi lần đọc để dữ liệu tươi.
+// Fail-mềm: Edge chưa deploy / lỗi mạng → web vẫn đọc dữ liệu bảng gần nhất.
+export async function capNhatPhut8h(signal) {
+  if (!SUPABASE_URL) return { ok: false, error: 'NO_URL' }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/capnhat-phut-8h`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-bms-token': await layWebhookToken(signal) },
+      signal,
+    })
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
+    const j = await res.json().catch(() => ({}))
+    return j && j.ok ? { ok: true, soPhong: j.so_phong, soDiem: j.so_diem } : { ok: false, error: (j && j.error) || 'EMPTY' }
   } catch (e) {
     return { ok: false, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
   }
