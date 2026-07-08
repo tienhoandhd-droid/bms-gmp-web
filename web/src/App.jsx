@@ -517,11 +517,35 @@ function AiSections({ text }) {
     const m = META.find((x) => title.toUpperCase().includes(x.kw)) || { icon: Sparkles, c: COLOR.teal, bg: "bg-slate-50", ring: "ring-slate-200" };
     const Icon = m.icon;
     const lines = body.split("\n").map((l) => l.replace(/\s+$/, "")).filter((l) => l.trim());
+    // Gom các dòng BẢNG markdown (| a | b |) liền kề thành 1 khối bảng; còn lại là dòng chữ.
+    const khoi = [];
+    lines.forEach((l) => {
+      const t = l.trim();
+      if (t.startsWith("|") && t.endsWith("|")) {
+        const last = khoi[khoi.length - 1];
+        if (last && last.kind === "table") last.rows.push(t); else khoi.push({ kind: "table", rows: [t] });
+      } else khoi.push({ kind: "line", text: l });
+    });
+    const parseRow = (r) => r.slice(1, -1).split("|").map((c) => c.trim());
+    const laNgan = (cells) => cells.every((c) => /^[-: ]*$/.test(c));
     return (
       <div key={idx} className={`rounded-2xl ring-1 ${m.ring} ${m.bg} p-3.5`}>
         <div className="flex items-center gap-2 mb-1.5"><Icon className="w-4 h-4 shrink-0" style={{ color: m.c }} strokeWidth={1.9} /><h5 className="text-[12px] font-bold uppercase tracking-wide" style={{ color: m.c }}>{title}</h5></div>
-        <div className="space-y-1">{lines.map((l, j) => {
-          const t = l.trim();
+        <div className="space-y-1.5">{khoi.map((k, j) => {
+          if (k.kind === "table") {
+            const rows = k.rows.map(parseRow).filter((cells) => !laNgan(cells));
+            if (!rows.length) return null;
+            const [head, ...than] = rows;
+            return (
+              <div key={j} className="overflow-x-auto rounded-lg ring-1 ring-slate-200/80 bg-white/70 my-1">
+                <table className="w-full text-[11.5px]">
+                  <thead><tr className="text-left text-[10.5px] uppercase tracking-wide text-slate-500 bg-slate-50/80">{head.map((c, i) => <th key={i} className="py-1.5 px-2.5 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
+                  <tbody>{than.map((r, ri) => <tr key={ri} className="border-t border-slate-100">{r.map((c, ci) => <td key={ci} className={`py-1.5 px-2.5 ${ci === 0 ? "font-medium text-slate-700" : "text-slate-600 tabular-nums"}`}>{c}</td>)}</tr>)}</tbody>
+                </table>
+              </div>
+            );
+          }
+          const t = k.text.trim();
           const bullet = t.startsWith("•") || t.startsWith("-");
           const txt = t.replace(/^[•-]\s*/, "");
           const warn = txt.startsWith("⚠");

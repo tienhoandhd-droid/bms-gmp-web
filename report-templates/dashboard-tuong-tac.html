@@ -194,7 +194,20 @@
       <div class="noi-dung" id="gh-wrap"></div>
     </details>
 
-    <h2><span class="stt">13</span> Nhận định AI (đã thẩm định Writer–Judge)</h2>
+    <!-- 13. SO SÁNH & XẾP HẠNG + XU HƯỚNG KỲ / KỲ SAU (bổ sung 08/07/2026) -->
+    <details class="thu-gon" id="dt-ss" open>
+      <summary><span class="tg">▸</span><span class="stt">13</span> So sánh &amp; xếp hạng (Khu · AHU) — thiếu dữ liệu — xu hướng kỳ &amp; kỳ sau<span class="dem" id="dem-ss">—</span></summary>
+      <div class="noi-dung">
+        <div id="ss-thieudl"></div>
+        <div class="grid2" style="margin-top:10px">
+          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 2 — Xếp hạng KHU VỰC theo tuân thủ</h3><div id="tb-ss-khu"></div></div>
+          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 3 — Xếp hạng AHU theo tuân thủ</h3><div id="tb-ss-ahu"></div></div>
+        </div>
+        <div id="ss-xuhuong" style="margin-top:12px"></div>
+      </div>
+    </details>
+
+    <h2><span class="stt">14</span> Nhận định AI (đã thẩm định Writer–Judge)</h2>
     <div class="khoi-ai"><span id="ai-noi-dung">—</span><div class="dis" id="ai-dis"></div></div>
 
     <div class="foot" id="foot">—</div>
@@ -423,7 +436,43 @@
       el('gh-wrap').innerHTML=html;
     })();
 
-    // ================= 13. AI + FOOTER =================
+    // ================= 13. SO SÁNH & XẾP HẠNG + XU HƯỚNG KỲ / KỲ SAU =================
+    (function(){
+      var boSung=DATA.bo_sung||{};
+      // ---- Bảng 1: thiếu dữ liệu theo TUẦN / THÁNG (chỉ hiện khi nguồn cấp bo_sung.thieu_dl — WF7b) ----
+      var td=boSung.thieu_dl||null;
+      if(td&&((td.theo_tuan||[]).length||(td.theo_thang||[]).length)){
+        var mkTd=function(rows,nhan){ if(!(rows||[]).length) return ''; var h='<div style="flex:1 1 260px"><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 1 — Tỉ lệ thiếu dữ liệu theo '+nhan+'</h3><table><thead><tr><th>'+nhan+'</th><th class="num">% có dữ liệu</th><th class="num">% thiếu</th></tr></thead><tbody>';
+          rows.forEach(function(r){var th=(r.thieu_pct==null?null:+r.thieu_pct);h+='<tr'+(th!=null&&th>5?' class="bad"':'')+'><td>'+esc(r.nhan)+'</td><td class="num">'+(r.co_dl_pct==null?'—':(+r.co_dl_pct).toFixed(1))+'%</td><td class="num" style="font-weight:700;color:'+(th==null?'#94a3b8':(th>5?'#b91c1c':(th>1?'#d97706':'#0d9488')))+'">'+(th==null?'—':th.toFixed(1))+'%</td></tr>';});
+          return h+'</tbody></table></div>'; };
+        el('ss-thieudl').innerHTML='<div style="display:flex;gap:14px;flex-wrap:wrap">'+mkTd(td.theo_tuan,'tuần')+mkTd(td.theo_thang,'tháng')+'</div>';
+      } else { el('ss-thieudl').innerHTML='<p style="font-size:11.5px;color:#94a3b8">Bảng thiếu dữ liệu theo tuần/tháng: nguồn số liệu chưa cấp cho kỳ này.</p>'; }
+      // ---- Bảng 2 & 3: xếp hạng KHU và AHU (tính từ chính bc.xu_huong — có sẵn mọi báo cáo) ----
+      var slope=function(chuoi){var v=(chuoi||[]).map(function(r){return r.ty_le==null?null:+r.ty_le;}).filter(function(x){return x!=null;});var n=v.length;if(n<3)return null;var sx=0,sy=0,sxy=0,sxx=0;v.forEach(function(y,i){sx+=i;sy+=y;sxy+=i*y;sxx+=i*i;});var d=n*sxx-sx*sx;return d?+(((n*sxy-sx*sy)/d)).toFixed(2):null;};
+      var mkRank=function(rows,tenCot,coKhu,elId){ var ds=(rows||[]).map(function(r){var tb=(r.ty_le_tb!=null?+r.ty_le_tb:null);return {ten:r.khu_vuc||r.ahu,khu:r.khu_vuc&&r.ahu?r.khu_vuc:null,tb:tb,doc:slope(r.chuoi),chuoi:r.chuoi};}).sort(function(a,b){return (b.tb==null?-1:b.tb)-(a.tb==null?-1:a.tb);});
+        if(!ds.length){el(elId).innerHTML='<p style="font-size:11.5px;color:#94a3b8">Chưa có dữ liệu.</p>';return;}
+        var h='<table><thead><tr><th>#</th><th>'+tenCot+'</th>'+(coKhu?'<th>Khu</th>':'')+'<th class="num">Tuân thủ TB</th><th class="num">Độ dốc/kỳ</th><th>Diễn biến</th></tr></thead><tbody>';
+        ds.forEach(function(r,i){h+='<tr'+(r.tb!=null&&r.tb<80?' class="bad"':'')+'><td style="font-weight:700;color:'+(i===0?'#0d9488':(i===ds.length-1?'#b91c1c':'#64748b'))+'">'+(i+1)+'</td><td><b>'+esc(r.ten)+'</b></td>'+(coKhu?'<td>'+esc(r.khu||'—')+'</td>':'')+'<td class="num" style="font-weight:700;color:'+mau(r.tb)+'">'+fmt(r.tb)+'%</td><td class="num" style="color:'+(r.doc==null?'#94a3b8':(r.doc<0?'#b91c1c':'#0d9488'))+'">'+(r.doc==null?'—':(r.doc>0?'+':'')+r.doc)+'</td><td>'+spark(r.chuoi,120,30)+'</td></tr>';});
+        el(elId).innerHTML=h+'</tbody></table>'; };
+      mkRank(xh.theo_khu,'Khu vực',false,'tb-ss-khu');
+      mkRank(xh.theo_ahu,'AHU',true,'tb-ss-ahu');
+      el('dem-ss').textContent=((xh.theo_khu||[]).length)+' khu · '+((xh.theo_ahu||[]).length)+' AHU';
+      // ---- Xu hướng chính của kỳ + đánh giá kỳ sau ----
+      var nm=xh.nha_may||[]; var v=nm.map(function(r){return r.ty_le==null?null:+r.ty_le;}).filter(function(x){return x!=null;});
+      var htXH='';
+      if(v.length>=3){
+        var doc=slope(nm), dau=v[0], cuoi=v[v.length-1], min=Math.min.apply(null,v), imin=v.indexOf(min);
+        var ngayMin=(nm.filter(function(r){return r.ty_le!=null;})[imin]||{}).ngay||'';
+        var lbl=function(iso){return String(iso||'').slice(5).split('-').reverse().join('/');};
+        htXH+='<p style="margin:0 0 6px"><b>Xu hướng chính của kỳ:</b> tuân thủ đi từ '+dau.toFixed(1)+'% → '+cuoi.toFixed(1)+'% ('+(cuoi-dau>=0?'+':'')+(cuoi-dau).toFixed(1)+' điểm), đáy '+min.toFixed(1)+'%'+(ngayMin?' vào '+lbl(ngayMin):'')+', độ dốc '+(doc==null?'—':(doc>0?'+':'')+doc)+' điểm %/bước.</p>';
+        var duBao=boSung.du_bao||null;
+        if(duBao&&duBao.huong){ htXH+='<p style="margin:0"><b>Đánh giá kỳ sau (dự báo 7 ngày, OLS cửa sổ 30 ngày):</b> hướng <b>'+esc(duBao.huong)+'</b>'+(duBao.du_bao_cuoi!=null?', dự kiến quanh '+(+duBao.du_bao_cuoi).toFixed(1)+'%':'')+(duBao.r2!=null?' (R²='+(+duBao.r2).toFixed(2)+(duBao.du_bao_dang_tin?', đáng tin':', tham khảo — biến động ngẫu nhiên')+')':'')+'. '+(duBao.ghi_chu?esc(duBao.ghi_chu):'')+'</p>'; }
+        else { htXH+='<p style="margin:0"><b>Đánh giá kỳ sau (ngoại suy nhanh từ độ dốc kỳ):</b> '+(doc==null?'chưa đủ điểm để ngoại suy.':(doc<-0.15?'nếu giữ đà giảm hiện tại, kỳ sau có nguy cơ tiếp tục xuống (~'+(cuoi+doc*7).toFixed(1)+'% sau 7 bước) — cần can thiệp sớm.':(doc>0.15?'đà cải thiện, kỳ sau dự kiến tiếp tục nhích lên (~'+(cuoi+doc*7).toFixed(1)+'%).':'ổn định quanh mức hiện tại ('+cuoi.toFixed(1)+'%).')))+'</p>'; }
+      } else { htXH='<p style="margin:0;color:#94a3b8">Chưa đủ điểm dữ liệu để tóm tắt xu hướng kỳ.</p>'; }
+      el('ss-xuhuong').innerHTML='<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:10px 14px;font-size:12.5px">'+htXH+'</div>';
+    })();
+
+    // ================= 14. AI + FOOTER =================
     var ai=bc.nhan_dinh_ai_gan_nhat||{};
     el('ai-noi-dung').textContent=ai.noi_dung||'Chưa có nhận định AI trong kỳ.';
     el('ai-dis').textContent='Số liệu do hệ thống tính — AI chỉ viết nhận định. Kết luận GMP do IPC/QA. Mô hình: '+(ai.model_dung||'—')+' · '+(ai.tao_luc||'—');
