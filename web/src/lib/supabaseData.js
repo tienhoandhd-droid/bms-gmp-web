@@ -733,6 +733,14 @@ export async function layWebhookAi(signal) {
   return (data[0].value_hien_thi || '').trim()
 }
 
+// Lấy URL webhook WF7-SÂU — phân tích AI CHUYÊN SÂU (key 'wf7_sau_webhook_url'). Trả '' nếu chưa đặt.
+export async function layWebhookAiSau(signal) {
+  const { data, error } = await docView('xem_cau_hinh_he_thong',
+    (q) => q.select('key,value_hien_thi').eq('key', 'wf7_sau_webhook_url'), { signal })
+  if (error || !data || !data.length) return ''
+  return (data[0].value_hien_thi || '').trim()
+}
+
 // Lấy URL webhook WF7b — gửi email / lưu Drive nhận định xu hướng (key 'wf7b_webhook_url').
 export async function layWebhookWf7b(signal) {
   const { data, error } = await docView('xem_cau_hinh_he_thong',
@@ -767,7 +775,7 @@ export async function guiNhanDinhXuHuong(url, action, nhanDinh, to, charts, sign
 // truy vấn DB) và ghi kết quả vào nhat_ky_ai — web poll bảng đó theo input_hash.
 // (Tránh lỗi NETWORK cũ: agent 31–90s vượt timeout gateway ~100s của lời gọi đồng bộ.)
 // onTienTrinh(msg): callback tùy chọn — cập nhật dòng trạng thái chờ lên UI.
-export async function phanTichAiQuaWorkflow(url, payload, signal, onTienTrinh) {
+export async function phanTichAiQuaWorkflow(url, payload, signal, onTienTrinh, tenWf = 'WF7') {
   if (!url) return { ok: false, error: 'CHUA_CAU_HINH_WEBHOOK' }
   try {
     const res = await fetch(url, {
@@ -778,17 +786,18 @@ export async function phanTichAiQuaWorkflow(url, payload, signal, onTienTrinh) {
     const j = await res.json()
     const text = (j && (j.text || j.ket_qua || j.content)) || ''
     if (text) return { ok: true, text, level: j.level != null ? Number(j.level) : null }
-    if (j && j.pending && j.input_hash) return await doiKetQuaAiWf7(j.input_hash, signal, onTienTrinh)
+    if (j && j.pending && j.input_hash) return await doiKetQuaAiWf7(j.input_hash, signal, onTienTrinh, tenWf)
     return { ok: false, error: 'EMPTY' }
   } catch (e) {
     return { ok: false, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
   }
 }
 
-// Chờ AI Agent WF7 (chạy nền) ghi kết quả vào nhat_ky_ai — poll 4s/lần, tối đa 3 phút.
+// Chờ AI Agent (chạy nền) ghi kết quả vào nhat_ky_ai — poll 4s/lần, tối đa 3 phút.
+// tenWf: 'WF7' (thường) hoặc 'WF7_SAU' (chuyên sâu) — lọc đúng dòng của workflow tương ứng.
 // RLS nhat_ky_ai: authenticated ĐỌC được, anon không → chưa đăng nhập thì khỏi poll (fail-mềm).
-async function doiKetQuaAiWf7(inputHash, signal, onTienTrinh) {
-  const CHO_TOI_DA_MS = 180000, NHIP_MS = 4000
+async function doiKetQuaAiWf7(inputHash, signal, onTienTrinh, tenWf = 'WF7') {
+  const CHO_TOI_DA_MS = 300000, NHIP_MS = 4000    // sâu có thể lâu hơn → tối đa 5 phút
   const tBatDau = Date.now()
   try {
     const { data: { session } = {} } = await supabase.auth.getSession()
@@ -799,7 +808,7 @@ async function doiKetQuaAiWf7(inputHash, signal, onTienTrinh) {
   let idMoc = 0
   {
     const { data } = await docView('nhat_ky_ai',
-      (q) => q.select('id').eq('workflow', 'WF7').eq('input_hash', inputHash).order('id', { ascending: false }).limit(1), { signal })
+      (q) => q.select('id').eq('workflow', tenWf).eq('input_hash', inputHash).order('id', { ascending: false }).limit(1), { signal })
     if (data && data.length) idMoc = data[0].id
   }
   try { if (onTienTrinh) onTienTrinh('AI đang phân tích sâu — agent truy vấn thêm dữ liệu gốc từ hệ thống, thường mất 1–2 phút. Kết quả sẽ tự hiện ở đây.') } catch { /* UI không chặn poll */ }
@@ -807,7 +816,7 @@ async function doiKetQuaAiWf7(inputHash, signal, onTienTrinh) {
     if (signal && signal.aborted) return { ok: false, error: 'ABORT' }
     await new Promise((r) => setTimeout(r, NHIP_MS))
     const { data, error } = await docView('nhat_ky_ai',
-      (q) => q.select('id,ket_qua,trang_thai').eq('workflow', 'WF7').eq('input_hash', inputHash).gt('id', idMoc).order('id', { ascending: false }).limit(1), { signal })
+      (q) => q.select('id,ket_qua,trang_thai').eq('workflow', tenWf).eq('input_hash', inputHash).gt('id', idMoc).order('id', { ascending: false }).limit(1), { signal })
     if (error) return { ok: false, error: 'LOI_DOC_KET_QUA_AI' }
     if (data && data.length) {
       const r = data[0]

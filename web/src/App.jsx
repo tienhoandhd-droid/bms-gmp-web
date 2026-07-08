@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -727,6 +727,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [dangInBaoCao, setDangInBaoCao] = useState(false); // đang chuẩn bị in (chờ AI xong)
   const [aiNote, setAiNote] = useState(null);         // ghi chú trạng thái (vd: lỗi → dùng bản cục bộ)
   const [aiWebhook, setAiWebhook] = useState("");     // URL WF7 (nếu cấu hình)
+  const [aiWebhookSau, setAiWebhookSau] = useState(""); // URL WF7-sâu (phân tích chuyên sâu)
   const [wf7bUrl, setWf7bUrl] = useState("");         // URL WF7b — gửi email / lưu Drive nhận định
   const [emailTo, setEmailTo] = useState("");         // người nhận email (điền sẵn từ người nhận báo cáo)
   const [emailOpen, setEmailOpen] = useState(false);  // mở ô nhập email
@@ -738,7 +739,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [duBao, setDuBao] = useState(null);           // {du_bao_dang_tin, huong, r2, ghi_chu, chuoi, du_bao[]}
   const [maTran, setMaTran] = useState(null);         // {rooms[], days[], values[][]}
   const [dbBusy, setDbBusy] = useState(false);
-  useEffect(() => { if (!isLive) return; let huy = false; (async () => { const u = await layWebhookAi(); if (!huy) setAiWebhook(u || ""); })(); return () => { huy = true; }; }, [isLive]);
+  useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, us] = await Promise.all([layWebhookAi(), layWebhookAiSau().catch(() => "")]); if (huy) return; setAiWebhook(u || ""); setAiWebhookSau(us || ""); })(); return () => { huy = true; }; }, [isLive]);
   // WF7b: URL gửi email/lưu Drive + điền sẵn người nhận email từ danh sách người nhận báo cáo.
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, ds] = await Promise.all([layWebhookWf7b(), layNguoiNhanBaoCao().catch(() => ({ rows: [] }))]); if (huy) return; setWf7bUrl(u || ""); const emails = ((ds && ds.rows) || []).map((r) => r.email).filter(Boolean); setEmailTo(emails.join(", ")); })(); return () => { huy = true; }; }, [isLive]);
   const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90, "all": 400 };
@@ -1137,13 +1138,14 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     if (isLive && onSaveAI) onSaveAI({ scopeType: activeScope.type, scopeId: activeScope.id, scopeName: activeScope.name, sensor, days: RANGE_DAYS[range] || 30, text, level });
   };
 
-  const runAI = async () => {
+  const runAI = async (sau = false) => {
     if (aiBusy) return;
     setAiNote(null);
     if (!tech.n) { finishAI("Chưa có đủ dữ liệu trong khoảng đã chọn để phân tích. Hãy mở rộng khoảng thời gian hoặc kiểm tra kết nối FMS/WF1.", 0, "cuc_bo"); return; }
+    const aiUrl = sau ? aiWebhookSau : aiWebhook;   // chọn workflow: chuyên sâu hay thường
 
-    // Nếu đã cấu hình WF7 → gửi DỮ LIỆU BIỂU ĐỒ THẬT cho OpenAI phân tích.
-    if (isLive && aiWebhook) {
+    // Nếu đã cấu hình workflow AI → gửi DỮ LIỆU BIỂU ĐỒ THẬT cho AI phân tích.
+    if (isLive && aiUrl) {
       setAiBusy(true);
       // dữ liệu bổ sung cho phân tích chuyên sâu (đều từ dữ liệu web đã có)
       const slimAI = (arr, keep = 60) => { if (!Array.isArray(arr) || arr.length <= keep) return arr || []; const st = Math.ceil(arr.length / keep); return arr.filter((_, i) => i % st === 0); };
@@ -1193,9 +1195,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         phan_tich_sau: phanTichSau,       // độ phủ DL + OOS tách trên/dưới + lịch sử (kỳ trước, TB 7/30 ngày)
         quet_bat_thuong: quetBatThuong,   // (Tổng quan/Khu vực) xếp hạng khu vực + phòng tốt/xấu + đợt bất thường có mốc thời gian
       };
-      const r = await phanTichAiQuaWorkflow(aiWebhook, payload, undefined, (m) => setAiNote(m));
+      const r = await phanTichAiQuaWorkflow(aiUrl, payload, undefined, (m) => setAiNote(m), sau ? "WF7_SAU" : "WF7");
       setAiBusy(false);
-      if (r.ok) { setAiNote(null); const loc = buildLocalAnalysis(); finishAI(r.text, r.level != null ? r.level : loc.level, "openai"); return; }
+      if (r.ok) { setAiNote(null); const loc = buildLocalAnalysis(); finishAI(r.text, r.level != null ? r.level : loc.level, sau ? "openai_sau" : "openai"); return; }
       // lỗi → rơi về bản cục bộ + ghi chú trạng thái (KHÔNG nối vào nội dung để giữ 4 mục sạch)
       const loc = buildLocalAnalysis();
       setAiNote(`Chưa gọi được AI qua workflow (${r.error}). Đang hiển thị phân tích cục bộ — kiểm tra WF7 / khóa OpenAI nếu cần.`);
@@ -1329,7 +1331,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <span className="text-[12px] text-slate-600">Đang chọn: <b style={{ color: COLOR.navy }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {RANGES.find((r) => r.k === range).label}{(dtFrom || dtTo) ? ` · ${view[0]?.label}→${view[view.length - 1]?.label}` : ""}</span>
         <div className="flex gap-2">
           <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo (chờ AI)…" : "In báo cáo A4 (kèm phân tích AI)"}</button>
-          <button onClick={runAI} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: COLOR.teal }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "AI gợi ý đọc biểu đồ"}</button>
+          <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: COLOR.teal }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "AI gợi ý đọc biểu đồ"}</button>
+          {isLive && aiWebhookSau && <button onClick={() => runAI(true)} disabled={aiBusy} title="Phân tích sâu hơn: nguyên nhân gốc + CAPA đa tầng (IPC/Cơ điện/BMS) + đề xuất phòng ngừa — dùng model mạnh, chạy ~1–3 phút" className={`text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={2} /> {aiBusy ? "AI đang phân tích sâu…" : "AI phân tích chuyên sâu (CAPA)"}</button>}
         </div>
       </Card>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
