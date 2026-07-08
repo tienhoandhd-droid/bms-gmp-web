@@ -1731,9 +1731,18 @@ function SucKhoeWidget({ sk, dangTai }) {
   const tre = sk.treGio;
   const treTxt = tre == null ? "—" : (tre < 1 ? "< 1 giờ" : `${(+tre).toFixed(tre < 10 ? 1 : 0).replace(".0", "")} giờ`);
   const lc = sk.lanChayCuoi;
+  // Dữ liệu thu theo CỬA SỔ GIỜ (WF1 ghi sau khi cửa sổ đóng) → hiển thị rõ khung
+  // giờ của bản ghi mới nhất; "trễ" = thời gian từ MỐC ĐÓNG cửa sổ đó tới hiện tại
+  // (cùng quy tắc nguong_tre_gio của KPI) — nhịp giờ bình thường trễ dao động 0–1.1h.
+  const cuaSo = (() => {
+    if (!sk.bucketMoiNhat) return null;
+    const bd = new Date(sk.bucketMoiNhat); const kt = new Date(bd.getTime() + 3600000);
+    const hhmm = (d) => d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    return `${hhmm(bd)}–${hhmm(kt)} ${kt.toLocaleDateString("vi-VN")}`;
+  })();
   const tip = [
-    sk.bucketMoiNhat ? `Bản ghi mới nhất: ${new Date(sk.bucketMoiNhat).toLocaleString("vi-VN")}` : "Chưa có bản ghi dữ liệu",
-    `Trễ: ${treTxt} (ngưỡng ${sk.nguongGio ?? 2}h)`,
+    cuaSo ? `Cửa sổ dữ liệu mới nhất: ${cuaSo}` : "Chưa có bản ghi dữ liệu",
+    `Trễ ${treTxt} tính từ mốc đóng cửa sổ giờ (ngưỡng mất dữ liệu ${sk.nguongGio ?? 2}h; thu mỗi giờ nên trễ ≤ ~1.1h là bình thường)`,
     lc ? `WF1 lần cuối: ${lc.trangThai || "?"}${lc.ketThuc ? " · " + new Date(lc.ketThuc).toLocaleString("vi-VN") : ""}` : "Chưa ghi nhận WF1 chạy",
     `Sự cố đang mở: ${sk.suCoDangMo} (Mức 1: ${sk.soCritical} · Cảnh báo: ${sk.soWarning})`,
   ].join("\n");
