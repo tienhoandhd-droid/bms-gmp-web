@@ -135,7 +135,7 @@ const SCOPES = [
 const MASTER = SCOPES.map((s) => { const daily = genDaily(s); const last7 = daily.slice(-7); const latest = daily[daily.length - 1]; return { ...s, daily, latest, risk: Math.round((100 - latest.compliance) + last7.reduce((a, r) => a + r.critH, 0)) }; });
 const byType = (t) => MASTER.filter((m) => m.type === t).sort((a, b) => b.risk - a.risk);
 const findScope = (id) => MASTER.find((m) => m.id === id);
-const RANGES = [{ k: "1n", label: "24 giờ", days: 1 }, { k: "7n", label: "7 ngày", days: 7 }, { k: "30n", label: "30 ngày", days: 30 }, { k: "90n", label: "90 ngày", days: 90 }];
+const RANGES = [{ k: "1n", label: "24 giờ", days: 1 }, { k: "7n", label: "7 ngày", days: 7 }, { k: "30n", label: "30 ngày", days: 30 }, { k: "90n", label: "90 ngày", days: 90 }, { k: "all", label: "Từ đầu", days: 400 }];
 const SENSORS = [{ k: "ALL", label: "Tổng hợp" }, { k: "DP", label: "Chênh áp" }, { k: "RH", label: "Độ ẩm" }, { k: "T", label: "Nhiệt độ" }];
 const SCOPE_LEVELS = [{ k: "TOTAL", label: "Tổng" }, { k: "AREA", label: "Khu vực" }, { k: "AHU", label: "AHU" }, { k: "ROOM", label: "Phòng" }];
 function applySensor(row, sensor) { if (sensor === "ALL") return row; const shift = { DP: -5, RH: 1, T: 4 }[sensor] || 0; const factor = { DP: 1.5, RH: 1.0, T: 0.6 }[sensor] || 1; return { ...row, compliance: +Math.max(30, Math.min(99.4, row.compliance + shift)).toFixed(1), warnH: +(row.warnH * factor).toFixed(2), critH: +(row.critH * factor).toFixed(2) }; }
@@ -711,7 +711,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   // Ghi nhớ lựa chọn giữa các lần vào (localStorage) — chỉ lưu tuỳ chọn nhẹ, không lưu dữ liệu.
   const LS_KEY = "bms_trend_prefs";
   const prefs = (() => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } })();
-  const [range, setRange] = useState(["1n", "7n", "30n", "90n"].includes(prefs.range) ? prefs.range : "30n");
+  const [range, setRange] = useState(["1n", "7n", "30n", "90n", "all"].includes(prefs.range) ? prefs.range : "30n");
   const [level, setLevel] = useState(["TOTAL", "AREA", "AHU", "ROOM"].includes(prefs.level) ? prefs.level : "TOTAL");
   const [selId, setSelId] = useState("");
   const [sensor, setSensor] = useState(["ALL", "DP", "RH", "T"].includes(prefs.sensor) ? prefs.sensor : "ALL");
@@ -741,9 +741,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const u = await layWebhookAi(); if (!huy) setAiWebhook(u || ""); })(); return () => { huy = true; }; }, [isLive]);
   // WF7b: URL gửi email/lưu Drive + điền sẵn người nhận email từ danh sách người nhận báo cáo.
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, ds] = await Promise.all([layWebhookWf7b(), layNguoiNhanBaoCao().catch(() => ({ rows: [] }))]); if (huy) return; setWf7bUrl(u || ""); const emails = ((ds && ds.rows) || []).map((r) => r.email).filter(Boolean); setEmailTo(emails.join(", ")); })(); return () => { huy = true; }; }, [isLive]);
-  const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90 };
-  // Độ phân giải: 30n/90n → NGÀY; 1n/7n → THEO GIỜ (dữ liệu thu thập 1 giờ/lần, bỏ mốc 30 phút cũ).
-  const donVi = (range === "30n" || range === "90n") ? "NGAY" : "GIO";
+  const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90, "all": 400 };
+  // Độ phân giải: 30n/90n/Từ-đầu → NGÀY; 1n/7n → THEO GIỜ (dữ liệu thu thập 1 giờ/lần, bỏ mốc 30 phút cũ).
+  const donVi = (range === "30n" || range === "90n" || range === "all") ? "NGAY" : "GIO";
   const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);  // GIO: số GIỜ; NGAY: số ngày
   const resLbl = donVi === "GIO" ? "theo giờ" : "theo ngày";
   const isSubDay = donVi === "GIO";
