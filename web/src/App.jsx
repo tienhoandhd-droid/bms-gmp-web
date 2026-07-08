@@ -973,6 +973,14 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const sensorsPresent = useMemo(() => (wantMulti ? (multiSensor[multiKey] || []).map((g) => g.k) : []), [wantMulti, multiSensor, multiKey]);
   const full = isLive ? (mainSeries[trendKey] || []) : getSeries(activeScope, sensor, range);
   const minTs = full[0]?.ts, maxTs = full[full.length - 1]?.ts;
+  // Ô "Từ → đến" TỰ hiển thị mốc dữ liệu thật (điểm đầu có dữ liệu → điểm cuối) khi chưa có
+  // bộ lọc/nháp nào — chạy khi dữ liệu nạp xong lần đầu, đổi Khoảng/cấp xem, hoặc bấm Đặt lại/Toàn khoảng.
+  useEffect(() => {
+    if (!minTs || !maxTs) return;
+    if (dtFrom || dtTo || dtFromDraft || dtToDraft) return;   // user đang lọc/soạn → không đè
+    setDtFromDraft(toLocalInput(minTs));
+    setDtToDraft(toLocalInput(maxTs));
+  }, [minTs, maxTs, dtFrom, dtTo, dtFromDraft, dtToDraft]);
   const fromMs = dtFrom ? new Date(dtFrom).getTime() : minTs;
   const toMs = dtTo ? new Date(dtTo).getTime() : maxTs;
   const series = full.filter((r) => r.ts >= Math.min(fromMs, toMs) && r.ts <= Math.max(fromMs, toMs));
@@ -1264,7 +1272,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     printTrend(meta);
   };
 
-  const Chip = ({ active, onClick, children }) => <button onClick={onClick} className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${active ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={active ? { backgroundColor: COLOR.teal } : {}}>{children}</button>;
+  const Chip = ({ active, onClick, children, disabled, title }) => <button onClick={onClick} disabled={disabled} title={title} className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${disabled ? "text-slate-300 bg-slate-50 ring-slate-100 cursor-not-allowed" : active ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={active && !disabled ? { backgroundColor: COLOR.teal } : {}}>{children}</button>;
   const sel = "rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[12px] text-slate-700 outline-none";
 
   // #4 — chuỗi giá trị TB + dải giới hạn của phòng (chỉ khi đang chọn 1 phòng + 1 chỉ tiêu DP/RH/T trong LIVE)
@@ -1304,9 +1312,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             {(isHourly
               ? [["6 giờ qua", 6], ["12 giờ qua", 12], ["24 giờ qua", 24]]
               : [["7 ngày qua", 7 * 24], ["14 ngày qua", 14 * 24], ["30 ngày qua", 30 * 24]]
-            ).map(([lab, hrs]) => <Chip key={lab} active={false} onClick={() => { if (!maxTs) return; const f = maxTs - hrs * 3600000; const fs = toLocalInput(f), ts2 = toLocalInput(maxTs); setDtFrom(fs); setDtTo(ts2); setDtFromDraft(fs); setDtToDraft(ts2); }}>{lab}</Chip>)}
-            {/* Toàn khoảng: bỏ lọc (xem hết) nhưng 2 ô Từ→đến HIỂN THỊ mốc dữ liệu thật (điểm đầu có dữ liệu → điểm cuối) */}
-            <Chip active={!dtFrom && !dtTo} onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(minTs ? toLocalInput(minTs) : ""); setDtToDraft(maxTs ? toLocalInput(maxTs) : ""); }}>Toàn khoảng</Chip>
+            ).map(([lab, hrs]) => <Chip key={lab} active={false} disabled={!maxTs} title={!maxTs ? "Đang tải dữ liệu…" : undefined} onClick={() => { if (!maxTs) return; const f = maxTs - hrs * 3600000; const fs = toLocalInput(f), ts2 = toLocalInput(maxTs); setDtFrom(fs); setDtTo(ts2); setDtFromDraft(fs); setDtToDraft(ts2); }}>{lab}</Chip>)}
+            {/* Toàn khoảng: bỏ lọc (xem hết) — effect phía trên tự điền 2 ô Từ→đến bằng mốc dữ liệu thật */}
+            <Chip active={!dtFrom && !dtTo} onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }}>Toàn khoảng</Chip>
           </div>
           <div className="mt-2 flex items-center gap-2 flex-wrap">
             <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Từ → đến</span>
