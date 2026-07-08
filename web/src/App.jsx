@@ -2310,15 +2310,16 @@ export default function App() {
   // #5 — danh sách tab hiển thị theo vai trò
   // Tab hiển thị theo vai trò. LIVE mà vai trò CHƯA xác định (đang tải / lỗi tra) → chỉ
   // các tab xem cơ bản (không lộ Cài đặt/Người nhận khi role=null). RPC vẫn gate server-side.
+  // ===== Dữ liệu LIVE từ Supabase (Tổng quan/Sự cố/Nhật ký) =====
+  const live = useLiveData(dataSource);
+  const isLive = dataSource === "live";
+  // Tab hiển thị theo vai trò; LIVE mà vai trò CHƯA xác định → chỉ tab xem cơ bản
+  // (khai báo SAU isLive để tránh dùng biến trước khi khởi tạo — TDZ).
   const visibleTabs = useMemo(() => {
     const base = TABS.filter((t) => roleCanSeeTab(role, t.k));
     if (isLive && user && !role) return base.filter((t) => ["home", "events", "recent"].includes(t.k));
     return base;
   }, [role, isLive, user]);
-
-  // ===== Dữ liệu LIVE từ Supabase (Tổng quan/Sự cố/Nhật ký) =====
-  const live = useLiveData(dataSource);
-  const isLive = dataSource === "live";
 
   // Đồng bộ phiên đăng nhập thật (magic link) khi ở chế độ live
   useEffect(() => {
