@@ -1209,7 +1209,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     finishAI(loc.text, loc.level, "cuc_bo");
   };
 
-  // Chụp TẤT CẢ biểu đồ đang hiển thị ở tab Xu hướng (#trendPrintArea) → mảng ảnh PNG (data URI).
+  // Chụp TẤT CẢ biểu đồ đang hiển thị ở tab Xu hướng (#trendPrintArea) → mảng { src, title }
+  // (src = PNG data URI; title = tiêu đề thẻ chứa biểu đồ, để WF7b chú thích như báo cáo WF5).
   // Dùng registry window.__bmsEcharts (map DOM→instance) như hàm in A4; fallback canvas.toDataURL.
   const capTrendCharts = () => {
     try {
@@ -1217,9 +1218,16 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       if (!node) return [];
       const reg = window.__bmsEcharts;
       const instFor = (canvas) => { let el = canvas.parentElement; while (el) { if (reg && reg.has(el)) return reg.get(el); el = el.parentElement; } return null; };
+      const titleFor = (canvas) => {
+        let el = canvas.parentElement;
+        while (el && el !== node) { const h = el.querySelector && el.querySelector("h3"); if (h && h.textContent) return h.textContent.replace(/\s+/g, " ").trim(); el = el.parentElement; }
+        return "";
+      };
       return Array.from(node.querySelectorAll("canvas")).map((c) => {
-        try { const inst = instFor(c); return inst ? inst.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff", excludeComponents: ["toolbox", "dataZoom"] }) : c.toDataURL("image/png"); }
-        catch { try { return c.toDataURL("image/png"); } catch { return null; } }
+        let src = null;
+        try { const inst = instFor(c); src = inst ? inst.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: "#fff", excludeComponents: ["toolbox", "dataZoom"] }) : c.toDataURL("image/png"); }
+        catch { try { src = c.toDataURL("image/png"); } catch { src = null; } }
+        return src ? { src, title: titleFor(c) } : null;
       }).filter(Boolean);
     } catch { return []; }
   };

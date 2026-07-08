@@ -749,14 +749,25 @@ export async function layWebhookWf7b(signal) {
   return (data[0].value_hien_thi || '').trim()
 }
 
+// fetch có thử lại 1 lần khi đứt mạng/CORS thoáng qua (webhook n8n đang re-deploy, Wi-Fi chớp…).
+// Chỉ retry khi fetch NÉM lỗi (không phải HTTP status xấu); Abort thì tôn trọng ngay.
+async function fetchThuLai(url, init) {
+  try { return await fetch(url, init) } catch (e) {
+    if (e && e.name === 'AbortError') throw e
+    await new Promise((r) => setTimeout(r, 1500))
+    return fetch(url, init)
+  }
+}
+
 // Gửi nhận định xu hướng qua WF7b. action: 'email' | 'drive'.
 // nhanDinh: { scope, sensor, range, text, time, level, nguon }. to: chuỗi email (chỉ khi 'email').
-// charts: MẢNG data URI ảnh (image/png) của TẤT CẢ biểu đồ ở tab Xu hướng — nhúng vào file .html đính kèm.
-// Trả { ok, kind, link, error }.
+// charts: MẢNG { src, title } (src = data URI PNG, title = tên biểu đồ) của TẤT CẢ biểu đồ
+// tab Xu hướng — WF7b nhúng vào file .html đính kèm theo định dạng báo cáo tuần/tháng/quý.
+// (Vẫn nhận chuỗi data URI trần để tương thích ngược.) Trả { ok, kind, link, error }.
 export async function guiNhanDinhXuHuong(url, action, nhanDinh, to, charts, signal) {
   if (!url) return { ok: false, error: 'CHUA_CAU_HINH_WEBHOOK' }
   try {
-    const res = await fetch(url, {
+    const res = await fetchThuLai(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
       body: JSON.stringify({ _token: await layWebhookToken(signal), action, to: to || '', charts: Array.isArray(charts) ? charts : (charts ? [charts] : []), ...nhanDinh }),
     })
@@ -778,7 +789,7 @@ export async function guiNhanDinhXuHuong(url, action, nhanDinh, to, charts, sign
 export async function phanTichAiQuaWorkflow(url, payload, signal, onTienTrinh, tenWf = 'WF7') {
   if (!url) return { ok: false, error: 'CHUA_CAU_HINH_WEBHOOK' }
   try {
-    const res = await fetch(url, {
+    const res = await fetchThuLai(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _token: await layWebhookToken(signal), ...payload }), signal,
     })
@@ -841,7 +852,7 @@ export async function layWebhookBaoCaoBu(signal) {
 export async function guiBaoCaoBu(url, ky, signal) {
   if (!url) return { ok: false, error: 'CHUA_CAU_HINH_WEBHOOK' }
   try {
-    const res = await fetch(url, {
+    const res = await fetchThuLai(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _token: await layWebhookToken(signal), ky }), signal,
     })
