@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { laySuCoPhut, capNhatPhut8h, thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -2105,9 +2105,67 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
   );
 }
 
+/* ===== QUẢN LÝ TÀI KHOẢN & PHÂN QUYỀN XEM THEO KHU (chỉ ADMIN) ===== */
+const VAI_TRO_CHON = [{ k: "IPC", label: "IPC Hiện trường" }, { k: "MEP", label: "Cơ điện" }, { k: "LOT", label: "Trực HSL" }, { k: "QA", label: "QA Kiểm soát" }, { k: "ADMIN", label: "Quản trị" }];
+function TaiKhoanCard({ isLive, actor }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loi, setLoi] = useState(null);
+  const [luu, setLuu] = useState({});     // email → trạng thái lưu
+  const napLai = useCallback(async () => {
+    if (!isLive) { setLoading(false); return; }
+    const { error, rows: r } = await layNguoiDung();
+    if (error) setLoi(error); else { setLoi(null); setRows(r.map((x) => ({ ...x, khu_vuc: Array.isArray(x.khu_vuc) ? x.khu_vuc : [] }))); }
+    setLoading(false);
+  }, [isLive]);
+  useEffect(() => { setLoading(true); napLai(); }, [napLai]);
+
+  const doi = (email, patch) => setRows((rs) => rs.map((r) => r.email === email ? { ...r, ...patch } : r));
+  const toggleKhu = (email, k) => setRows((rs) => rs.map((r) => {
+    if (r.email !== email) return r;
+    const has = r.khu_vuc.includes(k);
+    return { ...r, khu_vuc: has ? r.khu_vuc.filter((x) => x !== k) : [...r.khu_vuc, k] };
+  }));
+  const luuMot = async (r) => {
+    setLuu((s) => ({ ...s, [r.email]: "dang" }));
+    const { data, error } = await luuNguoiDung({ email: r.email, ho_ten: r.ho_ten, vai_tro: r.vai_tro, khu_vuc: r.khu_vuc, kich_hoat: r.kich_hoat, so_dien_thoai: r.so_dien_thoai, ghi_chu: r.ghi_chu });
+    const ok = !error && data?.ok;
+    setLuu((s) => ({ ...s, [r.email]: ok ? "ok" : "loi" }));
+    setTimeout(() => setLuu((s) => ({ ...s, [r.email]: null })), 3000);
+    if (ok) napLai();
+  };
+
+  if (!isLive) return <Card className="p-8 text-center text-[13px] text-slate-500">Cần kết nối dữ liệu thật (LIVE) để quản lý tài khoản.</Card>;
+  return (
+    <Card className="p-6">
+      <SectionTitle icon={KeyRound} hint="chỉ Quản trị · gán vai trò + khu được xem cho từng tài khoản">Tài khoản & phân quyền xem</SectionTitle>
+      <p className="text-[12px] text-slate-500 mt-2">Mỗi tài khoản chỉ <b>xem</b> dữ liệu của các khu được tích (Tổng quan · Sự cố · Sự cố gần đây). <b>Quản trị</b> luôn xem tất cả. Tạo tài khoản đăng nhập mới thực hiện ở Supabase; tại đây gán vai trò & khu.</p>
+      {loi ? <p className="text-[13px] text-rose-600 mt-4">Không tải được danh sách (cần quyền Quản trị): {loi.thong_bao || loi.message}</p>
+        : loading ? <p className="text-[13px] text-slate-500 mt-4">Đang tải…</p>
+        : rows.length === 0 ? <p className="text-[13px] text-slate-500 mt-4">Chưa có tài khoản, hoặc bạn không có quyền Quản trị.</p>
+        : (
+        <div className="overflow-x-auto mt-4">
+          <table className="w-full text-[13px]">
+            <thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Tài khoản", "Vai trò", "Khu được xem", "Hoạt động", ""].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+            <tbody>{rows.map((r) => (
+              <tr key={r.email} className="border-t border-slate-100 align-middle">
+                <td className="py-2.5 pr-4"><p className="font-semibold" style={{ color: COLOR.navy }}>{r.ho_ten}</p><p className="text-[11px] text-slate-500">{r.email}</p></td>
+                <td className="py-2.5 pr-4"><select value={r.vai_tro} onChange={(e) => doi(r.email, { vai_tro: e.target.value })} className="rounded-lg bg-white ring-1 ring-slate-200 px-2 py-1 text-[12px]">{VAI_TRO_CHON.map((v) => <option key={v.k} value={v.k}>{v.label}</option>)}</select></td>
+                <td className="py-2.5 pr-4">{r.vai_tro === "ADMIN" ? <span className="text-[11px] text-slate-400 italic">tất cả (Quản trị)</span> : <div className="flex gap-1.5">{DS_KHU.map((k) => { const on = r.khu_vuc.includes(k); return <button key={k} onClick={() => toggleKhu(r.email, k)} className={`px-2.5 py-1 rounded-lg text-[12px] font-medium ring-1 transition ${on ? "text-white ring-transparent" : "text-slate-500 bg-white ring-slate-200 hover:ring-teal-300"}`} style={on ? { backgroundColor: COLOR.teal } : {}}>{k}</button>; })}</div>}</td>
+                <td className="py-2.5 pr-4"><button onClick={() => doi(r.email, { kich_hoat: !r.kich_hoat })} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 ${r.kich_hoat ? "text-teal-700 bg-teal-50 ring-teal-200" : "text-slate-500 bg-slate-100 ring-slate-200"}`}>{r.kich_hoat ? "Bật" : "Tắt"}</button></td>
+                <td className="py-2.5 pr-4"><button onClick={() => luuMot(r)} className="text-[11px] font-medium text-white rounded-lg px-3 py-1.5 flex items-center gap-1" style={{ backgroundColor: COLOR.teal }}><Save className="w-3.5 h-3.5" strokeWidth={1.8} /> {luu[r.email] === "dang" ? "Đang lưu…" : luu[r.email] === "ok" ? "Đã lưu ✓" : luu[r.email] === "loi" ? "Lỗi" : "Lưu"}</button></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /* ===== SỰ CỐ GẦN ĐÂY — bản đồ phút cửa sổ 8h (chỉ phòng có sự cố) ===== */
 const RECENT_RANGES = [{ k: 1, label: "1 giờ" }, { k: 4, label: "4 giờ" }, { k: 8, label: "8 giờ" }];
-function SuCoGanDayPage({ isLive }) {
+function SuCoGanDayPage({ isLive, khuChoPhep = null }) {
   const [gio, setGio] = useState(8);            // khoảng xem: 1 / 4 / 8h (mặc định 8)
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2148,8 +2206,10 @@ function SuCoGanDayPage({ isLive }) {
     return arr;
   }, [rows]);
 
-  const khus = useMemo(() => [...new Set(phongList.map((p) => p.khu_vuc).filter(Boolean))].sort(), [phongList]);
-  const phongHienThi = phongList.filter((p) => locKhu === "ALL" || p.khu_vuc === locKhu);
+  // Phân quyền xem theo khu: nếu bị giới hạn, chỉ giữ phòng thuộc khu được phép
+  const phongTrongQuyen = useMemo(() => (khuChoPhep ? phongList.filter((p) => khuChoPhep.includes(p.khu_vuc)) : phongList), [phongList, khuChoPhep]);
+  const khus = useMemo(() => [...new Set(phongTrongQuyen.map((p) => p.khu_vuc).filter(Boolean))].sort(), [phongTrongQuyen]);
+  const phongHienThi = phongTrongQuyen.filter((p) => locKhu === "ALL" || p.khu_vuc === locKhu);
 
   // 1 sensor phút → series cho RoomBandChart: {label, avg, lo, hi}
   const seriesTu = (r) => (r.chuoi || []).map((pt) => ({
@@ -2296,13 +2356,21 @@ export default function App() {
   // Định dạng theo đúng múi giờ Asia/Ho_Chi_Minh, không phụ thuộc múi giờ trình duyệt.
   const now = isLive ? vnNow() : "2026-05-29 14:08:22";
 
-  const demoKpis = useMemo(() => ({ dat: rooms.filter((r) => { const c = roomCompliance(r); return !r.noData && c >= 80; }).length, khongDat: rooms.filter((r) => { const c = roomCompliance(r); return !r.noData && c < 80; }).length, thieuDL: rooms.filter((r) => r.noData).length, tong: rooms.length }), [rooms]);
-  const kpis = isLive ? (live.kpis || { dat: 0, khongDat: 0, thieuDL: 0, tong: 0 }) : demoKpis;
+  // ===== Phân quyền XEM theo khu: user.khuVuc = mảng khu được xem (null = ADMIN/không giới hạn) =====
+  const khuChoPhep = (isLive && user && Array.isArray(user.khuVuc)) ? user.khuVuc : null;
+  const loKhu = (khu) => !khuChoPhep || !khu || khuChoPhep.includes(khu);
+  const areaCuaPhong = useMemo(() => { const m = {}; rooms.forEach((r) => { m[r.id] = r.area; }); return m; }, [rooms]);
+  const roomsXem = useMemo(() => (khuChoPhep ? rooms.filter((r) => loKhu(r.area)) : rooms), [rooms, khuChoPhep]); // eslint-disable-line react-hooks/exhaustive-deps
+  const incidentsXem = useMemo(() => (khuChoPhep ? incidents.filter((i) => loKhu(areaCuaPhong[i.room])) : incidents), [incidents, khuChoPhep, areaCuaPhong]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const demoKpis = useMemo(() => ({ dat: roomsXem.filter((r) => { const c = roomCompliance(r); return !r.noData && c >= 80; }).length, khongDat: roomsXem.filter((r) => { const c = roomCompliance(r); return !r.noData && c < 80; }).length, thieuDL: roomsXem.filter((r) => r.noData).length, tong: roomsXem.length }), [roomsXem]);
+  // Khi bị giới hạn khu → tính KPI từ phòng trong quyền xem (kể cả LIVE); không giới hạn → dùng số server.
+  const kpis = (isLive && !khuChoPhep) ? (live.kpis || { dat: 0, khongDat: 0, thieuDL: 0, tong: 0 }) : demoKpis;
   // Mảng 4: chỉ hiện skeleton KPI khi LIVE và chưa có số thật (tránh nháy "0").
-  const kpiLoading = isLive && !live.kpis;
+  const kpiLoading = isLive && !live.kpis && !khuChoPhep;
   const systemAlerts = (isLive && live.systemAlerts) ? live.systemAlerts.map((a) => ({ ...a, icon: ICON_CANH_BAO(a) })) : SYSTEM_ALERTS;
   const sopRows = (isLive && live.sopRows && live.sopRows.length) ? live.sopRows : SOP;
-  const p1Open = incidents.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục").length;
+  const p1Open = incidentsXem.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục").length;
   // #3 — Phân loại phòng để bấm vào ô KPI biết "phòng nào". Quy tắc khớp với view xem_tong_quan:
   //   thiếu DL = mất dữ liệu / chưa có % / dữ liệu quá cũ (trễ > ngưỡng giờ); còn lại đạt khi ≥80%.
   const FRESH_MIN = (isLive && live.sucKhoe?.nguongGio != null ? live.sucKhoe.nguongGio : 2) * 60;
@@ -2320,7 +2388,7 @@ export default function App() {
     return g;
   }, [rooms, isLive, FRESH_MIN]); // eslint-disable-line react-hooks/exhaustive-deps
   // Phòng "trọng yếu" gắn với sự cố Mức 1 (P1) đang mở — để link từ ô "Sự cố Mức 1 mở"
-  const suCoP1 = incidents.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục");
+  const suCoP1 = incidentsXem.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục");
   // #9 — "Phòng trọng điểm" xếp theo NGUY CƠ để tập trung theo dõi:
   //   Hành động (3) → Cảnh báo (2) → Cần chú ý (1) → Kiểm soát tốt (0) → thiếu DL (cuối).
   //   Cùng mức cảnh báo thì phòng có % đạt thấp hơn lên trước.
@@ -2331,13 +2399,13 @@ export default function App() {
   };
   // "Ưu tiên 1 & 2": lọc P1/P2 nhưng vẫn xếp theo nguy cơ
   const phongUuTien = useMemo(
-    () => rooms.filter((r) => r.priority === "P1" || r.priority === "P2").sort(sapTheoNguyCo),
-    [rooms, cfg] // eslint-disable-line react-hooks/exhaustive-deps
+    () => roomsXem.filter((r) => r.priority === "P1" || r.priority === "P2").sort(sapTheoNguyCo),
+    [roomsXem, cfg] // eslint-disable-line react-hooks/exhaustive-deps
   );
-  // "Tất cả": mọi phòng, cũng xếp theo nguy cơ
+  // "Tất cả": mọi phòng (trong quyền xem), cũng xếp theo nguy cơ
   const phongTatCa = useMemo(
-    () => [...rooms].sort(sapTheoNguyCo),
-    [rooms, cfg] // eslint-disable-line react-hooks/exhaustive-deps
+    () => [...roomsXem].sort(sapTheoNguyCo),
+    [roomsXem, cfg] // eslint-disable-line react-hooks/exhaustive-deps
   );
   const phongHienThi = xemTatCaPhong ? phongTatCa : phongUuTien;
 
@@ -2485,7 +2553,7 @@ export default function App() {
                 <KpiCard icon={Activity} label="Sự cố Mức 1 mở" value={p1Open} sub="phòng trọng yếu" accent={{ txt: "text-sky-600", bg: "bg-sky-50", glow: "bg-sky-200" }} onClick={() => setKpiModal("p1")} loading={kpiLoading} />
               </div>
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
-                <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden text-[11px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={!xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Tất cả</button></div><span className="text-[11px] text-slate-500">{phongHienThi.length}/{rooms.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-slate-500">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongHienThi.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incidents.find((i) => i.room === r.id && i.status !== "Đã khắc phục") || null} />)}</div>}</div>
+                <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden text-[11px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={!xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Tất cả</button></div><span className="text-[11px] text-slate-500">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-slate-500">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongHienThi.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incidentsXem.find((i) => i.room === r.id && i.status !== "Đã khắc phục") || null} />)}</div>}</div>
                 <aside className="space-y-5">
                   {isLive ? (
                   <Card className="p-5" style={{ background: "linear-gradient(135deg,#E6F4F1,#FFFFFF 60%,#E6F1FA)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Tóm tắt hệ thống</SectionTitle>{live.capNhatLuc && !live.loi && <span className="text-[10px] text-slate-400">Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</div><p className="mt-3 text-[13px] leading-relaxed text-slate-600">{live.kpis ? <>Đang giám sát <b style={{ color: COLOR.navy }}>{kpis.tong}</b> phòng: <span className="text-teal-700 font-semibold">{kpis.dat} đạt</span> · <span className="text-rose-600 font-semibold">{kpis.khongDat} không đạt</span> · <span className="text-amber-600 font-semibold">{kpis.thieuDL} thiếu DL</span>. {p1Open > 0 ? <><b className="text-rose-600">{p1Open}</b> sự cố Mức 1 đang mở — ưu tiên xử lý.</> : "Không có sự cố Mức 1 đang mở."}</> : (live.loi ? "Không tải được dữ liệu — kiểm tra kết nối/đăng nhập." : "Đang tải dữ liệu…")}</p><p className="mt-2 text-[11px] text-slate-400">Phân tích AI chi tiết ở tab Báo cáo · Xu hướng GMP.</p></Card>
@@ -2503,7 +2571,7 @@ export default function App() {
             const incKhu = (i) => (metaPhong[i.room] || {}).area || "";
             const incAhu = (i) => (metaPhong[i.room] || {}).ahu || "";
             const ahus = [...new Set((rooms || []).filter((r) => evtKhu === "ALL" || r.area === evtKhu).map((r) => r.ahu).filter(Boolean))].sort();
-            const incFiltered = incidents.filter((i) => (evtKhu === "ALL" || incKhu(i) === evtKhu) && (evtAhu === "ALL" || incAhu(i) === evtAhu));
+            const incFiltered = incidentsXem.filter((i) => (evtKhu === "ALL" || incKhu(i) === evtKhu) && (evtAhu === "ALL" || incAhu(i) === evtAhu));
             const locChip = (v, label, on, click) => <button key={v} onClick={click} className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${on ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={on ? { backgroundColor: COLOR.teal } : {}}>{label}</button>;
             return (
             <div className="space-y-5">
@@ -2511,16 +2579,16 @@ export default function App() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
                 {locChip("ALL", "Tất cả", evtKhu === "ALL", () => { setEvtKhu("ALL"); setEvtAhu("ALL"); })}
-                {DS_KHU.map((k) => locChip(k, `Khu ${k}`, evtKhu === k, () => { setEvtKhu(k); setEvtAhu("ALL"); }))}
+                {(khuChoPhep || DS_KHU).map((k) => locChip(k, `Khu ${k}`, evtKhu === k, () => { setEvtKhu(k); setEvtAhu("ALL"); }))}
                 {evtKhu !== "ALL" && ahus.length > 0 && (
                   <select value={evtAhu} onChange={(e) => setEvtAhu(e.target.value)} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] text-slate-700 outline-none ml-1">
                     <option value="ALL">AHU: tất cả</option>
                     {ahus.map((a) => <option key={a} value={a}>{a}</option>)}
                   </select>
                 )}
-                <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidents.length} sự cố</span>
+                <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidentsXem.length} sự cố</span>
               </div>
-              <Card className="p-2 sm:p-4">{incFiltered.length === 0 ? (incidents.length === 0 ? (
+              <Card className="p-2 sm:p-4">{incFiltered.length === 0 ? (incidentsXem.length === 0 ? (
                 <div className="px-5 py-10 text-center">
                   <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div>
                   <p className="mt-3 text-[14px] font-semibold" style={{ color: COLOR.navy }}>Chưa có sự cố nào đang mở</p>
@@ -2550,7 +2618,7 @@ export default function App() {
             );
           })()}
 
-          {tab === "recent" && <SuCoGanDayPage isLive={isLive} />}
+          {tab === "recent" && <SuCoGanDayPage isLive={isLive} khuChoPhep={khuChoPhep} />}
           {tab === "trend" && <div className="space-y-6"><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? live.rooms : null} liveIncidents={isLive ? incidents : null} onSaveAI={handleSaveAI} /><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
           {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
 
@@ -2590,6 +2658,7 @@ export default function App() {
               { k: "canhbao", label: "Nguyên tắc cảnh báo", icon: SlidersHorizontal },
               { k: "phong", label: "Phòng & cảm biến", icon: Building2 },
               { k: "phantuyen", label: "Tự phân tuyến", icon: ShieldCheck },
+              ...(role === "ADMIN" ? [{ k: "taikhoan", label: "Tài khoản & quyền", icon: KeyRound }] : []),
               { k: "hethong", label: "Hệ thống", icon: Wifi },
             ];
             const pct = (v) => Math.max(0, Math.min(100, (Number(v) || 0) / 60 * 100));
@@ -2658,6 +2727,10 @@ export default function App() {
 
               {cfgTab === "phantuyen" && (
               <LuatPhanTuyenCard isLive={isLive} canManage={canManage} actor={user?.email} />
+              )}
+
+              {cfgTab === "taikhoan" && role === "ADMIN" && (
+              <TaiKhoanCard isLive={isLive} actor={user?.email} />
               )}
 
               {cfgTab === "hethong" && (

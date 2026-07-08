@@ -874,6 +874,20 @@ export async function capNhatPhut8h(signal) {
   }
 }
 
+// ---------- Phân quyền tài khoản (chỉ ADMIN) ----------
+export async function layNguoiDung(signal) {
+  const { data, error } = await goiRPC('rpc_lay_nguoi_dung', {}, { signal })
+  if (error) return { error, rows: [] }
+  return { error: null, rows: Array.isArray(data) ? data : [] }
+}
+export async function luuNguoiDung(u, signal) {
+  return goiRPC('rpc_luu_nguoi_dung', {
+    p_email: u.email, p_ho_ten: u.ho_ten, p_vai_tro: u.vai_tro,
+    p_khu_vuc: u.khu_vuc, p_kich_hoat: u.kich_hoat,
+    p_so_dien_thoai: u.so_dien_thoai || null, p_ghi_chu: u.ghi_chu || null,
+  }, { signal })
+}
+
 // ---------- tiện ích ----------
 function mucCanhBaoToLevel(muc) {
   switch ((muc || '').toUpperCase()) {

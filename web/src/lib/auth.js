@@ -91,12 +91,13 @@ export function theoDoiPhien(callback) {
 // thay vì treo UI. KHÔNG mặc định 'IPC' — gán vai trò sai gây hiểu nhầm quyền
 // ("thông tin không khớp"); role=null để UI hiển thị rõ "chưa xác định vai trò".
 async function taoNguoiDungTuEmail(email) {
-  let role = null, name = email.split('@')[0]
+  let role = null, name = email.split('@')[0], khuVuc = null
   try {
-    const truyVan = supabase.from('nguoi_dung').select('ho_ten, vai_tro').eq('email', email).maybeSingle()
+    const truyVan = supabase.from('nguoi_dung').select('ho_ten, vai_tro, khu_vuc').eq('email', email).maybeSingle()
     const hetGio = new Promise((res) => setTimeout(() => res({ data: null }), 8000))
     const { data } = await Promise.race([truyVan, hetGio])
-    if (data) { role = data.vai_tro || null; name = data.ho_ten || name }
+    if (data) { role = data.vai_tro || null; name = data.ho_ten || name; khuVuc = Array.isArray(data.khu_vuc) ? data.khu_vuc : null }
   } catch { /* giữ role=null */ }
-  return { email, name, role }
+  // ADMIN xem tất cả (khuVuc=null ⇒ không lọc); vai trò khác lọc theo khu_vuc.
+  return { email, name, role, khuVuc: role === 'ADMIN' ? null : khuVuc }
 }
