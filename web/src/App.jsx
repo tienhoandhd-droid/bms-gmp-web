@@ -2173,18 +2173,22 @@ function SuCoGanDayPage({ isLive, khuChoPhep = null }) {
   const [loi, setLoi] = useState(null);
   const [locKhu, setLocKhu] = useState("ALL");
   const gioRef = useRef(gio); gioRef.current = gio;
+  const seqRef = useRef(0);      // chống race: chỉ nhận kết quả của lần gọi mới nhất
 
   const taiLai = useCallback(async (kichFms) => {
     if (!isLive) { setLoading(false); return; }
+    const seq = ++seqRef.current;
     // Kích Edge Function nạp điểm phút mới (fail-mềm nếu chưa deploy) rồi đọc bảng
     if (kichFms) { try { await capNhatPhut8h(); } catch { /* Edge chưa sẵn — vẫn đọc bảng */ } }
     const { error, rows: r } = await laySuCoPhut(gioRef.current);
+    if (seq !== seqRef.current) return;          // đã có lần gọi mới hơn → bỏ kết quả cũ
     if (error) setLoi(error); else { setLoi(null); setRows(r); setCapNhatLuc(new Date()); }
     setLoading(false);
   }, [isLive]);
 
-  useEffect(() => { setLoading(true); taiLai(true); }, [taiLai]);
-  useEffect(() => { taiLai(false); }, [gio, taiLai]);      // đổi khoảng → đọc lại (không cần kích FMS)
+  // Lần đầu (mount / đổi khoảng): tải lại. Chỉ kích FMS ở lần MOUNT đầu (tránh double-fetch).
+  const daMount = useRef(false);
+  useEffect(() => { setLoading(true); taiLai(!daMount.current); daMount.current = true; }, [gio, taiLai]);
   useEffect(() => {                                         // tự làm mới mỗi 60s
     if (!isLive) return;
     const id = setInterval(() => taiLai(true), 60000);
@@ -2304,7 +2308,13 @@ export default function App() {
   const [xemTatCaPhong, setXemTatCaPhong] = useState(false);   // Overview: ưu tiên 1&2 (mặc định) ↔ tất cả phòng
   const role = user?.role; const canManage = canManageRooms(role);
   // #5 — danh sách tab hiển thị theo vai trò
-  const visibleTabs = useMemo(() => TABS.filter((t) => roleCanSeeTab(role, t.k)), [role]);
+  // Tab hiển thị theo vai trò. LIVE mà vai trò CHƯA xác định (đang tải / lỗi tra) → chỉ
+  // các tab xem cơ bản (không lộ Cài đặt/Người nhận khi role=null). RPC vẫn gate server-side.
+  const visibleTabs = useMemo(() => {
+    const base = TABS.filter((t) => roleCanSeeTab(role, t.k));
+    if (isLive && user && !role) return base.filter((t) => ["home", "events", "recent"].includes(t.k));
+    return base;
+  }, [role, isLive, user]);
 
   // ===== Dữ liệu LIVE từ Supabase (Tổng quan/Sự cố/Nhật ký) =====
   const live = useLiveData(dataSource);
@@ -2358,7 +2368,8 @@ export default function App() {
 
   // ===== Phân quyền XEM theo khu: user.khuVuc = mảng khu được xem (null = ADMIN/không giới hạn) =====
   const khuChoPhep = (isLive && user && Array.isArray(user.khuVuc)) ? user.khuVuc : null;
-  const loKhu = (khu) => !khuChoPhep || !khu || khuChoPhep.includes(khu);
+  // Khi bị giới hạn khu: phòng KHÔNG rõ khu → CHẶN (deny-by-default, tránh lọt dữ liệu khu lạ).
+  const loKhu = (khu) => !khuChoPhep || (!!khu && khuChoPhep.includes(khu));
   const areaCuaPhong = useMemo(() => { const m = {}; rooms.forEach((r) => { m[r.id] = r.area; }); return m; }, [rooms]);
   const roomsXem = useMemo(() => (khuChoPhep ? rooms.filter((r) => loKhu(r.area)) : rooms), [rooms, khuChoPhep]); // eslint-disable-line react-hooks/exhaustive-deps
   const incidentsXem = useMemo(() => (khuChoPhep ? incidents.filter((i) => loKhu(areaCuaPhong[i.room])) : incidents), [incidents, khuChoPhep, areaCuaPhong]); // eslint-disable-line react-hooks/exhaustive-deps
