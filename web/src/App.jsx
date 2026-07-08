@@ -1217,7 +1217,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         quetBatThuong = _canDrill && kq[1] && kq[1].quet ? kq[1].quet : null;
       } catch { /* bỏ qua — payload vẫn gửi phần còn lại */ }
       const payload = {
-        scope: { name: activeScope.name, type: activeScope.type, area: activeScope.area, ahu: activeScope.ahu, dat1n: activeScope.dat1n, dat3n: activeScope.dat3n, dat7n: activeScope.dat7n,
+        scope: { name: activeScope.name, type: activeScope.type, id: activeScope.id, area: activeScope.area, ahu: activeScope.ahu, dat1n: activeScope.dat1n, dat3n: activeScope.dat3n, dat7n: activeScope.dat7n,
           cap_sach: roomRec.cap_phong_sach || roomRec.capPhong || null, uu_tien: roomRec.priority || roomRec.muc_uu_tien || null },
         rangeLabel: RANGES.find((r) => r.k === range).label, isHourly,
         metrics: { mean: tech.mean, std: tech.std, slope: tech.slope, r2: tech.r2, totOos: tech.totOos, dq: tech.dqAvg, vmin: tech.vmin, vmax: tech.vmax, n: tech.n },

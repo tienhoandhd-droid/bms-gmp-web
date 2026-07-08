@@ -786,12 +786,27 @@ export async function guiNhanDinhXuHuong(url, action, nhanDinh, to, charts, sign
 // truy vấn DB) và ghi kết quả vào nhat_ky_ai — web poll bảng đó theo input_hash.
 // (Tránh lỗi NETWORK cũ: agent 31–90s vượt timeout gateway ~100s của lời gọi đồng bộ.)
 // onTienTrinh(msg): callback tùy chọn — cập nhật dòng trạng thái chờ lên UI.
+// Vé phạm vi AI: RPC chạy dưới JWT phiên đăng nhập — DB tự kiểm scope thuộc quyền xem
+// rồi ký HMAC (rpc_lay_ve_ai). WF7/WF7-SÂU xác minh vé (rpc_kiem_ve_ai) trước khi phân tích.
+// KHÔNG cache vé (hết hạn 15 phút) — xin mới mỗi lần bấm Phân tích.
+async function layVeAi(scopeType, scopeId, signal) {
+  const { data, error } = await goiRPC('rpc_lay_ve_ai',
+    { p_scope_type: scopeType || 'TOTAL', p_scope_id: scopeId || 'ALL' }, { signal })
+  if (error) return { ok: false, ly_do: error.thong_bao || error.message || 'RPC_LOI' }
+  return data && typeof data === 'object' ? data : { ok: false, ly_do: 'VE_RONG' }
+}
+
 export async function phanTichAiQuaWorkflow(url, payload, signal, onTienTrinh, tenWf = 'WF7') {
   if (!url) return { ok: false, error: 'CHUA_CAU_HINH_WEBHOOK' }
   try {
+    // Xin vé phạm vi trước; vé có thể THU HẸP scope (TOTAL → AREA khi tài khoản chỉ 1 khu)
+    // → body gửi đi dùng scope CỦA VÉ để WF7 so khớp vé↔scope.
+    const ve = await layVeAi(payload?.scope?.type, payload?.scope?.id, signal)
+    if (!ve || ve.ok !== true) return { ok: false, error: `VE_AI: ${(ve && ve.ly_do) || 'KHONG_CAP_DUOC_VE'}` }
+    const scope = { ...((payload && payload.scope) || {}), type: ve.scope_type, id: ve.scope_id }
     const res = await fetchThuLai(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _token: await layWebhookToken(signal), ...payload }), signal,
+      body: JSON.stringify({ _token: await layWebhookToken(signal), _ve: ve, ...payload, scope }), signal,
     })
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const j = await res.json()
