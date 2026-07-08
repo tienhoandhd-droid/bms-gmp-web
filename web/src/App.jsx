@@ -2178,8 +2178,9 @@ function SuCoGanDayPage({ isLive, khuChoPhep = null }) {
   const taiLai = useCallback(async (kichFms) => {
     if (!isLive) { setLoading(false); return; }
     const seq = ++seqRef.current;
-    // Kích Edge Function nạp điểm phút mới (fail-mềm nếu chưa deploy) rồi đọc bảng
-    if (kichFms) { try { await capNhatPhut8h(); } catch { /* Edge chưa sẵn — vẫn đọc bảng */ } }
+    // TĂNG TỐC: KHÔNG chờ Edge Function (login FMS ~60s). Đọc bảng NGAY để hiển thị dữ
+    // liệu có sẵn; đẩy Edge chạy NỀN — điểm phút mới xuất hiện ở lần làm mới sau (60s).
+    if (kichFms) { capNhatPhut8h().catch(() => { /* Edge lỗi/timeout — vẫn hiển thị bảng */ }); }
     const { error, rows: r } = await laySuCoPhut(gioRef.current);
     if (seq !== seqRef.current) return;          // đã có lần gọi mới hơn → bỏ kết quả cũ
     if (error) setLoi(error); else { setLoi(null); setRows(r); setCapNhatLuc(new Date()); }

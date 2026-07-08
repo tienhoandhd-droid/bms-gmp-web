@@ -860,17 +860,23 @@ export async function laySuCoPhut(gio = 8, signal) {
 // Fail-mềm: Edge chưa deploy / lỗi mạng → web vẫn đọc dữ liệu bảng gần nhất.
 export async function capNhatPhut8h(signal) {
   if (!SUPABASE_URL) return { ok: false, error: 'NO_URL' }
+  // Timeout 35s: nếu FMS chậm/treo, hủy để KHÔNG treo request chồng chất (chạy nền,
+  // không ảnh hưởng hiển thị — web đã đọc bảng riêng). Lần làm mới sau thử lại.
+  const ac = new AbortController()
+  const tm = setTimeout(() => ac.abort(), 35000)
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/capnhat-phut-8h`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-bms-token': await layWebhookToken(signal) },
-      signal,
+      signal: signal || ac.signal,
     })
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const j = await res.json().catch(() => ({}))
     return j && j.ok ? { ok: true, soPhong: j.so_phong, soDiem: j.so_diem } : { ok: false, error: (j && j.error) || 'EMPTY' }
   } catch (e) {
     return { ok: false, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
+  } finally {
+    clearTimeout(tm)
   }
 }
 
