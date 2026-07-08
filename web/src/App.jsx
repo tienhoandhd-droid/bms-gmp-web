@@ -2138,11 +2138,13 @@ function SuCoGanDayPage({ isLive }) {
     const m = new Map();
     for (const r of rows) {
       let p = m.get(r.ma_phong);
-      if (!p) { p = { ma_phong: r.ma_phong, ten_phong: r.ten_phong, khu_vuc: r.khu_vuc, ahu: r.ahu, sensors: [] }; m.set(r.ma_phong, p); }
+      if (!p) { p = { ma_phong: r.ma_phong, ten_phong: r.ten_phong, khu_vuc: r.khu_vuc, ahu: r.ahu, muc_uu_tien: r.muc_uu_tien, sensors: [] }; m.set(r.ma_phong, p); }
       p.sensors.push(r);
     }
+    const uuTienHang = (p) => ({ P1: 1, P2: 2, P3: 3 }[p] || 9);   // P1 lên đầu
     const arr = [...m.values()].map((p) => ({ ...p, oosMax: Math.max(0, ...p.sensors.map((s) => s.so_oos || 0)), oosTong: p.sensors.reduce((a, s) => a + (s.so_oos || 0), 0) }));
-    arr.sort((a, b) => b.oosTong - a.oosTong || a.ma_phong.localeCompare(b.ma_phong));
+    // Sắp xếp: mức ưu tiên phòng (P1→P2→P3) trước, rồi số điểm ngoài ngưỡng nhiều hơn lên trên
+    arr.sort((a, b) => uuTienHang(a.muc_uu_tien) - uuTienHang(b.muc_uu_tien) || b.oosTong - a.oosTong || a.ma_phong.localeCompare(b.ma_phong));
     return arr;
   }, [rows]);
 
@@ -2193,7 +2195,7 @@ function SuCoGanDayPage({ isLive }) {
               <Card key={p.ma_phong} className="p-4">
                 <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                   <div className="min-w-0">
-                    <h3 className="text-[14px] font-semibold truncate" style={{ color: COLOR.navy }}>{p.ma_phong}<span className="text-slate-400 font-normal"> · {p.ten_phong}</span></h3>
+                    <div className="flex items-center gap-2"><h3 className="text-[14px] font-semibold truncate" style={{ color: COLOR.navy }}>{p.ma_phong}<span className="text-slate-400 font-normal"> · {p.ten_phong}</span></h3>{p.muc_uu_tien && <MucBadge p={p.muc_uu_tien} />}</div>
                     <p className="text-[11px] text-slate-500">Khu {p.khu_vuc} · {p.ahu}</p>
                   </div>
                   {p.oosTong > 0 && <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 ring-1 ring-rose-200 px-2 py-1 rounded-full shrink-0">{p.oosTong} điểm ngoài ngưỡng</span>}
