@@ -2306,6 +2306,14 @@ const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "
 
 export default function App() {
   const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return TABS.some((x) => x.k === t) ? t : "home"; } catch { return "home"; } });
+  // KEEP-ALIVE tab nặng (Xu hướng GMP, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
+  // bằng display:none — đổi tab rồi quay lại KHÔNG tải lại từ đầu (giữ cache chuỗi, kết quả AI,
+  // bộ lọc, vị trí cuộn trong tab). Kèm cú "resize" khi quay lại để ECharts tự căn lại khung.
+  const [daMo, setDaMo] = useState({});
+  useEffect(() => {
+    setDaMo((v) => (v[tab] ? v : { ...v, [tab]: true }));
+    if (tab === "trend" || tab === "recent") { try { requestAnimationFrame(() => window.dispatchEvent(new Event("resize"))); } catch { /* không chặn render */ } }
+  }, [tab]);
   const [auditTab, setAuditTab] = useState("audit");   // tab con Nhật ký & SOP: audit | config | sop
   const [cfgTab, setCfgTab] = useState("canhbao");     // tab con Cài đặt: canhbao | phong | phantuyen | hethong
   const [dataSource, setDataSource] = useState(DEFAULT_DATA_SOURCE);   // 'demo' | 'live'
@@ -2651,8 +2659,8 @@ export default function App() {
             );
           })()}
 
-          {tab === "recent" && <SuCoGanDayPage isLive={isLive} khuChoPhep={khuChoPhep} />}
-          {tab === "trend" && <div className="space-y-6"><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? live.rooms : null} liveIncidents={isLive ? incidents : null} onSaveAI={handleSaveAI} /><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
+          {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><SuCoGanDayPage isLive={isLive} khuChoPhep={khuChoPhep} /></div>}
+          {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? live.rooms : null} liveIncidents={isLive ? incidents : null} onSaveAI={handleSaveAI} /><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
           {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
 
           {tab === "audit" && (() => {
