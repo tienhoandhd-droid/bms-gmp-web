@@ -135,7 +135,7 @@ const SCOPES = [
 const MASTER = SCOPES.map((s) => { const daily = genDaily(s); const last7 = daily.slice(-7); const latest = daily[daily.length - 1]; return { ...s, daily, latest, risk: Math.round((100 - latest.compliance) + last7.reduce((a, r) => a + r.critH, 0)) }; });
 const byType = (t) => MASTER.filter((m) => m.type === t).sort((a, b) => b.risk - a.risk);
 const findScope = (id) => MASTER.find((m) => m.id === id);
-const RANGES = [{ k: "1n", label: "24 giờ", days: 1 }, { k: "7n", label: "7 ngày", days: 7 }, { k: "30n", label: "30 ngày", days: 30 }, { k: "90n", label: "90 ngày", days: 90 }, { k: "all", label: "Từ đầu", days: 400 }];
+const RANGES = [{ k: "1n", label: "24 giờ", days: 1 }, { k: "7n", label: "7 ngày", days: 7 }, { k: "30n", label: "30 ngày", days: 30 }, { k: "90n", label: "90 ngày", days: 90 }, { k: "180n", label: "180 ngày", days: 180 }];
 const SENSORS = [{ k: "ALL", label: "Tổng hợp" }, { k: "DP", label: "Chênh áp" }, { k: "RH", label: "Độ ẩm" }, { k: "T", label: "Nhiệt độ" }];
 const SCOPE_LEVELS = [{ k: "TOTAL", label: "Tổng" }, { k: "AREA", label: "Khu vực" }, { k: "AHU", label: "AHU" }, { k: "ROOM", label: "Phòng" }];
 function applySensor(row, sensor) { if (sensor === "ALL") return row; const shift = { DP: -5, RH: 1, T: 4 }[sensor] || 0; const factor = { DP: 1.5, RH: 1.0, T: 0.6 }[sensor] || 1; return { ...row, compliance: +Math.max(30, Math.min(99.4, row.compliance + shift)).toFixed(1), warnH: +(row.warnH * factor).toFixed(2), critH: +(row.critH * factor).toFixed(2) }; }
@@ -711,7 +711,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   // Ghi nhớ lựa chọn giữa các lần vào (localStorage) — chỉ lưu tuỳ chọn nhẹ, không lưu dữ liệu.
   const LS_KEY = "bms_trend_prefs";
   const prefs = (() => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } })();
-  const [range, setRange] = useState(["1n", "7n", "30n", "90n", "all"].includes(prefs.range) ? prefs.range : "30n");
+  const [range, setRange] = useState(["1n", "7n", "30n", "90n", "180n"].includes(prefs.range) ? prefs.range : "30n");
   const [level, setLevel] = useState(["TOTAL", "AREA", "AHU", "ROOM"].includes(prefs.level) ? prefs.level : "TOTAL");
   const [selId, setSelId] = useState("");
   const [sensor, setSensor] = useState(["ALL", "DP", "RH", "T"].includes(prefs.sensor) ? prefs.sensor : "ALL");
@@ -742,9 +742,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, us] = await Promise.all([layWebhookAi(), layWebhookAiSau().catch(() => "")]); if (huy) return; setAiWebhook(u || ""); setAiWebhookSau(us || ""); })(); return () => { huy = true; }; }, [isLive]);
   // WF7b: URL gửi email/lưu Drive + điền sẵn người nhận email từ danh sách người nhận báo cáo.
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, ds] = await Promise.all([layWebhookWf7b(), layNguoiNhanBaoCao().catch(() => ({ rows: [] }))]); if (huy) return; setWf7bUrl(u || ""); const emails = ((ds && ds.rows) || []).map((r) => r.email).filter(Boolean); setEmailTo(emails.join(", ")); })(); return () => { huy = true; }; }, [isLive]);
-  const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90, "all": 400 };
+  const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90, "180n": 180 };
   // Độ phân giải: 30n/90n/Từ-đầu → NGÀY; 1n/7n → THEO GIỜ (dữ liệu thu thập 1 giờ/lần, bỏ mốc 30 phút cũ).
-  const donVi = (range === "30n" || range === "90n" || range === "all") ? "NGAY" : "GIO";
+  const donVi = (range === "30n" || range === "90n" || range === "180n") ? "NGAY" : "GIO";
   const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);  // GIO: số GIỜ; NGAY: số ngày
   const resLbl = donVi === "GIO" ? "theo giờ" : "theo ngày";
   const isSubDay = donVi === "GIO";
@@ -1305,18 +1305,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             </div>
           )}
         </div>
-        {/* Lọc nhanh + chọn khoảng thời gian (có nút Áp dụng) — #2 */}
+        {/* Chọn khoảng thời gian thủ công (Từ → đến, có nút Áp dụng) — ô tự điền mốc dữ liệu thật */}
         <div className="mt-3 rounded-2xl bg-sky-50/50 ring-1 ring-sky-100 px-3 py-2.5">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Lọc nhanh</span>
-            {(isHourly
-              ? [["6 giờ qua", 6], ["12 giờ qua", 12], ["24 giờ qua", 24]]
-              : [["7 ngày qua", 7 * 24], ["14 ngày qua", 14 * 24], ["30 ngày qua", 30 * 24]]
-            ).map(([lab, hrs]) => <Chip key={lab} active={false} disabled={!maxTs} title={!maxTs ? "Đang tải dữ liệu…" : undefined} onClick={() => { if (!maxTs) return; const f = maxTs - hrs * 3600000; const fs = toLocalInput(f), ts2 = toLocalInput(maxTs); setDtFrom(fs); setDtTo(ts2); setDtFromDraft(fs); setDtToDraft(ts2); }}>{lab}</Chip>)}
-            {/* Toàn khoảng: bỏ lọc (xem hết) — effect phía trên tự điền 2 ô Từ→đến bằng mốc dữ liệu thật */}
-            <Chip active={!dtFrom && !dtTo} onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }}>Toàn khoảng</Chip>
-          </div>
-          <div className="mt-2 flex items-center gap-2 flex-wrap">
             <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Từ → đến</span>
             <input type="datetime-local" value={dtFromDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtFromDraft(e.target.value)} className={sel} />
             <span className="text-[12px] text-slate-500">đến</span>
@@ -1325,6 +1316,15 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             {(dtFrom || dtTo || dtFromDraft || dtToDraft) && <button onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }} className="text-[11px] text-slate-500 underline">Đặt lại</button>}
             <span className="text-[11px] text-slate-400 ml-1">Đang xem {view.length}/{full.length} điểm ({resLbl})</span>
           </div>
+          {/* Khoảng đã chọn THIẾU dữ liệu → nói rõ (thay vì biểu đồ ngắn khó hiểu) */}
+          {(() => {
+            const days = RANGE_DAYS[range] || 30;
+            if (isLive && Array.isArray(mainSeries[trendKey]) && mainSeries[trendKey].length === 0) return <p className="mt-2 text-[11px] text-amber-700 bg-amber-50 ring-1 ring-amber-100 rounded-lg px-2.5 py-1.5">⚠ Chưa có dữ liệu trong khoảng đã chọn cho phạm vi này.</p>;
+            if (!minTs) return null;
+            const thieuNgay = Math.floor((minTs - (Date.now() - days * 86400000)) / 86400000);
+            if (thieuNgay < 2) return null;   // đủ (chênh ≤1 ngày là biên bình thường)
+            return <p className="mt-2 text-[11px] text-sky-700 bg-sky-50 ring-1 ring-sky-100 rounded-lg px-2.5 py-1.5">ℹ️ Khoảng {RANGES.find((r) => r.k === range)?.label} nhưng dữ liệu hệ thống mới có từ <b>{new Date(minTs).toLocaleDateString("vi-VN")}</b> — biểu đồ hiển thị {full.length} điểm hiện có (thiếu ~{thieuNgay} ngày đầu khoảng).</p>;
+          })()}
         </div>
         {level !== "TOTAL" && (
           <div className="mt-3 rounded-2xl bg-sky-50/60 ring-1 ring-sky-100 p-3.5 space-y-3">
