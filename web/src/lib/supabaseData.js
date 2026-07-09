@@ -29,6 +29,7 @@ export const TRANG_THAI_CODE_TO_LABEL = {
   DA_KHAC_PHUC:              'Đã khắc phục',
   IPC_BINH_THUONG:           'Đã khắc phục',         // đóng (bình thường)
   DONG_TU_DONG:              'Đã khắc phục',         // đóng (tự động)
+  DONG_NGOAI_PHAM_VI:        'Đóng — ngoài phạm vi',  // v14: phòng P3, cảm biến có thể VẪN lệch dải
 }
 
 // Nhãn hành động trên UI (STATUS_FLOW.label) → MÃ hành động RPC (khớp seed
@@ -43,15 +44,37 @@ export const ACTION_LABEL_TO_CODE = {
   'QA xác nhận khắc phục':  'qa_da_khac_phuc',
 }
 
-// MÃ hành động → nhãn hiển thị (nhật ký/trail)
+// MÃ hành động → nhãn hiển thị (nhật ký/trail).
+// Nút bấm thì lấy từ DB (view xem_nut_thao_tac); bảng này CHỈ để dịch mã trong
+// nhật ký, kể cả các hành động không bao giờ thành nút (quản trị/hệ thống).
 const ACTION_CODE_TO_LABEL = {
-  ipc_tiep_nhan: 'IPC tiếp nhận', ipc_bat_thuong: 'IPC xác nhận bất thường',
-  ipc_bao_co_dien: 'Báo cơ điện', ipc_binh_thuong: 'IPC kết luận bình thường', ipc_cho: 'IPC chờ xử lý',
-  mep_tiep_nhan: 'Cơ điện tiếp nhận', mep_xu_ly_xong: 'Cơ điện báo đã xử lý',
-  mep_khong_xu_ly_duoc: 'Cơ điện không xử lý được', mep_cho: 'Cơ điện chờ',
+  // IPC — bộ 4 nút v14
+  ipc_binh_thuong: 'IPC: đã kiểm tra, bình thường',
+  ipc_da_khac_phuc: 'IPC: đã khắc phục sự cố',
+  ipc_bao_co_dien: 'IPC: chuyển Cơ điện xử lý',
+  ipc_vang: 'IPC: không có ở hiện trường',
+  // Cơ điện — bộ 4 nút v14
+  mep_tiep_nhan: 'Cơ điện: đã nhận, đang xử lý',
+  mep_xu_ly_xong: 'Cơ điện: đã khắc phục',
+  mep_khong_xu_ly_duoc: 'Cơ điện: không thể xử lý',
+  mep_cho_xu_ly: 'Cơ điện: chờ xử lý (khi rảnh)',
+  mep_vang: 'Cơ điện: không có ở hiện trường',
+  // Trực hồ sơ lô
+  lot_nhac_ipc: 'Trực HSL: nhắc IPC',
+  lot_nhac_co_dien: 'Trực HSL: nhắc Cơ điện',
+  lot_tam_dung_4h: 'Trực HSL: tạm dừng cảnh báo 4 giờ',
+  dung_canh_bao: 'Dừng cảnh báo', bat_lai_canh_bao: 'Bật lại cảnh báo',
+  // QA / Quản trị / Hệ thống
   qa_da_khac_phuc: 'QA xác nhận khắc phục', qa_mo_lai: 'QA mở lại',
+  admin_dong: 'Quản trị đóng (đã khắc phục)',
+  admin_mo_lai: 'Quản trị mở lại',
+  // Đóng vì phòng ngoài phạm vi cảnh báo — KHÔNG có nghĩa đã khắc phục
+  admin_dong_ngoai_pham_vi: 'Quản trị đóng — phòng ngoài phạm vi cảnh báo',
+  he_thong_dong_tu_dong: 'Hệ thống tự đóng (giá trị về dải)',
+  // Đã khai tử từ v14, giữ để dịch nhật ký cũ
+  ipc_tiep_nhan: 'IPC tiếp nhận', ipc_bat_thuong: 'IPC xác nhận bất thường', ipc_cho: 'IPC chờ xử lý',
+  mep_cho: 'Cơ điện chờ', ipc_kiem_lai_dat: 'IPC kiểm lại: đạt', ipc_kiem_lai_khong_dat: 'IPC kiểm lại: không đạt',
   lot_nhac_nho: 'Trực HSL nhắc nhở', lot_ghi_chu: 'Trực HSL ghi chú', lot_leo_thang: 'Trực HSL leo thang',
-  admin_dong: 'Quản trị đóng', he_thong_dong_tu_dong: 'Hệ thống tự đóng',
 }
 const nhanHanhDong = (ma) => ACTION_CODE_TO_LABEL[ma] || ma || ''
 
