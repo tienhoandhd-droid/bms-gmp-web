@@ -981,6 +981,13 @@ export async function layNguoiDung(signal) {
   if (error) return { error, rows: [] }
   return { error: null, rows: Array.isArray(data) ? data : [] }
 }
+// Email đã có tài khoản đăng nhập (auth.users) nhưng CHƯA được phân quyền.
+// Chỉ ADMIN đọc được; người khác nhận mảng rỗng.
+export async function layTaiKhoanChuaPhanQuyen(signal) {
+  const { data, error } = await goiRPC('rpc_tai_khoan_chua_phan_quyen', {}, { signal })
+  if (error) return { error, emails: [] }
+  return { error: null, emails: (Array.isArray(data) ? data : []).map((r) => r.email || r) }
+}
 export async function luuNguoiDung(u, signal) {
   return goiRPC('rpc_luu_nguoi_dung', {
     p_email: u.email, p_ho_ten: u.ho_ten, p_vai_tro: u.vai_tro,

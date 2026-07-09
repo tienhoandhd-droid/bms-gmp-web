@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, dungCanhBao, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, dungCanhBao, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
@@ -2231,10 +2231,17 @@ function TaiKhoanCard({ isLive, actor }) {
   const [loading, setLoading] = useState(true);
   const [loi, setLoi] = useState(null);
   const [luu, setLuu] = useState({});     // email → trạng thái lưu
+  // Email đã có tài khoản đăng nhập nhưng chưa được gán vai trò. Tạo tài khoản
+  // vẫn là việc của Supabase Auth; ở đây chỉ PHÂN QUYỀN cho email đã tồn tại,
+  // nên không thể sinh ra dòng phân quyền mồ côi vì gõ nhầm email.
+  const [chuaPhanQuyen, setChuaPhanQuyen] = useState([]);
+  const [nguoiMoi, setNguoiMoi] = useState({ email: "", ho_ten: "", vai_tro: "IPC", khu_vuc: [...DS_KHU], kich_hoat: true });
+  const [luuMoi, setLuuMoi] = useState(null);
   const napLai = useCallback(async () => {
     if (!isLive) { setLoading(false); return; }
-    const { error, rows: r } = await layNguoiDung();
+    const [{ error, rows: r }, dsAuth] = await Promise.all([layNguoiDung(), layTaiKhoanChuaPhanQuyen()]);
     if (error) setLoi(error); else { setLoi(null); setRows(r.map((x) => ({ ...x, khu_vuc: Array.isArray(x.khu_vuc) ? x.khu_vuc : [] }))); }
+    setChuaPhanQuyen(dsAuth.emails || []);
     setLoading(false);
   }, [isLive]);
   useEffect(() => { setLoading(true); napLai(); }, [napLai]);
@@ -2252,6 +2259,16 @@ function TaiKhoanCard({ isLive, actor }) {
     setLuu((s) => ({ ...s, [r.email]: ok ? "ok" : "loi" }));
     setTimeout(() => setLuu((s) => ({ ...s, [r.email]: null })), 3000);
     if (ok) napLai();
+  };
+
+  const themNguoi = async () => {
+    if (!nguoiMoi.email) return;
+    setLuuMoi("dang");
+    const { data, error } = await luuNguoiDung(nguoiMoi);
+    if (!error && data?.ok) {
+      setLuuMoi("ok"); setNguoiMoi({ email: "", ho_ten: "", vai_tro: "IPC", khu_vuc: [...DS_KHU], kich_hoat: true }); await napLai();
+    } else setLuuMoi(error?.thong_bao || data?.thong_bao || "Lỗi");
+    setTimeout(() => setLuuMoi(null), 4000);
   };
 
   if (!isLive) return <Card className="p-8 text-center text-[13px] text-slate-500">Cần kết nối dữ liệu thật (LIVE) để quản lý tài khoản.</Card>;
@@ -2274,8 +2291,27 @@ function TaiKhoanCard({ isLive, actor }) {
                 <td className="py-2.5 pr-4"><button onClick={() => doi(r.email, { kich_hoat: !r.kich_hoat })} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 ${r.kich_hoat ? "text-teal-700 bg-teal-50 ring-teal-200" : "text-slate-500 bg-slate-100 ring-slate-200"}`}>{r.kich_hoat ? "Bật" : "Tắt"}</button></td>
                 <td className="py-2.5 pr-4"><button onClick={() => luuMot(r)} className="text-[11px] font-medium text-white rounded-lg px-3 py-1.5 flex items-center gap-1" style={{ backgroundColor: COLOR.teal }}><Save className="w-3.5 h-3.5" strokeWidth={1.8} /> {luu[r.email] === "dang" ? "Đang lưu…" : luu[r.email] === "ok" ? "Đã lưu ✓" : luu[r.email] === "loi" ? "Lỗi" : "Lưu"}</button></td>
               </tr>
-            ))}</tbody>
+            ))}
+            {chuaPhanQuyen.length > 0 && (
+              <tr className="border-t border-slate-200 bg-sky-50/50 align-middle">
+                <td className="py-2.5 pr-4">
+                  <select value={nguoiMoi.email} onChange={(e) => setNguoiMoi({ ...nguoiMoi, email: e.target.value })}
+                    className="w-full min-w-[200px] rounded-lg bg-white ring-1 ring-sky-200 px-2 py-1.5 text-[12px] font-mono">
+                    <option value="">Chọn tài khoản chưa phân quyền…</option>
+                    {chuaPhanQuyen.map((e) => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                  <input value={nguoiMoi.ho_ten} placeholder="Họ tên (tuỳ chọn)" onChange={(e) => setNguoiMoi({ ...nguoiMoi, ho_ten: e.target.value })}
+                    className="w-full mt-1.5 rounded-lg bg-white ring-1 ring-sky-200 px-2 py-1.5 text-[12px]" />
+                </td>
+                <td className="py-2.5 pr-4"><select value={nguoiMoi.vai_tro} onChange={(e) => setNguoiMoi({ ...nguoiMoi, vai_tro: e.target.value })} className="rounded-lg bg-white ring-1 ring-sky-200 px-2 py-1 text-[12px]">{VAI_TRO_CHON.map((v) => <option key={v.k} value={v.k}>{v.label}</option>)}</select></td>
+                <td className="py-2.5 pr-4">{nguoiMoi.vai_tro === "ADMIN" ? <span className="text-[11px] text-slate-400 italic">tất cả (Quản trị)</span> : <div className="flex gap-1.5">{DS_KHU.map((k) => { const on = nguoiMoi.khu_vuc.includes(k); return <button key={k} onClick={() => setNguoiMoi({ ...nguoiMoi, khu_vuc: on ? nguoiMoi.khu_vuc.filter((x) => x !== k) : [...nguoiMoi.khu_vuc, k] })} className={`px-2.5 py-1 rounded-lg text-[12px] font-medium ring-1 ${on ? "text-white ring-transparent" : "text-slate-500 bg-white ring-slate-200"}`} style={on ? { backgroundColor: COLOR.teal } : {}}>{k}</button>; })}</div>}</td>
+                <td className="py-2.5 pr-4 text-[11px] text-slate-400">Bật</td>
+                <td className="py-2.5 pr-4"><button onClick={themNguoi} disabled={!nguoiMoi.email || luuMoi === "dang"} className="text-[11px] font-medium text-white rounded-lg px-3 py-1.5 flex items-center gap-1 disabled:opacity-40" style={{ backgroundColor: COLOR.coral }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> {luuMoi === "dang" ? "Đang lưu…" : luuMoi === "ok" ? "Đã thêm ✓" : "Phân quyền"}</button></td>
+              </tr>)}
+            </tbody>
           </table>
+          {luuMoi && luuMoi !== "dang" && luuMoi !== "ok" && <p className="text-[12px] text-rose-600 mt-2">{luuMoi}</p>}
+          {chuaPhanQuyen.length === 0 && <p className="text-[11px] text-slate-400 mt-3">Mọi tài khoản đăng nhập đều đã được phân quyền. Tài khoản mới tạo ở <b>Supabase → Authentication → Users</b> sẽ tự hiện ở đây.</p>}
         </div>
       )}
     </Card>
