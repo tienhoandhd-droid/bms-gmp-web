@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, thaoTacSuCo, dungCanhBao, ACTION_LABEL_TO_CODE, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, dungCanhBao, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
@@ -186,7 +187,32 @@ const STATUS_ACTIONS = {
 // gộp mọi vai trò có thể thao tác ở 1 trạng thái (để hiện "Chờ …")
 const rolesOfStatus = (st) => [...new Set((STATUS_ACTIONS[st] || []).flatMap((a) => a.roles))];
 const firstActionFor = (st, role) => (STATUS_ACTIONS[st] || []).find((a) => role === "ADMIN" || a.roles.includes(role)) || null;
-const STATUS_DOT = { "Chưa xử lý": "bg-rose-500", "IPC: bất thường": "bg-violet-500", "Đã báo cơ điện": "bg-amber-500", "Cơ điện đang xử lý": "bg-cyan-500", "Chờ IPC kiểm lại": "bg-teal-500", "Đã khắc phục": "bg-emerald-500" };
+
+// ===== Bộ nút lấy TỪ BẢNG LUẬT (view xem_nut_thao_tac), không hard-code =====
+// STATUS_ACTIONS phía trên chỉ còn dùng cho chế độ DEMO (không có Supabase).
+// Ở LIVE, nút hiện ra luôn là nút bấm được: DB đã lọc theo trang_thai_truoc.
+// Nhờ vậy không thể tái diễn lỗi "nút hiện nhưng bấm trả KHONG_DUOC_PHEP".
+function nutKhopTrangThai(dsNut, statusCode) {
+  if (!dsNut?.length || !statusCode) return [];
+  const uu = new Map();   // ưu tiên luật khớp ĐÚNG trạng thái hơn luật '*'
+  for (const n of dsNut) {
+    if (n.trang_thai_truoc !== statusCode && n.trang_thai_truoc !== "*") continue;
+    const cu = uu.get(n.hanh_dong);
+    if (!cu || (n.trang_thai_truoc === statusCode && cu.trang_thai_truoc === "*")) uu.set(n.hanh_dong, n);
+  }
+  return [...uu.values()].sort((a, b) => (a.thu_tu || 0) - (b.thu_tu || 0));
+}
+function nutChoVaiTro(dsNut, statusCode, role) {
+  return nutKhopTrangThai(dsNut, statusCode)
+    .filter((n) => role === "ADMIN" || n.vai_tro === role)
+    .map((n) => ({
+      code: n.hanh_dong, label: n.nhan, roles: [n.vai_tro], dong: !!n.dong_su_co,
+      batBuocLyDo: !!n.bat_buoc_ly_do,
+      next: n.giu_trang_thai ? "(giữ nguyên)" : (TRANG_THAI_CODE_TO_LABEL[n.trang_thai_sau] || n.trang_thai_sau),
+      style: { color: n.mau_chu, backgroundColor: n.mau_nen },
+    }));
+}
+const STATUS_DOT = { "Chưa xử lý": "bg-rose-500", "IPC: bất thường": "bg-violet-500", "Đã báo cơ điện": "bg-amber-500", "Cơ điện đang xử lý": "bg-cyan-500", "Cơ điện chờ xử lý": "bg-slate-400", "Chờ IPC kiểm lại": "bg-teal-500", "Đã khắc phục": "bg-emerald-500" };
 const INCIDENTS0 = [
   { id: "SC-1042", room: "C4.R7", sensor: "Chênh áp (DP)", priority: "P1", start: "2026-05-29 06:12:04", duration: 7.1, status: "Chưa xử lý", silenced: false, trail: [{ t: "06:12:04", who: "Hệ thống", act: "Chênh áp nghiêm trọng (9.1 Pa < 12.5 Pa) — AHU-K01" }] },
   { id: "SC-1041", room: "C1.R11", sensor: "Chênh áp (DP)", priority: "P1", start: "2026-05-29 06:08:11", duration: 7.2, status: "Chưa xử lý", silenced: false, trail: [{ t: "06:08:11", who: "Hệ thống", act: "Chênh áp nghiêm trọng (10.3 Pa) — AHU03" }] },
@@ -1896,11 +1922,45 @@ const NHAN_EMAIL_LABEL = {
 };
 const DS_KHU = ["C1", "C4", "Q2"];                 // 3 khu của nhà máy — khớp check trong RPC
 const DS_VAI_TRO_CB = [["IPC", "IPC hiện trường"], ["MEP", "Cơ điện"], ["QA", "QA"], ["LOT", "Trực HSL"], ["IT", "IT"]];
-const DB_MOI_MAC_DINH = () => ({ email: "", ho_ten: "", vai_tro: "IPC", khu_vuc: [...DS_KHU], kich_hoat: true });
+const DB_MOI_MAC_DINH = () => ({ email: "", ho_ten: "", vai_tro: "IPC", khu_vuc: [...DS_KHU], ahu: [], kich_hoat: true });
+
+// Ô phân công AHU cho Cơ điện. Rỗng = nhận MỌI AHU trong các khu đã tích.
+// Chỉ liệt kê AHU thuộc khu người đó phụ trách; AHU toàn phòng P3 hiện mờ vì không sinh sự cố.
+function ChonAhu({ nn, dsAhu, canManage, onLuu }) {
+  const [mo, setMo] = useState(false);
+  if (nn.vai_tro !== "MEP") return <span className="text-[11px] text-slate-300">—</span>;
+  const daChon = nn.ahu || [];
+  const trongKhu = dsAhu.filter((a) => (nn.khu_vuc || []).includes(a.khu_vuc));
+  const toggle = (maAhu) => onLuu({ ...nn, ahu: daChon.includes(maAhu) ? daChon.filter((x) => x !== maAhu) : [...daChon, maAhu] });
+  const nhan = daChon.length === 0 ? "Tất cả AHU" : `${daChon.length} AHU`;
+  return (
+    <div className="relative">
+      <button disabled={!canManage} onClick={() => setMo((v) => !v)}
+        className={`text-[11px] px-2 py-1 rounded-lg font-medium whitespace-nowrap ${daChon.length ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-500"} disabled:opacity-60`}>
+        {nhan} ▾
+      </button>
+      {mo && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setMo(false)} />
+          <div className="absolute z-20 mt-1 left-0 w-56 rounded-xl bg-white ring-1 ring-slate-200 shadow-lg p-2 max-h-64 overflow-y-auto">
+            <p className="text-[10px] text-slate-400 px-1 pb-1.5 leading-snug">Bỏ trống = nhận mọi AHU trong khu đã tích.</p>
+            {trongKhu.length === 0 && <p className="text-[11px] text-slate-400 px-1 py-2 italic">Chưa tích khu nào.</p>}
+            {trongKhu.map((a) => (
+              <label key={a.ma_ahu} className={`flex items-center gap-2 px-1 py-1 rounded-lg text-[12px] cursor-pointer hover:bg-slate-50 ${a.co_p1_p2 ? "" : "opacity-45"}`}>
+                <input type="checkbox" checked={daChon.includes(a.ma_ahu)} onChange={() => toggle(a.ma_ahu)} className="rounded" />
+                <span className="font-mono">{a.ma_ahu}</span>
+                <span className="text-slate-400 ml-auto">{a.co_p1_p2 ? `${a.so_phong} phòng` : "chỉ P3"}</span>
+              </label>))}
+          </div>
+        </>)}
+    </div>
+  );
+}
 function CauHinhNguoiNhan({ isLive, canManage, actor }) {
   const [emailCfg, setEmailCfg] = useState({});
   const [nguoiNhan, setNguoiNhan] = useState([]);
   const [danhBa, setDanhBa] = useState([]);    // danh bạ cảnh báo vai trò × khu
+  const [dsAhu, setDsAhu] = useState([]);      // {ma_ahu:'C1/AHU03', khu_vuc, ahu, so_phong, co_p1_p2}
   const [dbMoi, setDbMoi] = useState(DB_MOI_MAC_DINH());   // hàng "thêm mới" cuối bảng danh bạ
   const [tai, setTai] = useState(true);
   const [tb, setTb] = useState(null);          // {ok, text}
@@ -1911,10 +1971,11 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
   const napLai = async () => {
     if (!isLive) { setTai(false); return; }
     setTai(true);
-    const [e, n, d] = await Promise.all([layCauHinhEmail(), layNguoiNhanBaoCao(), layNguoiNhanCanhBao()]);
+    const [e, n, d, a] = await Promise.all([layCauHinhEmail(), layNguoiNhanBaoCao(), layNguoiNhanCanhBao(), layDanhSachAhu()]);
     if (e.cfg) { setEmailCfg(e.cfg); goc.current = { ...e.cfg }; }
     setNguoiNhan(n.rows || []);
     setDanhBa(d.rows || []);
+    setDsAhu(a.rows || []);
     gocDB.current = Object.fromEntries((d.rows || []).map((r) => [r.id, { email: r.email || "", ho_ten: r.ho_ten || "" }]));
     setTai(false);
   };
@@ -1996,15 +2057,16 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
       <Card className="p-6">
         <SectionTitle icon={AlertOctagon} hint="định tuyến cảnh báo theo vai trò × khu — sự cố khu nào gửi người tích khu đó">Danh bạ email CẢNH BÁO (vai trò × khu)</SectionTitle>
         {tai ? <div className="h-24 rounded-2xl bg-slate-50 animate-pulse mt-4" /> :
-          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Email", "Họ tên", "Vai trò", "C1", "C4", "Q2", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Email", "Họ tên", "Vai trò", "C1", "C4", "Q2", "AHU phụ trách", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
             <tbody>
-              {danhBa.length === 0 && !canManage && <tr><td colSpan={8} className="py-4 text-slate-400 italic">Chưa có địa chỉ nào trong danh bạ.</td></tr>}
+              {danhBa.length === 0 && !canManage && <tr><td colSpan={9} className="py-4 text-slate-400 italic">Chưa có địa chỉ nào trong danh bạ.</td></tr>}
               {danhBa.map((n) => (
                 <tr key={n.id} className={`border-t border-slate-100 ${n.kich_hoat ? "" : "opacity-50"}`}>
                   <td className="py-2 pr-4"><input type="email" value={n.email || ""} disabled={!canManage} onChange={(e) => suaDB(n.id, "email", e.target.value)} onBlur={() => blurDB(n, "email")} className="w-full min-w-[190px] rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] font-mono disabled:bg-slate-50 disabled:ring-0" /></td>
                   <td className="py-2 pr-4"><input value={n.ho_ten || ""} disabled={!canManage} placeholder="—" onChange={(e) => suaDB(n.id, "ho_ten", e.target.value)} onBlur={() => blurDB(n, "ho_ten")} className="w-full min-w-[110px] rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-sm disabled:bg-slate-50 disabled:ring-0" /></td>
                   <td className="py-2 pr-4"><select value={n.vai_tro} disabled={!canManage} onChange={(e) => luuDB({ ...n, vai_tro: e.target.value })} className="rounded-xl bg-white ring-1 ring-slate-200 px-2 py-1.5 text-sm disabled:bg-slate-50">{DS_VAI_TRO_CB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
                   {DS_KHU.map((k) => <td key={k} className="py-2 pr-4"><button disabled={!canManage} onClick={() => toggleKhuDB(n, k)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${(n.khu_vuc || []).includes(k) ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-300"} disabled:opacity-60`}>{(n.khu_vuc || []).includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
+                  <td className="py-2 pr-4"><ChonAhu nn={n} dsAhu={dsAhu} canManage={canManage} onLuu={(x) => luuDB(x, "Đã lưu phân công AHU")} /></td>
                   <td className="py-2 pr-4"><button disabled={!canManage} onClick={() => luuDB({ ...n, kich_hoat: !n.kich_hoat })} className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-teal-100 text-teal-700" : "bg-slate-200 text-slate-500"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
                   <td className="py-2 pr-4">{canManage && <button onClick={() => xoaDB(n.id)} className="text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button>}</td>
                 </tr>))}
@@ -2014,11 +2076,13 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
                   <td className="py-2.5 pr-4"><input value={dbMoi.ho_ten} placeholder="Họ tên (tuỳ chọn)" onChange={(e) => setDbMoi({ ...dbMoi, ho_ten: e.target.value })} className="w-full min-w-[110px] rounded-xl bg-white ring-1 ring-sky-200 px-3 py-1.5 text-sm" /></td>
                   <td className="py-2.5 pr-4"><select value={dbMoi.vai_tro} onChange={(e) => setDbMoi({ ...dbMoi, vai_tro: e.target.value })} className="rounded-xl bg-white ring-1 ring-sky-200 px-2 py-1.5 text-sm">{DS_VAI_TRO_CB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
                   {DS_KHU.map((k) => <td key={k} className="py-2.5 pr-4"><button onClick={() => setDbMoi({ ...dbMoi, khu_vuc: dbMoi.khu_vuc.includes(k) ? dbMoi.khu_vuc.filter((x) => x !== k) : [...dbMoi.khu_vuc, k] })} className={`w-6 h-6 rounded-lg flex items-center justify-center ${dbMoi.khu_vuc.includes(k) ? "bg-teal-100 text-teal-700" : "bg-white ring-1 ring-slate-200 text-slate-300"}`}>{dbMoi.khu_vuc.includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
+                  <td className="py-2.5 pr-4 text-[11px] text-slate-400">{dbMoi.vai_tro === "MEP" ? "Phân công sau khi thêm" : "—"}</td>
                   <td className="py-2.5 pr-4 text-[11px] text-slate-400">Kích hoạt</td>
                   <td className="py-2.5 pr-4"><button onClick={themDB} className="text-xs font-medium text-white rounded-xl px-3 py-1.5 flex items-center gap-1" style={{ backgroundColor: COLOR.coral }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm</button></td>
                 </tr>)}
             </tbody></table></div>}
-        <p className="text-[11px] text-slate-400 mt-3">Sự cố ở khu nào chỉ gửi người có tích khu đó. Khu chưa ai tích → gửi <b>toàn bộ</b> người kích hoạt của vai trò (không bỏ sót). Bỏ tích cả 3 khu khi lưu = hệ thống tự đặt lại đủ 3 khu. IPC nhận trước; chưa xử lý leo thang Cơ điện → Trực HSL.</p>
+        <p className="text-[11px] text-slate-400 mt-3">Sự cố ở khu nào chỉ gửi người có tích khu đó. Khu chưa ai tích → gửi <b>toàn bộ</b> người kích hoạt của vai trò (không bỏ sót). Bỏ tích cả 3 khu khi lưu = hệ thống tự đặt lại đủ 3 khu.</p>
+        <p className="text-[11px] text-slate-400 mt-1"><b>AHU phụ trách</b> chỉ áp dụng cho Cơ điện: mỗi AHU sẽ gửi một email riêng cho đúng người phụ trách. Bỏ trống = nhận mọi AHU trong các khu đã tích. Tên AHU trùng nhau giữa các khu nên ghi dạng <span className="font-mono">KHU/AHU</span>. AHU hiển thị mờ là AHU chỉ có phòng P3 — không bao giờ sinh sự cố.</p>
       </Card>
 
       <Card className="p-6"><SectionTitle icon={Cog} hint="địa chỉ gửi đi + nhận khi ở chế độ thử + fallback báo cáo">Địa chỉ hệ thống & fallback</SectionTitle>
@@ -2337,6 +2401,78 @@ function SuCoGanDayPage({ isLive, khuChoPhep = null }) {
   );
 }
 
+// ====== Modal xác nhận thao tác đến từ NÚT TRONG EMAIL (deep link) ======
+// Vì sao tồn tại: nút email không thể nhập ghi chú, cũng không biết ai đang bấm.
+// Đưa về web ⇒ (1) DB xác thực vai trò + khu qua JWT, (2) nhập được ghi chú bắt
+// buộc, (3) audit ghi email THẬT thay vì 'email:IPC', (4) bộ quét link của Gmail
+// không thể vô tình thao tác vì mọi thứ chỉ chạy sau khi người dùng bấm Xác nhận.
+function ModalVeEmail({ trangThai, onDong, onChay }) {
+  const [lyDo, setLyDo] = useState("");
+  const [dangChay, setDangChay] = useState(false);
+  const [ketQua, setKetQua] = useState(null);
+  if (!trangThai) return null;
+  const ve = trangThai.ve;
+  const canNote = !!ve?.bat_buoc_ly_do;
+  const thieuNote = canNote && !lyDo.trim();
+  const xacNhan = async () => {
+    if (thieuNote || dangChay) return;
+    setDangChay(true);
+    setKetQua(await onChay(lyDo.trim() || null));
+    setDangChay(false);
+  };
+  const Khung = ({ children }) => createPortal(
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl p-6">{children}</div>
+    </div>, document.body);
+
+  if (trangThai.dangTai) return <Khung><p className="text-sm text-slate-500 py-6 text-center">Đang kiểm tra liên kết…</p></Khung>;
+
+  if (trangThai.loi || (ketQua && !ketQua.ok)) return (
+    <Khung>
+      <h3 className="text-base font-semibold text-rose-700">Không thực hiện được</h3>
+      <p className="text-sm text-slate-600 mt-2 leading-relaxed">{trangThai.loi || ketQua.thong_bao}</p>
+      <p className="text-[12px] text-slate-400 mt-3">Bạn vẫn có thể xử lý sự cố trực tiếp ở tab <b>Sự cố</b>.</p>
+      <button onClick={onDong} className="mt-5 w-full rounded-xl bg-slate-100 py-2.5 text-sm font-medium text-slate-700">Đóng</button>
+    </Khung>);
+
+  if (ketQua?.ok) return (
+    <Khung>
+      <h3 className="text-base font-semibold text-teal-700">✓ Đã ghi nhận</h3>
+      <p className="text-sm text-slate-600 mt-2 leading-relaxed">{ketQua.thong_bao}</p>
+      <button onClick={onDong} className="mt-5 w-full rounded-xl py-2.5 text-sm font-medium text-white" style={{ backgroundColor: COLOR.teal }}>Xong</button>
+    </Khung>);
+
+  return (
+    <Khung>
+      <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Thao tác từ email · {ve.vai_tro_can}</p>
+      <h3 className="text-base font-semibold text-slate-800 mt-1">{ve.nhan}</h3>
+      <div className="mt-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3 text-[13px] text-slate-600 space-y-1">
+        <div><b>{ve.ma_hien_thi}</b> · {ve.ma_phong} {ve.ten_phong ? `— ${ve.ten_phong}` : ""}</div>
+        <div className="text-[12px] text-slate-500">{ve.khu_vuc} · {ve.ahu || "—"} · {ve.loai_cam_bien} · {ve.muc_canh_bao}</div>
+        <div className="text-[12px] text-slate-500">
+          Trạng thái: <b>{ve.trang_thai_hien_tai}</b>
+          {ve.giu_trang_thai
+            ? <span className="text-slate-400"> — thao tác này chỉ ghi chú, không đổi trạng thái</span>
+            : <> → <b>{ve.trang_thai_sau}</b>{ve.dong_su_co && <span className="text-teal-600"> (đóng sự cố)</span>}</>}
+        </div>
+      </div>
+      {canNote && (
+        <div className="mt-3">
+          <label className="text-[11px] uppercase text-slate-500 font-semibold">Nội dung sự cố / biện pháp <span className="text-rose-500">*</span></label>
+          <textarea value={lyDo} onChange={(e) => setLyDo(e.target.value)} rows={3} autoFocus
+            placeholder="Ví dụ: van điều tiết kẹt, đã chỉnh lại 40% và theo dõi 30 phút"
+            className="w-full mt-1.5 rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-sm" />
+          <p className="text-[11px] text-slate-400 mt-1">Bắt buộc — ghi vào hồ sơ kiểm toán ALCOA+.</p>
+        </div>)}
+      <div className="flex gap-2 mt-5">
+        <button onClick={onDong} className="flex-1 rounded-xl bg-slate-100 py-2.5 text-sm font-medium text-slate-700">Huỷ</button>
+        <button onClick={xacNhan} disabled={thieuNote || dangChay}
+          className="flex-1 rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-40"
+          style={{ backgroundColor: COLOR.teal }}>{dangChay ? "Đang ghi…" : "Xác nhận"}</button>
+      </div>
+    </Khung>);
+}
+
 const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Sự cố gần đây", icon: Radio }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 export default function App() {
@@ -2370,6 +2506,20 @@ export default function App() {
   const [pwOpen, setPwOpen] = useState(false);   // #5 — modal đổi mật khẩu (mọi vai trò)
   const [kpiModal, setKpiModal] = useState(null); // #3 — modal danh sách phòng theo ô KPI ('dat'|'khong'|'thieu'|'p1')
   const [xemTatCaPhong, setXemTatCaPhong] = useState(false);   // Overview: ưu tiên 1&2 (mặc định) ↔ tất cả phòng
+  // Nút bấm từ email: ?sc=&act=&token=. Đọc token NGAY khi tải trang rồi dọn URL
+  // (token là bí mật, không để nằm trên thanh địa chỉ / lịch sử trình duyệt).
+  // Chưa đăng nhập thì AuthGate chặn màn hình, token vẫn nằm trong ref → xử lý sau khi vào.
+  const tokenEmail = useRef(null);
+  const [veEmail, setVeEmail] = useState(null);   // { dangTai } | { ve } | { loi }
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const tk = q.get("token");
+    if (!tk) return;
+    tokenEmail.current = tk;
+    q.delete("token"); q.delete("sc"); q.delete("act");
+    const sach = window.location.pathname + (q.toString() ? "?" + q.toString() : "") + window.location.hash;
+    window.history.replaceState(null, "", sach);
+  }, []);
   const role = user?.role; const canManage = canManageRooms(role);
   // #5 — danh sách tab hiển thị theo vai trò
   // Tab hiển thị theo vai trò. LIVE mà vai trò CHƯA xác định (đang tải / lỗi tra) → chỉ
@@ -2377,6 +2527,27 @@ export default function App() {
   // ===== Dữ liệu LIVE từ Supabase (Tổng quan/Sự cố/Nhật ký) =====
   const live = useLiveData(dataSource);
   const isLive = dataSource === "live";
+  // Có token email + đã đăng nhập → soi vé (CHỈ ĐỌC). DB kiểm vai trò, khu, hạn
+  // token, và cả việc sự cố đã đổi trạng thái từ lúc gửi mail.
+  useEffect(() => {
+    if (!isLive || !user || !tokenEmail.current || veEmail) return;
+    let huy = false;
+    setVeEmail({ dangTai: true });
+    kiemVeThaoTac(tokenEmail.current).then(({ error, ve }) => {
+      if (huy) return;
+      if (error) setVeEmail({ loi: moTaLoi(error) });
+      else if (!ve?.ok) setVeEmail({ loi: ve?.thong_bao || "Liên kết không dùng được." });
+      else setVeEmail({ ve });
+    });
+    return () => { huy = true; };
+  }, [isLive, user, veEmail]);
+  const dongVe = () => { tokenEmail.current = null; setVeEmail(null); };
+  const chayVe = async (lyDo) => {
+    const { data, error } = await thaoTacSuCoTuEmail({ token: tokenEmail.current, lyDo });
+    if (error) return { ok: false, thong_bao: moTaLoi(error) };
+    live.lamMoi({ nen: true });
+    return data;
+  };
   // Tab hiển thị theo vai trò; LIVE mà vai trò CHƯA xác định → chỉ tab xem cơ bản
   // (khai báo SAU isLive để tránh dùng biến trước khi khởi tạo — TDZ).
   const visibleTabs = useMemo(() => {
@@ -2653,6 +2824,13 @@ export default function App() {
             const incAhu = (i) => (metaPhong[i.room] || {}).ahu || "";
             const ahus = [...new Set((rooms || []).filter((r) => evtKhu === "ALL" || r.area === evtKhu).map((r) => r.ahu).filter(Boolean))].sort();
             const incFiltered = incidentsXem.filter((i) => (evtKhu === "ALL" || incKhu(i) === evtKhu) && (evtAhu === "ALL" || incAhu(i) === evtAhu));
+            // Gom theo AHU, P1 lên đầu trong từng cụm — khớp cách email của Cơ điện
+            // được gom (mỗi AHU một mail), nên đối chiếu web ↔ email không lệch.
+            const uuTienSo = (p) => (p === "P1" ? 1 : p === "P2" ? 2 : 3);
+            const cumAhu = (i) => `${incKhu(i) || "?"} / ${incAhu(i) || "Không rõ AHU"}`;
+            const incSorted = [...incFiltered].sort((a, b) =>
+              cumAhu(a).localeCompare(cumAhu(b)) || uuTienSo(a.priority) - uuTienSo(b.priority) || String(a.start).localeCompare(String(b.start)));
+            const dsNut = isLive ? live.nutThaoTac : null;
             const locChip = (v, label, on, click) => <button key={v} onClick={click} className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${on ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={on ? { backgroundColor: COLOR.teal } : {}}>{label}</button>;
             return (
             <div className="space-y-5">
@@ -2680,8 +2858,24 @@ export default function App() {
                 <div className="px-5 py-8 text-center text-[13px] text-slate-500">Không có sự cố khớp bộ lọc{evtKhu !== "ALL" ? ` · Khu ${evtKhu}` : ""}{evtAhu !== "ALL" ? ` · ${evtAhu}` : ""}. <button onClick={() => { setEvtKhu("ALL"); setEvtAhu("ALL"); }} className="text-teal-600 font-semibold underline">Bỏ lọc</button></div>
               )) : (
               <div className="overflow-x-auto"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
-                <tbody>{incFiltered.map((inc) => { const acts = STATUS_ACTIONS[inc.status] || []; const terminal = acts.length === 0; const myActs = user ? acts.filter((a) => role === "ADMIN" || a.roles.includes(role)) : []; return (
-                  <tr key={inc.id} className={`border-t border-slate-100 hover:bg-sky-50/40 transition ${inc.silenced ? "opacity-60" : ""}`}>
+                <tbody>{incSorted.map((inc, idx) => {
+                  const dungDB = dsNut && dsNut.length && inc.statusCode;
+                  const acts = dungDB ? nutKhopTrangThai(dsNut, inc.statusCode) : (STATUS_ACTIONS[inc.status] || []);
+                  const terminal = acts.length === 0;
+                  const myActs = !user ? [] : dungDB ? nutChoVaiTro(dsNut, inc.statusCode, role)
+                                                     : acts.filter((a) => role === "ADMIN" || a.roles.includes(role));
+                  const choAi = dungDB ? [...new Set(acts.map((a) => a.vai_tro))] : rolesOfStatus(inc.status);
+                  const moCum = idx === 0 || cumAhu(incSorted[idx - 1]) !== cumAhu(inc);
+                  const soTrongCum = incSorted.filter((x) => cumAhu(x) === cumAhu(inc)).length;
+                  return (
+                  <React.Fragment key={inc.id}>
+                  {moCum && (
+                    <tr className="bg-slate-50/70">
+                      <td colSpan={9} className="py-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                        {cumAhu(inc)} <span className="text-slate-400 font-normal normal-case tracking-normal">· {soTrongCum} sự cố</span>
+                      </td>
+                    </tr>)}
+                  <tr className={`border-t border-slate-100 hover:bg-sky-50/40 transition ${inc.silenced ? "opacity-60" : ""}`}>
                     <td className="py-3 px-3 font-semibold" style={{ color: COLOR.navy }}>{inc.id}</td>
                     <td className="py-3 px-3">{inc.room}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[10px] text-slate-400">{kh}</span> : null; })()}</td>
                     <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
@@ -2691,8 +2885,9 @@ export default function App() {
                     <td className="py-3 px-3 text-amber-600 font-medium">{inc.duration}h</td>
                     <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-slate-700 font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span></td>
                     <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Dừng CB</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đã dừng" : "—"}</span>}</td>
-                    <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 transition ${a.color}`}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {rolesOfStatus(inc.status).map((r) => ROLE_VI[r]).join("/")}</span>}</td>
+                    <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {choAi.map((r) => ROLE_VI[r] || r).join("/")}</span>}</td>
                   </tr>
+                  </React.Fragment>
                 ); })}</tbody></table></div>)}</Card>
               <p className="text-[11px] text-slate-500 text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
             </div>
@@ -2837,6 +3032,7 @@ export default function App() {
         onGotoIncidents={() => { setKpiModal(null); setTab("events"); }} />}
       {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} isLive={isLive} />}
       {pwOpen && <DoiMatKhauModal user={user} isLive={isLive} onClose={() => setPwOpen(false)} />}
+      {veEmail && <ModalVeEmail trangThai={veEmail} onDong={dongVe} onChay={chayVe} />}
     </div>
   );
 }

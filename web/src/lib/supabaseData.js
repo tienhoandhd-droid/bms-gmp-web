@@ -22,6 +22,7 @@ export const TRANG_THAI_CODE_TO_LABEL = {
   IPC_BAT_THUONG:            'IPC: bất thường',
   DA_BAO_CO_DIEN:            'Đã báo cơ điện',
   CO_DIEN_DANG_XU_LY:        'Cơ điện đang xử lý',
+  CO_DIEN_CHO_XU_LY:         'Cơ điện chờ xử lý',    // v14: hoãn có chủ đích, vẫn nhắc
   CO_DIEN_KHONG_XU_LY_DUOC:  'Không xử lý được',     // → Trực HSL điều phối
   CO_DIEN_DA_XU_LY:          'Chờ IPC kiểm lại',
   CHO_QA_KIEM_LAI:           'Chờ IPC kiểm lại',
@@ -609,6 +610,30 @@ export async function thaoTacSuCo({ dbId, actionCode, lyDo, actorEmail }, signal
     p_ma_su_co: dbId, p_hanh_dong: actionCode, p_ly_do: lyDo, p_actor: actorEmail || null, p_nguon: 'web',
   }, { signal })
 }
+
+// ---- Nút bấm từ EMAIL (deep link ?sc=&act=&token=) ----
+// Bước 1: soi vé, CHỈ ĐỌC — không tiêu token, không đổi trạng thái. Chạy dưới JWT
+// nên DB tự kiểm vai trò + khu, và phát hiện sự cố đã đổi trạng thái từ lúc gửi mail.
+// Bộ nút thao tác — NGUỒN SỰ THẬT DUY NHẤT là bảng luật (view xem_nut_thao_tac).
+// Trước v14 web và WF8 mỗi nơi hard-code một bảng nút, lệch với luật DB ⇒ nút hiện
+// ra nhưng bấm vào trả KHONG_DUOC_PHEP. Nay cả hai cùng đọc một chỗ.
+export async function layNutThaoTac(signal) {
+  const { data, error } = await docView('xem_nut_thao_tac',
+    (q) => q.select('hanh_dong,vai_tro,bo_nut,trang_thai_truoc,nhan,mau_nen,mau_chu,bat_buoc_ly_do,dong_su_co,giu_trang_thai,thu_tu'),
+    { signal })
+  if (error) return { error, rows: [] }
+  return { error: null, rows: data || [] }
+}
+
+export async function kiemVeThaoTac(token, signal) {
+  const { data, error } = await goiRPC('rpc_kiem_ve_thao_tac', { p_token: token }, { signal })
+  if (error) return { error, ve: null }
+  return { error: null, ve: data }
+}
+// Bước 2: thực thi. Token là chìa; ly_do bắt buộc với hành động có bat_buoc_ly_do.
+export async function thaoTacSuCoTuEmail({ token, lyDo }, signal) {
+  return goiRPC('rpc_thao_tac_su_co', { p_token: token, p_ly_do: lyDo || null }, { signal })
+}
 export async function dungCanhBao({ dbId, lyDo, actorEmail }, signal) {
   return goiRPC('rpc_dung_canh_bao', { p_ma_su_co: dbId, p_ly_do: lyDo, p_actor: actorEmail || null }, { signal })
 }
@@ -679,7 +704,9 @@ export async function xoaNguoiNhanBaoCao(id, actor, signal) {
 export async function layNguoiNhanCanhBao(signal) {
   const { data, error } = await goiRPC('rpc_lay_nguoi_nhan_canh_bao', {}, { signal })
   if (error) return { error, rows: [] }
-  const rows = (Array.isArray(data) ? data : []).map((r) => ({ ...r, khu_vuc: chuanHoaKhuVuc(r.khu_vuc) }))
+  const rows = (Array.isArray(data) ? data : []).map((r) => ({
+    ...r, khu_vuc: chuanHoaKhuVuc(r.khu_vuc), ahu: Array.isArray(r.ahu) ? r.ahu : [],
+  }))
   return { error: null, rows }
 }
 export async function luuNguoiNhanCanhBao(nn, actor, signal) {
@@ -687,8 +714,18 @@ export async function luuNguoiNhanCanhBao(nn, actor, signal) {
     p_id: nn.id ?? null, p_email: nn.email, p_ho_ten: nn.ho_ten || null, p_vai_tro: nn.vai_tro,
     // luôn gửi mảng từ UI; bỏ tích hết → RPC tự đặt lại đủ 3 khu (chống "mất cảnh báo im lặng")
     p_khu_vuc: Array.isArray(nn.khu_vuc) ? nn.khu_vuc : null,
+    // AHU phụ trách, phần tử dạng 'KHU/AHU' (tên AHU trùng nhau giữa các khu).
+    // Rỗng = nhận mọi AHU trong các khu đã tích → giữ nguyên hành vi cũ.
+    p_ahu: Array.isArray(nn.ahu) ? nn.ahu : null,
     p_kich_hoat: nn.kich_hoat !== false, p_ghi_chu: nn.ghi_chu || null, p_actor: actor || null,
   }, { signal })
+}
+// Danh sách AHU để đổ vào ô phân công. Trả { ma_ahu:'C1/AHU03', khu_vuc, ahu, so_phong, co_p1_p2 }.
+// co_p1_p2=false ⇒ AHU chỉ có phòng P3, không bao giờ sinh sự cố.
+export async function layDanhSachAhu(signal) {
+  const { data, error } = await goiRPC('rpc_danh_sach_ahu', {}, { signal })
+  if (error) return { error, rows: [] }
+  return { error: null, rows: Array.isArray(data) ? data : [] }
 }
 export async function xoaNguoiNhanCanhBao(id, actor, signal) {
   return goiRPC('rpc_xoa_nguoi_nhan_canh_bao', { p_id: id, p_actor: actor || null }, { signal })

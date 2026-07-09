@@ -16,7 +16,7 @@ import { supabase } from '../lib/bmsClient'
 import {
   layTongQuan, laySuCoDangMo, layCanhBaoHeThong, layNhatKyThaoTac, layLichSuCauHinh,
   layDanhSachPhong, layThongKeSensorPhong, layThongKeSensorNhieuPhong, layXepHangRuiRo, layQuyTrinhSop, layBaoCaoAi,
-  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp,
+  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp, layNutThaoTac,
 } from '../lib/supabaseData'
 
 const ENRICH_TTL_MS = 4 * 60 * 1000   // thống kê 8h chỉ đổi mỗi giờ → cache 4'
@@ -37,6 +37,9 @@ async function chayTheoLo(items, fn, soSong = SO_SONG) {
 
 export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
   const isLive = dataSource === 'live'
+  // Bộ nút thao tác đọc từ view xem_nut_thao_tac (bảng luật = nguồn sự thật duy nhất).
+  // Đổi rất hiếm (chỉ khi sửa quy trình) → nạp MỘT lần, không nằm trong nhịp 60s.
+  const [nutThaoTac, setNutThaoTac] = useState([])
   const [kpis, setKpis] = useState(null)
   const [incidents, setIncidents] = useState(null)
   const [systemAlerts, setSystemAlerts] = useState(null)
@@ -167,6 +170,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
       lamMoi()
       // Cờ bắt buộc đăng nhập: đọc 1 lần (hiếm đổi), không nằm trong nhịp 60s
       layCoBatBuocDangNhap().then((r) => { if (!huy.current) setBatBuocDangNhap(!!r.batBuoc) }).catch(() => {})
+      layNutThaoTac().then((r) => { if (!huy.current && r.rows) setNutThaoTac(r.rows) }).catch(() => {})
     }
     let timer = null
     if (isLive && tuDongMoiMs > 0) {
@@ -201,9 +205,32 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
     return () => sub?.subscription?.unsubscribe?.()
   }, [isLive, lamMoi])
 
+  // ============================================================
+  // REALTIME bảng su_co (migration 20260709_su_co_thao_tac_muot_ma.sql đưa bảng
+  // vào publication supabase_realtime). Trước đây bấm nút trong email xong nhìn
+  // web vẫn thấy trạng thái cũ tới 60 giây → tưởng hệ thống hỏng.
+  // RLS vẫn được áp cho từng subscriber, nên tài khoản giới hạn khu chỉ nhận
+  // sự kiện của khu mình. Gộp nhiều sự kiện dồn dập vào MỘT lần nạp lại (1,2s)
+  // để một lượt WF1 đụng hàng chục sự cố không tạo ra hàng chục request.
+  // Mất kết nối realtime KHÔNG sao: nhịp 60s vẫn là lưới an toàn.
+  // ============================================================
+  useEffect(() => {
+    if (!isLive || !supabase) return
+    let hen = null
+    const nap = () => {
+      clearTimeout(hen)
+      hen = setTimeout(() => { if (!huy.current) lamMoi({ nen: true }) }, 1200)
+    }
+    const kenh = supabase
+      .channel('bms-su-co')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'su_co' }, nap)
+      .subscribe()
+    return () => { clearTimeout(hen); supabase.removeChannel(kenh) }
+  }, [isLive, lamMoi])
+
   return {
     isLive, kpis, incidents, systemAlerts, audit, configHistory,
-    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, gmpMkt, gmpSpc, batBuocDangNhap,
+    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, gmpMkt, gmpSpc, batBuocDangNhap, nutThaoTac,
     dangTai, loi, capNhatLuc, lamMoi,
   }
 }
