@@ -1,71 +1,58 @@
 // ============================================================
-// soDoLayout.js — Bố cục đồ thị máy trạng thái để VẼ (SVG)
+// soDoLayout.js — Bố cục LUỒNG VẬN HÀNH (chỉ cạnh tuần tự)
 //
-// Xếp trạng thái thành CỘT theo chiều xử lý (IPC → Cơ điện → đóng). Các luật áp
-// cho "mọi trạng thái" (nhắc/tự phân tuyến/mở lại…) gom về MỘT node ảo bên trái
-// để không rải 7 mũi tên rối. Rộng rãi để đọc trên máy tính. Thuần hình học.
+// Xếp trạng thái thành cột theo chiều xử lý. Node "hub" Cơ điện đang xử lý ở giữa,
+// hai trạng thái phụ (chờ / không xử lý được) xếp cùng cột để nhánh gọn. Trả toạ độ
+// node + đường cong mũi tên. Đường tự-lặp (A→A) và loop-ngược vẽ cong lên trên.
 // ============================================================
 import { phanTichLuat, tenTT } from "./soDoLuat";
 
-// Cột theo chiều xử lý. Trạng thái không liệt kê → cột "khác" (5). Gợi ý bố cục.
 const CAP = {
-  CHUA_XU_LY: 0,
-  DA_BAO_CO_DIEN: 1, MO_LAI: 1,
+  MO_LAI: 0, CHUA_XU_LY: 0,
+  DA_BAO_CO_DIEN: 1,
   CO_DIEN_DANG_XU_LY: 2, CO_DIEN_CHO_XU_LY: 2, CO_DIEN_KHONG_XU_LY_DUOC: 2,
-  DA_KHAC_PHUC: 3, IPC_BINH_THUONG: 3,
-  DONG_TU_DONG: 4, DONG_NGOAI_PHAM_VI: 4, DA_DONG: 4,
+  DA_KHAC_PHUC: 3,
 };
-const LA_DONG = new Set(["DONG_TU_DONG", "DONG_NGOAI_PHAM_VI", "DA_DONG", "DA_KHAC_PHUC", "IPC_BINH_THUONG"]);
-const AO = "__MOI_TT__";
+const HANG = { CO_DIEN_DANG_XU_LY: 0, CO_DIEN_CHO_XU_LY: 1, CO_DIEN_KHONG_XU_LY_DUOC: 2, CHUA_XU_LY: 0, MO_LAI: 1 };
+const LA_DONG = new Set(["DA_KHAC_PHUC", "DONG_TU_DONG", "DONG_NGOAI_PHAM_VI", "DA_DONG", "IPC_BINH_THUONG"]);
 
-export function boCucSoDo(dsNut, { W = 156, H = 64, gapX = 150, gapY = 52, padX = 150, padY = 34 } = {}) {
-  const { canh } = phanTichLuat(dsNut);
+export function boCucLuong(dsNut, { W = 176, H = 66, gapX = 118, gapY = 30, padX = 28, padY = 60 } = {}) {
+  const { canhTuanTu } = phanTichLuat(dsNut);
 
   const dinh = new Set();
-  let coAo = false;
-  for (const c of canh) {
-    if (c.tu === "«mọi trạng thái»") coAo = true;
-    else dinh.add(c.tu);
-    dinh.add(c.den);
-  }
+  for (const c of canhTuanTu) { dinh.add(c.tu); dinh.add(c.den); }
 
-  // gom theo cột (node thật). Node ảo "mọi trạng thái" đứng riêng ở làn trái ngoài.
+  // cột & hàng
   const cot = {};
-  for (const d of dinh) { const k = CAP[d] ?? 5; (cot[k] ||= []).push(d); }
-  const cols = Object.keys(cot).map(Number).sort((a, b) => a - b);
-
+  for (const d of dinh) { const k = CAP[d] ?? 4; (cot[k] ||= []).push(d); }
   const pos = {};
   let maxRow = 0;
-  cols.forEach((k, ci) => {
-    cot[k].sort((a, b) => tenTT(a).localeCompare(tenTT(b)));
-    cot[k].forEach((d, ri) => {
+  Object.keys(cot).map(Number).sort((a, b) => a - b).forEach((k, ci) => {
+    cot[k].sort((a, b) => (HANG[a] ?? 9) - (HANG[b] ?? 9) || a.localeCompare(b));
+    cot[k].forEach((d, idx) => {
+      const ri = HANG[d] ?? idx;
       pos[d] = { x: padX + ci * (W + gapX), y: padY + ri * (H + gapY), col: ci, row: ri };
       maxRow = Math.max(maxRow, ri);
     });
   });
 
   const nodes = [...dinh].map((d) => ({ id: d, ten: tenTT(d), ...pos[d], laDong: LA_DONG.has(d), W, H }));
+  const width = padX * 2 + (Math.max(...Object.values(pos).map((p) => p.col)) + 1) * (W + gapX) - gapX;
+  const height = padY * 2 + (maxRow + 1) * (H + gapY) - gapY;
 
-  // node ảo "MỌI TRẠNG THÁI" — canh trái, giữa chiều dọc
-  const height = padY + (maxRow + 1) * (H + gapY) - gapY + padY;
-  if (coAo) {
-    pos[AO] = { x: 16, y: height / 2 - H / 2, col: -1, row: 0 };
-    nodes.unshift({ id: AO, ten: "Mọi trạng thái", x: pos[AO].x, y: pos[AO].y, laDong: false, ao: true, W: W - 30, H });
-  }
-
-  const width = padX + cols.length * (W + gapX) - gapX + padX;
-
-  // cạnh: node ảo phát từ MỌI TRẠNG THÁI; cạnh thường ra phải node nguồn → vào trái đích
   const edges = [];
-  for (const c of canh) {
-    const den = pos[c.den]; if (!den) continue;
-    const nguon = c.tu === "«mọi trạng thái»" ? (pos[AO] && { x: pos[AO].x + (W - 30), y: pos[AO].y + H / 2 }) : (pos[c.tu] && { x: pos[c.tu].x + W, y: pos[c.tu].y + H / 2 });
-    if (!nguon) continue;
-    edges.push({
-      x1: nguon.x, y1: nguon.y, x2: den.x, y2: den.y + H / 2,
-      vai_tro: c.vai_tro, nhan: c.nhan, den: c.den, dong: c.dong, moLai: c.moLai,
-      moiTruongTat: c.tu === "«mọi trạng thái»",
-    });
+  for (const c of canhTuanTu) {
+    const a = pos[c.tu], b = pos[c.den]; if (!a || !b) continue;
+    const nguoc = b.col < a.col || (b.col === a.col && b.row < a.row);   // loop ngược/lên
+    let x1, y1, x2, y2;
+    if (nguoc) {                       // ra từ TRÊN nguồn, vào TRÊN đích (cung phía trên)
+      x1 = a.x + W * 0.35; y1 = a.y; x2 = b.x + W * 0.65; y2 = b.y;
+    } else if (b.col === a.col) {       // cùng cột, xuống dưới → ra phải-dưới, vào phải-trên
+      x1 = a.x + W; y1 = a.y + H * 0.72; x2 = b.x + W; y2 = b.y + H * 0.28;
+    } else {                           // xuôi: ra phải, vào trái
+      x1 = a.x + W; y1 = a.y + H / 2; x2 = b.x; y2 = b.y + H / 2;
+    }
+    edges.push({ x1, y1, x2, y2, nguoc, cungCot: b.col === a.col, vai_tro: c.vai_tro, nhan: c.nhan, dong: c.dong });
   }
 
   return { nodes, edges, width, height };
