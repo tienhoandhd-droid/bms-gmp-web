@@ -668,8 +668,13 @@ export async function kiemVeThaoTac(token, signal) {
 export async function thaoTacSuCoTuEmail({ token, lyDo }, signal) {
   return goiRPC('rpc_thao_tac_su_co', { p_token: token, p_ly_do: lyDo || null }, { signal })
 }
-export async function dungCanhBao({ dbId, lyDo, actorEmail }, signal) {
-  return goiRPC('rpc_dung_canh_bao', { p_ma_su_co: dbId, p_ly_do: lyDo, p_actor: actorEmail || null }, { signal })
+// rpc_dung_canh_bao(p_ma_su_co, p_tat, p_ly_do, p_actor) — `p_tat` KHÔNG có DEFAULT.
+// Trước 10/07/2026 hàm này gọi thiếu `p_tat`, nên PostgREST trả
+//   "function public.rpc_dung_canh_bao(p_ma_su_co, p_ly_do, p_actor) does not exist"
+// và nút "Dừng CB" CHƯA BAO GIỜ chạy được (lich_su_su_co có 0 dòng dung_canh_bao).
+export async function dungCanhBao({ dbId, tat = true, lyDo, actorEmail }, signal) {
+  return goiRPC('rpc_dung_canh_bao',
+    { p_ma_su_co: dbId, p_tat: tat, p_ly_do: lyDo || null, p_actor: actorEmail || null }, { signal })
 }
 export async function themPhong(p, signal)    { return goiRPC('rpc_them_phong', p, { signal }) }
 export async function suaPhong(p, signal)     { return goiRPC('rpc_sua_phong', p, { signal }) }

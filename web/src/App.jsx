@@ -2827,11 +2827,24 @@ export default function App() {
     setIncidents((prev) => prev.map((i) => i.id === inc.id ? { ...i, status: nextStatus, trail: [...i.trail, { t: now.slice(11), who, act: `${action.label}: ${reason}` }] } : i));
     setAudit((a) => [{ t: now.slice(11, 16) + " 29/5", who, act: action.label, obj: `${inc.id} / ${inc.room}`, detail: reason }, ...a]); setModal(null);
   };
+  // NGÕ CỤT đã vá (10/07/2026). Hai lỗi chồng nhau:
+  //  1. dungCanhBao() gọi thiếu p_tat ⇒ PostgREST báo hàm không tồn tại ⇒ "Dừng CB"
+  //     luôn hiện alert lỗi. lich_su_su_co có 0 dòng dung_canh_bao: chưa từng chạy.
+  //  2. Kể cả chạy được, nhánh này chỉ gọi RPC khi CHƯA tắt ⇒ "Bật lại" là no-op.
+  // Mà khi da_tat_canh_bao = true, sự cố biến mất khỏi view định tuyến email VÀ khỏi
+  // WF6 (dead-man's-switch). Không mail, không leo thang, không ai được báo — và
+  // không có đường quay lại. Một cú bấm là im lặng vĩnh viễn.
   const toggleSilence = async (id) => {
     if (!requireLogin()) return;
     const inc = incidents.find((i) => i.id === id);
     if (isLive && inc?.dbId) {
-      if (!inc.silenced) { const { error } = await dungCanhBao({ dbId: inc.dbId, lyDo: "Tắt cảnh báo từ web", actorEmail: user.email }); if (error) { alert(error.thong_bao || error.ma_loi || "Lỗi"); return; } }
+      const tat = !inc.silenced;
+      const { error } = await dungCanhBao({
+        dbId: inc.dbId, tat,
+        lyDo: tat ? "Dừng cảnh báo từ web" : "Bật lại cảnh báo từ web",
+        actorEmail: user.email,
+      });
+      if (error) { alert(error.thong_bao || error.ma_loi || "Lỗi"); return; }
       await live.lamMoi({ nen: true }); return;
     }
     setIncidents((prev) => prev.map((i) => i.id === id ? { ...i, silenced: !i.silenced } : i));
