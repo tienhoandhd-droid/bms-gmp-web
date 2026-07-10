@@ -73,6 +73,22 @@ IPC phát hiện                         Cơ điện xử lý
 | S9 | **Cụm ↔ hàng chờ QA** (#4) | đóng kỹ thuật KHÔNG đá cụm khỏi hàng QA tới khi có disposition |
 | S10 | **Audit + hash** | mỗi thao tác 1 dòng đúng người/vai; chuỗi hash liền mạch |
 
+**Góc độ khác — mặt trận vận hành T1–T5:**
+
+| # | Kiểm điều gì | Khẳng định |
+|---|--------------|-----------|
+| T1 | **Vé email (token)** | hợp lệ→ok · dùng lại→TOKEN_DA_DUNG · hết hạn→TOKEN_HET_HAN |
+| T2 | **Double-click / lặp** | bấm 2 lần chỉ tác dụng 1 lần, không nhân đôi audit/trạng thái |
+| T3 | **Tạm dừng cảnh báo** | Trực KHÔNG im được CRITICAL/P1 · lý do ≥10 · trần cứng 4h |
+| T4 | **Mở lại toàn vẹn** | xoá dấu đóng + xoá tạm dừng + cụm sống lại + lại vào hàng trách nhiệm |
+| T5 | **SLA quá hạn tiếp nhận** | hiện cờ khi quá SLA; tự HẾT khi bộ phận tiếp nhận (ack_luc) |
+
+> **Quan sát T4 (chưa vá — quyết định SOP):** mở lại KHÔNG reset `ack_luc`/`thoi_gian_mo`.
+> Sự cố mở lại vẫn hiện trong hàng quá hạn nhưng dưới nhãn "quá hạn xử lý" (không phải
+> "chưa tiếp nhận") vì đã ack ở vòng trước, và `gio_mo` tính cả thời gian đã đóng. Nếu
+> muốn mỗi lần mở lại là chu kỳ trách nhiệm MỚI (bắt tái tiếp nhận) → cần đặt lại đồng
+> hồ SLA khi mở lại. Là lựa chọn quy trình, chưa sửa để tránh over-engineer.
+
 > **Bug S9 đã phát hiện & vá (11/07/2026):** view `xem_cum_su_co` tính
 > `da_co_ket_luan_qa` theo `qa_ket_luan` — trường "kết luận" **tùy chọn** của
 > `rpc_ket_luan_cum`. QA điền đủ nguyên nhân+CAPA nhưng bỏ trống ô đó → cụm **kẹt
