@@ -241,7 +241,12 @@ export async function layCumSuCo(signal) {
     (q) => q.select('ma_cum,ma_hien_thi,khu_vuc,ahu,loai_cam_bien,dang_mo,gio_mo,'
               + 'tong_su_co,su_co_dang_mo,so_critical,so_cam_bien_dung_hinh,so_chua_tiep_nhan,'
               + 'cac_phong,chan_doan,nguyen_nhan_goc,hanh_dong_khac_phuc,hanh_dong_phong_ngua,'
-              + 'qa_ket_luan,qa_boi,qa_luc,da_co_ket_luan_qa').eq('dang_mo', true),
+              + 'qa_ket_luan,qa_boi,qa_luc,da_co_ket_luan_qa')
+              // P0 GMP: KHÔNG chỉ lấy cụm đang mở. Cụm tự đóng khi sự cố kỹ thuật cuối cùng
+              // đóng — nhưng ĐÓNG KỸ THUẬT ≠ ĐÓNG HỒ SƠ CHẤT LƯỢNG. Nếu chỉ .eq('dang_mo',true)
+              // thì cụm đóng-nhưng-QA-CHƯA-kết-luận biến khỏi hàng chờ QA. Lấy thêm mọi cụm
+              // chưa có kết luận QA để QA vẫn thấy và disposition (rời hàng chỉ khi đã kết luận).
+              .or('dang_mo.eq.true,da_co_ket_luan_qa.eq.false'),
     { signal })
   if (error) return { error, rows: null }
   return { error: null, rows: data || [] }
