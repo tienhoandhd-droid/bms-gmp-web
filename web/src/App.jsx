@@ -190,21 +190,31 @@ const firstActionFor = (st, role) => (STATUS_ACTIONS[st] || []).find((a) => role
 
 // ===== Bộ nút lấy TỪ BẢNG LUẬT (view xem_nut_thao_tac), không hard-code =====
 // STATUS_ACTIONS phía trên chỉ còn dùng cho chế độ DEMO (không có Supabase).
-// Ở LIVE, nút hiện ra luôn là nút bấm được: DB đã lọc theo trang_thai_truoc.
-// Nhờ vậy không thể tái diễn lỗi "nút hiện nhưng bấm trả KHONG_DUOC_PHEP".
-function nutKhopTrangThai(dsNut, statusCode) {
+// Ở LIVE, nút hiện ra phải là nút bấm được. Muốn vậy phải lọc ĐỦ BA chiều mà DB
+// dùng khi từ chối: trang_thai_truoc · vai_tro · ap_dung_khi (mở/đã đóng).
+//
+// 10/07/2026: lọc thiếu hai chiều, và lỗi "nút hiện nhưng bấm trả KHONG_DUOC_PHEP"
+// vẫn sống — chỉ là không ai gặp vì nó nấp ở vai trò ADMIN (đúng một tài khoản):
+//   • `role === "ADMIN" ||` cho ADMIN thấy toàn bộ nút của IPC/MEP/LOT, trong khi
+//     rpc_thao_tac_su_co tra luật theo (hanh_dong, vai_tro) nên từ chối 100%.
+//   • Ngược lại ba nút thật của ADMIN có nhan = NULL nên không bao giờ hiện.
+// Nay ADMIN xem như mọi vai trò khác: thấy đúng nút của mình, bấm là chạy.
+function nutKhopTrangThai(dsNut, statusCode, daDong = false) {
   if (!dsNut?.length || !statusCode) return [];
   const uu = new Map();   // ưu tiên luật khớp ĐÚNG trạng thái hơn luật '*'
   for (const n of dsNut) {
     if (n.trang_thai_truoc !== statusCode && n.trang_thai_truoc !== "*") continue;
+    const apDung = n.ap_dung_khi || "MO";                 // DB mặc định 'MO'
+    if (apDung === "MO" && daDong) continue;               // nút thường: sự cố đã đóng thì thôi
+    if (apDung === "DONG" && !daDong) continue;            // "Mở lại": chỉ khi đã đóng
     const cu = uu.get(n.hanh_dong);
     if (!cu || (n.trang_thai_truoc === statusCode && cu.trang_thai_truoc === "*")) uu.set(n.hanh_dong, n);
   }
   return [...uu.values()].sort((a, b) => (a.thu_tu || 0) - (b.thu_tu || 0));
 }
-function nutChoVaiTro(dsNut, statusCode, role) {
-  return nutKhopTrangThai(dsNut, statusCode)
-    .filter((n) => role === "ADMIN" || n.vai_tro === role)
+function nutChoVaiTro(dsNut, statusCode, role, daDong = false) {
+  return nutKhopTrangThai(dsNut, statusCode, daDong)
+    .filter((n) => n.vai_tro === role)
     .map((n) => ({
       code: n.hanh_dong, label: n.nhan, roles: [n.vai_tro], dong: !!n.dong_su_co,
       batBuocLyDo: !!n.bat_buoc_ly_do,
@@ -2463,13 +2473,36 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
 
   if (trangThai.dangTai) return <Khung><p className="text-sm text-slate-500 py-6 text-center">Đang kiểm tra liên kết…</p></Khung>;
 
-  if (trangThai.loi || (ketQua && !ketQua.ok)) return (
-    <Khung>
-      <h3 className="text-base font-semibold text-rose-700">Không thực hiện được</h3>
-      <p className="text-sm text-slate-600 mt-2 leading-relaxed">{trangThai.loi || ketQua.thong_bao}</p>
-      <p className="text-[12px] text-slate-400 mt-3">Bạn vẫn có thể xử lý sự cố trực tiếp ở tab <b>Sự cố</b>.</p>
-      <button onClick={onDong} className="mt-5 w-full rounded-xl bg-slate-100 py-2.5 text-sm font-medium text-slate-700">Đóng</button>
-    </Khung>);
+  // Màn từ chối. Câu hỏi đầu tiên của người bấm nút luôn là "vậy tôi đã ấn nút nào?"
+  // — DB trả sẵn thao_tac_gan_nhat và nut_kha_dung, ta chỉ việc bày ra.
+  if (trangThai.loi || (ketQua && !ketQua.ok)) {
+    const boiCanh = ketQua && !ketQua.ok ? ketQua : ve;      // nguồn ngữ cảnh giàu nhất đang có
+    const ganNhat = boiCanh?.thao_tac_gan_nhat;
+    const khaDung = boiCanh?.nut_kha_dung || [];
+    return (
+      <Khung>
+        <h3 className="text-base font-semibold text-rose-700">Không thực hiện được</h3>
+        <p className="text-sm text-slate-600 mt-2 leading-relaxed">{trangThai.loi || ketQua.thong_bao}</p>
+        {ganNhat && (
+          <div className="mt-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3 text-[13px]">
+            <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Thao tác gần nhất</div>
+            <div className="mt-1 text-slate-700 font-medium">{ganNhat.nhan}</div>
+            <div className="text-[12px] text-slate-500">{ganNhat.vai_tro} · {ganNhat.boi} · {ganNhat.luc_hien_thi}</div>
+          </div>)}
+        {khaDung.length > 0 && (
+          <div className="mt-3">
+            <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Bây giờ bạn bấm được</div>
+            <ul className="mt-1.5 space-y-1">
+              {khaDung.map((n) => (
+                <li key={n.hanh_dong} className="text-[13px] text-slate-700 flex gap-1.5">
+                  <span className="text-slate-300">•</span>{n.nhan}
+                </li>))}
+            </ul>
+          </div>)}
+        <p className="text-[12px] text-slate-400 mt-3">Bạn vẫn có thể xử lý sự cố trực tiếp ở tab <b>Sự cố</b>.</p>
+        <button onClick={onDong} className="mt-5 w-full rounded-xl bg-slate-100 py-2.5 text-sm font-medium text-slate-700">Đóng</button>
+      </Khung>);
+  }
 
   if (ketQua?.ok) return (
     <Khung>
@@ -2486,11 +2519,17 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
         <div><b>{ve.ma_hien_thi}</b> · {ve.ma_phong} {ve.ten_phong ? `— ${ve.ten_phong}` : ""}</div>
         <div className="text-[12px] text-slate-500">{ve.khu_vuc} · {ve.ahu || "—"} · {ve.loai_cam_bien} · {ve.muc_canh_bao}</div>
         <div className="text-[12px] text-slate-500">
-          Trạng thái: <b>{ve.trang_thai_hien_tai}</b>
+          Trạng thái: <b>{ve.nhan_trang_thai || ve.trang_thai_hien_tai}</b>
           {ve.giu_trang_thai
             ? <span className="text-slate-400"> — thao tác này chỉ ghi chú, không đổi trạng thái</span>
-            : <> → <b>{ve.trang_thai_sau}</b>{ve.dong_su_co && <span className="text-teal-600"> (đóng sự cố)</span>}</>}
+            : <> → <b>{ve.nhan_trang_thai_sau || ve.trang_thai_sau}</b>{ve.dong_su_co && <span className="text-teal-600"> (đóng sự cố)</span>}</>}
         </div>
+        {ve.thao_tac_gan_nhat && (
+          <div className="text-[12px] text-slate-500">
+            Gần nhất: <b>{ve.thao_tac_gan_nhat.nhan}</b> — {ve.thao_tac_gan_nhat.vai_tro} · {ve.thao_tac_gan_nhat.luc_hien_thi}
+          </div>)}
+        {ve.so_lan_vang > 0 && (
+          <div className="text-[12px] text-amber-700">Đã báo “không tại hiện trường” {ve.so_lan_vang} lần</div>)}
       </div>
       {canNote && (
         <div className="mt-3">
@@ -2585,9 +2624,10 @@ export default function App() {
     setVeEmail({ dangTai: true });
     kiemVeThaoTac(tokenEmail.current).then(({ error, ve }) => {
       if (veDaGo.current) return;              // chỉ bỏ qua khi component đã bị gỡ
-      if (error) setVeEmail({ loi: moTaLoi(error) });
-      else if (!ve?.ok) setVeEmail({ loi: ve?.thong_bao || "Liên kết không dùng được." });
-      else setVeEmail({ ve });
+      // ve != null ⇒ DB đã trả lời (kể cả từ chối), luôn ưu tiên ngữ cảnh của nó.
+      if (ve?.ok) setVeEmail({ ve });
+      else if (ve) setVeEmail({ loi: ve.thong_bao || "Liên kết không dùng được.", ve });
+      else setVeEmail({ loi: moTaLoi(error) });
     }).catch(() => {
       if (!veDaGo.current) setVeEmail({ loi: "Không kiểm tra được liên kết. Kiểm tra mạng rồi thử lại." });
     });
@@ -2595,7 +2635,8 @@ export default function App() {
   const dongVe = () => { tokenEmail.current = null; setVeEmail(null); };
   const chayVe = async (lyDo) => {
     const { data, error } = await thaoTacSuCoTuEmail({ token: tokenEmail.current, lyDo });
-    if (error) return { ok: false, thong_bao: moTaLoi(error) };
+    // Lỗi nghiệp vụ vẫn kèm data (goiRPC trả cả hai) — giữ lại để modal bày ngữ cảnh.
+    if (error) return { ...(data || {}), ok: false, thong_bao: moTaLoi(error) };
     live.lamMoi({ nen: true });
     return data;
   };

@@ -642,18 +642,25 @@ export async function thaoTacSuCo({ dbId, actionCode, lyDo, actorEmail }, signal
 // Bộ nút thao tác — NGUỒN SỰ THẬT DUY NHẤT là bảng luật (view xem_nut_thao_tac).
 // Trước v14 web và WF8 mỗi nơi hard-code một bảng nút, lệch với luật DB ⇒ nút hiện
 // ra nhưng bấm vào trả KHONG_DUOC_PHEP. Nay cả hai cùng đọc một chỗ.
+// Chọn ĐỦ cột mà nutKhopTrangThai/nutChoVaiTro dùng. Thiếu cột không báo lỗi — nó chỉ
+// lặng lẽ trả undefined: `trang_thai_sau` từng bị bỏ quên nên nhãn "Trạng thái tiếp →"
+// hiển thị undefined, và `ap_dung_khi` thiếu thì nút "Mở lại" lọt ra sự cố đang mở.
 export async function layNutThaoTac(signal) {
   const { data, error } = await docView('xem_nut_thao_tac',
-    (q) => q.select('hanh_dong,vai_tro,bo_nut,trang_thai_truoc,nhan,mau_nen,mau_chu,bat_buoc_ly_do,dong_su_co,giu_trang_thai,thu_tu'),
+    (q) => q.select('hanh_dong,vai_tro,bo_nut,trang_thai_truoc,trang_thai_sau,nhan,mau_nen,mau_chu,'
+                  + 'bat_buoc_ly_do,dong_su_co,giu_trang_thai,thu_tu,ap_dung_khi,mo_lai_su_co'),
     { signal })
   if (error) return { error, rows: [] }
   return { error: null, rows: data || [] }
 }
 
+// goiRPC bọc {ok:false} thành error NHƯNG vẫn trả data. Trước đây ta vứt data đi ở
+// nhánh error, nên toàn bộ ngữ cảnh DB gửi kèm (ai vừa bấm nút gì, nút nào còn bấm
+// được) không bao giờ tới màn hình. Nay giữ lại cả hai: `ve` để dựng giao diện,
+// `error` chỉ để phân biệt lỗi mạng (ve == null) với lỗi nghiệp vụ (ve.ok === false).
 export async function kiemVeThaoTac(token, signal) {
   const { data, error } = await goiRPC('rpc_kiem_ve_thao_tac', { p_token: token }, { signal })
-  if (error) return { error, ve: null }
-  return { error: null, ve: data }
+  return { error, ve: data ?? null }
 }
 // Bước 2: thực thi. Token là chìa; ly_do bắt buộc với hành động có bat_buoc_ly_do.
 export async function thaoTacSuCoTuEmail({ token, lyDo }, signal) {

@@ -147,6 +147,12 @@ export function moTaLoi(error) {
   if (!error) return ''
   if (error.name === 'AbortError') return 'Máy chủ phản hồi quá lâu hoặc yêu cầu bị hủy. Vui lòng thử lại.'
   if (error.nghiep_vu) {
+    // thong_bao do DB soạn LUÔN cụ thể hơn bảng dưới: nó biết sự cố nào, ai vừa bấm
+    // nút gì, trạng thái hiện ra sao. Bảng chỉ là lưới hứng cho mã lỗi chưa kèm câu chữ.
+    //
+    // Trước đây thứ tự ngược lại, nên Cơ điện bấm nút thứ hai trong email đọc được
+    // "Bạn không có quyền thực hiện thao tác này." — sai bản chất (họ có quyền; chỉ là
+    // luật buộc bấm "Đã nhận" trước) và giấu mất câu giải thích DB đã viết sẵn.
     const map = {
       KHONG_DUOC_PHEP: 'Bạn không có quyền thực hiện thao tác này.',
       CHUA_DANG_NHAP: 'Vui lòng đăng nhập để tiếp tục.',
@@ -155,7 +161,7 @@ export function moTaLoi(error) {
       SU_CO_DA_DONG: 'Sự cố này đã được đóng.',
       CHUYEN_TRANG_THAI_KHONG_HOP_LE: 'Không thể chuyển trạng thái này.',
     }
-    return map[error.ma_loi] || error.thong_bao || 'Thao tác không hợp lệ.'
+    return error.thong_bao || map[error.ma_loi] || 'Thao tác không hợp lệ.'
   }
   return 'Mất kết nối tới máy chủ. Kiểm tra mạng và thử lại.'
 }
