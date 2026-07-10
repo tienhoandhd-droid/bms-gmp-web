@@ -524,9 +524,12 @@ export async function layCoBatBuocDangNhap(signal) {
 
 // NGƯỠNG CẢNH BÁO  ·  view: xem_cau_hinh_he_thong (key, value_hien_thi, la_bi_mat)
 // ============================================================
+// nguong_chu_y đã gỡ 10/07/2026: DB chỉ đọc nó ở một dòng để dán nhãn, và mức NOTICE
+// rơi vào cùng nhánh với NORMAL nên chỉnh nút đó không đổi hành vi nào. Nay thang 3 mức
+// do đúng hai khoá quyết định: nguong_canh_bao (OOS 1 giờ) và nguong_hanh_dong (10′ cuối).
 export async function layNguongCanhBao(signal) {
   const { data, error } = await docView('xem_cau_hinh_he_thong',
-    (q) => q.select('key,value_hien_thi').in('key', ['nguong_chu_y', 'nguong_canh_bao', 'nguong_hanh_dong']),
+    (q) => q.select('key,value_hien_thi').in('key', ['nguong_canh_bao', 'nguong_hanh_dong']),
     { signal })
   if (error || !Array.isArray(data)) return { error, cfg: null }
   const m = {}
@@ -534,9 +537,8 @@ export async function layNguongCanhBao(signal) {
   return {
     error: null,
     cfg: {
-      notice: Number.isFinite(m.nguong_chu_y) ? m.nguong_chu_y : 1,
       warn: Number.isFinite(m.nguong_canh_bao) ? m.nguong_canh_bao : 20,
-      action: Number.isFinite(m.nguong_hanh_dong) ? m.nguong_hanh_dong : 5,
+      action: Number.isFinite(m.nguong_hanh_dong) ? m.nguong_hanh_dong : 4,
     },
   }
 }
@@ -1006,10 +1008,13 @@ export async function luuNguoiDung(u, signal) {
 }
 
 // ---------- tiện ích ----------
+// Thang 3 mức (10/07/2026). WARNING nay nghĩa là "Chú ý — theo dõi": OOS cả giờ vượt
+// ngưỡng nhưng 10 phút cuối đã về dải ⇒ không gửi mail. Nên nó ánh xạ về LEVELS[1],
+// không phải LEVELS[2]. NOTICE là mức cũ, chỉ còn trong dữ liệu lịch sử.
 function mucCanhBaoToLevel(muc) {
   switch ((muc || '').toUpperCase()) {
     case 'CRITICAL': return 3
-    case 'WARNING': return 2
+    case 'WARNING': return 1
     case 'NOTICE': return 1
     case 'NORMAL': return 0
     case 'MAT_DU_LIEU': return -1

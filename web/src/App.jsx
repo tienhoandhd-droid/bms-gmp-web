@@ -38,11 +38,16 @@ const CARD = "rounded-3xl bg-white/95 backdrop-blur ring-1 ring-[#D8E6EC]";
 const STATUS = { normal: { txt: "text-teal-700", bg: "bg-teal-50", dot: "bg-teal-500" }, warning: { txt: "text-amber-700", bg: "bg-amber-50", dot: "bg-amber-500" }, critical: { txt: "text-rose-700", bg: "bg-rose-50", dot: "bg-rose-600" } };
 const PRIORITY = { P1: "bg-rose-600 text-white ring-1 ring-rose-700", P2: "bg-amber-100 text-amber-900 ring-1 ring-amber-400", P3: "bg-sky-100 text-sky-800 ring-1 ring-sky-300" };
 const MUC = { P1: "Mức 1", P2: "Mức 2", P3: "Mức 3" };
+// Thang 3 mức từ 10/07/2026 (mức NOTICE cũ đã gỡ — nó chưa bao giờ đổi hành vi gì):
+//   0 Kiểm soát tốt      OOS 1 giờ ≤ nguong_canh_bao
+//   1 Chú ý — theo dõi   OOS vượt ngưỡng NHƯNG 10 phút cuối đã về dải ⇒ không gửi mail
+//   3 Cảnh báo           OOS vượt ngưỡng VÀ 10 phút cuối còn ≥ nguong_hanh_dong ⇒ gửi mail
+// Chỉ số 2 giữ chỗ để không phải đánh số lại toàn bộ mã cũ; không mức nào rơi vào đó.
 const LEVELS = [
   { key: "normal", label: "Kiểm soát tốt", txt: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200", dot: "bg-teal-400" },
-  { key: "notice", label: "Cần chú ý", txt: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200", dot: "bg-sky-400" },
+  { key: "notice", label: "Chú ý — theo dõi", txt: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200", dot: "bg-sky-400" },
   { key: "warning", label: "Cảnh báo", txt: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200", dot: "bg-amber-400" },
-  { key: "action", label: "Hành động", txt: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200", dot: "bg-rose-500" },
+  { key: "action", label: "Cảnh báo — cần xử lý", txt: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200", dot: "bg-rose-500" },
 ];
 // Thứ tự ưu tiên theo dõi: phòng nguy cơ cao nhất (Hành động) xếp trước. -1 = mất dữ liệu.
 const LEVEL_PRIORITY = (lvl) => (lvl == null || lvl < 0 ? -0.5 : lvl);
@@ -114,11 +119,11 @@ function sensorStats(roomId, sensor, isLive = false) {
   return { cur: arr[arr.length - 1].v, avg1h: +(last60.reduce((a, p) => a + p.v, 0) / 60).toFixed(1), oos1h: last60.filter((p) => oos(p.v)).length, err10: last10.filter((p) => oos(p.v)).length, hourly8 };
 }
 function sensorLevel(stat, cfg) {
-  // 4 mức theo quy tắc: OOS 1h > nguong_canh_bao → CẢNH BÁO; nếu thêm 10′ cuối ≥ nguong_hanh_dong → HÀNH ĐỘNG.
-  // 10 ≤ OOS 1h ≤ 20 (nguong_chu_y..nguong_canh_bao) → CẦN CHÚ Ý; < nguong_chu_y → KIỂM SOÁT TỐT.
-  let l = stat.oos1h > cfg.warn ? 2 : stat.oos1h >= cfg.notice ? 1 : 0;
-  if (l >= 2 && stat.err10 != null && stat.err10 >= cfg.action) l = 3;
-  return l;
+  // Khớp đúng thang của rpc_xu_ly_du_lieu_phong_hang_gio (chỉ dùng ở chế độ DEMO).
+  // OOS 1 giờ ≤ nguong_canh_bao → Kiểm soát tốt.
+  // Vượt ngưỡng: 10 phút cuối ≥ nguong_hanh_dong → Cảnh báo; ngược lại → Chú ý (theo dõi).
+  if (stat.oos1h <= cfg.warn) return 0;
+  return (stat.err10 != null && stat.err10 >= cfg.action) ? 3 : 1;
 }
 function roomLevel(room, cfg) { if (room.noData) return -1; if (room._isLive) return room._level == null ? -1 : room._level; let lvl = 0; room.sensors.forEach((s) => { lvl = Math.max(lvl, sensorLevel(sensorStats(room.id, s), cfg)); }); return lvl; }
 function roomCompliance(room) { if (room.noData || !room.sensors.length) return null; if (room._isLive) return room._compliance; const m = Math.max(...room.sensors.map((s) => sensorStats(room.id, s).oos1h / 60)); return Math.round(100 - m * 100); }
@@ -317,7 +322,7 @@ const RoomCard = React.memo(function RoomCard({ room, cfg, onDetail, onIncident,
               {noDL ? <span className="col-span-4 text-center text-[11px] text-slate-400 italic">chưa có dữ liệu</span> : (<>
               <span className="text-center tabular-nums font-semibold" style={{ color: COLOR.navy }}>{st.cur}<span className="text-[11px] text-slate-400">{SENSOR_META[s.k].unit}</span></span>
               <span className="text-center tabular-nums text-slate-500">{st.avg1h}</span>
-              <span className={`text-center tabular-nums font-medium ${st.oos1h >= cfg.warn ? "text-amber-600" : st.oos1h >= cfg.notice ? "text-sky-600" : "text-slate-400"}`}>{st.oos1h}/60</span>
+              <span className={`text-center tabular-nums font-medium ${st.oos1h > cfg.warn ? (st.err10 >= cfg.action ? "text-rose-600" : "text-sky-600") : "text-slate-400"}`}>{st.oos1h}/60</span>
               <span className={`text-center tabular-nums font-medium ${st.err10 != null && st.err10 >= cfg.action ? "text-rose-600" : "text-slate-400"}`}>{st.err10 == null ? "—" : `${st.err10}/10`}</span>
               </>)}
             </div>
@@ -2570,7 +2575,9 @@ export default function App() {
   const [evtAhu, setEvtAhu] = useState("ALL");   // Sự cố: lọc theo AHU trong khu đã chọn
   const [cfg, setCfg] = useState({ notice: 10, warn: 20, action: 4 }); // #4 — DEMO; chế độ LIVE đọc từ DB (cau_hinh)
   const [alertUuTien, setAlertUuTien] = useState(["P1", "P2", "P3"]); // cấp độ phòng được cảnh báo (config)
-  const [alertHuong, setAlertHuong] = useState({ DP: { su_co: "CA_HAI", canh_bao: "CA_HAI" }, RH: { su_co: "CA_HAI", canh_bao: "CA_HAI" }, T: { su_co: "CA_HAI", canh_bao: "CA_HAI" } }); // hướng cảnh báo
+  // Khoá con `canh_bao` đã gỡ 10/07/2026: chưa hàm/view/dòng web nào đọc nó, và nó cũng
+  // chưa bao giờ được vẽ ra. Một nút không làm gì còn tệ hơn không có nút.
+  const [alertHuong, setAlertHuong] = useState({ DP: { su_co: "CA_HAI" }, RH: { su_co: "CA_HAI" }, T: { su_co: "CA_HAI" } }); // hướng mở sự cố
   const [user, setUser] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [modal, setModal] = useState(null);
@@ -2782,8 +2789,8 @@ export default function App() {
     if (!error) live.lamMoi({ nen: true });
   };
   const saveCfg = async (next) => {
-    if (isLive) { const { error } = await suaNguong({ p_nguong_chu_y: next.notice, p_nguong_canh_bao: next.warn, p_nguong_hanh_dong: next.action, p_actor: user?.email || null }); if (baoLoi(error, "Không lưu được ngưỡng")) await apMoi(); }
-    else logConfig(`Sửa ngưỡng cảnh báo: chú ý ${next.notice} · cảnh báo ${next.warn} · hành động ${next.action}`);
+    if (isLive) { const { error } = await suaNguong({ p_nguong_canh_bao: next.warn, p_nguong_hanh_dong: next.action, p_actor: user?.email || null }); if (baoLoi(error, "Không lưu được ngưỡng")) await apMoi(); }
+    else logConfig(`Sửa ngưỡng cảnh báo: vượt ngưỡng ${next.warn} · gửi mail khi 10′ cuối ≥ ${next.action}`);
   };
   // Bật/tắt 1 cấp ưu tiên trong phạm vi cảnh báo (phải giữ ≥1 cấp).
   const toggleUuTien = async (p) => {
@@ -3041,26 +3048,22 @@ export default function App() {
 
               {cfgTab === "canhbao" && (
               <Card className="p-6">
-                <SectionTitle icon={SlidersHorizontal} hint="4 mức: kiểm soát tốt → chú ý → cảnh báo → hành động">Nguyên tắc cảnh báo</SectionTitle>
-                <p className="text-[12px] text-slate-500 mt-2">Mỗi giờ hệ thống chấm mỗi phòng tối đa <b>60 điểm</b> (mỗi phút lỗi = 1 điểm). Số điểm lỗi trong 1 giờ quyết định mức cảnh báo — kéo thanh trượt để chỉnh.</p>
+                <SectionTitle icon={SlidersHorizontal} hint="3 mức: kiểm soát tốt → chú ý (theo dõi) → cảnh báo (gửi mail)">Nguyên tắc cảnh báo</SectionTitle>
+                <p className="text-[12px] text-slate-500 mt-2">Mỗi giờ hệ thống chấm mỗi phòng tối đa <b>60 điểm</b> (mỗi phút lỗi = 1 điểm). Vượt ngưỡng thì <b>10 phút cuối</b> quyết định: còn lệch ngay lúc này thì gửi mail, đã về dải thì chỉ theo dõi.</p>
                 <div className="mt-5">
                   <div className="relative h-10 rounded-xl overflow-hidden ring-1 ring-slate-200 flex text-[11px] font-semibold text-white select-none">
-                    <div style={{ width: pct(cfg.notice) + "%", background: COLOR.teal }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Tốt</span></div>
-                    <div style={{ width: Math.max(0, pct(cfg.warn) - pct(cfg.notice)) + "%", background: "#f59e0b" }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Chú ý</span></div>
-                    <div style={{ width: Math.max(0, 100 - pct(cfg.warn)) + "%", background: "#ef4444" }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Cảnh báo</span></div>
+                    <div style={{ width: pct(cfg.warn) + "%", background: COLOR.teal }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Kiểm soát tốt · tự đóng sự cố</span></div>
+                    <div style={{ width: Math.max(0, 100 - pct(cfg.warn)) + "%", background: "#ef4444" }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Vượt ngưỡng</span></div>
                   </div>
                   <div className="flex justify-between text-[10px] text-slate-400 mt-1 tabular-nums"><span>0</span><span>số điểm lỗi trong 1 giờ →</span><span>60</span></div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
-                  {[["Chuyển CHÚ Ý khi OOS 1 giờ ≥", "notice", "text-amber-600"], ["Chuyển CẢNH BÁO khi OOS 1 giờ >", "warn", "text-rose-600"]].map(([lbl, key, tone]) => (
-                    <div key={key} className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4">
-                      <div className="flex items-center justify-between gap-2"><label className="text-[12px] font-semibold text-slate-600">{lbl}</label><span className={`text-[16px] font-bold tabular-nums ${tone}`}>{cfg[key]}<span className="text-[11px] text-slate-400 font-normal">/60</span></span></div>
-                      <input type="range" min="0" max="60" value={cfg[key]} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, [key]: Number(e.target.value) })} onMouseUp={() => saveCfg(cfg)} onTouchEnd={() => saveCfg(cfg)} className="w-full mt-3 accent-teal-600 disabled:opacity-50" />
-                    </div>
-                  ))}
+                <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4 mt-5">
+                  <div className="flex items-center justify-between gap-2"><label className="text-[12px] font-semibold text-slate-600">Vượt ngưỡng khi OOS 1 giờ &gt;</label><span className="text-[16px] font-bold tabular-nums text-rose-600">{cfg.warn}<span className="text-[11px] text-slate-400 font-normal">/60</span></span></div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Từ hoặc dưới mức này, phòng coi như <b>kiểm soát tốt</b> và sự cố đang mở sẽ <b>tự đóng</b>.</p>
+                  <input type="range" min="0" max="60" value={cfg.warn} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, warn: Number(e.target.value) })} onMouseUp={() => saveCfg(cfg)} onTouchEnd={() => saveCfg(cfg)} className="w-full mt-3 accent-teal-600 disabled:opacity-50" />
                 </div>
                 <div className="rounded-2xl bg-rose-50/60 ring-1 ring-rose-100 p-4 mt-4 flex items-center justify-between flex-wrap gap-3">
-                  <div><label className="text-[12px] font-semibold text-rose-700">Nâng CẢNH BÁO → HÀNH ĐỘNG khi 10 phút cuối có ≥</label><p className="text-[11px] text-slate-500 mt-0.5">Bắt lỗi kéo dài liên tục sát hiện tại — khẩn cấp hơn, đẩy sự cố ngay.</p></div>
+                  <div><label className="text-[12px] font-semibold text-rose-700">Đã vượt ngưỡng — GỬI MAIL khi 10 phút cuối có ≥</label><p className="text-[11px] text-slate-500 mt-0.5">Ít hơn mức này nghĩa là 10 phút cuối đã về dải: sự cố vẫn mở và vẫn hiện ở tab Sự cố, nhưng xếp <b>Chú ý — theo dõi</b> và <b>không gửi mail</b>, vì không có gì để xử lý ngay trong nhịp này.</p></div>
                   <div className="flex items-center gap-2"><input type="number" min="0" max="10" value={cfg.action} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, action: Number(e.target.value) })} onBlur={() => saveCfg(cfg)} className="w-20 rounded-xl bg-white ring-1 ring-rose-200 px-3 py-2 text-sm text-center font-bold disabled:bg-slate-100" /><span className="text-sm text-slate-400">/10 điểm</span></div>
                 </div>
                 <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4 mt-4">
