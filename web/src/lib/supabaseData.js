@@ -1139,12 +1139,18 @@ export async function luuNguoiDung(u, signal) {
 // Thang 3 mức (10/07/2026). WARNING nay nghĩa là "Chú ý — theo dõi": OOS cả giờ vượt
 // ngưỡng nhưng 10 phút cuối đã về dải ⇒ không gửi mail. Nên nó ánh xạ về LEVELS[1],
 // không phải LEVELS[2]. NOTICE là mức cũ, chỉ còn trong dữ liệu lịch sử.
+//
+// SUPPRESSED (10/07/2026) = cảm biến đứng hình, KHÔNG đo được. Phải về -1 (thiếu dữ liệu),
+// tuyệt đối không rơi vào `default: 0` — nếu không, một cảm biến chết sẽ hiện màu
+// "bình thường" trên bảng điều khiển. Đó đúng là cách 5.882 giờ số liệu chết từng được
+// ghi nhận là "đạt".
 function mucCanhBaoToLevel(muc) {
   switch ((muc || '').toUpperCase()) {
     case 'CRITICAL': return 3
     case 'WARNING': return 1
     case 'NOTICE': return 1
     case 'NORMAL': return 0
+    case 'SUPPRESSED': return -1
     case 'MAT_DU_LIEU': return -1
     default: return muc == null ? -1 : 0
   }
