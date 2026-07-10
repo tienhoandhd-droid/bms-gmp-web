@@ -71,7 +71,13 @@ export const ACTION_CODE_TO_LABEL = {
   // Đóng vì phòng ngoài phạm vi cảnh báo — KHÔNG có nghĩa đã khắc phục
   admin_dong_ngoai_pham_vi: 'Quản trị đóng — phòng ngoài phạm vi cảnh báo',
   mo_su_co: 'Hệ thống mở sự cố',
-  he_thong_dong_tu_dong: 'Hệ thống tự đóng (giá trị về dải)',
+  // Luật thật từ 20260710s: `nguong_gio_sach_de_dong` = 2 GIỜ SẠCH LIÊN TIẾP.
+  // Một giờ về dải không đóng gì cả — nhãn cũ "(giá trị về dải)" nói sai.
+  he_thong_dong_tu_dong: 'Hệ thống tự đóng (đủ 2 giờ sạch liên tiếp)',
+  // Cảm biến đứng hình: hệ ngừng chấm mức, KHÔNG đóng sự cố.
+  sensor_dung_hinh: 'Hệ thống: cảm biến đứng hình — ngừng chấm mức',
+  // QA kết luận cả cụm; audit ghi một dòng cho TỪNG sự cố thuộc cụm.
+  qa_ket_luan_cum: 'QA kết luận cụm (nguyên nhân gốc + CAPA)',
   // Hệ thống tự chuyển khi CRITICAL quá ngưỡng mà IPC chưa thao tác — KHÔNG phải IPC bấm
   tu_phan_tuyen_co_dien: 'Hệ thống tự chuyển Cơ điện (quá hạn)',
   // Đã khai tử từ v14, giữ để dịch nhật ký cũ
@@ -251,7 +257,8 @@ export async function laySuCoDangMo(signal) {
   const { data, error } = await docView('xem_su_co_dang_mo',
     (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,'
               + 'bat_dau,keo_dai_gio,dang_tam_hoan,tam_dung_den,tam_dung_boi,tam_dung_ly_do,lich_su,'
-              + 'huong_vi_pham,gia_tri_gan_nhat,gioi_han_duoi,gioi_han_tren,don_vi,thoi_diem_so_lieu,muc_gan_nhat'),
+              + 'huong_vi_pham,gia_tri_gan_nhat,gioi_han_duoi,gioi_han_tren,don_vi,thoi_diem_so_lieu,muc_gan_nhat,'
+              + 'ma_cum,cum_hien_thi'),
     { signal })
   if (error) return { error, incidents: null }
   const incidents = (data || []).map((r) => ({
@@ -278,6 +285,8 @@ export async function laySuCoDangMo(signal) {
     // P0-5: công tắc vĩnh viễn da_tat_canh_bao đã bị CHECK chặn ở DB. Nguồn duy nhất
     // cho trạng thái im lặng là tam_dung_den — có hạn, tự hết, có người chịu trách nhiệm.
     silenced: !!r.dang_tam_hoan,
+    maCum: r.ma_cum ?? null,
+    cumHienThi: r.cum_hien_thi || null,
     tamDungDen: r.tam_dung_den || null,
     tamDungBoi: r.tam_dung_boi || null,
     tamDungLyDo: r.tam_dung_ly_do || null,

@@ -3170,7 +3170,7 @@ export default function App() {
               ) : (
                 <div className="px-5 py-8 text-center text-[13px] text-slate-500">Không có sự cố khớp bộ lọc{evtKhu !== "ALL" ? ` · Khu ${evtKhu}` : ""}{evtAhu !== "ALL" ? ` · ${evtAhu}` : ""}. <button onClick={() => { setEvtKhu("ALL"); setEvtAhu("ALL"); }} className="text-teal-600 font-semibold underline">Bỏ lọc</button></div>
               )) : (
-              <div className="overflow-x-auto"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Phụ trách", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
+              <div className="overflow-x-auto"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Phụ trách", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
                 <tbody>{incSorted.map((inc, idx) => {
                   // P0-2: ở LIVE, nếu chưa biết bộ luật thì KHOÁ nút — không rơi về hard-code.
                   const acts = luatSanSang ? nutKhopTrangThai(dsNut, inc.statusCode)
@@ -3186,12 +3186,15 @@ export default function App() {
                   <React.Fragment key={inc.id}>
                   {moCum && (
                     <tr className="bg-slate-50/70">
-                      <td colSpan={10} className="py-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <td colSpan={11} className="py-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                         {cumAhu(inc)} <span className="text-slate-400 font-normal normal-case tracking-normal">· {soTrongCum} sự cố</span>
                       </td>
                     </tr>)}
                   <tr className={`border-t border-slate-100 hover:bg-sky-50/40 transition ${inc.silenced ? "opacity-60" : ""}`}>
                     <td className="py-3 px-3 font-semibold" style={{ color: COLOR.navy }}>{inc.id}</td>
+                    <td className="py-3 px-3">{inc.cumHienThi
+                      ? <span className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-600 tabular-nums">{inc.cumHienThi}</span>
+                      : <span className="text-[11px] text-slate-300">—</span>}</td>
                     <td className="py-3 px-3">{inc.room}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[10px] text-slate-400">{kh}</span> : null; })()}</td>
                     <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
                     <td className="py-3 px-3 text-slate-600">{inc.sensor}{inc.huong && <span className={`ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-rose-50 text-rose-600" : inc.huong === "THAP" ? "bg-sky-50 text-sky-600" : "bg-amber-50 text-amber-600"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
