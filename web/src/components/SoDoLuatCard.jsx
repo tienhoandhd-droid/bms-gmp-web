@@ -97,17 +97,19 @@ export default function SoDoLuatCard({ dsNut }) {
             <path key={"m" + i} d={duong(e)} fill="none" stroke="#e2e8f0" strokeWidth="1.5" markerEnd="url(#mui-mo)" />
           ))}
 
-          {/* Mũi tên đang sáng */}
+          {/* Mũi tên đang sáng + nhãn có nền pill (chống chồng chữ) */}
           {canhHien.map((e, i) => {
             const m = mauVai(e.vai_tro);
+            const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
+            const chu = (VAI_TRO_TEN[e.vai_tro] || e.vai_tro) + ": " + e.nhan;
+            const rong = Math.min(chu.length * 5.6 + 12, 190);
             return (
               <g key={"e" + i}>
                 <path d={duong(e)} fill="none" stroke={m.net} strokeWidth="2"
-                      strokeDasharray={e.moiTruongTat ? "5 3" : undefined} markerEnd={`url(#mui-${e.vai_tro})`} opacity="0.85" />
-                {/* nhãn nút ở giữa cạnh */}
-                <text x={(e.x1 + e.x2) / 2} y={(e.y1 + e.y2) / 2 - 4} textAnchor="middle"
-                      fontSize="9.5" fill={m.net} style={{ pointerEvents: "none" }}>
-                  {(VAI_TRO_TEN[e.vai_tro] || e.vai_tro) + ": " + e.nhan}
+                      strokeDasharray={e.moiTruongTat ? "5 3" : undefined} markerEnd={`url(#mui-${e.vai_tro})`} opacity="0.9" />
+                <rect x={mx - rong / 2} y={my - 15} width={rong} height="15" rx="7.5" fill="#ffffff" opacity="0.92" stroke={m.nen} />
+                <text x={mx} y={my - 4} textAnchor="middle" fontSize="9.5" fontWeight="500" fill={m.net} style={{ pointerEvents: "none" }}>
+                  {chu.length > 32 ? chu.slice(0, 31) + "…" : chu}
                 </text>
               </g>
             );
@@ -116,15 +118,16 @@ export default function SoDoLuatCard({ dsNut }) {
           {/* Node trạng thái */}
           {g.nodes.map((n) => (
             <g key={n.id}>
-              <rect x={n.x} y={n.y} width={n.W} height={n.H} rx="11"
-                    fill={n.laDong ? "#eefdf6" : "#ffffff"}
-                    stroke={n.laDong ? "#0f6e56" : "#cbd5e1"} strokeWidth="1.5" />
-              <text x={n.x + n.W / 2} y={n.y + 20} textAnchor="middle" fontSize="11.5" fontWeight="600" fill={COLOR.navy}>
-                {n.ten.length > 18 ? n.ten.slice(0, 17) + "…" : n.ten}
+              <rect x={n.x} y={n.y} width={n.W} height={n.H} rx="12"
+                    fill={n.ao ? "#fbfaf7" : n.laDong ? "#eefdf6" : "#ffffff"}
+                    stroke={n.ao ? "#cbb994" : n.laDong ? "#0f6e56" : "#cbd5e1"}
+                    strokeWidth={n.ao ? 1.5 : 1.75} strokeDasharray={n.ao ? "5 3" : undefined} />
+              <text x={n.x + n.W / 2} y={n.y + (n.ao ? 30 : 26)} textAnchor="middle" fontSize="12.5" fontWeight="700" fill={n.ao ? "#9a7b3e" : COLOR.navy}>
+                {n.ten.length > 20 ? n.ten.slice(0, 19) + "…" : n.ten}
               </text>
-              <text x={n.x + n.W / 2} y={n.y + 37} textAnchor="middle" fontSize="8.5" fill="#94a3b8">
-                {n.id}
-              </text>
+              {n.ao
+                ? <text x={n.x + n.W / 2} y={n.y + 46} textAnchor="middle" fontSize="8.5" fill="#b59b6a">áp cho mọi trạng thái</text>
+                : <text x={n.x + n.W / 2} y={n.y + 45} textAnchor="middle" fontSize="9" fill="#94a3b8">{n.id}</text>}
             </g>
           ))}
         </svg>

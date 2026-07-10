@@ -78,7 +78,10 @@ export function theoDoiPhien(callback) {
     //   • sau F5, phiên cũ kích hoạt lại đúng bẫy → không đăng nhập lại được.
     // → Phát NGAY người dùng tối thiểu (đồng bộ) để mở khóa luồng đăng nhập,
     //    rồi tra vai trò NGOÀI khóa bằng setTimeout(…,0).
-    callback({ email, name: email.split('@')[0], role: null, dangTaiVaiTro: true })
+    // Người quay lại: mở bảng NGAY bằng vai trò đã cache (dashboard không chờ mạng).
+    // Không có cache: phát user tối thiểu (role=null) → hiện "Đang xác minh".
+    const cache = docVaiTroCache(email)
+    callback(cache ? { ...cache, dangTaiVaiTro: true } : { email, name: email.split('@')[0], role: null, dangTaiVaiTro: true })
     setTimeout(async () => {
       try { callback(await taoNguoiDungTuEmail(email)) } catch { /* giữ user tối thiểu */ }
     }, 0)
@@ -90,13 +93,39 @@ export function theoDoiPhien(callback) {
 // CÓ TIMEOUT (8s): nếu RLS/mạng làm treo truy vấn, vẫn trả người dùng (role=null)
 // thay vì treo UI. KHÔNG mặc định 'IPC' — gán vai trò sai gây hiểu nhầm quyền
 // ("thông tin không khớp"); role=null để UI hiển thị rõ "chưa xác định vai trò".
+// Cache vai trò theo email trong localStorage. Người quay lại được mở bảng NGAY
+// bằng vai trò lần trước, rồi xác minh lại ở NỀN. An toàn: đây chỉ quyết định TAB
+// nào hiện — mọi dữ liệu và thao tác vẫn do RLS + guard RPC ở máy chủ gác (DB là
+// người gác thật). Sửa localStorage cùng lắm thấy một tab trống (RLS trả rỗng).
+const KHOA_CACHE = 'bms_vaitro_cache'
+function docVaiTroCache(email) {
+  try {
+    const m = JSON.parse(localStorage.getItem(KHOA_CACHE) || '{}')
+    const c = m[email]
+    if (c && c.role) return { email, name: c.name || email.split('@')[0], role: c.role, khuVuc: c.role === 'ADMIN' ? null : (c.khuVuc || null) }
+  } catch { /* cache hỏng → bỏ qua */ }
+  return null
+}
+function luuVaiTroCache(email, role, name, khuVuc) {
+  try {
+    const m = JSON.parse(localStorage.getItem(KHOA_CACHE) || '{}')
+    if (role) m[email] = { role, name, khuVuc }
+    else delete m[email]   // mất quyền ⇒ xoá cache để lần sau không mở nhầm
+    localStorage.setItem(KHOA_CACHE, JSON.stringify(m))
+  } catch { /* localStorage đầy/chặn → bỏ qua */ }
+}
+
 async function taoNguoiDungTuEmail(email) {
   let role = null, name = email.split('@')[0], khuVuc = null
   try {
     const truyVan = supabase.from('nguoi_dung').select('ho_ten, vai_tro, khu_vuc').eq('email', email).maybeSingle()
-    const hetGio = new Promise((res) => setTimeout(() => res({ data: null }), 8000))
-    const { data } = await Promise.race([truyVan, hetGio])
+    const hetGio = new Promise((res) => setTimeout(() => res({ data: null, hetGio: true }), 8000))
+    const kq = await Promise.race([truyVan, hetGio])
+    const { data } = kq
     if (data) { role = data.vai_tro || null; name = data.ho_ten || name; khuVuc = Array.isArray(data.khu_vuc) ? data.khu_vuc : null }
+    // Chỉ ghi cache khi tra ĐƯỢC thật (không phải do hết giờ) — tránh xoá cache oan
+    // khi mạng chậm một nhịp; lần hết giờ vẫn dùng cache cũ ở theoDoiPhien.
+    if (!kq.hetGio) luuVaiTroCache(email, role, name, khuVuc)
   } catch { /* giữ role=null */ }
   // ADMIN xem tất cả (khuVuc=null ⇒ không lọc); vai trò khác lọc theo khu_vuc.
   return { email, name, role, khuVuc: role === 'ADMIN' ? null : khuVuc }
