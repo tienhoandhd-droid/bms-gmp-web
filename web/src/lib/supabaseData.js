@@ -47,7 +47,7 @@ export const ACTION_LABEL_TO_CODE = {
 // MÃ hành động → nhãn hiển thị (nhật ký/trail).
 // Nút bấm thì lấy từ DB (view xem_nut_thao_tac); bảng này CHỈ để dịch mã trong
 // nhật ký, kể cả các hành động không bao giờ thành nút (quản trị/hệ thống).
-const ACTION_CODE_TO_LABEL = {
+export const ACTION_CODE_TO_LABEL = {
   // IPC — bộ 4 nút v14
   ipc_binh_thuong: 'IPC: đã kiểm tra, bình thường',
   ipc_da_khac_phuc: 'IPC: đã khắc phục sự cố',
@@ -63,13 +63,14 @@ const ACTION_CODE_TO_LABEL = {
   lot_nhac_ipc: 'Trực HSL: nhắc IPC',
   lot_nhac_co_dien: 'Trực HSL: nhắc Cơ điện',
   lot_tam_dung_4h: 'Trực HSL: tạm dừng cảnh báo 4 giờ',
-  dung_canh_bao: 'Dừng cảnh báo', bat_lai_canh_bao: 'Bật lại cảnh báo',
+  dung_canh_bao: 'Dừng cảnh báo', tam_dung_canh_bao: 'Tạm hoãn cảnh báo', bat_lai_canh_bao: 'Bật lại cảnh báo',
   // QA / Quản trị / Hệ thống
   qa_da_khac_phuc: 'QA xác nhận khắc phục', qa_mo_lai: 'QA mở lại',
   admin_dong: 'Quản trị đóng (đã khắc phục)',
   admin_mo_lai: 'Quản trị mở lại',
   // Đóng vì phòng ngoài phạm vi cảnh báo — KHÔNG có nghĩa đã khắc phục
   admin_dong_ngoai_pham_vi: 'Quản trị đóng — phòng ngoài phạm vi cảnh báo',
+  mo_su_co: 'Hệ thống mở sự cố',
   he_thong_dong_tu_dong: 'Hệ thống tự đóng (giá trị về dải)',
   // Hệ thống tự chuyển khi CRITICAL quá ngưỡng mà IPC chưa thao tác — KHÔNG phải IPC bấm
   tu_phan_tuyen_co_dien: 'Hệ thống tự chuyển Cơ điện (quá hạn)',
@@ -79,6 +80,12 @@ const ACTION_CODE_TO_LABEL = {
   lot_nhac_nho: 'Trực HSL nhắc nhở', lot_ghi_chu: 'Trực HSL ghi chú', lot_leo_thang: 'Trực HSL leo thang',
 }
 const nhanHanhDong = (ma) => ACTION_CODE_TO_LABEL[ma] || ma || ''
+
+// Danh sách dùng cho bộ lọc Nhật ký audit. Mã lạ vẫn được UI hiển thị nguyên mã,
+// không bị bỏ qua chỉ vì web chưa có nhãn dịch.
+export const AUDIT_ACTION_OPTIONS = Object.entries(ACTION_CODE_TO_LABEL)
+  .map(([value, label]) => ({ value, label }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'vi'))
 
 const SENSOR_LABEL = { DP: 'Chênh áp (DP)', RH: 'Độ ẩm (RH)', T: 'Nhiệt độ (T)' }
 // timestamptz ISO (UTC) → "YYYY-MM-DD HH:MM:SS" theo giờ địa phương trình duyệt (VN)
@@ -479,6 +486,74 @@ export async function layChuoiGiaTriPhong(maPhong, sensor, donVi, soDiem, signal
 // NHẬT KÝ THAO TÁC (Audit)  ·  view: xem_nhat_ky_thao_tac
 // cột: thoi_diem_hien_thi, nguoi_thao_tac_hien_thi, hanh_dong, doi_tuong, ly_do
 // ============================================================
+export async function traCuuNhatKyAudit({
+  tu,
+  den,
+  tuKhoa = '',
+  nguoi = '',
+  hanhDong = '',
+  nguon = '',
+  cursor = null,
+  gioiHan = 50,
+} = {}, signal) {
+  const { data, error } = await goiRPC('rpc_tra_cuu_nhat_ky_audit', {
+    p_tu: tu || null,
+    p_den: den || null,
+    p_tu_khoa: tuKhoa.trim() || null,
+    p_nguoi: nguoi.trim() || null,
+    p_hanh_dong: hanhDong || null,
+    p_nguon: nguon || null,
+    p_cursor_thoi_diem: cursor?.thoiDiem || null,
+    p_cursor_id: cursor?.id ?? null,
+    p_gioi_han: gioiHan,
+  }, { signal, soLanThu: 2 })
+
+  if (error || !data || data.ok === false) {
+    return {
+      ok: false,
+      rows: [],
+      hasMore: false,
+      nextCursor: null,
+      forbidden: error?.ma_loi === 'KHONG_DUOC_PHEP' || data?.loi === 'KHONG_DUOC_PHEP',
+      error: error || { thong_bao: data?.thong_bao || 'Không tải được nhật ký audit.' },
+    }
+  }
+
+  const rows = (Array.isArray(data.rows) ? data.rows : []).map((r) => {
+    const actionCode = r.hanh_dong || ''
+    const incidentId = r.ma_su_co != null ? r.ma_su_co : null
+    return {
+      id: r.id,
+      thoiDiem: r.thoi_diem || null,
+      maSuCo: incidentId,
+      maHienThi: r.ma_hien_thi || (incidentId != null ? `SC-${String(incidentId).padStart(4, '0')}` : '—'),
+      maPhong: r.ma_phong || '',
+      tenPhong: r.ten_phong || '',
+      khuVuc: r.khu_vuc || '',
+      ahu: r.ahu || '',
+      nguoiHienThi: r.nguoi_thao_tac_hien_thi || r.nguoi_thao_tac || 'Hệ thống',
+      nguoiThaoTac: r.nguoi_thao_tac || '',
+      vaiTro: r.vai_tro || '',
+      hanhDong: actionCode,
+      hanhDongHienThi: nhanHanhDong(actionCode),
+      trangThaiTruoc: r.trang_thai_truoc || '',
+      trangThaiSau: r.trang_thai_sau || '',
+      lyDo: r.ly_do || '',
+      nguon: r.nguon || '',
+    }
+  })
+
+  const c = data.next_cursor
+  return {
+    ok: true,
+    rows,
+    hasMore: !!data.has_more,
+    nextCursor: c?.thoi_diem != null && c?.id != null ? { thoiDiem: c.thoi_diem, id: c.id } : null,
+    error: null,
+  }
+}
+
+// API cũ giữ lại trong release hiện tại để không phá phần gọi ngoài chưa được cập nhật.
 export async function layNhatKyThaoTac(signal) {
   const { data, error } = await docView('xem_nhat_ky_thao_tac',
     (q) => q.select('thoi_diem_hien_thi,nguoi_thao_tac_hien_thi,hanh_dong,doi_tuong,ly_do').limit(200),
@@ -520,6 +595,24 @@ export async function layLichSuCauHinh(signal) {
 // CỜ BẮT BUỘC ĐĂNG NHẬP  ·  đọc web_yeu_cau_dang_nhap từ cau_hinh
 // Trả về true nếu hệ thống yêu cầu đăng nhập mới được dùng web.
 // ============================================================
+// ============================================================
+// HỢP ĐỒNG DB ↔ WEB (release manifest tối thiểu, 10/07/2026)
+// Chỉ tăng khi có thay đổi PHÁ VỠ: đổi chữ ký RPC mà web gọi, hoặc bỏ cột của view.
+// Hôm nay đã gặp: rpc_sua_nguong_canh_bao từ 4 tham số xuống 3 — bản web cũ trên máy
+// người dùng hỏng tab Cấu hình cho tới khi Pages deploy xong, không một thông báo nào.
+// ============================================================
+export const PHIEN_BAN_GIAO_THUC = '2026-07-10.1'
+
+// Trả { ok:true } · { ok:false, phienBanDb } khi lệch · { ok:true, khongDocDuoc } khi lỗi mạng.
+// KHÔNG ném: lỗi mạng không được biến thành màn hình chặn.
+export async function kiemGiaoThuc(signal) {
+  const { data, error } = await docView('xem_cau_hinh_he_thong',
+    (q) => q.select('key,value_hien_thi').eq('key', 'phien_ban_giao_thuc'), { signal })
+  if (error || !Array.isArray(data) || !data.length) return { ok: true, khongDocDuoc: true }
+  const db = (data[0].value_hien_thi || '').trim()
+  return db === PHIEN_BAN_GIAO_THUC ? { ok: true } : { ok: false, phienBanDb: db }
+}
+
 export async function layCoBatBuocDangNhap(signal) {
   const { data, error } = await docView('xem_cau_hinh_he_thong',
     (q) => q.select('key,value_hien_thi').eq('key', 'web_yeu_cau_dang_nhap'),
@@ -696,6 +789,13 @@ export async function suaGioiHan(p, signal)   { return goiRPC('rpc_sua_gioi_han_
 export async function themCamBien(p, signal)  { return goiRPC('rpc_them_cam_bien', p, { signal }) }
 export async function xoaCamBien(p, signal)   { return goiRPC('rpc_xoa_cam_bien', p, { signal }) }
 export async function suaNguong(p, signal)    { return goiRPC('rpc_sua_nguong_canh_bao', p, { signal }) }
+// ③ Mô phỏng ngưỡng trên dữ liệu THẬT trước khi áp. Tính lại CẢ HAI mức từ số liệu thô
+// (ngưỡng hiện hành và ngưỡng đề xuất) — không so với cột muc_canh_bao đã lưu, vì đó là
+// mức lịch sử và sẽ cho ra chênh lệch giả ngay cả khi giữ nguyên ngưỡng.
+export async function moPhongNguong({ warn, action, soNgay = 7 }, signal) {
+  return goiRPC('rpc_mo_phong_nguong',
+    { p_nguong_canh_bao: warn, p_nguong_hanh_dong: action, p_so_ngay: soNgay }, { signal })
+}
 export async function luuPhanTichAi(p, signal){ return goiRPC('rpc_luu_phan_tich_ai', p, { signal }) }
 
 // ============================================================

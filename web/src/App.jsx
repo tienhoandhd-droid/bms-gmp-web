@@ -2,11 +2,12 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { PHIEN_BAN_GIAO_THUC, laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
+import AuditLogPage from "./components/AuditLogPage";
 import {
   Droplets, Thermometer, Sparkles, ShieldCheck, ShieldAlert, Activity,
   AlertTriangle, CheckCircle2, HelpCircle, Clock, ChevronRight, X, FileText,
@@ -2098,7 +2099,7 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
                   <td className="py-2.5 pr-4"><button onClick={themDB} className="text-xs font-medium text-white rounded-xl px-3 py-1.5 flex items-center gap-1" style={{ backgroundColor: COLOR.coral }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm</button></td>
                 </tr>)}
             </tbody></table></div>}
-        <p className="text-[11px] text-slate-400 mt-3">Sự cố ở khu nào chỉ gửi người có tích khu đó. Khu chưa ai tích → gửi <b>toàn bộ</b> người kích hoạt của vai trò (không bỏ sót). Bỏ tích cả 3 khu khi lưu = hệ thống tự đặt lại đủ 3 khu.</p>
+        <p className="text-[11px] text-slate-400 mt-3">Sự cố ở khu nào chỉ gửi người có tích khu đó, và <b>chỉ khi tài khoản của họ được xem khu đó</b>. Khu chưa ai tích → gửi toàn bộ người hợp lệ của vai trò (không bỏ sót). <b>Phải chọn ít nhất một khu</b> — bỏ tích cả ba sẽ không lưu được.</p>
         <p className="text-[11px] text-slate-400 mt-1"><b>AHU phụ trách</b> chỉ áp dụng cho Cơ điện: mỗi AHU sẽ gửi một email riêng cho đúng người phụ trách. Bỏ trống = nhận mọi AHU trong các khu đã tích. Tên AHU trùng nhau giữa các khu nên ghi dạng <span className="font-mono">KHU/AHU</span>. AHU hiển thị mờ là AHU chỉ có phòng P3 — không bao giờ sinh sự cố.</p>
       </Card>
 
@@ -2575,7 +2576,11 @@ export default function App() {
   const [incidents, setIncidents] = useState(LIVE_MAC_DINH ? [] : INCIDENTS0);
   const [evtKhu, setEvtKhu] = useState("ALL");   // Sự cố: lọc theo khu (ALL/C1/C4/Q2)
   const [evtAhu, setEvtAhu] = useState("ALL");   // Sự cố: lọc theo AHU trong khu đã chọn
-  const [cfg, setCfg] = useState({ notice: 10, warn: 20, action: 4 }); // #4 — DEMO; chế độ LIVE đọc từ DB (cau_hinh)
+  const [cfg, setCfg] = useState({ warn: 20, action: 4 });   // ngưỡng ĐANG ÁP DỤNG (LIVE đọc từ cau_hinh)
+  // ③ Bản nháp + kết quả mô phỏng. Kéo thanh trượt KHÔNG còn ghi thẳng xuống production:
+  // hai khoá này quyết định giờ nào mở sự cố, giờ nào GỬI MAIL, giờ nào TỰ ĐÓNG.
+  const [cfgNhap, setCfgNhap] = useState(null);   // null = chưa sửa gì
+  const [moPhong, setMoPhong] = useState(null);   // {dangTai} | {kq} | {loi}
   const [alertUuTien, setAlertUuTien] = useState(["P1", "P2", "P3"]); // cấp độ phòng được cảnh báo (config)
   // Khoá con `canh_bao` đã gỡ 10/07/2026: chưa hàm/view/dòng web nào đọc nó, và nó cũng
   // chưa bao giờ được vẽ ra. Một nút không làm gì còn tệ hơn không có nút.
@@ -2609,6 +2614,16 @@ export default function App() {
   // Tab hiển thị theo vai trò. LIVE mà vai trò CHƯA xác định (đang tải / lỗi tra) → chỉ
   // các tab xem cơ bản (không lộ Cài đặt/Người nhận khi role=null). RPC vẫn gate server-side.
   // ===== Dữ liệu LIVE từ Supabase (Tổng quan/Sự cố/Nhật ký) =====
+  // ④ Release manifest — web cũ + DB mới = nút không hoạt động, không một thông báo nào.
+  // Hôm nay đã gặp: rpc_sua_nguong_canh_bao đổi từ 4 tham số xuống 3.
+  const [giaoThucLech, setGiaoThucLech] = useState(null);
+  useEffect(() => {
+    if (!isLive) return;
+    let huy = false;
+    kiemGiaoThuc().then((r) => { if (!huy && !r.ok) setGiaoThucLech(r.phienBanDb); }).catch(() => {});
+    return () => { huy = true; };
+  }, [isLive]);
+
   // P0-3: gắn hook với danh tính phiên. Đổi tài khoản ⇒ hook xoá sạch state trong lúc
   // render và bỏ mọi phản hồi của phiên cũ. Không còn cửa sổ lộ dữ liệu khu người trước.
   const live = useLiveData(dataSource, { phienId: user?.email || null });
@@ -2681,10 +2696,9 @@ export default function App() {
 
   // Khi có dữ liệu sự cố LIVE → thay danh sách demo
   useEffect(() => { if (isLive && live.incidents) setIncidents(live.incidents); }, [isLive, live.incidents]);
-  useEffect(() => { if (isLive && live.audit) setAudit(live.audit); }, [isLive, live.audit]);
   useEffect(() => { if (isLive && live.configHistory) setConfigHistory(live.configHistory); }, [isLive, live.configHistory]);
   useEffect(() => { if (isLive && live.rooms) setRooms(live.rooms); }, [isLive, live.rooms]);
-  useEffect(() => { if (isLive && live.nguong) setCfg(live.nguong); }, [isLive, live.nguong]);
+  useEffect(() => { if (isLive && live.nguong) { setCfg(live.nguong); setCfgNhap(null); setMoPhong(null); } }, [isLive, live.nguong]);
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const ds = await layCanhBaoUuTien(); if (!huy && Array.isArray(ds) && ds.length) setAlertUuTien(ds); })(); return () => { huy = true; }; }, [isLive]);
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const h = await layCanhBaoHuong(); if (!huy && h) setAlertHuong(h); })(); return () => { huy = true; }; }, [isLive]);
 
@@ -2806,9 +2820,21 @@ export default function App() {
     const { error } = await luuPhanTichAi({ p_scope_type: scopeType, p_scope_id: scopeId, p_ten_scope: scopeName, p_sensor: sensor, p_so_ngay: days, p_noi_dung: text, p_muc_canh_bao: level, p_actor: user?.email || null });
     if (!error) live.lamMoi({ nen: true });
   };
+  // ③ Không còn onMouseUp → ghi DB. Phải xem tác động rồi mới áp.
+  const cfgHT = cfgNhap || cfg;
+  const coThayDoi = !!cfgNhap && (cfgNhap.warn !== cfg.warn || cfgNhap.action !== cfg.action);
+  const xemTacDong = async () => {
+    if (!coThayDoi) return;
+    setMoPhong({ dangTai: true });
+    const { data, error } = await moPhongNguong({ warn: cfgNhap.warn, action: cfgNhap.action, soNgay: 7 });
+    if (error) { setMoPhong({ loi: error.thong_bao || error.ma_loi || "Không mô phỏng được." }); return; }
+    setMoPhong({ kq: data });
+  };
   const saveCfg = async (next) => {
-    if (isLive) { const { error } = await suaNguong({ p_nguong_canh_bao: next.warn, p_nguong_hanh_dong: next.action, p_actor: user?.email || null }); if (baoLoi(error, "Không lưu được ngưỡng")) await apMoi(); }
-    else logConfig(`Sửa ngưỡng cảnh báo: vượt ngưỡng ${next.warn} · gửi mail khi 10′ cuối ≥ ${next.action}`);
+    if (isLive) {
+      const { error } = await suaNguong({ p_nguong_canh_bao: next.warn, p_nguong_hanh_dong: next.action, p_actor: user?.email || null });
+      if (baoLoi(error, "Không lưu được ngưỡng")) { setCfgNhap(null); setMoPhong(null); await apMoi(); }
+    } else { logConfig(`Sửa ngưỡng cảnh báo: vượt ngưỡng ${next.warn} · gửi mail khi 10′ cuối ≥ ${next.action}`); setCfg(next); setCfgNhap(null); setMoPhong(null); }
   };
   // Bật/tắt 1 cấp ưu tiên trong phạm vi cảnh báo (phải giữ ≥1 cấp).
   const toggleUuTien = async (p) => {
@@ -2905,6 +2931,27 @@ export default function App() {
   const openRoomIncident = (room) => { const inc = incidents.find((i) => i.room === room.id && i.status !== "Đã khắc phục"); if (inc) openApproval(inc); else setRoomModal(room); };
 
   // ===== CỔNG ĐĂNG NHẬP: chỉ tài khoản đã đăng nhập mới dùng được web (đã loại bỏ demo) =====
+  if (isLive && giaoThucLech) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: PAGE_BG }}>
+        <div className="max-w-md text-center">
+          <div className="mx-auto w-11 h-11 rounded-2xl bg-amber-50 ring-1 ring-amber-100 flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 text-amber-600" strokeWidth={1.8} />
+          </div>
+          <h1 className="mt-4 text-lg font-semibold" style={{ color: COLOR.ink }}>Bản web không khớp cơ sở dữ liệu</h1>
+          <p className="mt-2 text-[13px] text-slate-500 leading-relaxed">
+            Trang này chạy hợp đồng <b>{PHIEN_BAN_GIAO_THUC}</b>, còn cơ sở dữ liệu đã ở <b>{giaoThucLech}</b>.
+            Một số nút sẽ không hoạt động. Tải lại trang để lấy bản mới nhất.
+          </p>
+          <button onClick={() => window.location.reload()}
+            className="mt-5 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: COLOR.teal }}>
+            Tải lại trang
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Chặn TOÀN TRANG khi đang LIVE và chưa đăng nhập. Không còn lối "xem thử demo".
   const canChanDangNhap = isLive && !user;
   if (canChanDangNhap) {
@@ -3112,7 +3159,7 @@ export default function App() {
               </div>
 
               {auditTab === "audit" && (
-              <Card className="p-6"><SectionTitle icon={FileText} hint="thao tác web + ghi từ Supabase">Nhật ký audit</SectionTitle><p className="text-[11px] text-slate-500 mt-1.5">Tổng hợp <b>thao tác trên web</b> (phê duyệt sự cố, dừng cảnh báo…) và các sự kiện ghi tại <b>Supabase</b>. Mọi thay đổi đều lưu vết theo ALCOA+.</p><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Hành động", "Đối tượng", "Chi tiết"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{audit.length === 0 ? <tr><td colSpan={5} className="py-6 text-center text-slate-400 text-[12px]">Chưa có bản ghi audit.</td></tr> : audit.map((a, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 text-slate-500 tabular-nums">{a.t}</td><td className="py-2.5 pr-4 text-slate-600">{a.who}</td><td className="py-2.5 pr-4 text-slate-700">{a.act}</td><td className="py-2.5 pr-4 font-semibold" style={{ color: COLOR.navy }}>{a.obj}</td><td className="py-2.5 pr-4 text-slate-500">{a.detail}</td></tr>)}</tbody></table></div></Card>
+              <AuditLogPage isLive={isLive} demoRows={audit} />
               )}
               {auditTab === "config" && (
               <Card className="p-6"><SectionTitle icon={History} hint="cấu hình ngưỡng · phòng · cảm biến">Thay đổi cấu hình & dữ liệu gốc</SectionTitle><p className="text-[11px] text-slate-500 mt-1.5">Các thay đổi cấu hình ghi tại Supabase (sửa ngưỡng cảnh báo, thêm/bớt phòng & cảm biến, chỉnh giới hạn) — kể cả khi sửa trực tiếp trên database, đều hiển thị tại đây.</p><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Thay đổi"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{configHistory.length === 0 ? <tr><td colSpan={3} className="py-6 text-center text-slate-400 text-[12px]">Chưa có thay đổi cấu hình.</td></tr> : configHistory.map((c, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 text-slate-500 tabular-nums">{c.t}</td><td className="py-2.5 pr-4 text-slate-600">{c.who}</td><td className="py-2.5 pr-4 text-slate-700">{c.change}</td></tr>)}</tbody></table></div></Card>
@@ -3150,20 +3197,71 @@ export default function App() {
                 <p className="text-[12px] text-slate-500 mt-2">Mỗi giờ hệ thống chấm mỗi phòng tối đa <b>60 điểm</b> (mỗi phút lỗi = 1 điểm). Vượt ngưỡng thì <b>10 phút cuối</b> quyết định: còn lệch ngay lúc này thì gửi mail, đã về dải thì chỉ theo dõi.</p>
                 <div className="mt-5">
                   <div className="relative h-10 rounded-xl overflow-hidden ring-1 ring-slate-200 flex text-[11px] font-semibold text-white select-none">
-                    <div style={{ width: pct(cfg.warn) + "%", background: COLOR.teal }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Kiểm soát tốt · tự đóng sự cố</span></div>
-                    <div style={{ width: Math.max(0, 100 - pct(cfg.warn)) + "%", background: "#ef4444" }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Vượt ngưỡng</span></div>
+                    <div style={{ width: pct(cfgHT.warn) + "%", background: COLOR.teal }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Kiểm soát tốt · tự đóng sự cố</span></div>
+                    <div style={{ width: Math.max(0, 100 - pct(cfgHT.warn)) + "%", background: "#ef4444" }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Vượt ngưỡng</span></div>
                   </div>
                   <div className="flex justify-between text-[10px] text-slate-400 mt-1 tabular-nums"><span>0</span><span>số điểm lỗi trong 1 giờ →</span><span>60</span></div>
                 </div>
                 <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4 mt-5">
-                  <div className="flex items-center justify-between gap-2"><label className="text-[12px] font-semibold text-slate-600">Vượt ngưỡng khi OOS 1 giờ &gt;</label><span className="text-[16px] font-bold tabular-nums text-rose-600">{cfg.warn}<span className="text-[11px] text-slate-400 font-normal">/60</span></span></div>
+                  <div className="flex items-center justify-between gap-2"><label className="text-[12px] font-semibold text-slate-600">Vượt ngưỡng khi OOS 1 giờ &gt;</label><span className="text-[16px] font-bold tabular-nums text-rose-600">{cfgHT.warn}<span className="text-[11px] text-slate-400 font-normal">/60</span></span></div>
                   <p className="text-[11px] text-slate-500 mt-0.5">Từ hoặc dưới mức này, phòng coi như <b>kiểm soát tốt</b> và sự cố đang mở sẽ <b>tự đóng</b>.</p>
-                  <input type="range" min="0" max="60" value={cfg.warn} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, warn: Number(e.target.value) })} onMouseUp={() => saveCfg(cfg)} onTouchEnd={() => saveCfg(cfg)} className="w-full mt-3 accent-teal-600 disabled:opacity-50" />
+                  <input type="range" min="0" max="60" value={cfgHT.warn} disabled={!canManage} onChange={(e) => { setCfgNhap({ ...cfgHT, warn: Number(e.target.value) }); setMoPhong(null); }} className="w-full mt-3 accent-teal-600 disabled:opacity-50" />
                 </div>
                 <div className="rounded-2xl bg-rose-50/60 ring-1 ring-rose-100 p-4 mt-4 flex items-center justify-between flex-wrap gap-3">
                   <div><label className="text-[12px] font-semibold text-rose-700">Đã vượt ngưỡng — GỬI MAIL khi 10 phút cuối có ≥</label><p className="text-[11px] text-slate-500 mt-0.5">Ít hơn mức này nghĩa là 10 phút cuối đã về dải: sự cố vẫn mở và vẫn hiện ở tab Sự cố, nhưng xếp <b>Chú ý — theo dõi</b> và <b>không gửi mail</b>, vì không có gì để xử lý ngay trong nhịp này.</p></div>
-                  <div className="flex items-center gap-2"><input type="number" min="0" max="10" value={cfg.action} disabled={!canManage} onChange={(e) => setCfg({ ...cfg, action: Number(e.target.value) })} onBlur={() => saveCfg(cfg)} className="w-20 rounded-xl bg-white ring-1 ring-rose-200 px-3 py-2 text-sm text-center font-bold disabled:bg-slate-100" /><span className="text-sm text-slate-400">/10 điểm</span></div>
+                  <div className="flex items-center gap-2"><input type="number" min="0" max="10" value={cfgHT.action} disabled={!canManage} onChange={(e) => { setCfgNhap({ ...cfgHT, action: Number(e.target.value) }); setMoPhong(null); }} className="w-20 rounded-xl bg-white ring-1 ring-rose-200 px-3 py-2 text-sm text-center font-bold disabled:bg-slate-100" /><span className="text-sm text-slate-400">/10 điểm</span></div>
                 </div>
+
+                {/* ③ Không thể chỉnh nhầm bằng một cú kéo chuột. Xem tác động trên 7 ngày
+                    dữ liệu THẬT rồi mới áp. Mô phỏng tính lại cả hai mức từ số liệu thô. */}
+                {canManage && coThayDoi && (
+                  <div className="rounded-2xl ring-1 ring-amber-200 bg-amber-50/60 p-4 mt-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="text-[12px] text-slate-700">
+                        Đang sửa: <b>OOS 1 giờ &gt; {cfgNhap.warn}</b> · <b>10′ cuối ≥ {cfgNhap.action}</b>
+                        <span className="text-slate-500"> (đang áp dụng: {cfg.warn} / {cfg.action})</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setCfgNhap(null); setMoPhong(null); }}
+                          className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-600">Hủy</button>
+                        <button onClick={xemTacDong}
+                          className="rounded-xl px-3 py-1.5 text-[12px] font-semibold text-white" style={{ backgroundColor: COLOR.navy }}>Xem tác động</button>
+                        <button onClick={() => saveCfg(cfgNhap)} disabled={!moPhong?.kq}
+                          className="rounded-xl px-3 py-1.5 text-[12px] font-semibold text-white disabled:bg-slate-200 disabled:text-slate-400"
+                          style={moPhong?.kq ? { backgroundColor: COLOR.coral } : {}}>Áp dụng</button>
+                      </div>
+                    </div>
+
+                    {moPhong?.dangTai && <div className="h-16 rounded-xl bg-white/70 animate-pulse mt-3" />}
+                    {moPhong?.loi && <p className="text-[12px] text-rose-700 mt-3">{moPhong.loi}</p>}
+                    {moPhong?.kq && (
+                      <div className="mt-3">
+                        <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Chiếu lên {moPhong.kq.so_ngay} ngày dữ liệu thật · {moPhong.kq.tong_gio} giờ-cảm-biến</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                          {[["Giờ GỬI MAIL", moPhong.kq.hien_tai.gui_mail, moPhong.kq.de_xuat.gui_mail],
+                            ["Giờ chỉ theo dõi", moPhong.kq.hien_tai.theo_doi, moPhong.kq.de_xuat.theo_doi],
+                            ["Giờ bình thường", moPhong.kq.hien_tai.binh_thuong, moPhong.kq.de_xuat.binh_thuong]].map(([lbl, a, b]) => (
+                            <div key={lbl} className="rounded-xl bg-white ring-1 ring-slate-200 p-3">
+                              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{lbl}</p>
+                              <p className="text-[15px] font-semibold tabular-nums mt-0.5" style={{ color: COLOR.ink }}>
+                                {a} <span className="text-slate-400 font-normal">→</span> {b}
+                              </p>
+                            </div>))}
+                          <div className="rounded-xl bg-white ring-1 ring-slate-200 p-3">
+                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Phòng bị ảnh hưởng</p>
+                            <p className="text-[15px] font-semibold tabular-nums mt-0.5" style={{ color: COLOR.ink }}>{moPhong.kq.phong_anh_huong}</p>
+                          </div>
+                        </div>
+                        <p className="text-[12px] mt-3 leading-relaxed" style={{ color: moPhong.kq.gui_mail_bot > moPhong.kq.gui_mail_them ? "#854f0b" : COLOR.ink }}>
+                          {moPhong.kq.gui_mail_them > 0 && <>Sẽ <b>gửi mail thêm {moPhong.kq.gui_mail_them} giờ</b>{moPhong.kq.p1_gui_mail_them > 0 && <> (trong đó <b>{moPhong.kq.p1_gui_mail_them} giờ ở phòng P1</b>)</>}. </>}
+                          {moPhong.kq.gui_mail_bot > 0 && <>Sẽ <b>bớt gửi mail {moPhong.kq.gui_mail_bot} giờ</b>{moPhong.kq.p1_gui_mail_bot > 0 && <> — trong đó <b>{moPhong.kq.p1_gui_mail_bot} giờ ở phòng P1</b>, nghĩa là những giờ đó sẽ không ai được báo</>}. </>}
+                          {moPhong.kq.tu_dong_them > 0 && <>Hệ sẽ <b>tự đóng thêm {moPhong.kq.tu_dong_them} giờ</b>. </>}
+                          {moPhong.kq.gui_mail_them === 0 && moPhong.kq.gui_mail_bot === 0 && moPhong.kq.tu_dong_them === 0 && moPhong.kq.tu_dong_bot === 0 && <>Không giờ nào đổi mức. Ngưỡng mới không thay đổi hành vi trên 7 ngày vừa qua.</>}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4 mt-4">
                   <label className="text-[12px] font-semibold text-slate-600">Cấp độ phòng được cảnh báo</label>
                   <p className="text-[11px] text-slate-500 mt-0.5">Chỉ mở sự cố + gửi cảnh báo cho phòng thuộc cấp đã chọn. Phòng ngoài cấp <b>vẫn ghi dữ liệu OOS</b> (KPI/tuân thủ đủ), chỉ không tạo sự cố/leo thang.</p>
