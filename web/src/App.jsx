@@ -2367,7 +2367,10 @@ function SuCoGanDayPage({ isLive, khuChoPhep = null }) {
   useEffect(() => { setLoading(true); taiLai(!daMount.current); daMount.current = true; }, [gio, taiLai]);
   useEffect(() => {                                         // tự làm mới mỗi 60s
     if (!isLive) return;
-    const id = setInterval(() => taiLai(true), 60000);
+    // P1: CHỈ chạy khi tab đang hiện. Component vẫn mount khi ẩn (display:none) nên nếu
+    // không chặn, mỗi trình duyệt từng mở tab này vẫn gọi capNhatPhut8h() (login FMS) mỗi
+    // 60s ở nền → nhiều phiên FMS song song vô ích, góp phần làm FMS quá tải.
+    const id = setInterval(() => { if (document.visibilityState === "visible") taiLai(true); }, 60000);
     return () => clearInterval(id);
   }, [isLive, taiLai]);
 
@@ -2840,11 +2843,23 @@ export default function App() {
     return () => off();
   }, [isLive]);
 
-  // Khi có dữ liệu sự cố LIVE → thay danh sách demo
-  useEffect(() => { if (isLive && live.incidents) setIncidents(live.incidents); }, [isLive, live.incidents]);
-  useEffect(() => { if (isLive && live.configHistory) setConfigHistory(live.configHistory); }, [isLive, live.configHistory]);
-  useEffect(() => { if (isLive && live.rooms) setRooms(live.rooms); }, [isLive, live.rooms]);
+  // Khi có dữ liệu sự cố LIVE → thay danh sách demo.
+  // P0 (rò dữ liệu đổi tài khoản): SET CẢ KHI null. useLiveData đặt live.* = null ngay
+  // lúc render khi đổi phiên (phienId đổi); nếu chỉ set khi truthy, App giữ nguyên bản
+  // sao phòng/sự cố/nhật ký của khu tài khoản TRƯỚC và vẽ ra. Về [] ngay để không lộ.
+  useEffect(() => { if (isLive) setIncidents(live.incidents || []); }, [isLive, live.incidents]);
+  useEffect(() => { if (isLive) setConfigHistory(live.configHistory || []); }, [isLive, live.configHistory]);
+  useEffect(() => { if (isLive) setRooms(live.rooms || []); }, [isLive, live.rooms]);
   useEffect(() => { if (isLive && live.nguong) { setCfg(live.nguong); setCfgNhap(null); setMoPhong(null); } }, [isLive, live.nguong]);
+  // P0 — đổi tài khoản/đăng xuất: ĐÓNG mọi modal + xoá bản sao nhạy cảm NGAY. RLS không
+  // dọn được dữ liệu ĐÃ nằm trong bộ nhớ trình duyệt (modal đang mở của khu cũ) → phải tự xoá.
+  const emailTruoc = useRef(user?.email);
+  useEffect(() => {
+    if (emailTruoc.current === user?.email) return;
+    emailTruoc.current = user?.email;
+    setKpiModal(null); setRoomModal(null); setModal(null); setMoPhong(null);
+    if (LIVE_MAC_DINH) { setRooms([]); setIncidents([]); setConfigHistory([]); setAudit([]); }
+  }, [user?.email]);
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const ds = await layCanhBaoUuTien(); if (!huy && Array.isArray(ds) && ds.length) setAlertUuTien(ds); })(); return () => { huy = true; }; }, [isLive]);
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const h = await layCanhBaoHuong(); if (!huy && h) setAlertHuong(h); })(); return () => { huy = true; }; }, [isLive]);
 
@@ -2912,12 +2927,12 @@ export default function App() {
   };
   const nhomPhong = useMemo(() => {
     const g = { dat: [], khong: [], thieu: [] };
-    rooms.forEach((r) => g[phanLoaiPhong(r)].push(r));
+    roomsXem.forEach((r) => g[phanLoaiPhong(r)].push(r));   // P0: roomsXem (đã lọc khu), KHÔNG dùng rooms → modal KPI không lộ phòng ngoài khu
     const sx = (a, b) => (roomCompliance(a) ?? -1) - (roomCompliance(b) ?? -1);
     g.dat.sort((a, b) => (roomCompliance(b) ?? 0) - (roomCompliance(a) ?? 0)); // đạt: cao→thấp
     g.khong.sort(sx); g.thieu.sort((a, b) => (a.id < b.id ? -1 : 1));          // không đạt: thấp→cao
     return g;
-  }, [rooms, isLive, FRESH_MIN]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roomsXem, isLive, FRESH_MIN]); // eslint-disable-line react-hooks/exhaustive-deps
   // Phòng "trọng yếu" gắn với sự cố Mức 1 (P1) đang mở — để link từ ô "Sự cố Mức 1 mở"
   const suCoP1 = incidentsXem.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục");
   // #9 — "Phòng trọng điểm" xếp theo NGUY CƠ để tập trung theo dõi:

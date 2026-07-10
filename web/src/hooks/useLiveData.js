@@ -259,28 +259,10 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
     return () => sub?.subscription?.unsubscribe?.()
   }, [isLive, lamMoi, napNut])
 
-  // ============================================================
-  // REALTIME bảng su_co (migration 20260709_su_co_thao_tac_muot_ma.sql đưa bảng
-  // vào publication supabase_realtime). Trước đây bấm nút trong email xong nhìn
-  // web vẫn thấy trạng thái cũ tới 60 giây → tưởng hệ thống hỏng.
-  // RLS vẫn được áp cho từng subscriber, nên tài khoản giới hạn khu chỉ nhận
-  // sự kiện của khu mình. Gộp nhiều sự kiện dồn dập vào MỘT lần nạp lại (1,2s)
-  // để một lượt WF1 đụng hàng chục sự cố không tạo ra hàng chục request.
-  // Mất kết nối realtime KHÔNG sao: nhịp 60s vẫn là lưới an toàn.
-  // ============================================================
-  useEffect(() => {
-    if (!isLive || !supabase) return
-    let hen = null
-    const nap = () => {
-      clearTimeout(hen)
-      hen = setTimeout(() => { if (!huy.current) lamMoi({ nen: true }) }, 1200)
-    }
-    const kenh = supabase
-      .channel('bms-su-co')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'su_co' }, nap)
-      .subscribe()
-    return () => { clearTimeout(hen); supabase.removeChannel(kenh) }
-  }, [isLive, lamMoi])
+  // P1 — TRƯỚC ĐÂY có kênh 'bms-su-co' thứ hai đăng ký TRÙNG bảng su_co (song song với
+  // 'rt-su-co' ở trên), debounce lệch (1200ms vs 1500ms), không kiểm visibility. Mỗi thay
+  // đổi su_co bắn 2 lần lamMoi() cách ~300ms; lần sau abort request lần trước → tải thừa +
+  // loading/race khó hiểu. Đã GỘP: chỉ giữ MỘT subscription (dangKyRealtimeSuCo ở trên).
 
   return {
     isLive, kpis, incidents, systemAlerts, configHistory,
