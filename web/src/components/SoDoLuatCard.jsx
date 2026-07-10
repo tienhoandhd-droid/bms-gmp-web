@@ -33,15 +33,13 @@ const OWN = {
   DONE:  { net: "#10b981", nen: "#ecfdf5", ten: "Hoàn tất" },
   SYSTEM:{ net: "#94a3b8", nen: "#f8fafc", ten: "" },
 };
-const ho = 0.42, hs = 0.58; // vị trí tay cầm target/source trên mỗi cạnh
+const POS = { left: Position.Left, right: Position.Right, top: Position.Top, bottom: Position.Bottom };
+const DOC = new Set(["left", "right"]);
 
-// ---- Node trạng thái: thẻ có dải màu bộ phận sở hữu; hub viền đậm; 8 tay-cầm ----
+// ---- Node trạng thái: thẻ có dải màu bộ phận sở hữu; hub viền đậm; điểm cắm RẢI ĐỀU ----
 function NodeTrangThai({ data }) {
   const o = OWN[data.owner] || OWN.SYSTEM;
   const dong = data.laDong;
-  const H = (id, type, position, s) => (
-    <Handle id={id} type={type} position={position} style={{ ...s, opacity: 0, width: 1, height: 1, minWidth: 1, minHeight: 1, border: 0 }} />
-  );
   return (
     <div style={{
       width: NODE_W, height: NODE_H, position: "relative",
@@ -58,15 +56,11 @@ function NodeTrangThai({ data }) {
           {data.laHub ? "◆ TÂM XỬ LÝ" : (dong ? "✓ trạng thái đóng" : o.ten)}
         </div>
       </div>
-      {/* 8 tay cầm: mỗi cạnh có target(42%) + source(58%) ⇒ mũi tên 2 chiều tách nhau */}
-      {H("t-l", "target", Position.Left,  { top: `${ho * 100}%` })}
-      {H("s-l", "source", Position.Left,  { top: `${hs * 100}%` })}
-      {H("t-r", "target", Position.Right, { top: `${ho * 100}%` })}
-      {H("s-r", "source", Position.Right, { top: `${hs * 100}%` })}
-      {H("t-t", "target", Position.Top,    { left: `${ho * 100}%` })}
-      {H("s-t", "source", Position.Top,    { left: `${hs * 100}%` })}
-      {H("t-b", "target", Position.Bottom, { left: `${ho * 100}%` })}
-      {H("s-b", "source", Position.Bottom, { left: `${hs * 100}%` })}
+      {/* điểm cắm do bố cục rải đều — mỗi mũi tên một điểm riêng ⇒ không đè nhau */}
+      {(data.handles || []).map((h) => (
+        <Handle key={h.id} id={h.id} type={h.type} position={POS[h.side]}
+          style={{ [DOC.has(h.side) ? "top" : "left"]: `${h.off * 100}%`, opacity: 0, width: 1, height: 1, minWidth: 1, minHeight: 1, border: 0 }} />
+      ))}
     </div>
   );
 }
