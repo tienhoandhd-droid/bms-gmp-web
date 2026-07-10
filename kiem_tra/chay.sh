@@ -93,6 +93,20 @@ else
   VO=$((VO+SQL_VO))
 fi
 
+# ── QUY TRÌNH XỬ LÝ SỰ CỐ (kịch bản sâu: đóng vai IPC/Cơ điện/Trực/QA) ────────
+echo ""
+echo "── QUY TRÌNH XỬ LÝ SỰ CỐ (đóng vai từng bộ phận, rollback) ──"
+OUT2=$(PSQL -qtA -F' │ ' -f kiem_tra/quy_trinh_su_co.sql 2>&1)
+echo "$OUT2" | grep -E '^(✅|❌|TỔNG)' | sed 's/^/  /'
+SQL_VO2=$(echo "$OUT2" | grep '^KQ_MAY_DOC:' | cut -d: -f2)
+if [ -z "${SQL_VO2:-}" ]; then
+  echo "❌ Bộ kiểm QUY TRÌNH SỰ CỐ không chạy trọn (giao dịch abort?) — đọc lỗi:"
+  echo "$OUT2" | grep -iE 'error|nổ|exception' | head -4 | sed 's/^/    /'
+  VO=$((VO+1))
+else
+  VO=$((VO+SQL_VO2))
+fi
+
 echo ""
 echo "══════════════════════════════════════════════════════════════"
 if [ "$VO" -eq 0 ]; then
