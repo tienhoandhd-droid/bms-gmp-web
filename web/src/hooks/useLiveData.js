@@ -14,14 +14,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/bmsClient'
 import {
-  layTongQuan, laySuCoDangMo, layCanhBaoHeThong, layNhatKyThaoTac, layLichSuCauHinh,
+  layTongQuan, laySuCoDangMo, layCanhBaoHeThong, layLichSuCauHinh,
   layDanhSachPhong, layThongKeSensorPhong, layThongKeSensorNhieuPhong, layXepHangRuiRo, layQuyTrinhSop, layBaoCaoAi,
-  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp, layNutThaoTac,
+  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp, layNutThaoTac, laySuCoQuaHan,
 } from '../lib/supabaseData'
 
 const ENRICH_TTL_MS = 4 * 60 * 1000   // thống kê 8h chỉ đổi mỗi giờ → cache 4'
 const SO_SONG = 6                      // số request thống kê phòng chạy đồng thời tối đa
-// Dữ liệu tab phụ (nhật ký/cấu hình/rủi ro/SOP/AI/GMP) đổi CHẬM (mỗi giờ hoặc do
+// Dữ liệu tab phụ (cấu hình/rủi ro/SOP/AI/GMP) đổi CHẬM (mỗi giờ hoặc do
 // job đêm). Ở nhịp tự động 60s KHÔNG cần kéo lại mỗi phút — chỉ làm mới khi quá
 // hạn để giảm tải mạng & tránh giật. Lần nạp đầu và thao tác thủ công luôn kéo đủ.
 const TIER2_TTL_MS = 5 * 60 * 1000
@@ -46,7 +46,6 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
   const [kpis, setKpis] = useState(null)
   const [incidents, setIncidents] = useState(null)
   const [systemAlerts, setSystemAlerts] = useState(null)
-  const [audit, setAudit] = useState(null)
   const [configHistory, setConfigHistory] = useState(null)
   const [rooms, setRooms] = useState(null)
   const [riskRows, setRiskRows] = useState(null)
@@ -54,6 +53,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
   const [aiRows, setAiRows] = useState(null)
   const [nguong, setNguong] = useState(null)
   const [sucKhoe, setSucKhoe] = useState(null)
+  const [suCoQuaHan, setSuCoQuaHan] = useState(null)
   const [gmpMkt, setGmpMkt] = useState(null)
   const [gmpSpc, setGmpSpc] = useState(null)
   const [batBuocDangNhap, setBatBuocDangNhap] = useState(false)
@@ -79,9 +79,9 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
     phienRef.current = phienId
     theHe.current += 1
     if (ctrlRef.current) ctrlRef.current.abort()
-    setKpis(null); setIncidents(null); setSystemAlerts(null); setAudit(null)
+    setKpis(null); setIncidents(null); setSystemAlerts(null)
     setConfigHistory(null); setRooms(null); setRiskRows(null); setSopRows(null)
-    setAiRows(null); setSucKhoe(null); setGmpMkt(null); setGmpSpc(null)
+    setAiRows(null); setSucKhoe(null); setSuCoQuaHan(null); setGmpMkt(null); setGmpSpc(null)
     setLoi(null)
   }
 
@@ -174,14 +174,14 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
     })
 
     // ============================================================
-    // TẦNG 2 — dữ liệu tab phụ (Nhật ký/Cấu hình/Rủi ro/SOP/AI/GMP): nạp NỀN,
+    // TẦNG 2 — dữ liệu tab phụ (Cấu hình/Rủi ro/SOP/AI/GMP): nạp NỀN,
     // không chặn màn hình đầu. Ở nhịp tự động chỉ nạp lại khi quá TTL (đổi chậm).
     // ============================================================
     const nenTier2 = !tuDong || (Date.now() - tier2Luc.current > TIER2_TTL_MS)
     if (nenTier2) {
       tier2Luc.current = Date.now()
-      layNhatKyThaoTac(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setAudit(x.rows) })
       layLichSuCauHinh(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setConfigHistory(x.rows) })
+      laySuCoQuaHan(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoQuaHan(x.rows) })
       layXepHangRuiRo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setRiskRows(x.rows) })
       layQuyTrinhSop(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSopRows(x.rows) })
       layBaoCaoAi(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setAiRows(x.rows) })
@@ -265,8 +265,8 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
   }, [isLive, lamMoi])
 
   return {
-    isLive, kpis, incidents, systemAlerts, audit, configHistory,
-    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, gmpMkt, gmpSpc, batBuocDangNhap, nutThaoTac, loiNut,
+    isLive, kpis, incidents, systemAlerts, configHistory,
+    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, suCoQuaHan, gmpMkt, gmpSpc, batBuocDangNhap, nutThaoTac, loiNut,
     dangTai, loi, capNhatLuc, lamMoi,
   }
 }

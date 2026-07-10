@@ -209,6 +209,16 @@ export async function layThongKeSensorNhieuPhong(maPhongArr, signal) {
 //      loai_cam_bien, muc_canh_bao, trang_thai, bat_dau, keo_dai_gio,
 //      da_tat_canh_bao, lich_su[{t,who,role,act,ly_do}]
 // ============================================================
+// ⑤ Owner + SLA. Mỗi sự cố có MỘT người chịu trách nhiệm (suy từ trạng thái) và MỘT
+// deadline (theo mức ưu tiên). "Nhắc 120 lần" không phải là quản lý trách nhiệm.
+export async function laySuCoQuaHan(signal) {
+  const { data, error } = await docView('xem_su_co_qua_han',
+    (q) => q.select('ma_su_co,vai_tro_phu_trach,ack_han,xu_ly_han,qua_han_tiep_nhan,qua_han_xu_ly,gio_qua_han_xu_ly,chan_doan'),
+    { signal })
+  if (error) return { error, rows: null }
+  return { error: null, rows: data || [] }
+}
+
 export async function laySuCoDangMo(signal) {
   const { data, error } = await docView('xem_su_co_dang_mo',
     (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,'
