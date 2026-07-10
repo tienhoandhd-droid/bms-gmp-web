@@ -277,6 +277,9 @@ export async function laySuCoDangMo(signal) {
     donVi: r.don_vi || '',
     thoiDiemSoLieu: r.thoi_diem_so_lieu || null,
     mucGanNhat: r.muc_gan_nhat || null,   // NORMAL/WARNING/CRITICAL của giờ gần nhất
+    // SUPPRESSED = cảm biến đứng hình, hệ ngừng chấm mức — bảng Sự cố phải phân biệt
+    // được nó với sai lệch thật, nếu không 'mất giám sát' trông y hệt 'vi phạm'.
+    mucCanhBao: r.muc_canh_bao || null,
 
 
     priority: r.uu_tien || 'P3',
