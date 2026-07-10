@@ -204,7 +204,9 @@ export async function layThongKeSensorNhieuPhong(maPhongArr, signal) {
 // ============================================================
 export async function laySuCoDangMo(signal) {
   const { data, error } = await docView('xem_su_co_dang_mo',
-    (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,bat_dau,keo_dai_gio,da_tat_canh_bao,lich_su,huong_vi_pham,gia_tri_gan_nhat,gioi_han_duoi,gioi_han_tren,don_vi,thoi_diem_so_lieu,muc_gan_nhat'),
+    (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,'
+              + 'bat_dau,keo_dai_gio,dang_tam_hoan,tam_dung_den,tam_dung_boi,tam_dung_ly_do,lich_su,'
+              + 'huong_vi_pham,gia_tri_gan_nhat,gioi_han_duoi,gioi_han_tren,don_vi,thoi_diem_so_lieu,muc_gan_nhat'),
     { signal })
   if (error) return { error, incidents: null }
   const incidents = (data || []).map((r) => ({
@@ -228,7 +230,12 @@ export async function laySuCoDangMo(signal) {
     duration: r.keo_dai_gio != null ? +(+r.keo_dai_gio).toFixed(1) : 0,
     statusCode: r.trang_thai,
     status: TRANG_THAI_CODE_TO_LABEL[r.trang_thai] || r.trang_thai,
-    silenced: !!r.da_tat_canh_bao,
+    // P0-5: công tắc vĩnh viễn da_tat_canh_bao đã bị CHECK chặn ở DB. Nguồn duy nhất
+    // cho trạng thái im lặng là tam_dung_den — có hạn, tự hết, có người chịu trách nhiệm.
+    silenced: !!r.dang_tam_hoan,
+    tamDungDen: r.tam_dung_den || null,
+    tamDungBoi: r.tam_dung_boi || null,
+    tamDungLyDo: r.tam_dung_ly_do || null,
     trail: Array.isArray(r.lich_su)
       ? r.lich_su.map((t) => ({
           t: t.t || '',
@@ -652,7 +659,9 @@ export async function layNutThaoTac(signal) {
     (q) => q.select('hanh_dong,vai_tro,bo_nut,trang_thai_truoc,trang_thai_sau,nhan,mau_nen,mau_chu,'
                   + 'bat_buoc_ly_do,dong_su_co,giu_trang_thai,thu_tu,ap_dung_khi,mo_lai_su_co'),
     { signal })
-  if (error) return { error, rows: [] }
+  // P0-2: KHÔNG trả [] khi lỗi. rows=null nghĩa là CHƯA BIẾT luật ⇒ giao diện phải
+  // khoá nút, không được rơi về bảng nút hard-code. [] nghĩa là DB thật sự không có luật.
+  if (error) return { error, rows: null }
   return { error: null, rows: data || [] }
 }
 
@@ -668,13 +677,17 @@ export async function kiemVeThaoTac(token, signal) {
 export async function thaoTacSuCoTuEmail({ token, lyDo }, signal) {
   return goiRPC('rpc_thao_tac_su_co', { p_token: token, p_ly_do: lyDo || null }, { signal })
 }
-// rpc_dung_canh_bao(p_ma_su_co, p_tat, p_ly_do, p_actor) — `p_tat` KHÔNG có DEFAULT.
-// Trước 10/07/2026 hàm này gọi thiếu `p_tat`, nên PostgREST trả
-//   "function public.rpc_dung_canh_bao(p_ma_su_co, p_ly_do, p_actor) does not exist"
-// và nút "Dừng CB" CHƯA BAO GIỜ chạy được (lich_su_su_co có 0 dòng dung_canh_bao).
-export async function dungCanhBao({ dbId, tat = true, lyDo, actorEmail }, signal) {
-  return goiRPC('rpc_dung_canh_bao',
-    { p_ma_su_co: dbId, p_tat: tat, p_ly_do: lyDo || null, p_actor: actorEmail || null }, { signal })
+// P0-5 (10/07/2026). `rpc_dung_canh_bao` đã bị XOÁ ở DB: nó bật một boolean KHÔNG HẠN
+// làm sự cố biến mất khỏi cả WF8 lẫn WF6 (chuông báo tử). Thay bằng tạm hoãn CÓ HẠN:
+// bắt buộc lý do ≥ 10 ký tự, tự hết sau tối đa 4 giờ, ghi rõ ai hoãn và tới bao giờ.
+// CRITICAL hoặc phòng P1 chỉ QA/Quản trị được hoãn — Trực HSL không tự làm im lặng.
+export async function tamDungCanhBao({ dbId, phut, lyDo, actorEmail }, signal) {
+  return goiRPC('rpc_tam_dung_canh_bao',
+    { p_ma_su_co: dbId, p_phut: phut, p_ly_do: lyDo, p_actor: actorEmail || null }, { signal })
+}
+export async function batLaiCanhBao({ dbId, lyDo, actorEmail }, signal) {
+  return goiRPC('rpc_bat_lai_canh_bao',
+    { p_ma_su_co: dbId, p_ly_do: lyDo || null, p_actor: actorEmail || null }, { signal })
 }
 export async function themPhong(p, signal)    { return goiRPC('rpc_them_phong', p, { signal }) }
 export async function suaPhong(p, signal)     { return goiRPC('rpc_sua_phong', p, { signal }) }

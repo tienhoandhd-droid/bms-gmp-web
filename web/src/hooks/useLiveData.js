@@ -35,11 +35,14 @@ async function chayTheoLo(items, fn, soSong = SO_SONG) {
   return out
 }
 
-export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
+export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } = {}) {
   const isLive = dataSource === 'live'
   // Bộ nút thao tác đọc từ view xem_nut_thao_tac (bảng luật = nguồn sự thật duy nhất).
   // Đổi rất hiếm (chỉ khi sửa quy trình) → nạp MỘT lần, không nằm trong nhịp 60s.
-  const [nutThaoTac, setNutThaoTac] = useState([])
+  // P0-2: null = CHƯA BIẾT bộ luật (đang tải hoặc lỗi) ⇒ giao diện phải khoá nút.
+  //        [] = DB trả về rỗng thật. Không bao giờ rơi về bảng nút hard-code.
+  const [nutThaoTac, setNutThaoTac] = useState(null)
+  const [loiNut, setLoiNut] = useState(null)
   const [kpis, setKpis] = useState(null)
   const [incidents, setIncidents] = useState(null)
   const [systemAlerts, setSystemAlerts] = useState(null)
@@ -55,12 +58,33 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
   const [gmpSpc, setGmpSpc] = useState(null)
   const [batBuocDangNhap, setBatBuocDangNhap] = useState(false)
   const [dangTai, setDangTai] = useState(false)
+
   const [loi, setLoi] = useState(null)
   const [capNhatLuc, setCapNhatLuc] = useState(null)
 
   const huy = useRef(false)
   const ctrlRef = useRef(null)
   const cacheSensor = useRef({ luc: 0, theoPhong: {} })
+
+  // ============================================================
+  // P0-3 — RÒ DỮ LIỆU GIỮA HAI TÀI KHOẢN TRÊN CÙNG TRÌNH DUYỆT.
+  // Hook này không hề gắn với danh tính người dùng: đăng xuất rồi đăng nhập tài
+  // khoản khác, React giữ nguyên state cũ (phòng, sự cố, nhật ký của khu mà tài
+  // khoản mới KHÔNG được xem) và vẽ ra ngay, trước khi lamMoi() kịp trả về.
+  // Xoá state NGAY TRONG LÚC RENDER (không phải useEffect) để không có một khung
+  // hình nào hiển thị dữ liệu của người trước. `theHe` để bỏ mọi phản hồi cũ.
+  const phienRef = useRef(phienId)
+  const theHe = useRef(0)
+  if (phienRef.current !== phienId) {
+    phienRef.current = phienId
+    theHe.current += 1
+    if (ctrlRef.current) ctrlRef.current.abort()
+    setKpis(null); setIncidents(null); setSystemAlerts(null); setAudit(null)
+    setConfigHistory(null); setRooms(null); setRiskRows(null); setSopRows(null)
+    setAiRows(null); setSucKhoe(null); setGmpMkt(null); setGmpSpc(null)
+    setLoi(null)
+  }
+
   const tier2Luc = useRef(0)   // lần cuối nạp dữ liệu tab phụ (để bỏ qua trong TTL ở nhịp tự động)
 
   // Làm giàu phòng với thống kê 8h (cache + giới hạn đồng thời + abort)
@@ -116,8 +140,9 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
     if (!nen) setDangTai(true)
     setLoi(null)
 
-    // Còn hiệu lực? (component chưa gỡ & request chưa bị hủy)
-    const con = () => !huy.current && !signal.aborted
+    // Còn hiệu lực? (component chưa gỡ · request chưa bị hủy · CHƯA đổi tài khoản)
+    const genLucGoi = theHe.current
+    const con = () => !huy.current && !signal.aborted && theHe.current === genLucGoi
     // Ghi nhận lỗi ĐẦU TIÊN không phải abort (giữ hành vi cũ: chỉ báo 1 lỗi ra UI)
     const nhanLoi = (x) => { if (con() && x && x.error && x.error.name !== 'AbortError') setLoi((cur) => cur || x.error); return x }
 
@@ -164,13 +189,24 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
     }
   }, [isLive, lamGiauPhong])
 
+  // P0-2: nạp lại bộ luật MỖI KHI phiên sẵn sàng, không chỉ lúc mount. Trước đây
+  // layNutThaoTac() chạy một lần trước khi Supabase khôi phục phiên; hỏng một lần là
+  // hỏng cả phiên, và giao diện lặng lẽ rơi về STATUS_ACTIONS hard-code.
+  const napNut = useCallback(() => {
+    layNutThaoTac().then((r) => {
+      if (huy.current) return
+      if (r.error) { setLoiNut(r.error); setNutThaoTac(null) }
+      else { setLoiNut(null); setNutThaoTac(r.rows) }
+    }).catch((e) => { if (!huy.current) { setLoiNut(e); setNutThaoTac(null) } })
+  }, [])
+
   useEffect(() => {
     huy.current = false
     if (isLive) {
       lamMoi()
       // Cờ bắt buộc đăng nhập: đọc 1 lần (hiếm đổi), không nằm trong nhịp 60s
       layCoBatBuocDangNhap().then((r) => { if (!huy.current) setBatBuocDangNhap(!!r.batBuoc) }).catch(() => {})
-      layNutThaoTac().then((r) => { if (!huy.current && r.rows) setNutThaoTac(r.rows) }).catch(() => {})
+      napNut()
     }
     let timer = null
     if (isLive && tuDongMoiMs > 0) {
@@ -199,11 +235,11 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
     if (!isLive || !supabase) return
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        setTimeout(() => { if (!huy.current) lamMoi() }, 0)
+        setTimeout(() => { if (!huy.current) { lamMoi(); napNut() } }, 0)
       }
     })
     return () => sub?.subscription?.unsubscribe?.()
-  }, [isLive, lamMoi])
+  }, [isLive, lamMoi, napNut])
 
   // ============================================================
   // REALTIME bảng su_co (migration 20260709_su_co_thao_tac_muot_ma.sql đưa bảng
@@ -230,7 +266,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000 } = {}) {
 
   return {
     isLive, kpis, incidents, systemAlerts, audit, configHistory,
-    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, gmpMkt, gmpSpc, batBuocDangNhap, nutThaoTac,
+    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, gmpMkt, gmpSpc, batBuocDangNhap, nutThaoTac, loiNut,
     dangTai, loi, capNhatLuc, lamMoi,
   }
 }

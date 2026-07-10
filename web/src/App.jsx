@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, dungCanhBao, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
@@ -191,7 +191,9 @@ const STATUS_ACTIONS = {
 };
 // gộp mọi vai trò có thể thao tác ở 1 trạng thái (để hiện "Chờ …")
 const rolesOfStatus = (st) => [...new Set((STATUS_ACTIONS[st] || []).flatMap((a) => a.roles))];
-const firstActionFor = (st, role) => (STATUS_ACTIONS[st] || []).find((a) => role === "ADMIN" || a.roles.includes(role)) || null;
+// CHỈ dùng ở chế độ DEMO. Ở LIVE, openApproval giải nút từ bảng luật (xem P0-2).
+// Bỏ đặc quyền `role === "ADMIN"`: nó cho ADMIN nút của IPC/Cơ điện mà DB luôn từ chối.
+const firstActionFor = (st, role) => (STATUS_ACTIONS[st] || []).find((a) => a.roles.includes(role)) || null;
 
 // ===== Bộ nút lấy TỪ BẢNG LUẬT (view xem_nut_thao_tac), không hard-code =====
 // STATUS_ACTIONS phía trên chỉ còn dùng cho chế độ DEMO (không có Supabase).
@@ -2607,7 +2609,9 @@ export default function App() {
   // Tab hiển thị theo vai trò. LIVE mà vai trò CHƯA xác định (đang tải / lỗi tra) → chỉ
   // các tab xem cơ bản (không lộ Cài đặt/Người nhận khi role=null). RPC vẫn gate server-side.
   // ===== Dữ liệu LIVE từ Supabase (Tổng quan/Sự cố/Nhật ký) =====
-  const live = useLiveData(dataSource);
+  // P0-3: gắn hook với danh tính phiên. Đổi tài khoản ⇒ hook xoá sạch state trong lúc
+  // render và bỏ mọi phản hồi của phiên cũ. Không còn cửa sổ lộ dữ liệu khu người trước.
+  const live = useLiveData(dataSource, { phienId: user?.email || null });
   const isLive = dataSource === "live";
   // Có token email + đã đăng nhập → soi vé (CHỈ ĐỌC). DB kiểm vai trò, khu, hạn
   // token, và cả việc sự cố đã đổi trạng thái từ lúc gửi mail.
@@ -2715,8 +2719,22 @@ export default function App() {
   const kpis = isLive ? (live.kpis || { dat: 0, khongDat: 0, thieuDL: 0, tong: 0 }) : demoKpis;
   // Mảng 4: chỉ hiện skeleton KPI khi LIVE và chưa có số thật (tránh nháy "0").
   const kpiLoading = isLive && !live.kpis;
-  const systemAlerts = (isLive && live.systemAlerts) ? live.systemAlerts.map((a) => ({ ...a, icon: ICON_CANH_BAO(a) })) : SYSTEM_ALERTS;
-  const sopRows = (isLive && live.sopRows && live.sopRows.length) ? live.sopRows : SOP;
+  // ═══ P0-1 — LIVE TUYỆT ĐỐI KHÔNG ĐƯỢC RƠI VỀ FIXTURE DEMO ═══
+  // Trước 10/07/2026: `live.systemAlerts` null (đang tải HOẶC lỗi) ⇒ hiện SYSTEM_ALERTS
+  // demo, trong đó có dòng "Workflow chạy lúc 13:05 — thành công". Nghĩa là khi workflow
+  // thật CHẾT, người vận hành đọc được một cảnh báo giả nói nó đang chạy tốt.
+  // `sopRows` còn tệ hơn: fallback cả khi DB trả về RỖNG HỢP LỆ ⇒ QA nhìn thấy hồ sơ
+  // CAPA giả (DEV-2026-014) như hồ sơ thật. Đây là lỗi toàn vẹn dữ liệu, không phải UI.
+  //
+  // Bốn trạng thái rõ ràng, không trạng thái nào rơi về demo:
+  //   null            → đang tải        (skeleton)
+  //   []              → tải xong, rỗng  ("không có cảnh báo")
+  //   live.loi        → lỗi             ("Không xác minh được trạng thái")
+  const systemAlerts = isLive
+    ? (live.systemAlerts ? live.systemAlerts.map((a) => ({ ...a, icon: ICON_CANH_BAO(a) })) : null)
+    : SYSTEM_ALERTS;
+  const sopRows = isLive ? live.sopRows : SOP;
+  const duLieuLoi = isLive && !!live.loi;
   const p1Open = incidentsXem.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục").length;
   // #3 — Phân loại phòng để bấm vào ô KPI biết "phòng nào". Quy tắc khớp với view xem_tong_quan:
   //   thiếu DL = mất dữ liệu / chưa có % / dữ liệu quá cũ (trễ > ngưỡng giờ); còn lại đạt khi ≥80%.
@@ -2812,7 +2830,26 @@ export default function App() {
   };
 
   const requireLogin = () => { if (!user) { setLoginOpen(true); return false; } return true; };
-  const openApproval = (inc, action) => { if (!requireLogin()) return; const act = action || firstActionFor(inc.status, role); setModal({ inc, action: act }); };
+  // P0-2 — Thẻ phòng và modal KPI gọi openApproval(inc) KHÔNG kèm nút. Trước 10/07/2026
+  // hàm rơi về firstActionFor() hard-code, và với ADMIN nó trả nút của IPC/Cơ điện mà DB
+  // luôn từ chối. Ở LIVE, nút phải giải từ CÙNG một resolver: trạng thái × vai trò × mở/đóng.
+  const openApproval = (inc, action) => {
+    if (!requireLogin()) return;
+    let act = action;
+    if (!act) {
+      if (isLive) {
+        const ds = live.nutThaoTac;
+        if (!Array.isArray(ds) || !ds.length || !inc.statusCode) {
+          alert("Chưa tải được bộ quy tắc thao tác. Tải lại trang rồi thử lại.");
+          return;
+        }
+        act = nutChoVaiTro(ds, inc.statusCode, role)[0] || null;
+      } else {
+        act = firstActionFor(inc.status, role);
+      }
+    }
+    setModal({ inc, action: act });
+  };
   const handleCommit = async (inc, action, reason) => {
     const who = `${user.name} (${user.role})`;
     if (isLive && inc.dbId) {
@@ -2834,20 +2871,36 @@ export default function App() {
   // Mà khi da_tat_canh_bao = true, sự cố biến mất khỏi view định tuyến email VÀ khỏi
   // WF6 (dead-man's-switch). Không mail, không leo thang, không ai được báo — và
   // không có đường quay lại. Một cú bấm là im lặng vĩnh viễn.
+  // ═══ P0-5 — "DỪNG CẢNH BÁO" KHÔNG ĐƯỢC LÀ CÔNG TẮC VĨNH VIỄN ═══
+  // da_tat_canh_bao (boolean, không hạn) làm sự cố biến mất khỏi WF8 VÀ khỏi WF6 —
+  // chuông báo tử cũng mù. DB đã xoá RPC đó và chặn cứng cột bằng CHECK.
+  // Nay: tạm hoãn CÓ HẠN, bắt buộc lý do, ghi ai hoãn và tới bao giờ, tự cảnh báo lại.
+  // CRITICAL hoặc phòng P1 chỉ QA/Quản trị được hoãn — máy chủ tự kiểm, không tin giao diện.
   const toggleSilence = async (id) => {
     if (!requireLogin()) return;
     const inc = incidents.find((i) => i.id === id);
-    if (isLive && inc?.dbId) {
-      const tat = !inc.silenced;
-      const { error } = await dungCanhBao({
-        dbId: inc.dbId, tat,
-        lyDo: tat ? "Dừng cảnh báo từ web" : "Bật lại cảnh báo từ web",
-        actorEmail: user.email,
-      });
-      if (error) { alert(error.thong_bao || error.ma_loi || "Lỗi"); return; }
-      await live.lamMoi({ nen: true }); return;
+    if (!isLive || !inc?.dbId) {
+      setIncidents((prev) => prev.map((i) => i.id === id ? { ...i, silenced: !i.silenced } : i));
+      return;
     }
-    setIncidents((prev) => prev.map((i) => i.id === id ? { ...i, silenced: !i.silenced } : i));
+    if (inc.silenced) {
+      const { error, data } = await batLaiCanhBao({ dbId: inc.dbId, lyDo: "Bật lại từ bảng điều khiển", actorEmail: user.email });
+      if (error) { alert(error.thong_bao || error.ma_loi || "Lỗi"); return; }
+      if (data && data.ok === false) { alert(data.thong_bao || data.loi); return; }
+      await live.lamMoi({ nen: true });
+      return;
+    }
+    const lyDo = window.prompt("Lý do tạm hoãn cảnh báo (ít nhất 10 ký tự) — sẽ ghi vào hồ sơ:", "");
+    if (lyDo == null) return;
+    const phutStr = window.prompt("Tạm hoãn bao nhiêu phút? (15–240)", "60");
+    if (phutStr == null) return;
+    const phut = Number(phutStr);
+    if (!Number.isFinite(phut) || phut < 15) { alert("Thời lượng phải từ 15 phút trở lên."); return; }
+    const { error, data } = await tamDungCanhBao({ dbId: inc.dbId, phut, lyDo, actorEmail: user.email });
+    if (error) { alert(error.thong_bao || error.ma_loi || "Lỗi"); return; }
+    if (data && data.ok === false) { alert(data.thong_bao || data.loi); return; }
+    if (data?.thong_bao) alert(data.thong_bao);
+    await live.lamMoi({ nen: true });
   };
   const openRoomIncident = (room) => { const inc = incidents.find((i) => i.room === room.id && i.status !== "Đã khắc phục"); if (inc) openApproval(inc); else setRoomModal(room); };
 
@@ -2856,6 +2909,33 @@ export default function App() {
   const canChanDangNhap = isLive && !user;
   if (canChanDangNhap) {
     return <AuthGate />;
+  }
+
+  // ═══ P0-3 — KHÔNG MỞ DASHBOARD KHI CHƯA BIẾT VAI TRÒ VÀ KHU ═══
+  // theoDoiPhien() phát NGAY một người dùng tối thiểu { role: null } để gỡ khoá Web Locks
+  // của supabase-js, rồi mới tra vai trò. Trong khoảng đó khuChoPhep = null nghĩa là
+  // KHÔNG lọc khu ở phía trình duyệt. Trên máy dùng chung, người vừa đăng nhập có thể
+  // thấy dữ liệu còn lại của tài khoản trước. Nay chặn hẳn màn hình.
+  if (isLive && user && !role) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: PAGE_BG }}>
+        <div className="max-w-md text-center">
+          <div className="mx-auto w-11 h-11 rounded-2xl bg-teal-50 ring-1 ring-teal-100 flex items-center justify-center">
+            <ShieldCheck className="w-5 h-5 text-teal-600" strokeWidth={1.8} />
+          </div>
+          <h1 className="mt-4 text-lg font-semibold" style={{ color: COLOR.ink }}>Đang xác minh quyền truy cập</h1>
+          <p className="mt-2 text-[13px] text-slate-500 leading-relaxed">
+            {user.dangTaiVaiTro
+              ? <>Đang tra vai trò và khu được xem của <b>{user.email}</b>. Bảng điều khiển chỉ mở sau khi xác minh xong.</>
+              : <>Tài khoản <b>{user.email}</b> chưa được phân quyền, hoặc đã bị khoá. Liên hệ Quản trị để được gán vai trò và khu.</>}
+          </p>
+          {!user.dangTaiVaiTro && (
+            <button onClick={() => { setUser(null); if (isLive) authDangXuat(); }}
+              className="mt-5 rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">Đăng xuất</button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -2924,7 +3004,7 @@ export default function App() {
                   ) : (
                   <Card className="p-5" style={{ background: "linear-gradient(135deg,#E6F4F1,#FFFFFF 60%,#E6F1FA)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Phân tích AI</SectionTitle><span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-full"><TrendingDown className="w-3 h-3" strokeWidth={2} /> Δ 7 ngày −6%</span></div><p className="mt-3 text-[13px] leading-relaxed text-slate-600"><span className="font-semibold" style={{ color: COLOR.navy }}>AHU-K01</span> cần kiểm tra ưu tiên — C4.R7, C4.R1 đều kém, nghi lỗi quạt/filter.</p></Card>
                   )}
-                  <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{systemAlerts.map((a, i) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={i} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-slate-200/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-slate-700 font-medium">{a.text}</p><p className="text-[10px] text-slate-500 mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
+                  <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{duLieuLoi ? <div className="rounded-2xl bg-rose-50 ring-1 ring-rose-100 px-3 py-3 text-[12px] text-rose-700"><b>Không xác minh được trạng thái hệ thống.</b><p className="text-[11px] text-rose-600/80 mt-1">Máy chủ không trả lời. Đây KHÔNG có nghĩa là hệ thống đang bình thường — hãy kiểm tra n8n và Supabase.</p></div> : systemAlerts === null ? <div className="h-20 rounded-2xl bg-slate-100 animate-pulse" />  : systemAlerts.length === 0 ? <p className="text-[12px] text-slate-500 py-2">Không có cảnh báo hệ thống nào.</p>  : systemAlerts.map((a, i) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={i} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-slate-200/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-slate-700 font-medium">{a.text}</p><p className="text-[10px] text-slate-500 mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
                 </aside>
               </div>
             </div>
@@ -2943,6 +3023,9 @@ export default function App() {
             const incSorted = [...incFiltered].sort((a, b) =>
               cumAhu(a).localeCompare(cumAhu(b)) || uuTienSo(a.priority) - uuTienSo(b.priority) || String(a.start).localeCompare(String(b.start)));
             const dsNut = isLive ? live.nutThaoTac : null;
+            // luatSanSang = ĐÃ BIẾT bộ luật (mảng, kể cả rỗng). null = đang tải hoặc lỗi.
+            const luatSanSang = Array.isArray(dsNut) && dsNut.length > 0;
+            const luatHong = isLive && (dsNut === null || !!live.loiNut);
             const locChip = (v, label, on, click) => <button key={v} onClick={click} className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${on ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={on ? { backgroundColor: COLOR.teal } : {}}>{label}</button>;
             return (
             <div className="space-y-5">
@@ -2971,12 +3054,14 @@ export default function App() {
               )) : (
               <div className="overflow-x-auto"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
                 <tbody>{incSorted.map((inc, idx) => {
-                  const dungDB = dsNut && dsNut.length && inc.statusCode;
-                  const acts = dungDB ? nutKhopTrangThai(dsNut, inc.statusCode) : (STATUS_ACTIONS[inc.status] || []);
-                  const terminal = acts.length === 0;
-                  const myActs = !user ? [] : dungDB ? nutChoVaiTro(dsNut, inc.statusCode, role)
-                                                     : acts.filter((a) => role === "ADMIN" || a.roles.includes(role));
-                  const choAi = dungDB ? [...new Set(acts.map((a) => a.vai_tro))] : rolesOfStatus(inc.status);
+                  // P0-2: ở LIVE, nếu chưa biết bộ luật thì KHOÁ nút — không rơi về hard-code.
+                  const acts = luatSanSang ? nutKhopTrangThai(dsNut, inc.statusCode)
+                             : isLive ? [] : (STATUS_ACTIONS[inc.status] || []);
+                  const terminal = luatSanSang || !isLive ? acts.length === 0 : false;
+                  const myActs = !user ? [] : luatSanSang ? nutChoVaiTro(dsNut, inc.statusCode, role)
+                             : isLive ? [] : acts.filter((a) => a.roles.includes(role));
+                  const choAi = luatSanSang ? [...new Set(acts.map((a) => a.vai_tro))]
+                             : isLive ? [] : rolesOfStatus(inc.status);
                   const moCum = idx === 0 || cumAhu(incSorted[idx - 1]) !== cumAhu(inc);
                   const soTrongCum = incSorted.filter((x) => cumAhu(x) === cumAhu(inc)).length;
                   return (
@@ -2996,7 +3081,7 @@ export default function App() {
                     <td className="py-3 px-3 text-slate-500 tabular-nums text-[12px]">{inc.start.slice(11)}</td>
                     <td className="py-3 px-3 text-amber-600 font-medium">{inc.duration}h</td>
                     <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-slate-700 font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span></td>
-                    <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Dừng CB</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đã dừng" : "—"}</span>}</td>
+                    <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Tạm hoãn</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đang tạm hoãn" : "—"}</span>}{inc.silenced && inc.tamDungDen && <div className="text-[10px] text-slate-400 mt-1" title={inc.tamDungLyDo || ""}>tới {new Date(inc.tamDungDen).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})} · {inc.tamDungBoi || "?"}</div>}</td>
                     <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {choAi.map((r) => ROLE_VI[r] || r).join("/")}</span>}</td>
                   </tr>
                   </React.Fragment>
@@ -3033,7 +3118,7 @@ export default function App() {
               <Card className="p-6"><SectionTitle icon={History} hint="cấu hình ngưỡng · phòng · cảm biến">Thay đổi cấu hình & dữ liệu gốc</SectionTitle><p className="text-[11px] text-slate-500 mt-1.5">Các thay đổi cấu hình ghi tại Supabase (sửa ngưỡng cảnh báo, thêm/bớt phòng & cảm biến, chỉnh giới hạn) — kể cả khi sửa trực tiếp trên database, đều hiển thị tại đây.</p><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Thay đổi"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{configHistory.length === 0 ? <tr><td colSpan={3} className="py-6 text-center text-slate-400 text-[12px]">Chưa có thay đổi cấu hình.</td></tr> : configHistory.map((c, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 text-slate-500 tabular-nums">{c.t}</td><td className="py-2.5 pr-4 text-slate-600">{c.who}</td><td className="py-2.5 pr-4 text-slate-700">{c.change}</td></tr>)}</tbody></table></div></Card>
               )}
               {auditTab === "sop" && (
-              <Card className="p-6"><SectionTitle icon={ShieldCheck} hint="phục vụ thanh tra">SOP & Deviation / CAPA</SectionTitle><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["SOP", "Áp dụng cho", "Deviation", "CAPA"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{sopRows.map((s, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 font-semibold" style={{ color: COLOR.navy }}>{s.sop}</td><td className="py-2.5 pr-4 text-slate-600">{s.apply}</td><td className="py-2.5 pr-4 text-slate-600">{s.dev}</td><td className="py-2.5 pr-4 text-slate-600">{s.capa}</td></tr>)}</tbody></table></div></Card>
+              <Card className="p-6"><SectionTitle icon={ShieldCheck} hint="phục vụ thanh tra">SOP & Deviation / CAPA</SectionTitle><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["SOP", "Áp dụng cho", "Deviation", "CAPA"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{(sopRows || []).map((s, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 font-semibold" style={{ color: COLOR.navy }}>{s.sop}</td><td className="py-2.5 pr-4 text-slate-600">{s.apply}</td><td className="py-2.5 pr-4 text-slate-600">{s.dev}</td><td className="py-2.5 pr-4 text-slate-600">{s.capa}</td></tr>)}</tbody></table>{isLive && sopRows === null && <div className="h-10 rounded-xl bg-slate-100 animate-pulse mt-2" />}{isLive && Array.isArray(sopRows) && sopRows.length === 0 && <p className="text-[12px] text-slate-500 mt-2">Chưa có hồ sơ SOP/CAPA nào trong cơ sở dữ liệu.</p>}</div></Card>
               )}
             </div>
             );
