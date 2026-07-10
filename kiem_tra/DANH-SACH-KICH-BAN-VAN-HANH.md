@@ -106,6 +106,31 @@
 | pg_cron 24h không lần nào failed | B12 | ✅ |
 | Lỗi workflow 24h (cờ để duyệt) | B13 | ⚠ log WF6 (benign) |
 
+## K. Tab CÀI ĐẶT — chức năng + kết nối dữ liệu (`cai_dat.sql`)
+| Kịch bản | Test | TT |
+|---|---|---|
+| Ngưỡng cảnh báo: IPC chặn · ADMIN ghi→cau_hinh phản ánh | **C1** | ✅ |
+| Phòng CRUD: IPC chặn · ADMIN thêm→có · xoá→hết | **C2** | ✅ |
+| Giới hạn cảm biến: IPC chặn · ADMIN ghi→cam_bien phản ánh | **C3** | ✅ |
+| Cấu hình email: IPC chặn · ADMIN ghi→phản ánh | **C4** | ✅ |
+| Ưu tiên cảnh báo: IPC chặn · ADMIN ghi→phản ánh | **C5** | ✅ |
+| Luật phân tuyến: IPC chặn (ADMIN/QA) · lưu→đọc lại có | **C6** | ✅ |
+| Người nhận cảnh báo: IPC chặn · ADMIN lưu→đọc lại có | **C7** | ✅ |
+| Người dùng/phân quyền: CHỈ ADMIN + email phải có auth · lưu→đổi | **C8** | ✅ |
+| Lịch sử cấu hình ghi vết mọi thay đổi (trg_log_cau_hinh) | **C9** | ✅ |
+
+## L. ĐỔI CÀI ĐẶT → SỰ CỐ RA SAO (`cai_dat.sql`, E-series)
+| Kịch bản | Test | TT |
+|---|---|---|
+| Đổi ưu tiên cảnh báo → phạm vi phòng (P3 in/out scope) | **E1** | ✅ |
+| Mức ưu tiên sự cố → SLA quá hạn khác nhau (P1 30' · P2 60') | **E2** | ✅ |
+| **Người nhận ↔ định tuyến sự cố**: thêm người → email_to có họ | **E3** | ✅ |
+| Tắt công tắc phân tuyến → sự cố không tự chuyển | **E4** | ✅ |
+| Đổi thời gian chờ luật → thời điểm tự chuyển đổi theo | **E5** | ✅ |
+| **Vô hiệu người nhận** → gỡ khỏi email_to sự cố | **E6** | ✅ |
+
+> Kết quả toàn diện gần nhất: **69/70 đạt** (1 "vỡ" = B13 benign). Chạy: `bash kiem_tra/chay.sh`.
+
 ## Còn chưa test (đề xuất bổ sung sau — rủi ro thấp/cần bối cảnh)
 - **Phạm vi/airlock trực diện:** OOS ở phòng P3 KHÔNG canh_bao_bat_buoc → không mở CRITICAL (hiện chỉ gián tiếp qua trong_pham_vi_canh_bao).
 - **Phục hồi reset đồng hồ:** OOS→1h sạch→OOS lại → so_gio_sach_lien_tiep về 0 (K1 test hướng đóng, chưa test reset ngược).

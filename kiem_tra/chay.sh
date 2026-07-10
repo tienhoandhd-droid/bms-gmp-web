@@ -107,6 +107,20 @@ else
   VO=$((VO+SQL_VO2))
 fi
 
+# ── CÀI ĐẶT (chức năng + kết nối dữ liệu + ảnh hưởng tới sự cố) ──────────────
+echo ""
+echo "── CÀI ĐẶT & NGƯỜI NHẬN (quyền · vòng tròn dữ liệu · ảnh hưởng sự cố) ──"
+OUT3=$(PSQL -qtA -F' │ ' -f kiem_tra/cai_dat.sql 2>&1)
+echo "$OUT3" | grep -E '^(✅|❌|TỔNG)' | sed 's/^/  /'
+SQL_VO3=$(echo "$OUT3" | grep '^KQ_MAY_DOC:' | cut -d: -f2)
+if [ -z "${SQL_VO3:-}" ]; then
+  echo "❌ Bộ kiểm CÀI ĐẶT không chạy trọn (giao dịch abort?) — đọc lỗi:"
+  echo "$OUT3" | grep -iE 'error|nổ|exception' | head -4 | sed 's/^/    /'
+  VO=$((VO+1))
+else
+  VO=$((VO+SQL_VO3))
+fi
+
 echo ""
 echo "══════════════════════════════════════════════════════════════"
 if [ "$VO" -eq 0 ]; then
