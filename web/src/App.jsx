@@ -2679,6 +2679,29 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo })
     </div>, document.body);
 }
 
+function ChuoiHashCard({ isLive }) {
+  const [kq, setKq] = useState(null);
+  const [dangChay, setDangChay] = useState(false);
+  const chay = async () => {
+    setDangChay(true);
+    const { error, data } = await kiemChuoiHashAudit();
+    setDangChay(false);
+    setKq(error ? { ok: false, thong_bao: error.thong_bao || "Không kiểm được" } : data);
+  };
+  return (
+    <Card className="p-6">
+      <SectionTitle icon={ShieldCheck} hint="tamper-evident · 21 CFR Part 11">Toàn vẹn nhật ký audit</SectionTitle>
+      <p className="text-[12px] text-slate-500 mt-2 leading-relaxed">Mỗi bản ghi audit mang mã băm móc vào bản ghi trước. Sửa lén một dòng bất kỳ (kể cả bằng quyền cao nhất) là <b>đứt cả chuỗi</b> — nút dưới đây duyệt lại toàn bộ và chỉ ra ngay bản ghi đầu tiên bị đổi.</p>
+      <button disabled={!isLive || dangChay} onClick={chay} className="mt-3 rounded-xl px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40" style={{ background: COLOR.teal }}>{dangChay ? "Đang duyệt…" : "Kiểm toàn vẹn chuỗi"}</button>
+      {kq && (
+        <div className={`mt-3 rounded-2xl px-4 py-3 text-[13px] ${kq.ok ? "bg-teal-50 text-teal-800 ring-1 ring-teal-200" : "bg-rose-50 text-rose-800 ring-1 ring-rose-200"}`}>
+          {kq.ok ? "✓ " : "⚠ "}{kq.thong_bao}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function App() {
   const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return TABS.some((x) => x.k === t) ? t : "home"; } catch { return "home"; } });
   // KEEP-ALIVE tab nặng (Xu hướng GMP, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
@@ -3498,6 +3521,7 @@ export default function App() {
               { k: "canhbao", label: "Nguyên tắc cảnh báo", icon: SlidersHorizontal },
               { k: "phong", label: "Phòng & cảm biến", icon: Building2 },
               { k: "phantuyen", label: "Tự phân tuyến", icon: ShieldCheck },
+              { k: "sodo", label: "Sơ đồ xử lý", icon: GitBranch },
               ...(role === "ADMIN" ? [{ k: "taikhoan", label: "Tài khoản & quyền", icon: KeyRound }] : []),
               { k: "hethong", label: "Hệ thống", icon: Wifi },
             ];
@@ -3620,9 +3644,15 @@ export default function App() {
               <TaiKhoanCard isLive={isLive} actor={user?.email} />
               )}
 
+              {cfgTab === "sodo" && (
+              <Card className="p-6"><SectionTitle icon={GitBranch} hint="sinh từ bảng luật">Sơ đồ xử lý sự cố (IPC · Cơ điện · Trực · QA)</SectionTitle>
+                <div className="mt-4"><SoDoLuatCard dsNut={isLive ? live.nutThaoTac : null} /></div>
+              </Card>
+              )}
               {cfgTab === "hethong" && (
               <div className="space-y-5">
                 <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối Supabase</SectionTitle><div className="space-y-3 mt-4 text-sm">{(() => { const conn = !HAS_SUPABASE ? ["chưa cấu hình", "text-slate-600 bg-slate-100"] : !isLive ? ["DEMO", "text-amber-700 bg-amber-100"] : live.loi ? ["lỗi kết nối", "text-rose-700 bg-rose-100"] : live.dangTai ? ["đang tải…", "text-sky-700 bg-sky-100"] : ["đã kết nối", "text-teal-700 bg-teal-100"]; const keyState = HAS_SUPABASE ? ["đã nạp", "text-teal-700 bg-teal-100"] : ["thiếu .env", "text-rose-700 bg-rose-100"]; const rows = [{ k: "Nguồn dữ liệu", v: isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu", s: conn }, { k: "Khóa môi trường", v: HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập", s: keyState }, { k: "Cập nhật gần nhất", v: live.capNhatLuc ? live.capNhatLuc.toLocaleString("vi-VN") : "—", s: conn }]; return rows.map((r, i) => <div key={i} className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0"><span className="text-slate-500 w-44">{r.k}</span><code className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded-lg ring-1 ring-slate-200 flex-1">{r.v}</code><span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.s[1]}`}>{r.s[0]}</span></div>); })()}</div>{isLive && live.loi && <p className="text-[11px] text-rose-600 mt-3">Chi tiết lỗi: {live.loi.thong_bao || live.loi.message || "không xác định"}</p>}</Card>
+                <ChuoiHashCard isLive={isLive} />
                 <DoiMatKhauCard user={user} isLive={isLive} />
               </div>
               )}

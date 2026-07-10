@@ -275,6 +275,10 @@ export function dangKyRealtimeSuCo(onDoi) {
 }
 
 // Hồ sơ cụm đầy đủ (cụm + CAPA + mọi sự cố thành viên + audit) — cho bản in thanh tra.
+export async function kiemChuoiHashAudit(signal) {
+  return goiRPC('rpc_kiem_chuoi_hash_audit', {}, { signal })
+}
+
 export async function layHoSoCum(maCum, signal) {
   return goiRPC('rpc_ho_so_cum', { p_ma_cum: maCum }, { signal })
 }

@@ -196,6 +196,19 @@ BEGIN
     'bucket cách đây '||n2||'h · '||n||'/81 cảm biến',
     'Kiểm executions WF1 trên n8n; FMS login; rpc_kiem_tra_suc_khoe_he_thong');
 
+  -- B20 (88): chuỗi hash audit phải liền mạch (tamper-evident)
+  DECLARE r jsonb;
+  BEGIN
+    r := public.rpc_kiem_chuoi_hash_audit();
+    PERFORM pg_temp.ghi('BAT_BIEN','Chuỗi hash audit liền mạch (không sửa lén)', (r->>'ok')='true',
+      r->>'thong_bao', 'Chuỗi đứt = có bản ghi bị sửa/xoá ngoài luồng — điều tra id trong dut_tai_id NGAY');
+  END;
+
+  -- B21 (89): không tài khoản VIEWER nào có luật thao tác (chỉ-xem thật)
+  SELECT count(*) INTO n FROM public.quy_tac_chuyen_trang_thai WHERE vai_tro='VIEWER' AND kich_hoat;
+  PERFORM pg_temp.ghi('BAT_BIEN','VIEWER không có nút thao tác nào', n=0,
+    n||' luật gán cho VIEWER', 'VIEWER phải chỉ-xem — xoá mọi luật vai_tro=VIEWER');
+
   -- B19 (80): công thức đình trệ của WF6 phải đang = 0 (nếu >0 chuông sắp kêu)
   SELECT count(*) INTO n FROM public.su_co s
    WHERE s.thoi_gian_dong IS NULL AND NOT s.da_tat_canh_bao
