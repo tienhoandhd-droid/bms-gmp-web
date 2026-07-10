@@ -2558,6 +2558,124 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
 
 const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Sự cố gần đây", icon: Radio }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
+// ═══════════════════════════════════════════════════════════════════════════
+// CỤM ĐIỀU TRA & MỞ LẠI SỰ CỐ — modal/ngăn kéo (10/07/2026)
+// Thay 4 hộp window.prompt nối đuôi: QA nhìn cả bốn trường một lúc, biết trường nào
+// bắt buộc, sửa được trước khi ghi. RPC phía sau giữ nguyên (rpc_ket_luan_cum,
+// rpc_thao_tac_su_co) — giao diện chỉ là lớp vỏ, luật vẫn nằm ở máy chủ.
+// ═══════════════════════════════════════════════════════════════════════════
+const O_TEXTAREA = "w-full mt-1 rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-300";
+
+function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
+  const [nguyenNhan, setNguyenNhan] = useState(cum.nguyen_nhan_goc || "");
+  const [khacPhuc, setKhacPhuc] = useState(cum.hanh_dong_khac_phuc || "");
+  const [phongNgua, setPhongNgua] = useState(cum.hanh_dong_phong_ngua || "");
+  const [ketLuan, setKetLuan] = useState(cum.qa_ket_luan || "");
+  const thieu = nguyenNhan.trim().length < 10 || khacPhuc.trim().length < 10;
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={onDong}>
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-[15px] font-semibold" style={{ color: COLOR.navy }}>Kết luận điều tra · {cum.ma_hien_thi}</h3>
+        <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">{cum.ahu || "—"} · {cum.loai_cam_bien} · {cum.su_co_dang_mo} sự cố đang mở. Kết luận ghi vào cụm và <b>một dòng audit cho từng sự cố</b> thuộc cụm — không hồ sơ nào mất dấu vết.</p>
+        <label className="block mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Nguyên nhân gốc <span className="text-rose-500">*</span></label>
+        <textarea className={O_TEXTAREA} rows={2} value={nguyenNhan} onChange={(e) => setNguyenNhan(e.target.value)} placeholder="Vì sao xảy ra? (ít nhất 10 ký tự)" />
+        <label className="block mt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Hành động khắc phục <span className="text-rose-500">*</span></label>
+        <textarea className={O_TEXTAREA} rows={2} value={khacPhuc} onChange={(e) => setKhacPhuc(e.target.value)} placeholder="Đã/sẽ làm gì để hết lệch? (ít nhất 10 ký tự)" />
+        <label className="block mt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Hành động phòng ngừa</label>
+        <textarea className={O_TEXTAREA} rows={2} value={phongNgua} onChange={(e) => setPhongNgua(e.target.value)} placeholder="Làm gì để không tái diễn? (bỏ trống được)" />
+        <label className="block mt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Kết luận QA về ảnh hưởng chất lượng</label>
+        <textarea className={O_TEXTAREA} rows={2} value={ketLuan} onChange={(e) => setKetLuan(e.target.value)} placeholder="Có/không ảnh hưởng lô sản xuất, căn cứ… (bỏ trống được)" />
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button onClick={onDong} className="rounded-xl bg-white px-4 py-2 text-[13px] font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">Huỷ</button>
+          <button disabled={thieu || dangChay} onClick={() => onLuu({ nguyenNhan, khacPhuc, phongNgua, ketLuan })}
+            className="rounded-xl px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40" style={{ background: COLOR.teal }}>{dangChay ? "Đang ghi…" : "Ghi kết luận"}</button>
+        </div>
+        {thieu && <p className="mt-2 text-right text-[11px] text-slate-400">Nguyên nhân gốc và khắc phục cần ≥ 10 ký tự.</p>}
+      </div>
+    </div>, document.body);
+}
+
+// Mở lại một hồ sơ đã đóng là THAY ĐỔI hồ sơ GMP — bảng luật bắt buộc lý do,
+// modal chỉ phản chiếu luật đó chứ không tự đặt luật.
+function ModalMoLai({ row, act, dangChay, onDong, onLuu }) {
+  const [lyDo, setLyDo] = useState("");
+  const thieu = lyDo.trim().length < 10;
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={onDong}>
+      <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-[15px] font-semibold" style={{ color: COLOR.navy }}>Mở lại {row.ma_hien_thi} · {row.phong}</h3>
+        <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">{row.cam_bien_vi} · đã đóng {row.dong_luc ? new Date(row.dong_luc).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"} ({row.nhan_trang_thai || row.trang_thai}). Sự cố sẽ quay lại danh sách đang mở và nhập vào cụm điều tra hiện hành.</p>
+        <label className="block mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Lý do mở lại <span className="text-rose-500">*</span></label>
+        <textarea className={O_TEXTAREA} rows={3} autoFocus value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Vì sao hồ sơ này chưa thể khép? (ít nhất 10 ký tự — ghi vào audit)" />
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button onClick={onDong} className="rounded-xl bg-white px-4 py-2 text-[13px] font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">Huỷ</button>
+          <button disabled={thieu || dangChay} onClick={() => onLuu(lyDo.trim())}
+            className="rounded-xl px-4 py-2 text-[13px] font-semibold" style={act?.style || {}}>{dangChay ? "Đang mở lại…" : (act?.label || "Mở lại sự cố")}</button>
+        </div>
+        {thieu && <p className="mt-2 text-right text-[11px] text-slate-400">Lý do cần ≥ 10 ký tự.</p>}
+      </div>
+    </div>, document.body);
+}
+
+// Ngăn kéo chi tiết cụm: hồ sơ CAPA + các sự cố con ĐANG MỞ (sự cố đã đóng của cụm
+// nằm ở khung "Đóng gần đây" — ngăn kéo phục vụ cuộc điều tra đang diễn ra).
+function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan }) {
+  const hh = (cum.chan_doan || "").startsWith("THIẾT BỊ ĐO");
+  const honHop = (cum.chan_doan || "").startsWith("HỖN HỢP");
+  return createPortal(
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" onClick={onDong} />
+      <div className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto bg-white shadow-2xl">
+        <div className="sticky top-0 bg-white/95 backdrop-blur px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400 font-semibold">Cụm điều tra</p>
+            <h3 className="mt-0.5 text-[17px] font-semibold" style={{ color: COLOR.navy }}>{cum.ma_hien_thi} — {cum.ahu || "Không rõ AHU"} · {cum.loai_cam_bien}</h3>
+          </div>
+          <button aria-label="Đóng" onClick={onDong} className="rounded-xl px-2.5 py-1 text-[13px] text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50">Đóng</button>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <span className={`inline-block rounded-lg px-2.5 py-1 text-[11px] leading-tight ${hh ? "text-slate-600 bg-slate-100" : honHop ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"}`}>{cum.chan_doan}</span>
+          <div className="grid grid-cols-2 gap-2 text-[12px]">
+            <div className="rounded-xl bg-slate-50 px-3 py-2"><span className="text-slate-400 block text-[10px] uppercase tracking-wider">Khu · mở</span><span className="font-semibold text-slate-700 tabular-nums">{cum.khu_vuc} · {Math.round(cum.gio_mo)} giờ</span></div>
+            <div className="rounded-xl bg-slate-50 px-3 py-2"><span className="text-slate-400 block text-[10px] uppercase tracking-wider">Sự cố mở</span><span className="font-semibold text-slate-700 tabular-nums">{cum.su_co_dang_mo}{cum.so_chua_tiep_nhan > 0 && <span className="text-rose-600 font-medium"> · {cum.so_chua_tiep_nhan} chưa tiếp nhận</span>}</span></div>
+          </div>
+          <div className="rounded-2xl ring-1 ring-slate-200 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Hồ sơ điều tra (CAPA)</p>
+              {coQuyenKetLuan && <button onClick={onKetLuan} className="rounded-lg bg-white px-2 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">{cum.da_co_ket_luan_qa ? "Sửa kết luận" : "Ghi kết luận"}</button>}
+            </div>
+            {cum.da_co_ket_luan_qa ? (
+              <dl className="mt-2 space-y-2 text-[12px] leading-relaxed">
+                <div><dt className="text-slate-400">Nguyên nhân gốc</dt><dd className="text-slate-700">{cum.nguyen_nhan_goc}</dd></div>
+                <div><dt className="text-slate-400">Khắc phục</dt><dd className="text-slate-700">{cum.hanh_dong_khac_phuc}</dd></div>
+                {cum.hanh_dong_phong_ngua && <div><dt className="text-slate-400">Phòng ngừa</dt><dd className="text-slate-700">{cum.hanh_dong_phong_ngua}</dd></div>}
+                {cum.qa_ket_luan && <div><dt className="text-slate-400">Kết luận QA</dt><dd className="text-slate-700">{cum.qa_ket_luan}</dd></div>}
+                <p className="text-[10px] text-slate-400">bởi {cum.qa_boi} · {cum.qa_luc ? new Date(cum.qa_luc).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}</p>
+              </dl>
+            ) : <p className="mt-2 text-[12px] text-slate-400 italic">Chưa có kết luận QA.</p>}
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Sự cố đang mở trong cụm</p>
+            <div className="mt-2 space-y-2">
+              {dsSuCo.length === 0 && <p className="text-[12px] text-slate-400 italic">Không còn sự cố mở (cụm sắp tự đóng).</p>}
+              {dsSuCo.map((i) => (
+                <div key={i.id} className="rounded-xl ring-1 ring-slate-200 px-3 py-2 text-[12px]">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold" style={{ color: COLOR.navy }}>{i.id} · {i.room}</span>
+                    {i.mucCanhBao === "SUPPRESSED"
+                      ? <span className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">cảm biến đứng hình</span>
+                      : <span className="rounded-lg bg-rose-50 px-1.5 py-0.5 text-[10px] text-rose-600">{i.sensor}</span>}
+                  </div>
+                  <p className="mt-0.5 text-slate-500">{i.status} · kéo dài {i.duration} giờ{i.giaTriGanNhat != null && <> · TB 5′ cuối <b className="tabular-nums text-slate-600">{i.giaTriGanNhat}{i.donVi}</b></>}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>, document.body);
+}
+
 export default function App() {
   const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return TABS.some((x) => x.k === t) ? t : "home"; } catch { return "home"; } });
   // KEEP-ALIVE tab nặng (Xu hướng GMP, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
@@ -2920,20 +3038,34 @@ export default function App() {
     .filter((c) => evtKhu === "ALL" || c.khu_vuc === evtKhu)
     .filter((c) => evtAhu === "ALL" || c.ahu === evtAhu), [cumRows, khuChoPhep, evtKhu, evtAhu]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ghiKetLuanCum = async (cum) => {
-    if (!requireLogin()) return;
-    const nguyenNhan = window.prompt(`${cum.ma_hien_thi} — Nguyên nhân gốc (ít nhất 10 ký tự):`, cum.nguyen_nhan_goc || "");
-    if (nguyenNhan == null) return;
-    const khacPhuc = window.prompt("Hành động khắc phục (ít nhất 10 ký tự):", cum.hanh_dong_khac_phuc || "");
-    if (khacPhuc == null) return;
-    const phongNgua = window.prompt("Hành động phòng ngừa (có thể bỏ trống):", cum.hanh_dong_phong_ngua || "");
-    if (phongNgua == null) return;
-    const ketLuan = window.prompt("Kết luận QA về ảnh hưởng chất lượng (có thể bỏ trống):", cum.qa_ket_luan || "");
-    if (ketLuan == null) return;
-    const { error, data } = await ketLuanCum({ maCum: cum.ma_cum, nguyenNhan, khacPhuc, phongNgua, ketLuan });
+  // ═══ Cụm điều tra & Mở lại — trạng thái modal/ngăn kéo ═══
+  const [cumKetLuan, setCumKetLuan] = useState(null);   // cụm đang ghi kết luận (modal)
+  const [cumChiTiet, setCumChiTiet] = useState(null);   // cụm đang mở ngăn kéo
+  const [moLai, setMoLai] = useState(null);             // { row, act } — sự cố đóng đang mở lại
+  const [dangGhiCum, setDangGhiCum] = useState(false);
+  const [khungDongMo, setKhungDongMo] = useState(false);
+  const suCoDongXem = useMemo(() => (isLive && Array.isArray(live.suCoDongGanDay) ? live.suCoDongGanDay : [])
+    .filter((r) => !khuChoPhep || loKhu(r.khu_vuc))
+    .filter((r) => evtKhu === "ALL" || r.khu_vuc === evtKhu)
+    .filter((r) => evtAhu === "ALL" || r.ahu === evtAhu), [isLive, live.suCoDongGanDay, khuChoPhep, evtKhu, evtAhu]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const ghiKetLuanCum = (cum) => { if (!requireLogin()) return; setCumKetLuan(cum); };
+  const luuKetLuanCum = async ({ nguyenNhan, khacPhuc, phongNgua, ketLuan }) => {
+    setDangGhiCum(true);
+    const { error, data } = await ketLuanCum({ maCum: cumKetLuan.ma_cum, nguyenNhan, khacPhuc, phongNgua, ketLuan });
+    setDangGhiCum(false);
     if (error) { alert(error.thong_bao || error.ma_loi || "Không ghi được kết luận"); return; }
     if (data && data.ok === false) { alert(data.thong_bao || data.loi); return; }
-    alert(data?.thong_bao || "Đã ghi kết luận.");
+    setCumKetLuan(null); setCumChiTiet(null);
+    await live.lamMoi({ nen: true });
+  };
+  const xacNhanMoLai = async (lyDo) => {
+    setDangGhiCum(true);
+    const { error, data } = await thaoTacSuCo({ dbId: moLai.row.ma_su_co, actionCode: moLai.act.code, lyDo, actorEmail: user.email });
+    setDangGhiCum(false);
+    if (error) { alert(error.thong_bao || error.ma_loi || "Không mở lại được"); return; }
+    if (data && data.ok === false) { alert(data.thong_bao || data.loi); return; }
+    setMoLai(null); setKhungDongMo(false);
     await live.lamMoi({ nen: true });
   };
 
@@ -3140,7 +3272,7 @@ export default function App() {
                         const honHop = c.chan_doan && c.chan_doan.startsWith("HỖN HỢP");
                         const mauChanDoan = hh ? "text-slate-600 bg-slate-100" : honHop ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50";
                         return (
-                          <tr key={c.ma_cum} className="border-t border-slate-100 align-top">
+                          <tr key={c.ma_cum} onClick={() => setCumChiTiet(c)} className="border-t border-slate-100 align-top cursor-pointer hover:bg-sky-50/40">
                             <td className="py-2.5 px-3 font-semibold tabular-nums" style={{ color: COLOR.navy }}>{c.ma_hien_thi}</td>
                             <td className="py-2.5 px-3"><span className="font-medium text-slate-700">{c.ahu || "—"}</span><span className="text-slate-400"> · {c.loai_cam_bien}</span><div className="text-[10px] text-slate-400">Khu {c.khu_vuc}</div></td>
                             <td className="py-2.5 px-3 tabular-nums">
@@ -3155,7 +3287,7 @@ export default function App() {
                                 ? <span className="text-[11px] text-teal-700" title={`${c.nguyen_nhan_goc}\n\nKhắc phục: ${c.hanh_dong_khac_phuc}`}>✓ {c.qa_boi}</span>
                                 : <span className="text-[11px] text-slate-400">chưa có</span>}
                               {(role === "QA" || role === "ADMIN") && (
-                                <button onClick={() => ghiKetLuanCum(c)} className="ml-2 rounded-lg bg-white px-2 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">{c.da_co_ket_luan_qa ? "Sửa" : "Ghi kết luận"}</button>
+                                <button onClick={(e) => { e.stopPropagation(); ghiKetLuanCum(c); }} className="ml-2 rounded-lg bg-white px-2 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">{c.da_co_ket_luan_qa ? "Sửa" : "Ghi kết luận"}</button>
                               )}
                             </td>
                           </tr>
@@ -3220,6 +3352,43 @@ export default function App() {
                   </React.Fragment>
                 ); })}</tbody></table></div>)}</Card>
               <p className="text-[11px] text-slate-500 text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
+              {isLive && suCoDongXem.length > 0 && (
+                <Card className="p-4">
+                  <button onClick={() => setKhungDongMo(!khungDongMo)} className="w-full flex items-center justify-between gap-3 text-left">
+                    <div>
+                      <h3 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>Đóng gần đây · {suCoDongXem.length} sự cố (7 ngày)</h3>
+                      <p className="mt-0.5 text-[11px] text-slate-500 leading-relaxed">QA/Quản trị mở lại được trong cửa sổ này — bắt buộc lý do, ghi vào audit. Sự cố mở lại nhập vào cụm điều tra đang mở của cùng (AHU × chỉ tiêu).</p>
+                    </div>
+                    <span className="shrink-0 text-[12px] text-slate-400">{khungDongMo ? "Thu gọn ▲" : "Mở ra ▼"}</span>
+                  </button>
+                  {khungDongMo && (
+                    <div className="mt-3 overflow-x-auto">
+                      <table className="w-full min-w-[940px] text-[12px]">
+                        <thead><tr className="text-slate-500 text-left text-[10px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Chỉ tiêu", "Đóng lúc", "Cách đóng", "Bởi", "Lý do", ""].map((h, i) => <th key={i} className="py-2 px-3 font-semibold">{h}</th>)}</tr></thead>
+                        <tbody>{suCoDongXem.map((r) => {
+                          const act = (!user || !luatSanSang) ? null : nutChoVaiTro(dsNut, r.trang_thai, role, true)[0] || null;
+                          return (
+                            <tr key={r.ma_su_co} className="border-t border-slate-100 align-top">
+                              <td className="py-2.5 px-3 font-semibold tabular-nums" style={{ color: COLOR.navy }}>{r.ma_hien_thi}</td>
+                              <td className="py-2.5 px-3">{r.cum_hien_thi ? <span className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-600 tabular-nums">{r.cum_hien_thi}</span> : <span className="text-slate-300">—</span>}</td>
+                              <td className="py-2.5 px-3">{r.phong}<span className="block text-[10px] text-slate-400">{[r.khu_vuc, r.ahu].filter(Boolean).join(" · ")}</span></td>
+                              <td className="py-2.5 px-3 text-slate-600">{r.cam_bien_vi}</td>
+                              <td className="py-2.5 px-3 tabular-nums text-slate-500">{r.dong_luc ? new Date(r.dong_luc).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+                              <td className="py-2.5 px-3 text-slate-600">{r.nhan_trang_thai || r.trang_thai}</td>
+                              <td className="py-2.5 px-3 text-slate-500 max-w-[130px]"><span className="block truncate" title={r.dong_boi || ""}>{r.dong_boi || "—"}</span></td>
+                              <td className="py-2.5 px-3 text-slate-500 max-w-[200px]"><span className="line-clamp-2" title={r.dong_ly_do || ""}>{r.dong_ly_do || "—"}</span></td>
+                              <td className="py-2.5 px-3 text-right">{act && <button onClick={() => setMoLai({ row: r, act })} className="rounded-lg px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap" style={act.style}>{act.label}</button>}</td>
+                            </tr>
+                          );
+                        })}</tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+              )}
+              {cumChiTiet && <CumDrawer cum={cumChiTiet} dsSuCo={incidentsXem.filter((i) => i.maCum === cumChiTiet.ma_cum)} onDong={() => setCumChiTiet(null)} coQuyenKetLuan={role === "QA" || role === "ADMIN"} onKetLuan={() => ghiKetLuanCum(cumChiTiet)} />}
+              {cumKetLuan && <ModalKetLuanCum cum={cumKetLuan} dangChay={dangGhiCum} onDong={() => setCumKetLuan(null)} onLuu={luuKetLuanCum} />}
+              {moLai && <ModalMoLai row={moLai.row} act={moLai.act} dangChay={dangGhiCum} onDong={() => setMoLai(null)} onLuu={xacNhanMoLai} />}
             </div>
             );
           })()}

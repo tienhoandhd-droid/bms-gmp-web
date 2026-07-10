@@ -256,6 +256,20 @@ export async function ketLuanCum({ maCum, nguyenNhan, khacPhuc, phongNgua, ketLu
   }, { signal })
 }
 
+// Sự cố ĐÓNG trong cửa sổ mo_lai_cua_so_ngay (7 ngày) — để nút "Mở lại sự cố"
+// (ap_dung_khi='DONG' trong bảng luật) có chỗ đứng trên web. Giới hạn 40 dòng mới nhất:
+// cửa sổ 7 ngày có ~300 sự cố, bày hết là nhiễu — ai cần sâu hơn đã có Nhật ký audit.
+export async function laySuCoDongGanDay(signal) {
+  const { data, error } = await docView('xem_su_co_dong_gan_day',
+    (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,khu_vuc,ahu,cam_bien_vi,loai_cam_bien,uu_tien,'
+              + 'trang_thai,nhan_trang_thai,mo_luc,dong_luc,keo_dai_gio,ma_cum,cum_hien_thi,'
+              + 'dong_boi,dong_vai_tro,dong_ly_do')
+              .order('dong_luc', { ascending: false }).limit(40),
+    { signal })
+  if (error) return { error, rows: null }
+  return { error: null, rows: data || [] }
+}
+
 export async function laySuCoDangMo(signal) {
   const { data, error } = await docView('xem_su_co_dang_mo',
     (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,'
