@@ -254,6 +254,118 @@ BEGIN
     'rpc_thao_tac_su_co INSERT lich_su_su_co(nguoi_thao_tac,vai_tro,...); trigger tg_lich_su_hash nối chuỗi');
 EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','S10 · Audit ghi đúng người/vai + chuỗi hash liền mạch', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
 
+-- ══════════════════════════════════════════════════════════════════════════
+-- GÓC ĐỘ KHÁC (T1–T5): mặt trận vận hành ngoài luồng bộ phận thuần
+-- ══════════════════════════════════════════════════════════════════════════
+
+-- T1 — VÉ EMAIL (token nút bấm): hợp lệ→ok · dùng lại→chặn · hết hạn→chặn
+DO $$
+DECLARE v_sc bigint; v_sc2 bigint; r_ok jsonb; r_lai jsonb; r_hh jsonb; v_dat boolean;
+  v_tok text := 'KTMAIL-'||md5(random()::text); v_tok2 text := 'KTMAIL2-'||md5(random()::text);
+BEGIN
+  v_sc := pg_temp.tao_sc('C1','x','AHU-KTT1','DA_BAO_CO_DIEN');
+  INSERT INTO public.ma_token_email(token_hash,thuoc_thu_nghiem,ma_su_co,hanh_dong,vai_tro_can,tao_luc,het_han_luc,nguon)
+    VALUES(encode(extensions.digest(v_tok,'sha256'),'hex'),false,v_sc,'mep_tiep_nhan','MEP',now(),now()+interval '2 hour','KIEMTHU');
+  PERFORM set_config('request.jwt.claims','{"role":"authenticated","email":"chanbonght@gmail.com"}',true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  r_ok  := public.rpc_thao_tac_su_co(p_token=>v_tok, p_nguon=>'email');   -- vé hợp lệ
+  r_lai := public.rpc_thao_tac_su_co(p_token=>v_tok, p_nguon=>'email');   -- dùng LẠI → TOKEN_DA_DUNG
+  EXECUTE 'RESET ROLE';
+  v_sc2 := pg_temp.tao_sc('C1','x','AHU-KTT1b','DA_BAO_CO_DIEN');
+  INSERT INTO public.ma_token_email(token_hash,thuoc_thu_nghiem,ma_su_co,hanh_dong,vai_tro_can,tao_luc,het_han_luc,nguon)
+    VALUES(encode(extensions.digest(v_tok2,'sha256'),'hex'),false,v_sc2,'mep_tiep_nhan','MEP',now()-interval '3 hour',now()-interval '1 hour','KIEMTHU');
+  PERFORM set_config('request.jwt.claims','{"role":"authenticated","email":"chanbonght@gmail.com"}',true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  r_hh := public.rpc_thao_tac_su_co(p_token=>v_tok2, p_nguon=>'email');   -- HẾT HẠN → TOKEN_HET_HAN
+  EXECUTE 'RESET ROLE';
+  v_dat := pg_temp.ok(r_ok) AND (r_lai->>'loi')='TOKEN_DA_DUNG' AND (r_hh->>'loi')='TOKEN_HET_HAN';
+  PERFORM pg_temp.ghi('KICH_BAN','T1 · Vé email: hợp lệ→ok · dùng lại→chặn · hết hạn→chặn', v_dat,
+    format('hợp lệ ok=%s · dùng lại loi=%s · hết hạn loi=%s', r_ok->>'ok', r_lai->>'loi', r_hh->>'loi'),
+    'rpc nhánh token: da_dung_luc ⇒ TOKEN_DA_DUNG (chống chuyển tiếp mail 2 lần); het_han_luc ⇒ TOKEN_HET_HAN');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','T1 · Vé email: hợp lệ→ok · dùng lại→chặn · hết hạn→chặn', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- T2 — DOUBLE-CLICK / lặp thao tác: bấm 2 lần chỉ tác dụng MỘT lần (không nhân đôi audit)
+DO $$
+DECLARE v_sc bigint; r1 jsonb; r2 jsonb; v_audit int; v_dat boolean;
+BEGIN
+  v_sc := pg_temp.tao_sc('C1','x','AHU-KTT2','DA_BAO_CO_DIEN');
+  r1 := pg_temp.tt('chanbonght@gmail.com', v_sc, 'mep_tiep_nhan');   -- lần 1
+  r2 := pg_temp.tt('chanbonght@gmail.com', v_sc, 'mep_tiep_nhan');   -- lần 2 (state đã đổi)
+  SELECT count(*) INTO v_audit FROM public.lich_su_su_co WHERE ma_su_co=v_sc AND hanh_dong='mep_tiep_nhan';
+  v_dat := pg_temp.ok(r1) AND (NOT pg_temp.ok(r2)) AND v_audit=1 AND pg_temp.tt_now(v_sc)='CO_DIEN_DANG_XU_LY';
+  PERFORM pg_temp.ghi('KICH_BAN','T2 · Double-click chỉ tác dụng 1 lần (không nhân đôi)', v_dat,
+    format('lần1 ok=%s · lần2 ok=%s loi=%s · số dòng audit=%s (kỳ vọng 1)',
+      r1->>'ok', r2->>'ok', r2->>'loi', v_audit),
+    'Guard trạng thái: sau lần1 state=DANG_XU_LY, mep_tiep_nhan không còn hợp lệ ⇒ chặn, không ghi audit thừa');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','T2 · Double-click chỉ tác dụng 1 lần (không nhân đôi)', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- T3 — TẠM DỪNG CẢNH BÁO (chốt an toàn): Trực không im được CRITICAL/P1 · trần 4h · lý do ≥10
+DO $$
+DECLARE v_sc bigint; r_lot jsonb; r_ngan jsonb; r_qa jsonb; v_den timestamptz; v_dat boolean;
+BEGIN
+  v_sc := pg_temp.tao_sc('C1','x','AHU-KTT3','CO_DIEN_DANG_XU_LY','P1');   -- CRITICAL + P1
+  PERFORM set_config('request.jwt.claims','{"role":"authenticated","email":"tructest@gmail.com"}',true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  r_lot := public.rpc_tam_dung_canh_bao(v_sc, 60, 'Chờ ca sau xử lý tiếp');   -- Trực im CRITICAL/P1 → CHẶN
+  EXECUTE 'RESET ROLE';
+  PERFORM set_config('request.jwt.claims','{"role":"authenticated","email":"khoado.qa@cpc1hn.vn"}',true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  r_ngan := public.rpc_tam_dung_canh_bao(v_sc, 60, 'ngắn');                 -- lý do <10 → THIEU_LY_DO
+  r_qa   := public.rpc_tam_dung_canh_bao(v_sc, 999, 'Chờ vật tư thay van, đã đặt mua và báo QA'); -- 999' → trần 240'
+  EXECUTE 'RESET ROLE';
+  SELECT tam_dung_den INTO v_den FROM public.su_co WHERE ma_su_co=v_sc;
+  v_dat := (r_lot->>'loi')='KHONG_CO_QUYEN' AND (r_ngan->>'loi')='THIEU_LY_DO'
+       AND pg_temp.ok(r_qa) AND v_den IS NOT NULL AND v_den <= now()+interval '241 minutes';
+  PERFORM pg_temp.ghi('KICH_BAN','T3 · Tạm dừng cảnh báo: chốt quyền + trần 4h + lý do', v_dat,
+    format('Trực im CRITICAL/P1: %s · lý do ngắn: %s · QA im 999'': ok=%s hoãn tới %s (≤ now+240'')',
+      r_lot->>'loi', r_ngan->>'loi', r_qa->>'ok', to_char(v_den,'HH24:MI')),
+    'rpc_tam_dung_canh_bao: CRITICAL/P1 chỉ QA/ADMIN; v_phut=LEAST(240,...); lý do ≥10');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','T3 · Tạm dừng cảnh báo: chốt quyền + trần 4h + lý do', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- T4 — MỞ LẠI toàn vẹn: đóng→mở lại xoá dấu đóng + xoá tạm dừng + cụm sống lại + lại vào hàng trách nhiệm
+DO $$
+DECLARE v_sc bigint; v_cum bigint; r_dong jsonb; r_ml jsonb; v_dat boolean;
+  v_cum_mo boolean; v_trong_qh boolean; v_tam timestamptz;
+BEGIN
+  v_sc := pg_temp.tao_sc('C1','x','AHU-KTT4','CO_DIEN_DANG_XU_LY');
+  SELECT ma_cum INTO v_cum FROM public.su_co WHERE ma_su_co=v_sc;
+  -- tạm dừng trước (QA), rồi đóng, rồi mở lại → mở lại phải xoá tam_dung_den
+  PERFORM set_config('request.jwt.claims','{"role":"authenticated","email":"khoado.qa@cpc1hn.vn"}',true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  PERFORM public.rpc_tam_dung_canh_bao(v_sc, 120, 'Tạm hoãn trong lúc chờ vật tư thay thế');
+  EXECUTE 'RESET ROLE';
+  r_dong := pg_temp.tt('khoado.qa@cpc1hn.vn', v_sc, 'qa_da_khac_phuc', 'QA xác nhận đã khắc phục hiện trường');
+  r_ml   := pg_temp.tt('khoado.qa@cpc1hn.vn', v_sc, 'qa_mo_lai', 'Tái phát ngay sau đó, mở lại điều tra');
+  SELECT thoi_gian_dong IS NULL INTO v_cum_mo FROM public.cum_su_co WHERE ma_cum=v_cum;
+  SELECT tam_dung_den INTO v_tam FROM public.su_co WHERE ma_su_co=v_sc;
+  SELECT EXISTS(SELECT 1 FROM public.xem_su_co_qua_han WHERE ma_su_co=v_sc) INTO v_trong_qh;
+  v_dat := pg_temp.ok(r_dong) AND pg_temp.ok(r_ml)
+       AND pg_temp.tt_now(v_sc)='MO_LAI' AND NOT pg_temp.dong_chua(v_sc)
+       AND v_tam IS NULL AND v_cum_mo AND v_trong_qh;
+  PERFORM pg_temp.ghi('KICH_BAN','T4 · Mở lại: sống lại đầy đủ (dấu đóng + tạm dừng + cụm + trách nhiệm)', v_dat,
+    format('mở lại ok=%s → %s (đóng=%s) · tam_dung_den=%s (kỳ vọng NULL) · cụm mở lại=%s · lại vào hàng quá hạn=%s',
+      r_ml->>'ok', pg_temp.tt_now(v_sc), pg_temp.dong_chua(v_sc), v_tam, v_cum_mo, v_trong_qh),
+    'rpc_thao_tac_su_co nhánh mo_lai: thoi_gian_dong=NULL, tam_dung_den=NULL, lan_nhac_cuoi=NULL; tg_cum_tu_dong mở lại cụm');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','T4 · Mở lại: sống lại đầy đủ (dấu đóng + tạm dừng + cụm + trách nhiệm)', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- T5 — SLA QUÁ HẠN: sự cố P1 quá SLA tiếp nhận hiện cờ quá hạn; sau khi tiếp nhận → hết cờ
+DO $$
+DECLARE v_sc bigint; v_qh_truoc boolean; v_qh_sau boolean; v_ack timestamptz; v_dat boolean;
+BEGIN
+  v_sc := pg_temp.tao_sc('C1','x','AHU-KTT5','CHUA_XU_LY','P1');   -- thoi_gian_mo = now-90' > SLA ack 30'
+  SELECT qua_han_tiep_nhan INTO v_qh_truoc FROM public.xem_su_co_qua_han WHERE ma_su_co=v_sc;
+  -- Cơ điện tiếp nhận (qua IPC báo trước) → trigger tg_su_co_ack set ack_luc
+  PERFORM pg_temp.tt('ipcbfs@gmail.com', v_sc, 'ipc_bao_co_dien');
+  PERFORM pg_temp.tt('chanbonght@gmail.com', v_sc, 'mep_tiep_nhan');
+  SELECT ack_luc INTO v_ack FROM public.su_co WHERE ma_su_co=v_sc;
+  SELECT qua_han_tiep_nhan INTO v_qh_sau FROM public.xem_su_co_qua_han WHERE ma_su_co=v_sc;
+  v_dat := (v_qh_truoc IS TRUE) AND (v_ack IS NOT NULL) AND (v_qh_sau IS NOT TRUE);
+  PERFORM pg_temp.ghi('KICH_BAN','T5 · SLA quá hạn tiếp nhận: hiện cờ rồi tự hết khi tiếp nhận', v_dat,
+    format('trước tiếp nhận quá_hạn=%s · ack_luc sau=%s · sau tiếp nhận quá_hạn=%s',
+      v_qh_truoc, (v_ack IS NOT NULL), v_qh_sau),
+    'xem_su_co_qua_han: ack_luc IS NULL AND now()>ack_han; trigger tg_su_co_ack set ack_luc khi bộ phận tiếp nhận');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','T5 · SLA quá hạn tiếp nhận: hiện cờ rồi tự hết khi tiếp nhận', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
 -- =============================================================================
 -- BÁO CÁO
 -- =============================================================================
