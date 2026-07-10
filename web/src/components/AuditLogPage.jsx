@@ -9,6 +9,10 @@ import {
 } from '../lib/supabaseData'
 import { moTaLoi } from '../lib/bmsClient'
 import { COLOR } from '../lib/designTokens'
+import {
+  buildAuditCsv, formatAuditUtc as formatUtc, formatAuditVn as formatVn,
+  makeAuditCsvFilename,
+} from '../lib/auditCsv'
 
 const PAGE_SIZE = 50
 const EXPORT_PAGE_SIZE = 500
@@ -62,16 +66,6 @@ function vietnamInputToIso(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
-function formatVn(value) {
-  const p = partsInTimeZone(value)
-  return p ? `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}:${p.second}` : '—'
-}
-
-function formatUtc(value) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : date.toISOString().replace('T', ' ').replace('.000Z', 'Z')
-}
-
 function makeQuickRange(key = '7d', now = new Date()) {
   const option = RANGE_OPTIONS.find((r) => r.key === key) || RANGE_OPTIONS[1]
   return {
@@ -115,11 +109,12 @@ function displayError(result) {
   return result?.error?.thong_bao || moTaLoi(result?.error) || 'Không tải được Nhật ký audit.'
 }
 
-function normalizeDemoRows(rows) {
-  const now = Date.now()
+function normalizeDemoRows(rows, anchor) {
+  const anchorTime = anchor ? new Date(anchor).getTime() : Date.now()
+  const now = Number.isNaN(anchorTime) ? Date.now() : anchorTime
   return (rows || []).map((r, index) => ({
     id: r.id || `demo-${index + 1}`,
-    thoiDiem: r.thoiDiem || new Date(now - index * 12 * 60 * 1000).toISOString(),
+    thoiDiem: r.thoiDiem || new Date(now - (index + 1) * 12 * 60 * 1000).toISOString(),
     maSuCo: null,
     maHienThi: String(r.obj || '').split('/')[0]?.trim() || 'SC-DEMO',
     maPhong: String(r.obj || '').split('/')[1]?.trim() || '',
@@ -130,35 +125,38 @@ function normalizeDemoRows(rows) {
   }))
 }
 
-function csvCell(value) {
-  let text = value == null ? '' : String(value)
-  // Chặn Excel/LibreOffice diễn giải dữ liệu audit do người dùng nhập thành công thức.
-  if (/^[=+\-@]/.test(text)) text = `'${text}`
-  return `"${text.replace(/"/g, '""')}"`
+function filterDemoRows(rows, filter) {
+  const from = filter?.tu ? new Date(filter.tu).getTime() : null
+  const to = filter?.den ? new Date(filter.den).getTime() : null
+  const keyword = (filter?.tuKhoa || '').toLocaleLowerCase('vi')
+  const actor = (filter?.nguoi || '').toLocaleLowerCase('vi')
+
+  return normalizeDemoRows(rows, filter?.den).filter((row) => {
+    const timestamp = new Date(row.thoiDiem).getTime()
+    const keywordText = [row.maHienThi, row.maPhong, row.tenPhong, row.lyDo]
+      .join(' ').toLocaleLowerCase('vi')
+    const actorText = [row.nguoiHienThi, row.nguoiThaoTac]
+      .join(' ').toLocaleLowerCase('vi')
+    return (from == null || timestamp >= from)
+      && (to == null || timestamp < to)
+      && (!keyword || keywordText.includes(keyword))
+      && (!actor || actorText.includes(actor))
+      && (!filter?.hanhDong || row.hanhDong === filter.hanhDong)
+      && (!filter?.nguon || row.nguon === filter.nguon)
+  })
 }
 
 function downloadCsv(rows) {
-  const header = [
-    'audit_id', 'thoi_diem_vn', 'thoi_diem_utc', 'ma_su_co', 'ma_phong',
-    'ten_phong', 'khu_vuc', 'ahu', 'nguoi_thao_tac', 'vai_tro',
-    'hanh_dong_ma', 'hanh_dong', 'trang_thai_truoc', 'trang_thai_sau', 'ly_do', 'nguon',
-  ]
-  const body = rows.map((r) => [
-    r.id, formatVn(r.thoiDiem), formatUtc(r.thoiDiem), r.maHienThi, r.maPhong,
-    r.tenPhong, r.khuVuc, r.ahu, r.nguoiThaoTac || r.nguoiHienThi, r.vaiTro,
-    r.hanhDong, r.hanhDongHienThi, r.trangThaiTruoc, r.trangThaiSau, r.lyDo, r.nguon,
-  ])
-  const csv = '\uFEFF' + [header, ...body].map((line) => line.map(csvCell).join(',')).join('\r\n')
+  const csv = buildAuditCsv(rows)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  const now = partsInTimeZone(new Date())
   a.href = url
-  a.download = `BMS-nhat-ky-audit-${now.year}${now.month}${now.day}-${now.hour}${now.minute}.csv`
+  a.download = makeAuditCsvFilename()
   document.body.appendChild(a)
   a.click()
   a.remove()
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function AuditDetailDrawer({ row, onClose }) {
@@ -191,7 +189,7 @@ function AuditDetailDrawer({ row, onClose }) {
             <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400 font-semibold">Bản ghi audit #{row.id}</p>
             <h3 className="mt-1 text-[17px] font-semibold" style={{ color: COLOR.navy }}>{row.hanhDongHienThi || row.hanhDong}</h3>
           </div>
-          <button onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X className="h-5 w-5" /></button>
+          <button aria-label="Đóng" onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X className="h-5 w-5" /></button>
         </div>
         <div className="space-y-5 px-5 py-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -267,14 +265,7 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
     setSelected(null)
 
     if (!isLive) {
-      const all = normalizeDemoRows(demoRows)
-      const needle = `${applied?.tuKhoa || ''} ${applied?.nguoi || ''}`.trim().toLocaleLowerCase('vi')
-      const filtered = all.filter((r) => {
-        const haystack = [r.maHienThi, r.maPhong, r.nguoiHienThi, r.lyDo, r.hanhDongHienThi].join(' ').toLocaleLowerCase('vi')
-        return (!needle || haystack.includes(needle))
-          && (!applied?.hanhDong || r.hanhDong === applied.hanhDong)
-          && (!applied?.nguon || r.nguon === applied.nguon)
-      })
+      const filtered = filterDemoRows(demoRows, applied)
       setRows(filtered.slice(0, PAGE_SIZE))
       setHasMore(false)
       setNextCursor(null)
@@ -308,14 +299,23 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
   useEffect(() => () => requestRef.current.controller?.abort(), [])
 
   const applyFilter = (nextDraft = draft) => {
-    const query = toQuery(nextDraft)
+    // Với khoảng nhanh, mốc `đến` phải được chốt đúng lúc người dùng áp dụng,
+    // không giữ mốc cũ từ lúc vừa mở tab rồi vô tình bỏ sót audit mới phát sinh.
+    const normalizedDraft = nextDraft.range === 'custom' ? nextDraft : {
+      ...makeQuickRange(nextDraft.range),
+      tuKhoa: nextDraft.tuKhoa,
+      nguoi: nextDraft.nguoi,
+      hanhDong: nextDraft.hanhDong,
+      nguon: nextDraft.nguon,
+    }
+    const query = toQuery(normalizedDraft)
     if (!query) {
       setValidationError('Hãy chọn khoảng thời gian hợp lệ; mốc đến phải sau mốc từ.')
       return
     }
     setValidationError('')
     setExportError('')
-    setDraft(nextDraft)
+    setDraft(normalizedDraft)
     setCursorStack([null])
     setPageIndex(0)
     setApplied(query)
@@ -354,7 +354,7 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
       let all = []
       let cursor = null
       if (!isLive) {
-        all = normalizeDemoRows(demoRows)
+        all = filterDemoRows(demoRows, applied)
       } else {
         while (true) {
           const result = await traCuuNhatKyAudit({ ...applied, cursor, gioiHan: EXPORT_PAGE_SIZE })
@@ -425,7 +425,7 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
         {error ? <div className="px-6 py-12 text-center"><p className="text-[13px] font-medium text-rose-600">{error}</p>{!forbidden && <button onClick={refresh} className="mt-3 rounded-xl bg-white px-3 py-1.5 text-[12px] text-slate-600 ring-1 ring-slate-200">Thử lại</button>}</div>
           : loading && rows.length === 0 ? <div className="space-y-2 p-6">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-slate-100" />)}</div>
             : rows.length === 0 ? <div className="px-6 py-12 text-center"><FileText className="mx-auto h-7 w-7 text-slate-300" /><p className="mt-3 text-[13px] font-medium text-slate-600">Không có bản ghi audit khớp bộ lọc.</p><p className="mt-1 text-[11px] text-slate-400">Thử mở rộng khoảng thời gian hoặc đặt lại điều kiện tra cứu.</p></div>
-              : <div className="overflow-x-auto"><table className={`w-full min-w-[1120px] text-[12px] transition ${loading ? 'opacity-60' : ''}`}><thead><tr className="bg-slate-50/80 text-left text-[10px] uppercase tracking-wider text-slate-500">{['Thời gian', 'Người thực hiện', 'Hành động', 'Sự cố / phòng', 'Chuyển trạng thái', 'Nguồn', 'Lý do / chi tiết'].map((h) => <th key={h} className="px-4 py-3 font-semibold">{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id} tabIndex={0} onClick={() => setSelected(row)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(row) } }} className="cursor-pointer border-t border-slate-100 outline-none transition hover:bg-sky-50/50 focus:bg-sky-50/70"><td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-500">{formatVn(row.thoiDiem)}</td><td className="max-w-[190px] px-4 py-3"><p className="truncate font-medium text-slate-700" title={row.nguoiHienThi}>{row.nguoiHienThi}</p>{row.nguoiThaoTac && <p className="mt-0.5 truncate text-[10px] text-slate-400" title={row.nguoiThaoTac}>{row.nguoiThaoTac}</p>}</td><td className="max-w-[220px] px-4 py-3"><p className="font-medium text-slate-700">{row.hanhDongHienThi || row.hanhDong}</p><code className="mt-0.5 block truncate text-[9.5px] text-slate-400">{row.hanhDong}</code></td><td className="px-4 py-3"><p className="font-semibold" style={{ color: COLOR.navy }}>{row.maHienThi}</p><p className="mt-0.5 text-[10px] text-slate-400">{[row.maPhong, row.khuVuc, row.ahu].filter(Boolean).join(' · ') || '—'}</p></td><td className="max-w-[240px] px-4 py-3 text-slate-600">{transitionText(row)}</td><td className="px-4 py-3">{sourceBadge(row.nguon)}</td><td className="max-w-[280px] px-4 py-3"><p className="line-clamp-2 text-slate-500" title={row.lyDo}>{row.lyDo || '—'}</p></td></tr>)}</tbody></table></div>}
+              : <div className="overflow-x-auto"><table className={`w-full min-w-[1120px] text-[12px] transition ${loading ? 'opacity-60' : ''}`}><thead><tr className="bg-slate-50/80 text-left text-[10px] uppercase tracking-wider text-slate-500">{['Thời gian', 'Người thực hiện', 'Hành động', 'Sự cố / phòng', 'Chuyển trạng thái', 'Nguồn', 'Lý do / chi tiết'].map((h) => <th key={h} className="px-4 py-3 font-semibold">{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id} tabIndex={0} onClick={() => setSelected(row)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(row) } }} className="cursor-pointer border-t border-slate-100 outline-none transition hover:bg-sky-50/50 focus:bg-sky-50/70"><td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-500">{formatVn(row.thoiDiem)}</td><td className="max-w-[190px] px-4 py-3"><p className="truncate font-medium text-slate-700" title={row.nguoiHienThi}>{row.nguoiHienThi}</p>{row.nguoiThaoTac && row.nguoiThaoTac.toLocaleLowerCase('vi') !== row.nguoiHienThi.toLocaleLowerCase('vi') && <p className="mt-0.5 truncate text-[10px] text-slate-400" title={row.nguoiThaoTac}>{row.nguoiThaoTac}</p>}</td><td className="max-w-[220px] px-4 py-3"><p className="font-medium text-slate-700">{row.hanhDongHienThi || row.hanhDong}</p>{row.hanhDong && <code className="mt-0.5 block truncate text-[9.5px] text-slate-400">{row.hanhDong}</code>}</td><td className="px-4 py-3"><p className="font-semibold" style={{ color: COLOR.navy }}>{row.maHienThi}</p><p className="mt-0.5 text-[10px] text-slate-400">{[row.maPhong, row.khuVuc, row.ahu].filter(Boolean).join(' · ') || '—'}</p></td><td className="max-w-[240px] px-4 py-3 text-slate-600">{transitionText(row)}</td><td className="px-4 py-3">{sourceBadge(row.nguon)}</td><td className="max-w-[280px] px-4 py-3"><p className="line-clamp-2 text-slate-500" title={row.lyDo}>{row.lyDo || '—'}</p></td></tr>)}</tbody></table></div>}
 
         {!error && rows.length > 0 && <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3"><button onClick={previousPage} disabled={pageIndex === 0 || loading} className="inline-flex items-center gap-1 rounded-xl bg-white px-3 py-1.5 text-[12px] font-medium text-slate-600 ring-1 ring-slate-200 disabled:opacity-40"><ChevronLeft className="h-3.5 w-3.5" />Trang trước</button><span className="text-[11px] text-slate-400">{rows.length} bản ghi trên trang {pageIndex + 1}</span><button onClick={nextPage} disabled={!hasMore || !nextCursor || loading} className="inline-flex items-center gap-1 rounded-xl bg-white px-3 py-1.5 text-[12px] font-medium text-slate-600 ring-1 ring-slate-200 disabled:opacity-40">Trang sau<ChevronRight className="h-3.5 w-3.5" /></button></div>}
       </div>
