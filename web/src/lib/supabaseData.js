@@ -219,6 +219,34 @@ export async function laySuCoQuaHan(signal) {
   return { error: null, rows: data || [] }
 }
 
+// ============================================================
+// CỤM SỰ CỐ (10/07/2026) · view: xem_cum_su_co
+// 24 sự cố đang mở gộp lại thành 12 cụm theo (AHU, loại cảm biến) — đơn vị mà Cơ điện
+// thật sự can thiệp được và QA thật sự kết luận được. Cụm tự mở, tự đóng.
+// ============================================================
+export async function layCumSuCo(signal) {
+  const { data, error } = await docView('xem_cum_su_co',
+    (q) => q.select('ma_cum,ma_hien_thi,khu_vuc,ahu,loai_cam_bien,dang_mo,gio_mo,'
+              + 'tong_su_co,su_co_dang_mo,so_critical,so_cam_bien_dung_hinh,so_chua_tiep_nhan,'
+              + 'cac_phong,chan_doan,nguyen_nhan_goc,hanh_dong_khac_phuc,hanh_dong_phong_ngua,'
+              + 'qa_ket_luan,qa_boi,qa_luc,da_co_ket_luan_qa').eq('dang_mo', true),
+    { signal })
+  if (error) return { error, rows: null }
+  return { error: null, rows: data || [] }
+}
+
+// QA/Quản trị ghi nguyên nhân gốc + CAPA cho cả cụm. Máy chủ ghi một dòng audit cho
+// TỪNG sự cố thuộc cụm — mỗi sai lệch mang kết luận của chính nó (ALCOA+).
+export async function ketLuanCum({ maCum, nguyenNhan, khacPhuc, phongNgua, ketLuan }, signal) {
+  return goiRPC('rpc_ket_luan_cum', {
+    p_ma_cum: maCum,
+    p_nguyen_nhan: nguyenNhan,
+    p_khac_phuc: khacPhuc,
+    p_phong_ngua: phongNgua || null,
+    p_ket_luan: ketLuan || null,
+  }, { signal })
+}
+
 export async function laySuCoDangMo(signal) {
   const { data, error } = await docView('xem_su_co_dang_mo',
     (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,'

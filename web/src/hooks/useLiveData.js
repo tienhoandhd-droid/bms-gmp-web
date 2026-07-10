@@ -16,7 +16,7 @@ import { supabase } from '../lib/bmsClient'
 import {
   layTongQuan, laySuCoDangMo, layCanhBaoHeThong, layLichSuCauHinh,
   layDanhSachPhong, layThongKeSensorPhong, layThongKeSensorNhieuPhong, layXepHangRuiRo, layQuyTrinhSop, layBaoCaoAi,
-  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp, layNutThaoTac, laySuCoQuaHan,
+  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp, layNutThaoTac, laySuCoQuaHan, layCumSuCo,
 } from '../lib/supabaseData'
 
 const ENRICH_TTL_MS = 4 * 60 * 1000   // thống kê 8h chỉ đổi mỗi giờ → cache 4'
@@ -54,6 +54,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
   const [nguong, setNguong] = useState(null)
   const [sucKhoe, setSucKhoe] = useState(null)
   const [suCoQuaHan, setSuCoQuaHan] = useState(null)
+  const [cumSuCo, setCumSuCo] = useState(null)
   const [gmpMkt, setGmpMkt] = useState(null)
   const [gmpSpc, setGmpSpc] = useState(null)
   const [batBuocDangNhap, setBatBuocDangNhap] = useState(false)
@@ -81,7 +82,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
     if (ctrlRef.current) ctrlRef.current.abort()
     setKpis(null); setIncidents(null); setSystemAlerts(null)
     setConfigHistory(null); setRooms(null); setRiskRows(null); setSopRows(null)
-    setAiRows(null); setSucKhoe(null); setSuCoQuaHan(null); setGmpMkt(null); setGmpSpc(null)
+    setAiRows(null); setSucKhoe(null); setSuCoQuaHan(null); setCumSuCo(null); setGmpMkt(null); setGmpSpc(null)
     setLoi(null)
   }
 
@@ -182,6 +183,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
       tier2Luc.current = Date.now()
       layLichSuCauHinh(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setConfigHistory(x.rows) })
       laySuCoQuaHan(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoQuaHan(x.rows) })
+      layCumSuCo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setCumSuCo(x.rows) })
       layXepHangRuiRo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setRiskRows(x.rows) })
       layQuyTrinhSop(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSopRows(x.rows) })
       layBaoCaoAi(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setAiRows(x.rows) })
@@ -266,7 +268,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
 
   return {
     isLive, kpis, incidents, systemAlerts, configHistory,
-    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, suCoQuaHan, gmpMkt, gmpSpc, batBuocDangNhap, nutThaoTac, loiNut,
+    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, suCoQuaHan, cumSuCo, gmpMkt, gmpSpc, batBuocDangNhap, nutThaoTac, loiNut,
     dangTai, loi, capNhatLuc, lamMoi,
   }
 }

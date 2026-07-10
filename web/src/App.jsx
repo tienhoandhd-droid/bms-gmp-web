@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { PHIEN_BAN_GIAO_THUC, laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { PHIEN_BAN_GIAO_THUC, laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
@@ -2908,6 +2908,30 @@ export default function App() {
   // chuông báo tử cũng mù. DB đã xoá RPC đó và chặn cứng cột bằng CHECK.
   // Nay: tạm hoãn CÓ HẠN, bắt buộc lý do, ghi ai hoãn và tới bao giờ, tự cảnh báo lại.
   // CRITICAL hoặc phòng P1 chỉ QA/Quản trị được hoãn — máy chủ tự kiểm, không tin giao diện.
+  // ═══ CỤM ĐIỀU TRA (10/07/2026) ═══
+  // 24 sự cố đang mở là 12 cụm. Cơ điện không sửa "một phòng", họ sửa một AHU; QA không
+  // kết luận "một vé", họ kết luận một sai lệch có nguyên nhân gốc và CAPA. Máy chủ ghi
+  // một dòng audit cho TỪNG sự cố thuộc cụm — không ai được đóng gộp mà mất dấu vết.
+  const cumRows = useMemo(() => (isLive && Array.isArray(live.cumSuCo) ? live.cumSuCo : []), [isLive, live.cumSuCo]);
+  const cumHienThi = useMemo(() => (khuChoPhep ? cumRows.filter((c) => loKhu(c.khu_vuc)) : cumRows), [cumRows, khuChoPhep]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const ghiKetLuanCum = async (cum) => {
+    if (!requireLogin()) return;
+    const nguyenNhan = window.prompt(`${cum.ma_hien_thi} — Nguyên nhân gốc (ít nhất 10 ký tự):`, cum.nguyen_nhan_goc || "");
+    if (nguyenNhan == null) return;
+    const khacPhuc = window.prompt("Hành động khắc phục (ít nhất 10 ký tự):", cum.hanh_dong_khac_phuc || "");
+    if (khacPhuc == null) return;
+    const phongNgua = window.prompt("Hành động phòng ngừa (có thể bỏ trống):", cum.hanh_dong_phong_ngua || "");
+    if (phongNgua == null) return;
+    const ketLuan = window.prompt("Kết luận QA về ảnh hưởng chất lượng (có thể bỏ trống):", cum.qa_ket_luan || "");
+    if (ketLuan == null) return;
+    const { error, data } = await ketLuanCum({ maCum: cum.ma_cum, nguyenNhan, khacPhuc, phongNgua, ketLuan });
+    if (error) { alert(error.thong_bao || error.ma_loi || "Không ghi được kết luận"); return; }
+    if (data && data.ok === false) { alert(data.thong_bao || data.loi); return; }
+    alert(data?.thong_bao || "Đã ghi kết luận.");
+    await live.lamMoi({ nen: true });
+  };
+
   const toggleSilence = async (id) => {
     if (!requireLogin()) return;
     const inc = incidents.find((i) => i.id === id);
@@ -3095,6 +3119,47 @@ export default function App() {
                 )}
                 <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidentsXem.length} sự cố</span>
               </div>
+              {isLive && cumHienThi.length > 0 && (
+                <Card className="p-4 mb-3">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <h3 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>Cụm điều tra · {cumHienThi.length} cụm / {cumHienThi.reduce((n, c) => n + (c.su_co_dang_mo || 0), 0)} sự cố</h3>
+                      <p className="mt-0.5 text-[11px] text-slate-500 leading-relaxed max-w-2xl">Sự cố được gộp theo <b>AHU × loại cảm biến</b> — đơn vị mà Cơ điện can thiệp được và QA kết luận được. Cụm tự mở khi sự cố đầu tiên sinh ra, tự đóng khi sự cố cuối cùng đóng.</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-[12px] min-w-[860px]">
+                      <thead><tr className="text-slate-500 text-left text-[10px] uppercase tracking-wider">{["Cụm", "AHU · Chỉ tiêu", "Sự cố", "Chẩn đoán", "Phòng", "Mở", "Kết luận QA"].map((h) => <th key={h} className="py-2 px-3 font-semibold">{h}</th>)}</tr></thead>
+                      <tbody>{cumHienThi.map((c) => {
+                        const hh = c.chan_doan && c.chan_doan.startsWith("THIẾT BỊ ĐO");
+                        const honHop = c.chan_doan && c.chan_doan.startsWith("HỖN HỢP");
+                        const mauChanDoan = hh ? "text-slate-600 bg-slate-100" : honHop ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50";
+                        return (
+                          <tr key={c.ma_cum} className="border-t border-slate-100 align-top">
+                            <td className="py-2.5 px-3 font-semibold tabular-nums" style={{ color: COLOR.navy }}>{c.ma_hien_thi}</td>
+                            <td className="py-2.5 px-3"><span className="font-medium text-slate-700">{c.ahu || "—"}</span><span className="text-slate-400"> · {c.loai_cam_bien}</span><div className="text-[10px] text-slate-400">Khu {c.khu_vuc}</div></td>
+                            <td className="py-2.5 px-3 tabular-nums">
+                              <span className="font-semibold text-slate-700">{c.su_co_dang_mo}</span>
+                              {c.so_chua_tiep_nhan > 0 && <span className="ml-1.5 text-[10px] text-rose-600">{c.so_chua_tiep_nhan} chưa tiếp nhận</span>}
+                            </td>
+                            <td className="py-2.5 px-3"><span className={`inline-block rounded-lg px-2 py-1 text-[10.5px] leading-tight ${mauChanDoan}`}>{c.chan_doan}</span></td>
+                            <td className="py-2.5 px-3 text-slate-500 max-w-[190px]"><span className="line-clamp-2" title={c.cac_phong}>{c.cac_phong || "—"}</span></td>
+                            <td className="py-2.5 px-3 tabular-nums text-slate-500">{Math.round(c.gio_mo)} h</td>
+                            <td className="py-2.5 px-3">
+                              {c.da_co_ket_luan_qa
+                                ? <span className="text-[11px] text-teal-700" title={`${c.nguyen_nhan_goc}\n\nKhắc phục: ${c.hanh_dong_khac_phuc}`}>✓ {c.qa_boi}</span>
+                                : <span className="text-[11px] text-slate-400">chưa có</span>}
+                              {(role === "QA" || role === "ADMIN") && (
+                                <button onClick={() => ghiKetLuanCum(c)} className="ml-2 rounded-lg bg-white px-2 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">{c.da_co_ket_luan_qa ? "Sửa" : "Ghi kết luận"}</button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}</tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
               <Card className="p-2 sm:p-4">{incFiltered.length === 0 ? (incidentsXem.length === 0 ? (
                 <div className="px-5 py-10 text-center">
                   <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div>
