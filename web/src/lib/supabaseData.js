@@ -71,6 +71,9 @@ export const ACTION_CODE_TO_LABEL = {
   // Đóng vì phòng ngoài phạm vi cảnh báo — KHÔNG có nghĩa đã khắc phục
   admin_dong_ngoai_pham_vi: 'Quản trị đóng — phòng ngoài phạm vi cảnh báo',
   mo_su_co: 'Hệ thống mở sự cố',
+  // Đính chính hồ sơ theo thủ tục GMP (audit trail append-only — không xoá, chỉ ghi thêm).
+  // Bản ghi 3408 đính chính cho 3407; bộ kiểm (kiem_tra/ W3) bắt được mã này chưa có nhãn.
+  ghi_chu_dinh_chinh: 'Ghi chú đính chính hồ sơ (GMP)',
   // Luật thật từ 20260710s: `nguong_gio_sach_de_dong` = 2 GIỜ SẠCH LIÊN TIẾP.
   // Một giờ về dải không đóng gì cả — nhãn cũ "(giá trị về dải)" nói sai.
   he_thong_dong_tu_dong: 'Hệ thống tự đóng (đủ 2 giờ sạch liên tiếp)',
