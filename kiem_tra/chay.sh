@@ -69,6 +69,17 @@ else
   VO=$((VO+1))
 fi
 
+# W4 (lớp lỗi mới 10/07 tối): component DÙNG trong App.jsx mà KHÔNG import/định nghĩa.
+#   Vite build KHÔNG bắt (nổ runtime). Bug "Sơ đồ xử lý crash": <SoDoLuatCard/> undefined.
+W4=$(python3 kiem_tra/kiem_import.py)
+if [ -z "$W4" ]; then
+  echo "✅ W4 · Mọi component JSX trong App.jsx đều có import/định nghĩa"
+else
+  echo "❌ W4 · Component DÙNG mà KHÔNG import (crash runtime, build vẫn xanh): $W4"
+  echo "     → XỬ LÝ: thêm import — lớp lỗi patch-quên-import (Sơ đồ xử lý crash 10/07)"
+  VO=$((VO+1))
+fi
+
 # ── BẤT BIẾN + KỊCH BẢN (toàn bộ trong một giao dịch, tự ROLLBACK) ───────────
 echo ""
 echo "── BẤT BIẾN + KỊCH BẢN (rollback, không chạm dữ liệu thật) ──"

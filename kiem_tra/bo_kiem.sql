@@ -196,6 +196,13 @@ BEGIN
     'bucket cách đây '||n2||'h · '||n||'/81 cảm biến',
     'Kiểm executions WF1 trên n8n; FMS login; rpc_kiem_tra_suc_khoe_he_thong');
 
+  -- B22 (90): lỗ hổng dữ liệu cục bộ chưa được lấp (phòng lẻ thiếu, KHÔNG phải FMS sập)
+  --   Chỉ tính khi giờ đó có phòng khác CÓ dữ liệu (WF1 đã chạy) — loại đợt sập toàn phần.
+  SELECT count(*) INTO n FROM public.rpc_lo_hong_du_lieu(3);
+  PERFORM pg_temp.ghi('BAT_BIEN','Không lỗ hổng dữ liệu cục bộ chưa lấp (3h qua)', n=0,
+    n||' điểm (phòng×cảm biến) thiếu — FMS lỗi một phần lúc thu thập',
+    'WF1b lấp lỗ (:35) nạp lại đúng phòng thiếu; hoặc chạy tay WF1 lần nữa cho giờ đó (RPC idempotent)');
+
   -- B20 (88): chuỗi hash audit phải liền mạch (tamper-evident)
   DECLARE r jsonb;
   BEGIN
