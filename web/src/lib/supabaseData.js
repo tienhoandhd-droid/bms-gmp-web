@@ -133,7 +133,7 @@ export async function layTongQuan(signal) {
 // ============================================================
 export async function layDanhSachPhong(signal) {
   const { data, error } = await docView('xem_phong_co_kpi',
-    (q) => q.select('ma_phong,ten_phong,khu_vuc,ahu,muc_uu_tien,thieu_du_lieu,ghi_chu,ti_le_dat_1h,muc_canh_bao_phong,cam_bien,lan_cuoi_co_du_lieu,cua_so_gio,tre_phut').order('ma_phong'),
+    (q) => q.select('ma_phong,ten_phong,khu_vuc,ahu,muc_uu_tien,thieu_du_lieu,ghi_chu,ti_le_dat_1h,muc_canh_bao_phong,cam_bien,lan_cuoi_co_du_lieu,cua_so_gio,tre_phut,du_lieu_cu').order('ma_phong'),
     { signal })
   if (error) return { error, rooms: null }
   const rooms = (data || []).map((r) => ({
@@ -143,7 +143,10 @@ export async function layDanhSachPhong(signal) {
     ahu: r.ahu || '',
     priority: r.muc_uu_tien || 'P3',
     note: r.ghi_chu || '',
-    noData: !!r.thieu_du_lieu,
+    // noData = phòng chưa từng có sensor (thieu_du_lieu) HOẶC vắng bucket mới nhất
+    // (du_lieu_cu: FMS bỏ giờ này) ⇒ KHÔNG chấm bằng số cũ, hiện "thiếu dữ liệu".
+    noData: !!r.thieu_du_lieu || !!r.du_lieu_cu,
+    duLieuCu: !!r.du_lieu_cu,   // để phân biệt "chưa có sensor" với "FMS bỏ giờ này"
     lastSeen: r.lan_cuoi_co_du_lieu || null,        // 'DD/MM HH:MM' = MỐC ĐÓNG cửa sổ giờ (giờ VN)
     window: r.cua_so_gio || null,                   // 'HH:MM–HH:MM' = khung giờ của bản ghi gần nhất
     agePhut: r.tre_phut != null ? Number(r.tre_phut) : null,  // số phút kể từ mốc đóng cửa sổ
