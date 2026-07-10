@@ -259,6 +259,26 @@ export async function ketLuanCum({ maCum, nguyenNhan, khacPhuc, phongNgua, ketLu
 // Sự cố ĐÓNG trong cửa sổ mo_lai_cua_so_ngay (7 ngày) — để nút "Mở lại sự cố"
 // (ap_dung_khi='DONG' trong bảng luật) có chỗ đứng trên web. Giới hạn 40 dòng mới nhất:
 // cửa sổ 7 ngày có ~300 sự cố, bày hết là nhiễu — ai cần sâu hơn đã có Nhật ký audit.
+// ═══ REALTIME (10/07/2026) ═══
+// `su_co` đã nằm trong publication supabase_realtime và authenticated có policy
+// SELECT (realtime chỉ phát sự kiện cho người ĐỌC ĐƯỢC dòng đó). Web không tin
+// payload sự kiện — chỉ coi nó là TIẾNG GÕ CỬA để nạp lại qua đúng các view/RPC
+// thường dùng: một đường dữ liệu duy nhất, realtime chỉ đổi nhịp. Poll 60s vẫn
+// giữ nguyên làm lưới đỡ khi WebSocket rớt.
+export function dangKyRealtimeSuCo(onDoi) {
+  if (!supabase) return () => {}
+  const kenh = supabase
+    .channel('rt-su-co')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'su_co' }, () => onDoi())
+    .subscribe()
+  return () => { try { supabase.removeChannel(kenh) } catch { /* kênh đã đóng */ } }
+}
+
+// Hồ sơ cụm đầy đủ (cụm + CAPA + mọi sự cố thành viên + audit) — cho bản in thanh tra.
+export async function layHoSoCum(maCum, signal) {
+  return goiRPC('rpc_ho_so_cum', { p_ma_cum: maCum }, { signal })
+}
+
 export async function laySuCoDongGanDay(signal) {
   const { data, error } = await docView('xem_su_co_dong_gan_day',
     (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,khu_vuc,ahu,cam_bien_vi,loai_cam_bien,uu_tien,'

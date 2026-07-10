@@ -16,7 +16,7 @@ import { supabase } from '../lib/bmsClient'
 import {
   layTongQuan, laySuCoDangMo, layCanhBaoHeThong, layLichSuCauHinh,
   layDanhSachPhong, layThongKeSensorPhong, layThongKeSensorNhieuPhong, layXepHangRuiRo, layQuyTrinhSop, layBaoCaoAi,
-  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp, layNutThaoTac, laySuCoQuaHan, layCumSuCo, laySuCoDongGanDay,
+  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp, layNutThaoTac, laySuCoQuaHan, layCumSuCo, laySuCoDongGanDay, dangKyRealtimeSuCo,
 } from '../lib/supabaseData'
 
 const ENRICH_TTL_MS = 4 * 60 * 1000   // thống kê 8h chỉ đổi mỗi giờ → cache 4'
@@ -222,6 +222,20 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
       if (ctrlRef.current) ctrlRef.current.abort()    // hủy request đang chờ khi unmount
     }
   }, [isLive, lamMoi, tuDongMoiMs])
+
+  // ═══ Realtime: su_co đổi → nạp lại sau 1.5s (gom burst — WF1 cập nhật hàng chục
+  // sự cố trong một nhịp :02). Sự kiện chỉ là tiếng gõ cửa; dữ liệu vẫn đi qua
+  // đúng các view thường dùng. Poll 60s giữ nguyên làm lưới đỡ khi WebSocket rớt.
+  const rtTimer = useRef(null)
+  useEffect(() => {
+    if (!isLive) return
+    const huyDangKy = dangKyRealtimeSuCo(() => {
+      if (document.visibilityState !== 'visible') return
+      if (rtTimer.current) clearTimeout(rtTimer.current)
+      rtTimer.current = setTimeout(() => { lamMoi({ nen: true }) }, 1500)
+    })
+    return () => { if (rtTimer.current) clearTimeout(rtTimer.current); huyDangKy() }
+  }, [isLive, lamMoi])
 
   // ============================================================
   // KHẮC PHỤC TRIỆT ĐỂ "phải F5 mới hiện dữ liệu":

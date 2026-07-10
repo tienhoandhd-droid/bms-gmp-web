@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { PHIEN_BAN_GIAO_THUC, laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { PHIEN_BAN_GIAO_THUC, laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
@@ -2619,7 +2619,7 @@ function ModalMoLai({ row, act, dangChay, onDong, onLuu }) {
 
 // Ngăn kéo chi tiết cụm: hồ sơ CAPA + các sự cố con ĐANG MỞ (sự cố đã đóng của cụm
 // nằm ở khung "Đóng gần đây" — ngăn kéo phục vụ cuộc điều tra đang diễn ra).
-function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan }) {
+function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo }) {
   const hh = (cum.chan_doan || "").startsWith("THIẾT BỊ ĐO");
   const honHop = (cum.chan_doan || "").startsWith("HỖN HỢP");
   return createPortal(
@@ -2631,7 +2631,10 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan }) {
             <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400 font-semibold">Cụm điều tra</p>
             <h3 className="mt-0.5 text-[17px] font-semibold" style={{ color: COLOR.navy }}>{cum.ma_hien_thi} — {cum.ahu || "Không rõ AHU"} · {cum.loai_cam_bien}</h3>
           </div>
-          <button aria-label="Đóng" onClick={onDong} className="rounded-xl px-2.5 py-1 text-[13px] text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50">Đóng</button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button onClick={onInHoSo} title="Hồ sơ đầy đủ: CAPA + mọi sự cố thành viên + audit — in hoặc lưu PDF cho thanh tra" className="rounded-xl px-2.5 py-1 text-[13px] font-medium text-teal-700 ring-1 ring-teal-200 bg-teal-50 hover:bg-teal-100">In hồ sơ</button>
+            <button aria-label="Đóng" onClick={onDong} className="rounded-xl px-2.5 py-1 text-[13px] text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50">Đóng</button>
+          </div>
         </div>
         <div className="px-5 py-4 space-y-4">
           <span className={`inline-block rounded-lg px-2.5 py-1 text-[11px] leading-tight ${hh ? "text-slate-600 bg-slate-100" : honHop ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"}`}>{cum.chan_doan}</span>
@@ -3069,6 +3072,30 @@ export default function App() {
     await live.lamMoi({ nen: true });
   };
 
+  // Bản in hồ sơ cụm: RPC trả trọn bộ (đã lọc khu ở máy chủ), lib dựng HTML tự chứa.
+  const inHoSoCum = async (cum) => {
+    const { error, data } = await layHoSoCum(cum.ma_cum);
+    if (error || !data || data.ok === false) { alert((data && (data.thong_bao || data.loi)) || error?.thong_bao || "Không tải được hồ sơ cụm"); return; }
+    moHoSoCumBanIn(data);
+  };
+
+  // ═══ VIỆC CỦA TÔI — hiện trên MỌI tab (10/07/2026) ═══
+  // Máy chủ đã tính ai phụ trách (vai_tro_phu_trach) và hạn SLA; banner chỉ bày
+  // đúng phần của người đang đăng nhập. Không thêm truy vấn nào: ghép từ
+  // suCoQuaHan + incidents + cumRows đã nạp sẵn.
+  const viecCuaToi = useMemo(() => {
+    if (!isLive || !role) return [];
+    const qh = Array.isArray(live.suCoQuaHan) ? live.suCoQuaHan : [];
+    return qh.filter((q) => q.vai_tro_phu_trach === role)
+      .map((q) => ({ q, inc: incidentsXem.find((i) => i.dbId === q.ma_su_co) }))
+      .filter((x) => x.inc)
+      .sort((a, b) => Number(!!(b.q.qua_han_tiep_nhan || b.q.qua_han_xu_ly)) - Number(!!(a.q.qua_han_tiep_nhan || a.q.qua_han_xu_ly)));
+  }, [isLive, role, live.suCoQuaHan, incidentsXem]);
+  const cumChoToi = useMemo(() => ((role === "QA" || role === "ADMIN") && isLive)
+    ? cumRows.filter((c) => !c.da_co_ket_luan_qa && (!khuChoPhep || loKhu(c.khu_vuc)))
+    : [], [role, isLive, cumRows, khuChoPhep]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [vctMo, setVctMo] = useState(true);
+
   const toggleSilence = async (id) => {
     if (!requireLogin()) return;
     const inc = incidents.find((i) => i.id === id);
@@ -3194,6 +3221,44 @@ export default function App() {
             <div className="mb-4 flex items-start gap-2 rounded-2xl bg-teal-50 ring-1 ring-teal-100 px-4 py-2.5 text-[12px] text-slate-600">
               <Wifi className="w-4 h-4 mt-0.5 text-teal-600 shrink-0" strokeWidth={1.8} />
               <span>Đang đọc/ghi dữ liệu thật từ Supabase cho <b>tất cả các tab</b> (Tổng quan · Sự cố · Phòng · Xu hướng · Báo cáo · Nhật ký). <b>Xu hướng &amp; Rủi ro</b> tính trực tiếp từ dữ liệu theo giờ (luôn có sẵn); riêng <b>Báo cáo AI</b> tổng hợp theo ngày sẽ đầy đủ dần khi WF rollup chạy.{live.loi && <span className="text-rose-600"> · Lỗi tải: {live.loi.thong_bao || live.loi.message || "kết nối"}</span>}{live.capNhatLuc && !live.loi && <span className="text-slate-400"> · Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</span>
+            </div>
+          )}
+          {isLive && user && role && (viecCuaToi.length > 0 || cumChoToi.length > 0) && (
+            <div className="mb-4 rounded-2xl bg-white ring-1 ring-amber-200 px-4 py-3" style={cardShadow}>
+              <button onClick={() => setVctMo(!vctMo)} className="w-full flex items-center justify-between gap-3 text-left">
+                <span className="text-[13px] font-semibold" style={{ color: COLOR.navy }}>
+                  Việc của bạn · {viecCuaToi.length + cumChoToi.length}
+                  {viecCuaToi.some((x) => x.q.qua_han_tiep_nhan || x.q.qua_han_xu_ly) && <span className="ml-2 rounded-full bg-rose-50 px-2 py-0.5 text-[10.5px] font-bold text-rose-600">có việc quá hạn</span>}
+                </span>
+                <span className="shrink-0 text-[11px] text-slate-400">{vctMo ? "Thu gọn ▲" : "Mở ra ▼"}</span>
+              </button>
+              {vctMo && (
+                <div className="mt-2 space-y-1.5">
+                  {viecCuaToi.slice(0, 5).map(({ q, inc }) => {
+                    const nong = q.qua_han_tiep_nhan || q.qua_han_xu_ly;
+                    return (
+                      <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                        <span className="min-w-0 text-[12px] text-slate-600 truncate">
+                          <b style={{ color: COLOR.navy }}>{inc.id}</b> · {inc.room} · {inc.sensor}
+                          <span className={`ml-2 ${nong ? "text-rose-600 font-medium" : "text-slate-400"}`}>{q.chan_doan}</span>
+                        </span>
+                        <button onClick={() => openApproval(inc)} className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-semibold text-teal-700 ring-1 ring-teal-200 hover:bg-teal-50">Xử lý</button>
+                      </div>
+                    );
+                  })}
+                  {viecCuaToi.length > 5 && <p className="text-[11px] text-slate-400 pl-1">… và {viecCuaToi.length - 5} việc nữa ở tab Sự cố.</p>}
+                  {cumChoToi.slice(0, 3).map((c) => (
+                    <div key={c.ma_cum} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                      <span className="min-w-0 text-[12px] text-slate-600 truncate">
+                        <b style={{ color: COLOR.navy }}>{c.ma_hien_thi}</b> · {c.ahu || "?"} · {c.loai_cam_bien}
+                        <span className="ml-2 text-amber-600">chưa có kết luận điều tra</span>
+                      </span>
+                      <button onClick={() => ghiKetLuanCum(c)} className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">Ghi kết luận</button>
+                    </div>
+                  ))}
+                  {cumChoToi.length > 3 && <p className="text-[11px] text-slate-400 pl-1">… và {cumChoToi.length - 3} cụm nữa ở tab Sự cố.</p>}
+                </div>
+              )}
             </div>
           )}
           {tab === "home" && (
@@ -3386,7 +3451,7 @@ export default function App() {
                   )}
                 </Card>
               )}
-              {cumChiTiet && <CumDrawer cum={cumChiTiet} dsSuCo={incidentsXem.filter((i) => i.maCum === cumChiTiet.ma_cum)} onDong={() => setCumChiTiet(null)} coQuyenKetLuan={role === "QA" || role === "ADMIN"} onKetLuan={() => ghiKetLuanCum(cumChiTiet)} />}
+              {cumChiTiet && <CumDrawer cum={cumChiTiet} dsSuCo={incidentsXem.filter((i) => i.maCum === cumChiTiet.ma_cum)} onDong={() => setCumChiTiet(null)} coQuyenKetLuan={role === "QA" || role === "ADMIN"} onKetLuan={() => ghiKetLuanCum(cumChiTiet)} onInHoSo={() => inHoSoCum(cumChiTiet)} />}
               {cumKetLuan && <ModalKetLuanCum cum={cumKetLuan} dangChay={dangGhiCum} onDong={() => setCumKetLuan(null)} onLuu={luuKetLuanCum} />}
               {moLai && <ModalMoLai row={moLai.row} act={moLai.act} dangChay={dangGhiCum} onDong={() => setMoLai(null)} onLuu={xacNhanMoLai} />}
             </div>
