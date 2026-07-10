@@ -71,6 +71,8 @@ const ACTION_CODE_TO_LABEL = {
   // Đóng vì phòng ngoài phạm vi cảnh báo — KHÔNG có nghĩa đã khắc phục
   admin_dong_ngoai_pham_vi: 'Quản trị đóng — phòng ngoài phạm vi cảnh báo',
   he_thong_dong_tu_dong: 'Hệ thống tự đóng (giá trị về dải)',
+  // Hệ thống tự chuyển khi CRITICAL quá ngưỡng mà IPC chưa thao tác — KHÔNG phải IPC bấm
+  tu_phan_tuyen_co_dien: 'Hệ thống tự chuyển Cơ điện (quá hạn)',
   // Đã khai tử từ v14, giữ để dịch nhật ký cũ
   ipc_tiep_nhan: 'IPC tiếp nhận', ipc_bat_thuong: 'IPC xác nhận bất thường', ipc_cho: 'IPC chờ xử lý',
   mep_cho: 'Cơ điện chờ', ipc_kiem_lai_dat: 'IPC kiểm lại: đạt', ipc_kiem_lai_khong_dat: 'IPC kiểm lại: không đạt',
