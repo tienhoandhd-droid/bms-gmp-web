@@ -12,7 +12,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.0.0",
     "@supabase/supabase-js": "^2.106.2",
+    "@xyflow/react": "^12.11.2",
     "echarts": "^6.1.0",
     "lucide-react": "^1.17.0",
     "react": "^19.2.0",

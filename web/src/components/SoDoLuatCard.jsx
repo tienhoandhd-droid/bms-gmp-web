@@ -1,18 +1,21 @@
 // ============================================================
-// SoDoLuatCard — SƠ ĐỒ LUỒNG VẬN HÀNH sinh từ bảng luật (tab Cài đặt)
+// SoDoLuatCard — SƠ ĐỒ LUỒNG VẬN HÀNH (React Flow) sinh từ bảng luật (tab Cài đặt)
 //
-// Thiết kế (sau 3 vòng, tham khảo React Flow / XState viz / process-map):
-//   • XƯƠNG SỐNG: chỉ các chuyển tiếp TUẦN TỰ (Chưa xử lý → Đã báo Cơ điện →
-//     Cơ điện xử lý → Đã khắc phục). Vẽ như bản đồ quy trình, đọc trái→phải.
-//   • HÀNH ĐỘNG BẤT KỲ LÚC NÀO (Quản trị/QA đóng·mở lại, IPC bình thường) tách
-//     ra panel riêng — KHÔNG trộn vào xương sống (đó là lý do sơ đồ cũ rối).
-//   • Lọc theo vai trò: chọn "Cơ điện" → sáng đúng đường Cơ điện đi.
-// Mỗi mũi tên = một dòng quy_tac_chuyen_trang_thai ⇒ không thể lệch luật.
+// Vòng 4 (tham khảo React Flow / xyflow — chuẩn node-based diagram):
+//   • XƯƠNG SỐNG dựng bằng React Flow + dagre (tự bố cục trái→phải): có PAN/ZOOM,
+//     nút "vừa khung", định tuyến cạnh gọn (smoothstep) — hết cảnh bezier chồng chéo.
+//   • Cạnh QUAY-LẠI (đích ở bên trái nguồn) vẽ NÉT ĐỨT ⇒ phân biệt đi-tới / quay-lại.
+//   • HÀNH ĐỘNG BẤT KỲ LÚC NÀO (Quản trị/QA đóng·mở lại, IPC bình thường) vẫn để
+//     panel RIÊNG bên dưới — không trộn vào xương sống (lý do các bản cũ rối).
+//   • Lọc theo vai trò: chọn "Cơ điện" → làm mờ đường/nút không thuộc Cơ điện.
+// Mỗi cạnh = (các) dòng quy_tac_chuyen_trang_thai ⇒ không thể lệch luật.
 // ============================================================
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
+import { ReactFlow, Background, Controls, Handle, Position, MarkerType, useReactFlow, ReactFlowProvider } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import { COLOR } from "../lib/designTokens";
 import { phanTichLuat, sinhMermaid, tenTT, VAI_TRO_TEN } from "../lib/soDoLuat";
-import { boCucLuong } from "../lib/soDoLayout";
+import { dungDoThi, NODE_W, NODE_H } from "../lib/soDoDagre";
 
 const VAI = {
   IPC:   { net: "#1e72b8", nen: "#eaf3fb", chu: "#155a91" },
@@ -24,52 +27,99 @@ const VAI = {
 };
 const mv = (v) => VAI[v] || VAI.SYSTEM;
 
-// đường cong: xuôi = bézier ngang; ngược/lên = cung phía trên; cùng cột = cung phải
-function duong(e) {
-  if (e.nguoc) {
-    const midY = Math.min(e.y1, e.y2) - 34;
-    return `M ${e.x1} ${e.y1} C ${e.x1} ${midY}, ${e.x2} ${midY}, ${e.x2} ${e.y2}`;
-  }
-  if (e.cungCot) {
-    const off = 46;
-    return `M ${e.x1} ${e.y1} C ${e.x1 + off} ${e.y1}, ${e.x2 + off} ${e.y2}, ${e.x2} ${e.y2}`;
-  }
-  const dx = Math.max(46, (e.x2 - e.x1) * 0.45);
-  return `M ${e.x1} ${e.y1} C ${e.x1 + dx} ${e.y1}, ${e.x2 - dx} ${e.y2}, ${e.x2} ${e.y2}`;
+// ---- Node trạng thái: thẻ bo góc, đổ bóng; trạng thái đóng có dải xanh + nền ngọc ----
+function NodeTrangThai({ data }) {
+  const dong = data.laDong;
+  return (
+    <div style={{
+      width: NODE_W, height: NODE_H, position: "relative",
+      background: dong ? "#ecfdf5" : "#ffffff",
+      border: `1.75px solid ${dong ? "#10b981" : "#d5dee7"}`,
+      borderRadius: 14, boxShadow: "0 2px 5px rgba(15,23,42,0.07)",
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      padding: "4px 12px 4px 14px", opacity: data.mo ? 0.32 : 1, transition: "opacity .15s",
+    }}>
+      <Handle type="target" position={Position.Left} style={{ opacity: 0, width: 1, height: 1, border: 0 }} />
+      {dong && <div style={{ position: "absolute", left: 0, top: 8, bottom: 8, width: 5, borderRadius: 3, background: "#10b981" }} />}
+      <div style={{ fontSize: 13.5, fontWeight: 700, color: COLOR.navy, textAlign: "center", lineHeight: 1.15 }}>{data.ten}</div>
+      <div style={{ fontSize: 9, color: dong ? "#0b8f6a" : "#a3b0be", marginTop: 2 }}>{dong ? "trạng thái đóng" : data.id}</div>
+      <Handle type="source" position={Position.Right} style={{ opacity: 0, width: 1, height: 1, border: 0 }} />
+    </div>
+  );
+}
+const nodeTypes = { tt: NodeTrangThai };
+
+function KhungSoDo({ base, vai }) {
+  const rf = useReactFlow();
+
+  const nodes = useMemo(() => base.nodes.map((n) => {
+    // node "mờ" nếu KHÔNG có cạnh sáng nào chạm tới (khi đang lọc theo vai)
+    const chamSang = vai === "ALL" || base.edges.some(
+      (e) => e.data.vai_tro === vai && (e.source === n.id || e.target === n.id));
+    return { ...n, data: { ...n.data, mo: !chamSang } };
+  }), [base, vai]);
+
+  const edges = useMemo(() => base.edges.map((e) => {
+    const sang = vai === "ALL" || e.data.vai_tro === vai;
+    const m = mv(e.data.vai_tro);
+    return {
+      ...e,
+      animated: false,
+      style: { stroke: m.net, strokeWidth: sang ? 2.25 : 1.25,
+        strokeDasharray: e.data.nguoc ? "6 5" : undefined, opacity: sang ? 0.95 : 0.1 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: m.net, width: 16, height: 16 },
+      labelBgPadding: [6, 3], labelBgBorderRadius: 8,
+      labelBgStyle: { fill: "#ffffff", stroke: m.net, strokeOpacity: 0.35, opacity: sang ? 1 : 0.15 },
+      labelStyle: { fill: m.chu, fontSize: 10.5, fontWeight: 600, opacity: sang ? 1 : 0.2 },
+    };
+  }), [base, vai]);
+
+  const onInit = useCallback(() => { setTimeout(() => rf.fitView({ padding: 0.18, duration: 300 }), 0); }, [rf]);
+
+  return (
+    <ReactFlow
+      nodes={nodes} edges={edges} nodeTypes={nodeTypes}
+      onInit={onInit} fitView fitViewOptions={{ padding: 0.18 }}
+      nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}
+      proOptions={{ hideAttribution: true }} minZoom={0.4} maxZoom={1.6}
+      defaultEdgeOptions={{ type: "smoothstep" }}
+    >
+      <Background gap={20} size={1} color="#e2e8f0" />
+      <Controls showInteractive={false} position="bottom-right" />
+    </ReactFlow>
+  );
 }
 
 export default function SoDoLuatCard({ dsNut }) {
   const [vai, setVai] = useState("ALL");
   const [daCopy, setDaCopy] = useState(false);
 
-  const g = useMemo(() => (Array.isArray(dsNut) && dsNut.length ? boCucLuong(dsNut) : null), [dsNut]);
+  const base = useMemo(() => (Array.isArray(dsNut) && dsNut.length ? dungDoThi(dsNut) : null), [dsNut]);
   const { canhBatKy, taiCho, vaiCo } = useMemo(() => {
     const pt = phanTichLuat(dsNut);
     const s = new Set([...pt.canhTuanTu, ...pt.canhBatKy, ...pt.taiCho].map((x) => x.vai_tro));
     return { canhBatKy: pt.canhBatKy, taiCho: pt.taiCho, vaiCo: [...s].sort() };
   }, [dsNut]);
 
-  if (!g) return <p className="text-[12px] text-slate-400">Chưa nạp được bảng luật (cần đăng nhập ở chế độ LIVE).</p>;
+  if (!base || !base.nodes.length) return <p className="text-[12px] text-slate-400">Chưa nạp được bảng luật (cần đăng nhập ở chế độ LIVE).</p>;
 
   const sang = (v) => vai === "ALL" || v === vai;
-  const canhSang = g.edges.filter((e) => sang(e.vai_tro));
   const batKySang = canhBatKy.filter((e) => sang(e.vai_tro));
   const taiChoSang = taiCho.filter((t) => sang(t.vai_tro));
+  const denTheoVai = {};
+  for (const e of batKySang) (denTheoVai[e.vai_tro] ||= []).push(e);
 
   const copyMermaid = async () => {
     try { await navigator.clipboard.writeText(sinhMermaid(dsNut)); setDaCopy(true); setTimeout(() => setDaCopy(false), 2000); }
     catch { alert("Trình duyệt chặn clipboard."); }
   };
 
-  const denTheoVai = {};
-  for (const e of batKySang) (denTheoVai[e.vai_tro] ||= []).push(e);
-
   return (
     <div>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <p className="text-[11.5px] text-slate-500 leading-relaxed max-w-xl">
           <b>Luồng vận hành sự cố</b> đọc từ trái sang phải: IPC phát hiện → chuyển Cơ điện → Cơ điện xử lý → khắc phục.
-          Mỗi mũi tên là <b>một nút thật</b> trong bảng luật. Chọn một bộ phận để xem đúng đường nó đi khi bấm nút.
+          Mỗi mũi tên là <b>một nút thật</b> trong bảng luật; nét đứt là bước <b>quay lại</b>. Kéo để di chuyển, cuộn để phóng to.
           Các hành động <b>làm được ở bất kỳ trạng thái nào</b> (đóng, mở lại, xác nhận) nằm ở khối bên dưới.
         </p>
         <button onClick={copyMermaid} className="shrink-0 rounded-xl px-3 py-1.5 text-[12px] font-medium text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50">
@@ -92,55 +142,11 @@ export default function SoDoLuatCard({ dsNut }) {
         })}
       </div>
 
-      {/* XƯƠNG SỐNG — sơ đồ quy trình */}
-      <div className="mt-3 overflow-x-auto rounded-2xl ring-1 ring-slate-200 bg-gradient-to-b from-slate-50 to-white p-3">
-        <svg width={g.width} height={g.height} style={{ minWidth: g.width }} className="block">
-          <defs>
-            {Object.entries(VAI).map(([k, m]) => (
-              <marker key={k} id={`ar-${k}`} viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
-                <path d="M 0 1 L 9 5 L 0 9 z" fill={m.net} />
-              </marker>
-            ))}
-            <marker id="ar-mo" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
-              <path d="M 0 1 L 9 5 L 0 9 z" fill="#d7dee6" />
-            </marker>
-          </defs>
-
-          {/* mũi tên mờ (vai khác) */}
-          {vai !== "ALL" && g.edges.filter((e) => !sang(e.vai_tro)).map((e, i) => (
-            <path key={"d" + i} d={duong(e)} fill="none" stroke="#e8edf2" strokeWidth="1.5" markerEnd="url(#ar-mo)" />
-          ))}
-
-          {/* mũi tên sáng + nhãn nền pill */}
-          {canhSang.map((e, i) => {
-            const m = mv(e.vai_tro);
-            const lx = e.nguoc ? (e.x1 + e.x2) / 2 : (e.x1 + e.x2) / 2;
-            const ly = e.nguoc ? Math.min(e.y1, e.y2) - 30 : (e.y1 + e.y2) / 2 - 11;
-            const chu = e.nhan.length > 26 ? e.nhan.slice(0, 25) + "…" : e.nhan;
-            const w = chu.length * 5.7 + 14;
-            return (
-              <g key={"e" + i}>
-                <path d={duong(e)} fill="none" stroke={m.net} strokeWidth="2.25" markerEnd={`url(#ar-${e.vai_tro})`} opacity="0.92" />
-                <rect x={lx - w / 2} y={ly - 8} width={w} height="16" rx="8" fill="#fff" stroke={m.net} strokeOpacity="0.35" />
-                <text x={lx} y={ly + 3.5} textAnchor="middle" fontSize="10" fontWeight="600" fill={m.chu || m.net} style={{ pointerEvents: "none" }}>{chu}</text>
-              </g>
-            );
-          })}
-
-          {/* node trạng thái — thẻ có dải màu trái theo "ai vừa đưa vào" (đích), tiêu đề rõ */}
-          {g.nodes.map((n) => (
-            <g key={n.id}>
-              <rect x={n.x} y={n.y} width={n.W} height={n.H} rx="14"
-                    fill={n.laDong ? "#ecfdf5" : "#ffffff"} stroke={n.laDong ? "#10b981" : "#d5dee7"} strokeWidth="2"
-                    style={{ filter: "drop-shadow(0 2px 4px rgba(15,23,42,0.06))" }} />
-              {n.laDong && <rect x={n.x} y={n.y} width="6" height={n.H} rx="3" fill="#10b981" />}
-              <text x={n.x + n.W / 2} y={n.y + n.H / 2 - 3} textAnchor="middle" fontSize="13.5" fontWeight="700" fill={COLOR.navy}>
-                {n.ten.length > 22 ? n.ten.slice(0, 21) + "…" : n.ten}
-              </text>
-              <text x={n.x + n.W / 2} y={n.y + n.H / 2 + 13} textAnchor="middle" fontSize="9" fill="#a3b0be">{n.laDong ? "trạng thái đóng" : n.id}</text>
-            </g>
-          ))}
-        </svg>
+      {/* XƯƠNG SỐNG — React Flow */}
+      <div className="mt-3 rounded-2xl ring-1 ring-slate-200 bg-gradient-to-b from-slate-50 to-white overflow-hidden" style={{ height: 440 }}>
+        <ReactFlowProvider>
+          <KhungSoDo base={base} vai={vai} />
+        </ReactFlowProvider>
       </div>
 
       {/* HÀNH ĐỘNG BẤT KỲ LÚC NÀO */}
