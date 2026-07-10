@@ -129,7 +129,28 @@
 | Đổi thời gian chờ luật → thời điểm tự chuyển đổi theo | **E5** | ✅ |
 | **Vô hiệu người nhận** → gỡ khỏi email_to sự cố | **E6** | ✅ |
 
-> Kết quả toàn diện gần nhất: **69/70 đạt** (1 "vỡ" = B13 benign). Chạy: `bash kiem_tra/chay.sh`.
+## M. THAY ĐỔI (nguyên tắc · tài khoản · phòng) → HỆ THỐNG CẢNH BÁO (`anh_huong_canh_bao.sql`)
+Riêng lẻ (N1–N9) và **kết hợp** (N10–N12). Nguyên tắc GMP khẳng định: ngoài cấp/sai
+hướng **KHÔNG mở sự cố nhưng dữ liệu OOS VẪN ghi đủ** (KPI/tuân thủ).
+| Kịch bản | Test | TT |
+|---|---|---|
+| Đổi **ngưỡng** cảnh báo → ranh giới mở sự cố khi ingest | **N1** | ✅ |
+| Đổi **hướng** (DƯỚI/TRÊN/CẢ HAI) → chỉ mở đúng hướng · **OOS vẫn ghi** | **N2** | ✅ |
+| **Cấp phòng được cảnh báo**: ngoài cấp KHÔNG mở · **OOS vẫn ghi** | **N3** | ✅ |
+| Đổi **khu tài khoản** → mất quyền thao tác cảnh báo khu cũ | **N4** | ✅ |
+| **Vô hiệu tài khoản** → không thao tác được | **N5** | ✅ |
+| Đổi **vai trò tài khoản** → bộ nút thao tác đổi | **N6** | ✅ |
+| Đổi **khu phòng** → quyền thao tác theo khu mới | **N7** | ✅ |
+| **Vô hiệu phòng** → WF1 ngừng thu (sự cố cũ vẫn đóng được, không mồ côi) | **N8** | ✅ |
+| Đổi **mức ưu tiên phòng** → SLA cảnh báo quá hạn đổi | **N9** | ✅ |
+| **KẾT HỢP** đổi khu phòng → cảnh báo chuyển đội khu mới | **N10** | ✅ |
+| **KẾT HỢP** phòng P1→P3 + bỏ P3 phạm vi → tắt cảnh báo, **vẫn ghi OOS** | **N11** | ✅ |
+| **KẾT HỢP** đổi ngưỡng + hướng → hành vi mở cộng hưởng | **N12** | ✅ |
+
+> Kết quả toàn diện gần nhất: **81/82 đạt** (1 "vỡ" = B13 benign). Chạy: `bash kiem_tra/chay.sh`.
+> Nguyên tắc web đã kiểm khớp: **Cấp độ phòng được cảnh báo** (chỉ mở/gửi cho phòng thuộc
+> cấp đã chọn; ngoài cấp vẫn ghi OOS đủ) và **Hướng mở sự cố theo chỉ tiêu** (DƯỚI/TRÊN/CẢ
+> HAI mỗi loại; dữ liệu thô luôn ghi; áp dụng từ giờ chạy kế tiếp).
 
 ## Còn chưa test (đề xuất bổ sung sau — rủi ro thấp/cần bối cảnh)
 - **Phạm vi/airlock trực diện:** OOS ở phòng P3 KHÔNG canh_bao_bat_buoc → không mở CRITICAL (hiện chỉ gián tiếp qua trong_pham_vi_canh_bao).

@@ -121,6 +121,20 @@ else
   VO=$((VO+SQL_VO3))
 fi
 
+# ── THAY ĐỔI (nguyên tắc/tài khoản/phòng) → HỆ THỐNG CẢNH BÁO ───────────────
+echo ""
+echo "── THAY ĐỔI → HỆ THỐNG CẢNH BÁO (nguyên tắc · tài khoản · phòng; riêng+kết hợp) ──"
+OUT4=$(PSQL -qtA -F' │ ' -f kiem_tra/anh_huong_canh_bao.sql 2>&1)
+echo "$OUT4" | grep -E '^(✅|❌|TỔNG)' | sed 's/^/  /'
+SQL_VO4=$(echo "$OUT4" | grep '^KQ_MAY_DOC:' | cut -d: -f2)
+if [ -z "${SQL_VO4:-}" ]; then
+  echo "❌ Bộ kiểm CẢNH BÁO không chạy trọn (giao dịch abort?) — đọc lỗi:"
+  echo "$OUT4" | grep -iE 'error|nổ|exception' | head -4 | sed 's/^/    /'
+  VO=$((VO+1))
+else
+  VO=$((VO+SQL_VO4))
+fi
+
 echo ""
 echo "══════════════════════════════════════════════════════════════"
 if [ "$VO" -eq 0 ]; then
