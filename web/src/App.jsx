@@ -2565,18 +2565,33 @@ export default function App() {
   const isLive = dataSource === "live";
   // Có token email + đã đăng nhập → soi vé (CHỈ ĐỌC). DB kiểm vai trò, khu, hạn
   // token, và cả việc sự cố đã đổi trạng thái từ lúc gửi mail.
+  //
+  // ⚠ BUG ĐÃ SỬA (10/07/2026) — effect tự huỷ chính nó, modal kẹt ở "Đang kiểm tra liên kết…":
+  //   Bản cũ để `veEmail` trong mảng phụ thuộc VÀ gọi setVeEmail({dangTai:true}) ngay trong
+  //   effect. Chuỗi sự kiện: set state → veEmail đổi → React chạy hàm dọn dẹp (huy = true)
+  //   → effect chạy lại nhưng thoát sớm vì `veEmail` đã có → promise cũ về đích, thấy
+  //   huy === true nên KHÔNG set kết quả. Modal đứng mãi ở trạng thái đang tải.
+  //   `user` cũng đổi tham chiếu hai lần (theoDoiPhien phát user tối thiểu rồi user đủ vai
+  //   trò), nên kể cả bỏ veEmail khỏi deps thì cleanup vẫn bắn và vẫn hỏng.
+  //
+  // Cách sửa: cờ "đã chạy" và cờ "đã unmount" nằm ở ref, không phải ở deps. Effect chỉ
+  //   phụ thuộc điều kiện KHỞI ĐỘNG (isLive, có user), không phụ thuộc kết quả của nó.
+  const veDaChay = useRef(false);
+  const veDaGo = useRef(false);
+  useEffect(() => () => { veDaGo.current = true; }, []);
   useEffect(() => {
-    if (!isLive || !user || !tokenEmail.current || veEmail) return;
-    let huy = false;
+    if (!isLive || !user || !tokenEmail.current || veDaChay.current) return;
+    veDaChay.current = true;
     setVeEmail({ dangTai: true });
     kiemVeThaoTac(tokenEmail.current).then(({ error, ve }) => {
-      if (huy) return;
+      if (veDaGo.current) return;              // chỉ bỏ qua khi component đã bị gỡ
       if (error) setVeEmail({ loi: moTaLoi(error) });
       else if (!ve?.ok) setVeEmail({ loi: ve?.thong_bao || "Liên kết không dùng được." });
       else setVeEmail({ ve });
+    }).catch(() => {
+      if (!veDaGo.current) setVeEmail({ loi: "Không kiểm tra được liên kết. Kiểm tra mạng rồi thử lại." });
     });
-    return () => { huy = true; };
-  }, [isLive, user, veEmail]);
+  }, [isLive, user]);
   const dongVe = () => { tokenEmail.current = null; setVeEmail(null); };
   const chayVe = async (lyDo) => {
     const { data, error } = await thaoTacSuCoTuEmail({ token: tokenEmail.current, lyDo });
