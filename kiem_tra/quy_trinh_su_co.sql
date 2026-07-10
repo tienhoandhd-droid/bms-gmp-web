@@ -63,6 +63,28 @@ CREATE FUNCTION pg_temp.dong_chua(p_sc bigint) RETURNS boolean LANGUAGE sql AS
 $$ SELECT thoi_gian_dong IS NOT NULL FROM public.su_co WHERE ma_su_co=p_sc $$;
 CREATE FUNCTION pg_temp.ok(r jsonb) RETURNS boolean LANGUAGE sql AS $$ SELECT COALESCE(r->>'ok','false')='true' $$;
 
+-- Bơm một giờ dữ liệu DP vào một phòng (ingest thật rpc_xu_ly_du_lieu_phong_hang_gio).
+-- p_gio: lệch giờ so hiện tại (dùng giờ TƯƠNG LAI để không đụng bucket thật). p_oos: điểm OOS.
+CREATE FUNCTION pg_temp.bom(p_phong text, p_ahu text, p_uu text, p_gio int, p_oos int, p_oos10 int, p_tb numeric, p_dh boolean)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM public.rpc_xu_ly_du_lieu_phong_hang_gio(jsonb_build_object(
+    'bucket_utc', to_char(date_trunc('hour',now())+make_interval(hours=>p_gio),'YYYY-MM-DD"T"HH24:00:00+00'),
+    'thuoc_thu_nghiem',false,'ma_phong',p_phong,'ten_phong','kịch bản','khu_vuc',split_part(p_phong,'.',1),
+    'ahu',p_ahu,'muc_uu_tien',p_uu,'cap_phong_sach','C',
+    'cam_bien', jsonb_build_array(jsonb_build_object(
+      'loai_cam_bien','DP','loai_canh_bao','OOS_DP','don_vi','Pa','gioi_han_duoi',10,'gioi_han_tren',20,
+      'tong_diem',60,'diem_hop_le',60,'diem_thieu',0,'chat_luong_du_lieu_pct',100,
+      'gia_tri_tb',p_tb,'gia_tri_min',CASE WHEN p_dh THEN p_tb ELSE p_tb-0.4 END,
+      'gia_tri_max',CASE WHEN p_dh THEN p_tb ELSE p_tb+0.4 END,
+      'diem_oos',p_oos,'diem_oos_thap',p_oos,'diem_oos_cao',0,'oos_10phut_cuoi',p_oos10,
+      'muc_canh_bao',CASE WHEN p_oos>20 THEN 'CRITICAL' WHEN p_oos>0 THEN 'WARNING' ELSE 'NORMAL' END,
+      'chan_doan','{}'::jsonb))));
+END $$;
+-- lấy phòng thật thứ n (0-based) trong khu
+CREATE FUNCTION pg_temp.phong_khu(p_khu text, p_n int DEFAULT 0) RETURNS text LANGUAGE sql AS
+$$ SELECT ma_phong FROM public.phong_sach WHERE kich_hoat AND khu_vuc=p_khu ORDER BY ma_phong LIMIT 1 OFFSET p_n $$;
+
 -- ══════════════════════════════════════════════════════════════════════════
 -- S1 — ĐƯỜNG VÀNG TRỌN VẸN: IPC báo → Cơ điện tiếp nhận → Cơ điện khắc phục
 -- ══════════════════════════════════════════════════════════════════════════
@@ -365,6 +387,127 @@ BEGIN
       v_qh_truoc, (v_ack IS NOT NULL), v_qh_sau),
     'xem_su_co_qua_han: ack_luc IS NULL AND now()>ack_han; trigger tg_su_co_ack set ack_luc khi bộ phận tiếp nhận');
 EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','T5 · SLA quá hạn tiếp nhận: hiện cờ rồi tự hết khi tiếp nhận', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- VẬN HÀNH ĐẦY ĐỦ (U1–U7): các đường vận hành chưa test ở S/T/K
+-- ══════════════════════════════════════════════════════════════════════════
+
+-- U1 — INGEST MỞ SỰ CỐ: dữ liệu OOS vào phòng in-scope → mở sự cố CRITICAL; sạch → không
+DO $$
+DECLARE v_phong text; v_truoc int; v_sau int; v_dat boolean;
+BEGIN
+  -- CHỌN phòng in-scope (P1/P2) đang SẠCH (không sự cố DP mở) ⇒ chứng minh delta 0→1 thật
+  SELECT p.ma_phong INTO v_phong FROM public.phong_sach p
+   WHERE p.kich_hoat AND p.khu_vuc='C1' AND p.muc_uu_tien IN('P1','P2')
+     AND NOT EXISTS(SELECT 1 FROM public.su_co s WHERE s.ma_phong=p.ma_phong AND s.loai_cam_bien='DP' AND s.thoi_gian_dong IS NULL)
+   ORDER BY p.ma_phong LIMIT 1;
+  IF v_phong IS NULL THEN
+    PERFORM pg_temp.ghi('KICH_BAN','U1 · Ingest OOS → mở sự cố CRITICAL', true, 'bỏ qua: mọi phòng in-scope C1 đang có sự cố DP mở', ''); RETURN;
+  END IF;
+  SELECT count(*) INTO v_truoc FROM public.su_co WHERE ma_phong=v_phong AND loai_cam_bien='DP' AND thoi_gian_dong IS NULL;
+  PERFORM pg_temp.bom(v_phong,'AHU-KTU1','P1', 20, 55, 9, 8, false);        -- giờ +20: OOS mạnh → mở CRITICAL
+  SELECT count(*) INTO v_sau FROM public.su_co WHERE ma_phong=v_phong AND loai_cam_bien='DP' AND thoi_gian_dong IS NULL AND muc_canh_bao_hien_tai='CRITICAL';
+  v_dat := (v_truoc=0) AND (v_sau=1);   -- sạch → đúng 1 sự cố CRITICAL được MỞ
+  PERFORM pg_temp.ghi('KICH_BAN','U1 · Ingest OOS → mở sự cố CRITICAL', v_dat,
+    format('phòng SẠCH %s · mở CRITICAL trước=%s sau=%s (kỳ vọng 0→1)', v_phong, v_truoc, v_sau),
+    'rpc_xu_ly_du_lieu_phong_hang_gio: OOS vượt ngưỡng + in-scope ⇒ mở su_co CRITICAL + gán cụm');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','U1 · Ingest OOS → mở sự cố CRITICAL', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- U2 — TỰ PHÂN TUYẾN (SYSTEM): CHUA_XU_LY quá 240' → cron chuyển sang Đã báo Cơ điện
+DO $$
+DECLARE v_sc bigint; v_phong text; r jsonb; v_dat boolean; v_audit int;
+BEGIN
+  v_phong := pg_temp.phong_khu('C1', 0);
+  PERFORM set_config('app.tg_bypass_append_only','on',true);
+  INSERT INTO public.su_co(thuoc_thu_nghiem,khoa_su_co,ma_phong,ten_phong,khu_vuc,ahu,cap_phong_sach,muc_uu_tien,loai_cam_bien,loai_canh_bao,muc_canh_bao_ban_dau,muc_canh_bao_hien_tai,trang_thai_hien_tai,thoi_gian_mo,thoi_gian_lan_cuoi_quan_sat,thao_tac_cuoi_luc,nguon)
+  VALUES(false,md5('KTU2'||random()::text),v_phong,'x','C1','AHU-KTU2','C','P1','DP','OOS_DP','CRITICAL','CRITICAL','CHUA_XU_LY',now()-interval '5 hour',now(),now()-interval '5 hour','KIEMTHU')
+  RETURNING ma_su_co INTO v_sc;
+  r := public.rpc_tu_phan_tuyen_su_co();     -- cron */15
+  SELECT count(*) INTO v_audit FROM public.lich_su_su_co WHERE ma_su_co=v_sc AND hanh_dong='tu_phan_tuyen_co_dien' AND vai_tro='SYSTEM';
+  v_dat := pg_temp.tt_now(v_sc)='DA_BAO_CO_DIEN' AND v_audit=1;
+  PERFORM pg_temp.ghi('KICH_BAN','U2 · Tự phân tuyến SYSTEM sau 240'' im lặng', v_dat,
+    format('rpc ok=%s chuyển=%s · sự cố → %s · audit SYSTEM=%s',
+      r->>'ok', r->>'so_chuyen', pg_temp.tt_now(v_sc), v_audit),
+    'rpc_tu_phan_tuyen_su_co: CHUA_XU_LY + CRITICAL + quá cho_it_nhat_phut(240) → DA_BAO_CO_DIEN, audit SYSTEM');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','U2 · Tự phân tuyến SYSTEM sau 240'' im lặng', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- U3 — CỤM NHIỀU SỰ CỐ: 2 phòng cùng AHU → cùng cụm; đóng 1 cụm còn mở; đóng cả 2 → cụm đóng
+DO $$
+DECLARE v_p1 text; v_p2 text; v_sc1 bigint; v_sc2 bigint; v_cum1 bigint; v_cum2 bigint;
+  v_mo_sau1 boolean; v_dong_sau2 boolean; v_dat boolean;
+BEGIN
+  v_p1 := pg_temp.phong_khu('C1', 4); v_p2 := pg_temp.phong_khu('C1', 5);
+  PERFORM set_config('app.tg_bypass_append_only','on',true);
+  INSERT INTO public.su_co(thuoc_thu_nghiem,khoa_su_co,ma_phong,ten_phong,khu_vuc,ahu,cap_phong_sach,muc_uu_tien,loai_cam_bien,loai_canh_bao,muc_canh_bao_ban_dau,muc_canh_bao_hien_tai,trang_thai_hien_tai,thoi_gian_mo,thoi_gian_lan_cuoi_quan_sat,nguon)
+  VALUES(false,md5('KTU3a'||random()::text),v_p1,'x','C1','AHU-KTU3','C','P1','DP','OOS_DP','CRITICAL','CRITICAL','CO_DIEN_DANG_XU_LY',now()-interval '1h',now(),'KIEMTHU') RETURNING ma_su_co INTO v_sc1;
+  INSERT INTO public.su_co(thuoc_thu_nghiem,khoa_su_co,ma_phong,ten_phong,khu_vuc,ahu,cap_phong_sach,muc_uu_tien,loai_cam_bien,loai_canh_bao,muc_canh_bao_ban_dau,muc_canh_bao_hien_tai,trang_thai_hien_tai,thoi_gian_mo,thoi_gian_lan_cuoi_quan_sat,nguon)
+  VALUES(false,md5('KTU3b'||random()::text),v_p2,'x','C1','AHU-KTU3','C','P1','DP','OOS_DP','CRITICAL','CRITICAL','CO_DIEN_DANG_XU_LY',now()-interval '1h',now(),'KIEMTHU') RETURNING ma_su_co INTO v_sc2;
+  SELECT ma_cum INTO v_cum1 FROM public.su_co WHERE ma_su_co=v_sc1;
+  SELECT ma_cum INTO v_cum2 FROM public.su_co WHERE ma_su_co=v_sc2;
+  PERFORM pg_temp.tt('chanbonght@gmail.com', v_sc1, 'mep_xu_ly_xong');   -- đóng sự cố 1
+  SELECT thoi_gian_dong IS NULL INTO v_mo_sau1 FROM public.cum_su_co WHERE ma_cum=v_cum1;   -- cụm PHẢI còn mở
+  PERFORM pg_temp.tt('chanbonght@gmail.com', v_sc2, 'mep_xu_ly_xong');   -- đóng sự cố 2 (cuối)
+  SELECT thoi_gian_dong IS NOT NULL INTO v_dong_sau2 FROM public.cum_su_co WHERE ma_cum=v_cum1;  -- giờ cụm đóng
+  v_dat := (v_cum1=v_cum2) AND (v_cum1 IS NOT NULL) AND v_mo_sau1 AND v_dong_sau2;
+  PERFORM pg_temp.ghi('KICH_BAN','U3 · Cụm nhiều sự cố đóng theo sự cố cuối', v_dat,
+    format('cùng cụm=%s (%s=%s) · sau đóng 1 cụm còn mở=%s · sau đóng 2 cụm đóng=%s',
+      (v_cum1=v_cum2), v_cum1, v_cum2, v_mo_sau1, v_dong_sau2),
+    'gan_cum_su_co khoá md5(ahu|sensor); tg_cum_tu_dong đóng cụm khi HẾT sự cố mở');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','U3 · Cụm nhiều sự cố đóng theo sự cố cuối', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- U4 — IPC BÁO NHẦM: ipc_binh_thuong → đóng thẳng IPC_BINH_THUONG, không qua Cơ điện
+DO $$
+DECLARE v_sc bigint; r jsonb; v_dat boolean;
+BEGIN
+  v_sc := pg_temp.tao_sc('C1','x','AHU-KTU4','CHUA_XU_LY');
+  r := pg_temp.tt('ipcbfs@gmail.com', v_sc, 'ipc_binh_thuong');
+  v_dat := pg_temp.ok(r) AND pg_temp.tt_now(v_sc)='IPC_BINH_THUONG' AND pg_temp.dong_chua(v_sc);
+  PERFORM pg_temp.ghi('KICH_BAN','U4 · IPC báo nhầm (bình thường) đóng thẳng', v_dat,
+    format('ok=%s → %s đóng=%s', r->>'ok', pg_temp.tt_now(v_sc), pg_temp.dong_chua(v_sc)),
+    'Luật ipc_binh_thuong: * → IPC_BINH_THUONG (dong_su_co=true)');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','U4 · IPC báo nhầm (bình thường) đóng thẳng', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- U5 — ADMIN OVERRIDE: admin_dong giữa luồng; admin_mo_lai từ đã đóng
+DO $$
+DECLARE v_sc bigint; r_dong jsonb; r_ml jsonb; v_dat boolean;
+BEGIN
+  v_sc := pg_temp.tao_sc('C1','x','AHU-KTU5','DA_BAO_CO_DIEN');
+  r_dong := pg_temp.tt('admin@cpc1hn.vn', v_sc, 'admin_dong');                 -- đóng giữa luồng
+  r_ml   := pg_temp.tt('admin@cpc1hn.vn', v_sc, 'admin_mo_lai', 'Quản trị mở lại để điều tra thêm');  -- mở lại
+  v_dat := pg_temp.ok(r_dong) AND pg_temp.ok(r_ml)
+       AND pg_temp.tt_now(v_sc)='MO_LAI' AND NOT pg_temp.dong_chua(v_sc);
+  PERFORM pg_temp.ghi('KICH_BAN','U5 · Admin override đóng/mở lại từ mọi trạng thái', v_dat,
+    format('admin_dong ok=%s · admin_mo_lai ok=%s → %s đóng=%s',
+      r_dong->>'ok', r_ml->>'ok', pg_temp.tt_now(v_sc), pg_temp.dong_chua(v_sc)),
+    'admin_dong (*→DA_KHAC_PHUC) + admin_mo_lai (*→MO_LAI, ap_dung_khi=DONG)');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','U5 · Admin override đóng/mở lại từ mọi trạng thái', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- U6 — ĐỊNH TUYẾN EMAIL: sự cố CRITICAL in-scope xuất hiện trong xem_dinh_tuyen_email_v14 có vai nhận
+DO $$
+DECLARE v_sc bigint; v_co boolean; v_vai text; v_dat boolean;
+BEGIN
+  v_sc := pg_temp.tao_sc('C1','x','AHU-KTU6','DA_BAO_CO_DIEN');   -- CRITICAL, đã báo Cơ điện
+  SELECT true, vai_tro_nhan INTO v_co, v_vai FROM public.xem_dinh_tuyen_email_v14 WHERE ma_su_co=v_sc LIMIT 1;
+  v_dat := COALESCE(v_co,false) AND v_vai IS NOT NULL;
+  PERFORM pg_temp.ghi('KICH_BAN','U6 · Định tuyến email: CRITICAL có vai trò nhận', v_dat,
+    format('xuất hiện trong v14=%s · vai_tro_nhan=%s', COALESCE(v_co,false), COALESCE(v_vai,'(không)')),
+    'xem_dinh_tuyen_email_v14 chọn người nhận theo trạng thái/khu/AHU; WF8 đọc để gửi');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','U6 · Định tuyến email: CRITICAL có vai trò nhận', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+
+-- U7 — VIEWER: chỉ-xem thật — mọi thao tác đều bị chặn
+DO $$
+DECLARE v_sc bigint; r jsonb; v_dat boolean; v_mail text := 'viewer.kiemthu@cpc1hn.vn';
+BEGIN
+  INSERT INTO public.nguoi_dung(email, ho_ten, vai_tro, khu_vuc, kich_hoat)
+    VALUES(v_mail,'Viewer kiểm thử','VIEWER',ARRAY['C1','C4','Q2'],true)
+    ON CONFLICT (email) DO UPDATE SET vai_tro='VIEWER', kich_hoat=true;
+  v_sc := pg_temp.tao_sc('C1','x','AHU-KTU7','DA_BAO_CO_DIEN');
+  r := pg_temp.tt(v_mail, v_sc, 'mep_tiep_nhan');
+  v_dat := (NOT pg_temp.ok(r)) AND r->>'loi' IN ('KHONG_DUOC_PHEP','KHONG_CO_QUYEN');
+  PERFORM pg_temp.ghi('KICH_BAN','U7 · VIEWER chỉ-xem: mọi thao tác bị chặn', v_dat,
+    format('VIEWER bấm mep_tiep_nhan: ok=%s loi=%s', r->>'ok', r->>'loi'),
+    'VIEWER không có luật trong quy_tac_chuyen_trang_thai ⇒ KHONG_DUOC_PHEP (B21 + guard)');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','U7 · VIEWER chỉ-xem: mọi thao tác bị chặn', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
 
 -- =============================================================================
 -- BÁO CÁO
