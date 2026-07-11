@@ -2600,6 +2600,54 @@ function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
     </div>, document.body);
 }
 
+// ═══ VIỆC CỦA BẠN — banner nổi trên MỌI tab (QA/ADMIN thấy cụm chờ kết luận;
+// IPC/MEP/LOT thấy sự cố mình phụ trách theo SLA server) ═══
+// Tách khỏi App + React.memo với comparator bỏ-qua-prop-hàm (pattern KpiCard):
+// trạng thái Thu gọn/Mở ra nằm TRONG banner nên bấm toggle chỉ render lại chính nó,
+// không kéo cả cây App (bảng sự cố + biểu đồ) render theo — nguồn lag cũ.
+const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuLy, onGhiKetLuan }) {
+  const [mo, setMo] = useState(true);
+  if (viecCuaToi.length === 0 && cumChoToi.length === 0) return null;
+  return (
+    <div className="mb-4 rounded-2xl bg-white ring-1 ring-amber-200 px-4 py-3" style={cardShadow}>
+      <button onClick={() => setMo(!mo)} className="w-full flex items-center justify-between gap-3 text-left">
+        <span className="text-[13px] font-semibold" style={{ color: COLOR.navy }}>
+          Việc của bạn · {viecCuaToi.length + cumChoToi.length}
+          {viecCuaToi.some((x) => x.q.qua_han_tiep_nhan || x.q.qua_han_xu_ly) && <span className="ml-2 rounded-full bg-rose-50 px-2 py-0.5 text-[10.5px] font-bold text-rose-600">có việc quá hạn</span>}
+        </span>
+        <span className="shrink-0 text-[11px] text-slate-400">{mo ? "Thu gọn ▲" : "Mở ra ▼"}</span>
+      </button>
+      {mo && (
+        <div className="mt-2 space-y-1.5">
+          {viecCuaToi.slice(0, 5).map(({ q, inc }) => {
+            const nong = q.qua_han_tiep_nhan || q.qua_han_xu_ly;
+            return (
+              <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                <span className="min-w-0 text-[12px] text-slate-600 truncate">
+                  <b style={{ color: COLOR.navy }}>{inc.id}</b> · {inc.room} · {inc.sensor}
+                  <span className={`ml-2 ${nong ? "text-rose-600 font-medium" : "text-slate-400"}`}>{q.chan_doan}</span>
+                </span>
+                <button onClick={() => onXuLy(inc)} className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-semibold text-teal-700 ring-1 ring-teal-200 hover:bg-teal-50">Xử lý</button>
+              </div>
+            );
+          })}
+          {viecCuaToi.length > 5 && <p className="text-[11px] text-slate-400 pl-1">… và {viecCuaToi.length - 5} việc nữa ở tab Sự cố.</p>}
+          {cumChoToi.slice(0, 3).map((c) => (
+            <div key={c.ma_cum} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+              <span className="min-w-0 text-[12px] text-slate-600 truncate">
+                <b style={{ color: COLOR.navy }}>{c.ma_hien_thi}</b> · {c.ahu || "?"} · {c.loai_cam_bien}
+                <span className="ml-2 text-amber-600">chưa có kết luận điều tra</span>
+              </span>
+              <button onClick={() => onGhiKetLuan(c)} className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">Ghi kết luận</button>
+            </div>
+          ))}
+          {cumChoToi.length > 3 && <p className="text-[11px] text-slate-400 pl-1">… và {cumChoToi.length - 3} cụm nữa ở tab Sự cố.</p>}
+        </div>
+      )}
+    </div>
+  );
+}, (a, b) => a.viecCuaToi === b.viecCuaToi && a.cumChoToi === b.cumChoToi);
+
 // Mở lại một hồ sơ đã đóng là THAY ĐỔI hồ sơ GMP — bảng luật bắt buộc lý do,
 // modal chỉ phản chiếu luật đó chứ không tự đặt luật.
 function ModalMoLai({ row, act, dangChay, onDong, onLuu }) {
@@ -3134,7 +3182,6 @@ export default function App() {
   const cumChoToi = useMemo(() => ((role === "QA" || role === "ADMIN") && isLive)
     ? cumRows.filter((c) => !c.da_co_ket_luan_qa && (!khuChoPhep || loKhu(c.khu_vuc)))
     : [], [role, isLive, cumRows, khuChoPhep]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [vctMo, setVctMo] = useState(true);
 
   const toggleSilence = async (id) => {
     if (!requireLogin()) return;
@@ -3263,44 +3310,7 @@ export default function App() {
               <span>Đang đọc/ghi dữ liệu thật từ Supabase cho <b>tất cả các tab</b> (Tổng quan · Sự cố · Phòng · Xu hướng · Báo cáo · Nhật ký). <b>Xu hướng &amp; Rủi ro</b> tính trực tiếp từ dữ liệu theo giờ (luôn có sẵn); riêng <b>Báo cáo AI</b> tổng hợp theo ngày sẽ đầy đủ dần khi WF rollup chạy.{live.loi && <span className="text-rose-600"> · Lỗi tải: {live.loi.thong_bao || live.loi.message || "kết nối"}</span>}{live.capNhatLuc && !live.loi && <span className="text-slate-400"> · Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</span>
             </div>
           )}
-          {isLive && user && role && (viecCuaToi.length > 0 || cumChoToi.length > 0) && (
-            <div className="mb-4 rounded-2xl bg-white ring-1 ring-amber-200 px-4 py-3" style={cardShadow}>
-              <button onClick={() => setVctMo(!vctMo)} className="w-full flex items-center justify-between gap-3 text-left">
-                <span className="text-[13px] font-semibold" style={{ color: COLOR.navy }}>
-                  Việc của bạn · {viecCuaToi.length + cumChoToi.length}
-                  {viecCuaToi.some((x) => x.q.qua_han_tiep_nhan || x.q.qua_han_xu_ly) && <span className="ml-2 rounded-full bg-rose-50 px-2 py-0.5 text-[10.5px] font-bold text-rose-600">có việc quá hạn</span>}
-                </span>
-                <span className="shrink-0 text-[11px] text-slate-400">{vctMo ? "Thu gọn ▲" : "Mở ra ▼"}</span>
-              </button>
-              {vctMo && (
-                <div className="mt-2 space-y-1.5">
-                  {viecCuaToi.slice(0, 5).map(({ q, inc }) => {
-                    const nong = q.qua_han_tiep_nhan || q.qua_han_xu_ly;
-                    return (
-                      <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
-                        <span className="min-w-0 text-[12px] text-slate-600 truncate">
-                          <b style={{ color: COLOR.navy }}>{inc.id}</b> · {inc.room} · {inc.sensor}
-                          <span className={`ml-2 ${nong ? "text-rose-600 font-medium" : "text-slate-400"}`}>{q.chan_doan}</span>
-                        </span>
-                        <button onClick={() => openApproval(inc)} className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-semibold text-teal-700 ring-1 ring-teal-200 hover:bg-teal-50">Xử lý</button>
-                      </div>
-                    );
-                  })}
-                  {viecCuaToi.length > 5 && <p className="text-[11px] text-slate-400 pl-1">… và {viecCuaToi.length - 5} việc nữa ở tab Sự cố.</p>}
-                  {cumChoToi.slice(0, 3).map((c) => (
-                    <div key={c.ma_cum} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
-                      <span className="min-w-0 text-[12px] text-slate-600 truncate">
-                        <b style={{ color: COLOR.navy }}>{c.ma_hien_thi}</b> · {c.ahu || "?"} · {c.loai_cam_bien}
-                        <span className="ml-2 text-amber-600">chưa có kết luận điều tra</span>
-                      </span>
-                      <button onClick={() => ghiKetLuanCum(c)} className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">Ghi kết luận</button>
-                    </div>
-                  ))}
-                  {cumChoToi.length > 3 && <p className="text-[11px] text-slate-400 pl-1">… và {cumChoToi.length - 3} cụm nữa ở tab Sự cố.</p>}
-                </div>
-              )}
-            </div>
-          )}
+          {isLive && user && role && <ViecCuaBan viecCuaToi={viecCuaToi} cumChoToi={cumChoToi} onXuLy={openApproval} onGhiKetLuan={ghiKetLuanCum} />}
           {tab === "home" && (
             <div className="space-y-5">
               <Card className="px-5 sm:px-7 py-5 sm:py-6 overflow-hidden" style={{ background: "linear-gradient(135deg,#E6F4F1,#FFFFFF 55%,#E6F1FA)" }}><p className="text-[11px] uppercase tracking-[0.2em] font-semibold" style={{ color: COLOR.teal }}>Tri thức · Tuân thủ · Toàn vẹn dữ liệu</p><h2 className="mt-1 text-xl sm:text-2xl font-semibold" style={{ color: COLOR.navy }}>Giám sát chênh áp · độ ẩm · nhiệt độ theo thời gian thực</h2><div className="mt-4 flex gap-2 flex-wrap text-xs">{[`${kpis.tong} phòng giám sát`, khuChoPhep ? `Phạm vi xem: khu ${khuChoPhep.join(" · ")}` : "3 khu: C1 · C4 · Q2", "8 AHU", "Cập nhật mỗi giờ"].map((p) => <span key={p} className="bg-white ring-1 ring-slate-200 text-slate-600 px-3 py-1.5 rounded-full font-medium">{p}</span>)}</div>{!user && <div className="mt-4 inline-flex items-center gap-2 text-xs text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-3 py-1.5 rounded-xl font-medium"><LogIn className="w-3.5 h-3.5" strokeWidth={1.8} /> Đăng nhập để thao tác theo phân quyền.</div>}</Card>
@@ -3505,7 +3515,6 @@ export default function App() {
                 </Card>
               )}
               {cumChiTiet && <CumDrawer cum={cumChiTiet} dsSuCo={incidentsXem.filter((i) => i.maCum === cumChiTiet.ma_cum)} onDong={() => setCumChiTiet(null)} coQuyenKetLuan={role === "QA" || role === "ADMIN"} onKetLuan={() => ghiKetLuanCum(cumChiTiet)} onInHoSo={() => inHoSoCum(cumChiTiet)} />}
-              {cumKetLuan && <ModalKetLuanCum cum={cumKetLuan} dangChay={dangGhiCum} onDong={() => setCumKetLuan(null)} onLuu={luuKetLuanCum} />}
               {moLai && <ModalMoLai row={moLai.row} act={moLai.act} dangChay={dangGhiCum} onDong={() => setMoLai(null)} onLuu={xacNhanMoLai} />}
             </div>
             );
@@ -3675,7 +3684,7 @@ export default function App() {
               )}
 
               {cfgTab === "sodo" && (
-              <Card className="p-6"><SectionTitle icon={GitBranch} hint="sinh từ bảng luật">Sơ đồ xử lý sự cố (IPC · Cơ điện · Trực · QA)</SectionTitle>
+              <Card className="p-6"><SectionTitle icon={GitBranch} hint="luồng tự động + bảng luật đang chạy">Sơ đồ xử lý sự cố toàn hệ thống</SectionTitle>
                 <div className="mt-4"><SoDoLuatCard dsNut={isLive ? live.nutThaoTac : null} /></div>
               </Card>
               )}
@@ -3695,6 +3704,10 @@ export default function App() {
       </div>
 
       {modal && <ApprovalModal incident={modal.inc} action={modal.action} user={user} onClose={() => setModal(null)} onCommit={handleCommit} />}
+      {/* Ghi kết luận cụm render ở GỐC (như ApprovalModal), KHÔNG trong tab Sự cố:
+          banner "Việc của bạn" hiện trên mọi tab — trước đây bấm "Ghi kết luận" từ
+          tab khác thì state đặt xong mà modal không render (nút như chết). */}
+      {cumKetLuan && <ModalKetLuanCum cum={cumKetLuan} dangChay={dangGhiCum} onDong={() => setCumKetLuan(null)} onLuu={luuKetLuanCum} />}
       {roomModal && <RoomDetailModal room={roomModal} onClose={() => setRoomModal(null)} />}
       {kpiModal && <KpiListModal kind={kpiModal} groups={nhomPhong} incidents={suCoP1} cfg={cfg}
         onClose={() => setKpiModal(null)}
