@@ -43,5 +43,19 @@
       </div>
     </div>
     <script type="module" src="/src/action/main.jsx"></script>
+    <!-- Đăng ký SW (trễ 2s, sau khi trang đã xong việc chính): từ lần bấm nút
+         email THỨ HAI trở đi trang mở tức thì từ cache (SW phục vụ action.html
+         cache-first + cập nhật nền), kể cả mạng yếu/offline, và miễn nhiễm
+         cửa sổ ~10' sau deploy. Precache đã LOẠI main-* (dashboard) nên người
+         chỉ dùng email không tốn phần tải dashboard. -->
+    <script>
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            navigator.serviceWorker.register('./sw.js').catch(function () { /* không chặn trang */ })
+          }, 2000)
+        })
+      }
+    </script>
   </body>
 </html>

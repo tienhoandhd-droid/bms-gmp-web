@@ -66,7 +66,7 @@
     <!-- Service worker (dist/sw.js do build tự sinh): cache asset đã hash để
          lần vào sau mở tức thì bất chấp max-age=600 của GitHub Pages. Đăng ký
          TRỄ 2,5s sau load để không tranh mạng với dữ liệu màn hình đầu.
-         KHÔNG đăng ký ở action.html — giữ trang thao tác email siêu nhẹ. -->
+         (action.html cũng đăng ký — precache đã loại main-* nên nhẹ.) -->
     <script>
       if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
         window.addEventListener('load', function () {

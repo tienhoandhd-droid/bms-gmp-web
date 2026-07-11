@@ -32,10 +32,12 @@ function swPrecachePlugin() {
       }
       walk(dist)
       const precache = files
-        // Chỉ precache LÕI màn hình đầu. Chunk lazy (charts, SoDoLuatCard,
-        // AuditLogPage) KHÔNG precache — tải lần đầu SW không tranh mạng với
-        // truy vấn dữ liệu tầng-1; chúng được cache LÚC DÙNG (runtime cache-first).
-        .filter((f) => f !== 'sw.js' && !/^assets\/(charts|SoDoLuatCard|AuditLogPage)-/.test(f))
+        // Chỉ precache LÕI DÙNG CHUNG (react/supabase/vendor/css/html/logo…).
+        // KHÔNG precache: chunk lazy (charts, SoDoLuatCard, AuditLogPage) VÀ
+        // main-* (chỉ dashboard dùng, 78KB gzip) — vì action.html cũng đăng ký
+        // SW: người chỉ bấm nút email (điện thoại/4G) không phải tải phần
+        // dashboard. Các chunk bị loại vẫn được cache LÚC DÙNG (cache-first).
+        .filter((f) => f !== 'sw.js' && !/^assets\/(charts|SoDoLuatCard|AuditLogPage|main)-/.test(f))
         .sort()
       const h = createHash('sha1').update(precache.join('\n'))
       for (const f of precache) if (f.endsWith('.html')) h.update(readFileSync(resolve(dist, f)))
@@ -61,13 +63,27 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url)
   if (url.origin !== location.origin) return // Supabase/API: không đụng
   if (req.mode === 'navigate') {
-    // HTML network-first: bản deploy mới ăn ngay; offline rơi về cache
+    if (url.pathname.endsWith('/action.html')) {
+      // action.html: CACHE-FIRST + cập nhật nền — nút email mở TỨC THÌ kể cả
+      // mạng yếu, và miễn nhiễm cửa sổ ~10' sau deploy (HTML cũ trên CDN trỏ
+      // asset đã xoá — bản cache luôn ĐỒNG BỘ với asset trong cùng CACHE).
+      // Trang là công cụ thao tác, dữ liệu vé lấy qua API nên HTML cũ 1 nhịp
+      // deploy không sao; bản mới theo SW mới trong ≤~10'.
+      e.respondWith(
+        caches.match('./action.html').then((hit) => {
+          const nap = fetch(req)
+            .then((r) => { if (r.ok) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put('./action.html', cp)) } return r })
+            .catch(() => hit)
+          return hit || nap
+        })
+      )
+      return
+    }
+    // index.html: network-first — bản deploy mới ăn ngay; offline rơi về cache
     e.respondWith(
       fetch(req)
         .then((r) => { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(req, cp)); return r })
-        // ignoreSearch: 'action.html?token=…' phải khớp './action.html' đã precache,
-        // kẻo offline rơi về index.html → script redirect của nó lại đẩy sang
-        // action.html?token → LẶP VÔ HẠN. Chỉ khi không khớp gì mới về index.
+        // ignoreSearch: 'index.html?tab=…' phải khớp bản precache khi offline.
         .catch(() => caches.match(req, { ignoreSearch: true }).then((r) => r || caches.match('./index.html')))
     )
     return

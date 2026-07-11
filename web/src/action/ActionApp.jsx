@@ -110,13 +110,15 @@ function TheoVe({ email }) {
   const [ketQua, setKetQua] = useState(null)
   const [lyDo, setLyDo] = useState('')
   const [dangChay, setDangChay] = useState(false)
-  const daChay = useRef(false)
+  // lanThu tăng khi bấm "Thử lại" (lỗi mạng). daChayLan chống StrictMode gọi đúp.
+  const [lanThu, setLanThu] = useState(0)
+  const daChayLan = useRef(-1)
   const daGo = useRef(false)
 
   useEffect(() => () => { daGo.current = true }, [])
   useEffect(() => {
-    if (!TOKEN0 || daChay.current) return
-    daChay.current = true
+    if (!TOKEN0 || daChayLan.current === lanThu) return
+    daChayLan.current = lanThu
     setVe({ dangTai: true })
     kiemVeThaoTac(TOKEN0).then(({ error, ve }) => {
       if (daGo.current) return
@@ -124,7 +126,7 @@ function TheoVe({ email }) {
       else if (ve) setVe({ loi: ve.thong_bao || 'Liên kết không dùng được.', boiCanh: ve })
       else setVe({ loi: moTaLoi(error) })
     }).catch(() => { if (!daGo.current) setVe({ loi: 'Không kiểm tra được liên kết. Kiểm tra mạng rồi thử lại.' }) })
-  }, [])
+  }, [lanThu])
 
   if (!TOKEN0) return (
     <Khung>
@@ -160,6 +162,13 @@ function TheoVe({ email }) {
             <ul className="mt-1.5 space-y-1">{khaDung.map((n) => (
               <li key={n.hanh_dong} className="text-[13px] text-slate-700 flex gap-1.5"><span className="text-slate-300">•</span>{n.nhan}</li>))}</ul>
           </div>)}
+        {/* Lỗi MẠNG (không có bối cảnh DB, chưa thực thi gì) → cho thử lại tại chỗ,
+            khỏi đóng-mở lại email. Từ chối nghiệp vụ (vé hết hạn/đã xử lý) thì không. */}
+        {!ketQua && ve.loi && !ve.boiCanh && (
+          <button onClick={() => setLanThu((n) => n + 1)}
+            className="mt-4 w-full rounded-xl py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: TEAL }}>
+            Thử lại
+          </button>)}
         <NutMoDashboard />
       </Khung>)
   }
