@@ -43,14 +43,16 @@ function swPrecachePlugin() {
       const sw = `// Tự sinh bởi swPrecachePlugin (vite.config.js) — ĐỪNG sửa tay.
 const CACHE = 'bms-${version}'
 const PRECACHE = ${JSON.stringify(precache.map((f) => './' + f))}
+// KHÔNG skipWaiting/claim: SW mới chỉ tiếp quản khi user đóng hết tab —
+// tab cũ đang mở giữ nguyên cache cũ (asset cũ đã bị Pages xoá sau deploy,
+// nếu xoá cache ngay thì tab cũ bấm sang tab Xu hướng sẽ vỡ 404).
+// HTML network-first nên reload vẫn nhận bản mới ngay, không chờ SW mới.
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()))
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)))
 })
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys()
-      .then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
+    caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
   )
 })
 self.addEventListener('fetch', (e) => {
@@ -63,7 +65,10 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(req)
         .then((r) => { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(req, cp)); return r })
-        .catch(() => caches.match(req).then((r) => r || caches.match('./index.html')))
+        // ignoreSearch: 'action.html?token=…' phải khớp './action.html' đã precache,
+        // kẻo offline rơi về index.html → script redirect của nó lại đẩy sang
+        // action.html?token → LẶP VÔ HẠN. Chỉ khi không khớp gì mới về index.
+        .catch(() => caches.match(req, { ignoreSearch: true }).then((r) => r || caches.match('./index.html')))
     )
     return
   }
