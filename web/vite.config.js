@@ -1,12 +1,91 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { resolve } from 'node:path'
+import { resolve, sep } from 'node:path'
+import { readdirSync, statSync, readFileSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+
+// ============================================================
+// Service worker precache — vì sao cần: GitHub Pages trả cache-control
+// max-age=600 cho MỌI file (kể cả asset đã hash tên) → hôm sau vào lại,
+// trình duyệt phải revalidate từng file qua mạng. SW cache asset theo tên
+// hash (bất biến) ⇒ lần vào thứ 2 trở đi mở gần như tức thì, kể cả offline.
+//  • Precache: html + css + js lõi + logo. KHÔNG precache charts-*.js
+//    (247KB gzip) — giữ chiến lược "chỉ tải charts khi cần"; charts được
+//    cache LÚC DÙNG qua nhánh runtime cache-first bên dưới.
+//  • HTML: network-first → deploy bản mới vẫn ăn ngay như trước.
+//  • CACHE version đổi theo danh sách file + nội dung html ⇒ deploy mới
+//    = SW mới = xoá sạch cache phiên bản cũ (không phình bộ nhớ máy user).
+// ============================================================
+function swPrecachePlugin() {
+  return {
+    name: 'bms-sw-precache',
+    apply: 'build',
+    closeBundle() {
+      const dist = resolve(__dirname, 'dist')
+      const files = []
+      const walk = (dir) => {
+        for (const f of readdirSync(dir)) {
+          const p = resolve(dir, f)
+          if (statSync(p).isDirectory()) walk(p)
+          else files.push(p.slice(dist.length + 1).split(sep).join('/'))
+        }
+      }
+      walk(dist)
+      const precache = files
+        .filter((f) => f !== 'sw.js' && !/^assets\/charts-/.test(f))
+        .sort()
+      const h = createHash('sha1').update(precache.join('\n'))
+      for (const f of precache) if (f.endsWith('.html')) h.update(readFileSync(resolve(dist, f)))
+      const version = h.digest('hex').slice(0, 12)
+      const sw = `// Tự sinh bởi swPrecachePlugin (vite.config.js) — ĐỪNG sửa tay.
+const CACHE = 'bms-${version}'
+const PRECACHE = ${JSON.stringify(precache.map((f) => './' + f))}
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()))
+})
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys()
+      .then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  )
+})
+self.addEventListener('fetch', (e) => {
+  const req = e.request
+  if (req.method !== 'GET') return
+  const url = new URL(req.url)
+  if (url.origin !== location.origin) return // Supabase/API: không đụng
+  if (req.mode === 'navigate') {
+    // HTML network-first: bản deploy mới ăn ngay; offline rơi về cache
+    e.respondWith(
+      fetch(req)
+        .then((r) => { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(req, cp)); return r })
+        .catch(() => caches.match(req).then((r) => r || caches.match('./index.html')))
+    )
+    return
+  }
+  if (url.pathname.includes('/assets/')) {
+    // Asset tên đã hash = bất biến: cache-first (charts được cache lúc dùng)
+    e.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((r) => {
+        if (r.ok) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(req, cp)) }
+        return r
+      }))
+    )
+  }
+})
+`
+      writeFileSync(resolve(dist, 'sw.js'), sw)
+      console.log(`  sw.js: precache ${precache.length} file · version ${version}`)
+    },
+  }
+}
 
 // base './' để asset dùng đường dẫn tương đối → chạy đúng dù repo đặt ở
 // https://<user>.github.io/<repo>/ mà không cần biết tên repo.
 export default defineConfig({
   base: './',
-  plugins: [react()],
+  plugins: [react(), swPrecachePlugin()],
   build: {
     outDir: 'dist',
     sourcemap: false,

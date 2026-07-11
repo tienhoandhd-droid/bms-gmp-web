@@ -14,6 +14,9 @@ import React, { useEffect, useRef, useState } from 'react'
 import { supabase, moTaLoi } from '../lib/bmsClient'
 import { dangNhapMatKhau, dangXuat } from '../lib/auth'
 import { kiemVeThaoTac, thaoTacSuCoTuEmail } from '../lib/supabaseData'
+// Import để Vite trả URL đã hash — đường dẫn cứng './assets/logo-cpc1hn.png' cũ
+// 404 trên bản build (asset bị hash tên). Ảnh 16KB tải lười, không chặn JS.
+import logoCpc1hn from '../assets/logo-cpc1hn.png'
 
 const NAVY = '#1E3A56'
 const TEAL = '#0E7C6B'
@@ -44,7 +47,7 @@ function DauTrang({ phu }) {
   return (
     <div className="flex items-center gap-2.5">
       <div className="rounded-2xl bg-white px-2 ring-1 ring-slate-200 flex items-center justify-center h-10 w-10 shrink-0">
-        <img src="./assets/logo-cpc1hn.png" onError={(e) => { e.currentTarget.style.display = 'none' }} alt="" className="h-7 w-7 object-contain" />
+        <img src={logoCpc1hn} onError={(e) => { e.currentTarget.style.display = 'none' }} alt="" className="h-7 w-7 object-contain" />
       </div>
       <div className="min-w-0 text-left">
         <h1 className="text-sm font-bold leading-tight" style={{ color: NAVY }}>Thao tác sự cố từ email</h1>
