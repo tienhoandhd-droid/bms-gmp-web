@@ -20,6 +20,9 @@ import logoCpc1hn from '../assets/logo-cpc1hn.png'
 
 const NAVY = '#1E3A56'
 const TEAL = '#0E7C6B'
+// Tên vai trò đầy đủ (không viết tắt trên giao diện — đồng bộ ROLE_VI của App).
+const VAI_TRO_VI = { IPC: 'Kiểm soát hiện trường', MEP: 'Cơ điện', LOT: 'Trực hồ sơ lô', QA: 'Đảm bảo chất lượng', ADMIN: 'Quản trị hệ thống', IT: 'Quản trị hệ thống' }
+const tenVaiTro = (m) => VAI_TRO_VI[m] || m
 const PAGE_BG = 'linear-gradient(155deg,#EAF3F8 0%,#FAFDFF 45%,#E2F2EE 100%)'
 
 // Đọc token NGAY khi nạp module rồi dọn URL (token là bí mật — không để nằm trên
@@ -154,7 +157,7 @@ function TheoVe({ email }) {
           <div className="mt-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3 text-[13px]">
             <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Thao tác gần nhất</div>
             <div className="mt-1 text-slate-700 font-medium">{ganNhat.nhan}</div>
-            <div className="text-[12px] text-slate-500">{ganNhat.vai_tro} · {ganNhat.boi} · {ganNhat.luc_hien_thi}</div>
+            <div className="text-[12px] text-slate-500">{tenVaiTro(ganNhat.vai_tro)} · {ganNhat.boi} · {ganNhat.luc_hien_thi}</div>
           </div>)}
         {khaDung.length > 0 && (
           <div className="mt-3">
@@ -197,7 +200,7 @@ function TheoVe({ email }) {
   return (
     <Khung>
       <DauTrang phu={email} />
-      <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mt-4">Xác nhận thao tác · {v.vai_tro_can}</p>
+      <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mt-4">Xác nhận thao tác · {tenVaiTro(v.vai_tro_can)}</p>
       <h3 className="text-base font-semibold text-slate-800 mt-1">{v.nhan}</h3>
       <div className="mt-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3 text-[13px] text-slate-600 space-y-1">
         <div><b>{v.ma_hien_thi}</b> · {v.ma_phong} {v.ten_phong ? `— ${v.ten_phong}` : ''}</div>
@@ -209,7 +212,7 @@ function TheoVe({ email }) {
             : <> → <b>{v.nhan_trang_thai_sau || v.trang_thai_sau}</b>{v.dong_su_co && <span className="text-teal-600"> (đóng sự cố)</span>}</>}
         </div>
         {v.thao_tac_gan_nhat && (
-          <div className="text-[12px] text-slate-500">Gần nhất: <b>{v.thao_tac_gan_nhat.nhan}</b> — {v.thao_tac_gan_nhat.vai_tro} · {v.thao_tac_gan_nhat.luc_hien_thi}</div>)}
+          <div className="text-[12px] text-slate-500">Gần nhất: <b>{v.thao_tac_gan_nhat.nhan}</b> — {tenVaiTro(v.thao_tac_gan_nhat.vai_tro)} · {v.thao_tac_gan_nhat.luc_hien_thi}</div>)}
         {v.so_lan_vang > 0 && <div className="text-[12px] text-amber-700">Đã báo "không tại hiện trường" {v.so_lan_vang} lần</div>}
       </div>
       {canNote && (

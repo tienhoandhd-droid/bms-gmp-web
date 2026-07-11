@@ -236,6 +236,21 @@ export async function laySuCoQuaHan(signal) {
 // 24 sự cố đang mở gộp lại thành 12 cụm theo (AHU, loại cảm biến) — đơn vị mà Cơ điện
 // thật sự can thiệp được và QA thật sự kết luận được. Cụm tự mở, tự đóng.
 // ============================================================
+// ============================================================
+// CẢM BIẾN ĐỨNG HÌNH (im lặng) · view: xem_cam_bien_dung_hinh — tab Cảm biến.
+// Cờ cam_bien_dung_hinh do WF1 đặt: ≥3 giờ liên tiếp giá trị không đổi
+// (cfg dung_hinh_gio_lien_tiep/diem_toi_thieu). dung_tu/so_gio_dung tính theo
+// lần GIÁ TRỊ ĐỔI gần nhất nên đo được cả chuỗi chết nhiều tháng.
+// ============================================================
+export async function layCamBienDungHinh(signal) {
+  const { data, error } = await docView('xem_cam_bien_dung_hinh',
+    (q) => q.select('ma_phong,ten_phong,khu_vuc,ahu,loai_cam_bien,gia_tri_dung,gioi_han_duoi,gioi_han_tren,dung_tu,so_gio_dung,bucket_moi_nhat,muc_canh_bao')
+            .order('so_gio_dung', { ascending: false }),
+    { signal })
+  if (error) return { error, rows: null }
+  return { error: null, rows: data || [] }
+}
+
 export async function layCumSuCo(signal) {
   const { data, error } = await docView('xem_cum_su_co',
     (q) => q.select('ma_cum,ma_hien_thi,khu_vuc,ahu,loai_cam_bien,dang_mo,gio_mo,'

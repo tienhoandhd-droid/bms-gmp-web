@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { PHIEN_BAN_GIAO_THUC, laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { PHIEN_BAN_GIAO_THUC, laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, layCamBienDungHinh, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau, thuKhoiPhucPhien } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
@@ -65,7 +65,10 @@ const levelGlyph = (lvl) => (lvl == null || lvl < 0 ? "–" : (LEVEL_GLYPH[lvl] 
 /* ============ NGƯỜI DÙNG & PHÂN QUYỀN ============ */
 // Danh sách người dùng + vai trò lấy từ bảng Supabase `nguoi_dung` theo email (xem lib/auth.js),
 // KHÔNG hardcode ở đây (tránh lộ email nội bộ ra source công khai).
-const ROLE_VI = { IPC: "IPC Hiện trường", MEP: "Cơ điện", LOT: "Trực HSL", QA: "QA Kiểm soát", ADMIN: "Quản trị (IT)", IT: "IT / Quản trị" };
+// Tên vai trò ĐẦY ĐỦ theo chức năng (yêu cầu 11/07: không dùng viết tắt trên giao diện).
+const ROLE_VI = { IPC: "Kiểm soát hiện trường", MEP: "Cơ điện", LOT: "Trực hồ sơ lô", QA: "Đảm bảo chất lượng", ADMIN: "Quản trị hệ thống", IT: "Quản trị hệ thống" };
+// Chuỗi server trả về (chẩn đoán SLA, nhật ký…) vẫn chứa mã vai trò → dịch khi hiển thị.
+const docTenVaiTro = (s) => (s == null ? s : String(s).replace(/\b(IPC|MEP|LOT|QA|ADMIN)\b/g, (m) => ROLE_VI[m] || m));
 const FULL_ACCESS = ["QA", "ADMIN", "IT"];                 // QA và IT: xem TẤT CẢ các tab
 const canManageRooms = (role) => FULL_ACCESS.includes(role);
 // PHÂN QUYỀN TAB (yêu cầu #5):
@@ -77,6 +80,7 @@ const TAB_ROLES = {
   home:     ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   events:   ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   recent:   ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
+  sensors:  ["MEP", "LOT", "QA", "ADMIN", "IT"],   // theo dõi cảm biến đứng hình — Cơ điện xử lý
   trend:    ["LOT", "QA", "ADMIN", "IT"],
   reports:  FULL_ACCESS,
   audit:    FULL_ACCESS,
@@ -2564,7 +2568,7 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
     </Khung>);
 }
 
-const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Sự cố gần đây", icon: Radio }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
+const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Sự cố gần đây", icon: Radio }, { k: "sensors", label: "Cảm biến", icon: Gauge }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CỤM ĐIỀU TRA & MỞ LẠI SỰ CỐ — modal/ngăn kéo (10/07/2026)
@@ -2601,6 +2605,88 @@ function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
         {thieu && <p className="mt-2 text-right text-[11px] text-slate-400">Nguyên nhân gốc và khắc phục cần ≥ 10 ký tự.</p>}
       </div>
     </div>, document.body);
+}
+
+// ═══ TAB CẢM BIẾN — theo dõi cảm biến ĐỨNG HÌNH (im lặng/chết) ═══
+// Nguồn: view xem_cam_bien_dung_hinh (cờ của WF1: giá trị không đổi ≥3 giờ liên
+// tiếp). Tải KHI MỞ TAB (view quét lùi lịch sử tìm mốc giá trị đổi ~0,3–0,8s)
+// + nút Làm mới. Sự cố của các cảm biến này đã bị tách khỏi chấm điểm (SUPPRESSED)
+// nên tab này là nơi DUY NHẤT nhìn thấy chúng một cách tập trung.
+function CamBienPage({ isLive }) {
+  const [rows, setRows] = useState(null);   // null = đang tải
+  const [loi, setLoi] = useState(null);
+  const [luc, setLuc] = useState(null);
+  const taiVe = useCallback(async () => {
+    setRows(null); setLoi(null);
+    const kq = await layCamBienDungHinh();
+    if (kq.error) { setLoi(kq.error); setRows([]); return; }
+    setRows(kq.rows); setLuc(new Date());
+  }, []);
+  useEffect(() => { if (isLive) taiVe(); }, [isLive, taiVe]);
+  const fmtGio = (h) => (h == null ? "—" : h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`);
+  const fmtTu = (iso) => (iso ? new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
+  const doDam = (h) => (h >= 168 ? "text-rose-700 bg-rose-50 ring-rose-200" : h >= 24 ? "text-amber-700 bg-amber-50 ring-amber-200" : "text-slate-600 bg-slate-100 ring-slate-200");
+  if (!isLive) return <Card className="p-6"><SectionTitle icon={Gauge}>Cảm biến đứng hình</SectionTitle><p className="mt-3 text-sm text-slate-500">Chế độ xem trước — chưa kết nối dữ liệu thật.</p></Card>;
+  return (
+    <Card className="p-6">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <SectionTitle icon={Gauge}>Cảm biến đứng hình (im lặng)</SectionTitle>
+          <p className="mt-1.5 text-[12px] text-slate-500 leading-relaxed max-w-3xl">
+            Cảm biến bị coi là <b>đứng hình</b> khi giá trị đo <b>không đổi ≥ 3 giờ liên tiếp</b> — thường do hỏng, mất kết nối
+            hoặc treo tín hiệu tại FMS. Cảnh báo từ các cảm biến này đã được <b>tách khỏi chấm điểm phòng</b> để không báo
+            động oan; việc cần làm là Cơ điện kiểm tra / thay thế đầu đo.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {luc && <span className="text-[11px] text-slate-400">Cập nhật {luc.toLocaleTimeString("vi-VN")}</span>}
+          <button onClick={taiVe} className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-semibold text-teal-700 ring-1 ring-teal-200 hover:bg-teal-50">
+            <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} /> Làm mới
+          </button>
+        </div>
+      </div>
+      {loi && <p className="mt-3 text-[12px] text-rose-600">Không tải được danh sách: {loi.thong_bao || loi.message || "lỗi kết nối"}. Bấm Làm mới để thử lại.</p>}
+      {rows === null ? (
+        <div className="mt-4 space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-12 rounded-2xl bg-slate-100 animate-pulse" />)}</div>
+      ) : rows.length === 0 && !loi ? (
+        <div className="mt-4 rounded-2xl bg-teal-50 ring-1 ring-teal-100 px-4 py-6 text-center">
+          <p className="text-sm font-semibold text-teal-700">Không có cảm biến nào đang đứng hình</p>
+          <p className="mt-1 text-[12px] text-slate-500">Mọi cảm biến đều đang gửi giá trị thay đổi bình thường.</p>
+        </div>
+      ) : rows.length > 0 && (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-left">
+            <thead><tr className="text-[10.5px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
+              <th className="py-2 pr-4 font-semibold">Phòng</th>
+              <th className="py-2 pr-4 font-semibold">Khu · AHU</th>
+              <th className="py-2 pr-4 font-semibold">Cảm biến</th>
+              <th className="py-2 pr-4 font-semibold">Giá trị đứng</th>
+              <th className="py-2 pr-4 font-semibold">Đứng từ</th>
+              <th className="py-2 font-semibold">Thời gian đứng</th>
+            </tr></thead>
+            <tbody className="divide-y divide-slate-50">
+              {rows.map((r) => {
+                const meta = SENSOR_META[r.loai_cam_bien] || {};
+                return (
+                  <tr key={`${r.ma_phong}-${r.loai_cam_bien}`} className="text-[13px]">
+                    <td className="py-2.5 pr-4"><b style={{ color: COLOR.navy }}>{r.ma_phong}</b>{r.ten_phong && <span className="text-slate-400 text-[12px]"> — {r.ten_phong}</span>}</td>
+                    <td className="py-2.5 pr-4 text-slate-600">{r.khu_vuc} · {r.ahu || "—"}</td>
+                    <td className="py-2.5 pr-4 text-slate-600">{meta.label || r.loai_cam_bien}</td>
+                    <td className="py-2.5 pr-4 tabular-nums text-slate-700">
+                      {r.gia_tri_dung != null ? `${r.gia_tri_dung} ${meta.unit || ""}` : "—"}
+                      {(r.gioi_han_duoi != null || r.gioi_han_tren != null) && <span className="text-[11px] text-slate-400"> (giới hạn {r.gioi_han_duoi ?? "—"}–{r.gioi_han_tren ?? "—"})</span>}
+                    </td>
+                    <td className="py-2.5 pr-4 text-slate-600 tabular-nums">{fmtTu(r.dung_tu)}</td>
+                    <td className="py-2.5"><span className={`inline-block rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ${doDam(r.so_gio_dung)}`}>{fmtGio(r.so_gio_dung)}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
 }
 
 // ═══ VIỆC CỦA BẠN — banner nổi trên MỌI tab (QA/ADMIN thấy cụm chờ kết luận;
@@ -2649,7 +2735,7 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
               <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
                 <span className="min-w-0 text-[12px] text-slate-600 truncate">
                   <b style={{ color: COLOR.navy }}>{inc.id}</b> · {inc.room} · {inc.sensor}
-                  <span className={`ml-2 ${nong ? "text-rose-600 font-medium" : "text-slate-400"}`}>{q.chan_doan}</span>
+                  <span className={`ml-2 ${nong ? "text-rose-600 font-medium" : "text-slate-400"}`}>{docTenVaiTro(q.chan_doan)}</span>
                 </span>
                 <button onClick={() => onXuLy(inc)} className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-semibold text-teal-700 ring-1 ring-teal-200 hover:bg-teal-50">Xử lý</button>
               </div>
@@ -2718,7 +2804,7 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo })
           </div>
         </div>
         <div className="px-5 py-4 space-y-4">
-          <span className={`inline-block rounded-lg px-2.5 py-1 text-[11px] leading-tight ${hh ? "text-slate-600 bg-slate-100" : honHop ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"}`}>{cum.chan_doan}</span>
+          <span className={`inline-block rounded-lg px-2.5 py-1 text-[11px] leading-tight ${hh ? "text-slate-600 bg-slate-100" : honHop ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"}`}>{docTenVaiTro(cum.chan_doan)}</span>
           <div className="grid grid-cols-2 gap-2 text-[12px]">
             <div className="rounded-xl bg-slate-50 px-3 py-2"><span className="text-slate-400 block text-[10px] uppercase tracking-wider">Khu · mở</span><span className="font-semibold text-slate-700 tabular-nums">{cum.khu_vuc} · {Math.round(cum.gio_mo)} giờ</span></div>
             <div className="rounded-xl bg-slate-50 px-3 py-2"><span className="text-slate-400 block text-[10px] uppercase tracking-wider">Sự cố mở</span><span className="font-semibold text-slate-700 tabular-nums">{cum.su_co_dang_mo}{cum.so_chua_tiep_nhan > 0 && <span className="text-rose-600 font-medium"> · {cum.so_chua_tiep_nhan} chưa tiếp nhận</span>}</span></div>
@@ -3528,7 +3614,7 @@ export default function App() {
                       const nong = q.qua_han_tiep_nhan || q.qua_han_xu_ly;
                       return (<div className="leading-tight">
                         <span className={`text-[11px] font-semibold ${nong ? "text-rose-600" : "text-slate-600"}`}>{ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach || "—"}</span>
-                        {nong && <p className="text-[10px] text-rose-500 mt-0.5" title={q.chan_doan}>{q.qua_han_tiep_nhan ? "chưa tiếp nhận" : `quá hạn ${q.gio_qua_han_xu_ly}h`}</p>}
+                        {nong && <p className="text-[10px] text-rose-500 mt-0.5" title={docTenVaiTro(q.chan_doan)}>{q.qua_han_tiep_nhan ? "chưa tiếp nhận" : `quá hạn ${q.gio_qua_han_xu_ly}h`}</p>}
                         {!nong && <p className="text-[10px] text-slate-400 mt-0.5">trong hạn</p>}
                       </div>); })()}</td>
                     <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT" || role === "QA") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Tạm hoãn</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đang tạm hoãn" : "—"}</span>}{inc.silenced && inc.tamDungDen && <div className="text-[10px] text-slate-400 mt-1" title={inc.tamDungLyDo || ""}>tới {new Date(inc.tamDungDen).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})} · {inc.tamDungBoi || "?"}</div>}</td>
@@ -3562,7 +3648,7 @@ export default function App() {
                               <span className="font-semibold text-slate-700">{c.su_co_dang_mo}</span>
                               {c.so_chua_tiep_nhan > 0 && <span className="ml-1.5 text-[10px] text-rose-600">{c.so_chua_tiep_nhan} chưa tiếp nhận</span>}
                             </td>
-                            <td className="py-2.5 px-3"><span className={`inline-block rounded-lg px-2 py-1 text-[10.5px] leading-tight ${mauChanDoan}`}>{c.chan_doan}</span></td>
+                            <td className="py-2.5 px-3"><span className={`inline-block rounded-lg px-2 py-1 text-[10.5px] leading-tight ${mauChanDoan}`}>{docTenVaiTro(c.chan_doan)}</span></td>
                             <td className="py-2.5 px-3 text-slate-500 max-w-[190px]"><span className="line-clamp-2" title={c.cac_phong}>{c.cac_phong || "—"}</span></td>
                             <td className="py-2.5 px-3 tabular-nums text-slate-500">{Math.round(c.gio_mo)} h</td>
                             <td className="py-2.5 px-3">
@@ -3621,6 +3707,7 @@ export default function App() {
           })()}
 
           {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><SuCoGanDayPage isLive={isLive} khuChoPhep={khuChoPhep} /></div>}
+          {tab === "sensors" && <CamBienPage isLive={isLive} />}
           {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
           {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
 
