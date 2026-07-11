@@ -307,7 +307,7 @@ export async function laySuCoDangMo(signal) {
     (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,'
               + 'bat_dau,keo_dai_gio,dang_tam_hoan,tam_dung_den,tam_dung_boi,tam_dung_ly_do,lich_su,'
               + 'huong_vi_pham,gia_tri_gan_nhat,gioi_han_duoi,gioi_han_tren,don_vi,thoi_diem_so_lieu,muc_gan_nhat,'
-              + 'ma_cum,cum_hien_thi'),
+              + 'ma_cum,cum_hien_thi,cua_so_5p,ngay_5p,tuoi_du_lieu_phut,thieu_diem'),
     { signal })
   if (error) return { error, incidents: null }
   const incidents = (data || []).map((r) => ({
@@ -322,6 +322,12 @@ export async function laySuCoDangMo(signal) {
     gioiHanTren: r.gioi_han_tren ?? null,
     donVi: r.don_vi || '',
     thoiDiemSoLieu: r.thoi_diem_so_lieu || null,
+    // Thời gian của "TB 5′ cuối" — cửa sổ 5 phút THẬT (như email 20260710h),
+    // KHÔNG phải mốc mở bucket giờ. Kèm tuổi dữ liệu + cờ FMS thiếu điểm.
+    cuaSo5p: r.cua_so_5p || null,          // "06:55–07:00"
+    ngay5p: r.ngay_5p || null,             // "11/07"
+    tuoiDuLieuPhut: r.tuoi_du_lieu_phut ?? null,
+    thieuDiem: !!r.thieu_diem,
     mucGanNhat: r.muc_gan_nhat || null,   // NORMAL/WARNING/CRITICAL của giờ gần nhất
     // SUPPRESSED = cảm biến đứng hình, hệ ngừng chấm mức — bảng Sự cố phải phân biệt
     // được nó với sai lệch thật, nếu không 'mất giám sát' trông y hệt 'vi phạm'.

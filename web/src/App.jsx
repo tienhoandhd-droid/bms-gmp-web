@@ -2674,7 +2674,7 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo })
                       ? <span className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">cảm biến đứng hình</span>
                       : <span className="rounded-lg bg-rose-50 px-1.5 py-0.5 text-[10px] text-rose-600">{i.sensor}</span>}
                   </div>
-                  <p className="mt-0.5 text-slate-500">{i.status} · kéo dài {i.duration} giờ{i.giaTriGanNhat != null && <> · TB 5′ cuối <b className="tabular-nums text-slate-600">{i.giaTriGanNhat}{i.donVi}</b></>}</p>
+                  <p className="mt-0.5 text-slate-500">{i.status} · kéo dài {i.duration} giờ{i.giaTriGanNhat != null && <> · TB 5′ cuối <b className="tabular-nums text-slate-600">{i.giaTriGanNhat}{i.donVi}</b>{i.cuaSo5p && <span className="tabular-nums"> ({i.cuaSo5p}{i.ngay5p ? ` · ${i.ngay5p}` : ""})</span>}</>}</p>
                 </div>
               ))}
             </div>
@@ -3335,12 +3335,23 @@ export default function App() {
             const incAhu = (i) => (metaPhong[i.room] || {}).ahu || "";
             const ahus = [...new Set((rooms || []).filter((r) => evtKhu === "ALL" || r.area === evtKhu).map((r) => r.ahu).filter(Boolean))].sort();
             const incFiltered = incidentsXem.filter((i) => (evtKhu === "ALL" || incKhu(i) === evtKhu) && (evtAhu === "ALL" || incAhu(i) === evtAhu));
-            // Gom theo AHU, P1 lên đầu trong từng cụm — khớp cách email của Cơ điện
-            // được gom (mỗi AHU một mail), nên đối chiếu web ↔ email không lệch.
+            // Gom theo AHU — khớp cách email của Cơ điện được gom (mỗi AHU một mail),
+            // nên đối chiếu web ↔ email không lệch. Thứ tự NHÓM: AHU chứa phòng quan
+            // trọng nhất (P1) đang gặp sự cố lên đầu, đồng hạng thì nhiều CRITICAL hơn
+            // lên trước; trong nhóm: P1 → P2 → P3, rồi theo lúc bắt đầu.
             const uuTienSo = (p) => (p === "P1" ? 1 : p === "P2" ? 2 : 3);
             const cumAhu = (i) => `${incKhu(i) || "?"} / ${incAhu(i) || "Không rõ AHU"}`;
-            const incSorted = [...incFiltered].sort((a, b) =>
-              cumAhu(a).localeCompare(cumAhu(b)) || uuTienSo(a.priority) - uuTienSo(b.priority) || String(a.start).localeCompare(String(b.start)));
+            const hangCum = {};
+            incFiltered.forEach((i) => {
+              const k = cumAhu(i); const h = hangCum[k] || (hangCum[k] = { min: 9, crit: 0 });
+              h.min = Math.min(h.min, uuTienSo(i.priority));
+              if (i.mucCanhBao === "CRITICAL") h.crit++;
+            });
+            const incSorted = [...incFiltered].sort((a, b) => {
+              const ka = cumAhu(a), kb = cumAhu(b);
+              if (ka !== kb) return hangCum[ka].min - hangCum[kb].min || hangCum[kb].crit - hangCum[ka].crit || ka.localeCompare(kb);
+              return uuTienSo(a.priority) - uuTienSo(b.priority) || String(a.start).localeCompare(String(b.start));
+            });
             const dsNut = isLive ? live.nutThaoTac : null;
             // luatSanSang = ĐÃ BIẾT bộ luật (mảng, kể cả rỗng). null = đang tải hoặc lỗi.
             const luatSanSang = Array.isArray(dsNut) && dsNut.length > 0;
@@ -3361,8 +3372,65 @@ export default function App() {
                 )}
                 <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidentsXem.length} sự cố</span>
               </div>
+              <Card className="p-2 sm:p-4">{incFiltered.length === 0 ? (incidentsXem.length === 0 ? (
+                <div className="px-5 py-10 text-center">
+                  <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div>
+                  <p className="mt-3 text-[14px] font-semibold" style={{ color: COLOR.navy }}>Chưa có sự cố nào đang mở</p>
+                  <p className="mt-1.5 text-[12px] text-slate-500 max-w-md mx-auto leading-relaxed">Sự cố được <b>tự động tạo</b> khi luồng n8n (WF1) phát hiện mức <b className="text-amber-600">Cảnh báo</b> hoặc <b className="text-rose-600">Hành động</b> từ dữ liệu theo giờ và ghi vào Supabase. Danh sách trống nghĩa là tất cả phòng đang trong ngưỡng — hoặc chưa có dữ liệu kích hoạt.</p>
+                  {isLive && <p className="mt-3 text-[11px] text-slate-400 max-w-md mx-auto">Nếu bạn chắc chắn đang có cảnh báo mà vẫn trống, kiểm tra: WF1 có đang chạy theo lịch · ngưỡng trong <b>Cài đặt</b> · và bạn đã <b>đăng nhập</b> đúng vai trò để xem.</p>}
+                </div>
+              ) : (
+                <div className="px-5 py-8 text-center text-[13px] text-slate-500">Không có sự cố khớp bộ lọc{evtKhu !== "ALL" ? ` · Khu ${evtKhu}` : ""}{evtAhu !== "ALL" ? ` · ${evtAhu}` : ""}. <button onClick={() => { setEvtKhu("ALL"); setEvtAhu("ALL"); }} className="text-teal-600 font-semibold underline">Bỏ lọc</button></div>
+              )) : (
+              <div className="overflow-x-auto"><table className="w-full min-w-[1024px] text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Phụ trách", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
+                <tbody>{incSorted.map((inc, idx) => {
+                  // P0-2: ở LIVE, nếu chưa biết bộ luật thì KHOÁ nút — không rơi về hard-code.
+                  const acts = luatSanSang ? nutKhopTrangThai(dsNut, inc.statusCode)
+                             : isLive ? [] : (STATUS_ACTIONS[inc.status] || []);
+                  const terminal = luatSanSang || !isLive ? acts.length === 0 : false;
+                  const myActs = !user ? [] : luatSanSang ? nutChoVaiTro(dsNut, inc.statusCode, role)
+                             : isLive ? [] : acts.filter((a) => a.roles.includes(role));
+                  const choAi = luatSanSang ? [...new Set(acts.map((a) => a.vai_tro))]
+                             : isLive ? [] : rolesOfStatus(inc.status);
+                  const moCum = idx === 0 || cumAhu(incSorted[idx - 1]) !== cumAhu(inc);
+                  const soTrongCum = incSorted.filter((x) => cumAhu(x) === cumAhu(inc)).length;
+                  return (
+                  <React.Fragment key={inc.id}>
+                  {moCum && (
+                    <tr className="bg-slate-50/70">
+                      <td colSpan={11} className="py-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                        {cumAhu(inc)} <span className="text-slate-400 font-normal normal-case tracking-normal">· {soTrongCum} sự cố</span>
+                      </td>
+                    </tr>)}
+                  <tr className={`border-t border-slate-100 hover:bg-sky-50/40 transition ${inc.silenced ? "opacity-60" : ""}`}>
+                    <td className="py-3 px-3 font-semibold" style={{ color: COLOR.navy }}>{inc.id}</td>
+                    <td className="py-3 px-3">{inc.cumHienThi
+                      ? <span className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-600 tabular-nums">{inc.cumHienThi}</span>
+                      : <span className="text-[11px] text-slate-300">—</span>}</td>
+                    <td className="py-3 px-3">{inc.room}{inc.mucCanhBao === "SUPPRESSED" && <span title="Cảm biến không đo được — hệ ngừng chấm mức, chờ Thiết bị đo. Không gửi email." className="ml-1.5 align-middle inline-block rounded-lg bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-medium text-slate-500">cảm biến đứng hình</span>}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[10px] text-slate-400">{kh}</span> : null; })()}</td>
+                    <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
+                    <td className="py-3 px-3 text-slate-600">{inc.sensor}{inc.huong && <span className={`ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-rose-50 text-rose-600" : inc.huong === "THAP" ? "bg-sky-50 text-sky-600" : "bg-amber-50 text-amber-600"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
+                      {inc.giaTriGanNhat != null && <div className="text-[11px] text-slate-400 mt-0.5 leading-tight">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.cuaSo5p && <span className="tabular-nums"> ({inc.cuaSo5p}{inc.ngay5p ? ` · ${inc.ngay5p}` : ""})</span>}{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{inc.mucGanNhat === "NORMAL" ? <span className="text-emerald-600"> · đã về ngưỡng</span> : inc.mucGanNhat && <span className="text-rose-500"> · {inc.mucGanNhat}</span>}{inc.thieuDiem && <span className="text-amber-600"> · FMS thiếu điểm</span>}{inc.tuoiDuLieuPhut > 75 && <span className="text-amber-600"> · số liệu {(inc.tuoiDuLieuPhut / 60).toFixed(1)}h trước</span>}</div>}</td>
+                    <td className="py-3 px-3 text-slate-500 tabular-nums text-[12px]">{inc.start.slice(11)}</td>
+                    <td className="py-3 px-3 text-amber-600 font-medium">{inc.duration}h</td>
+                    <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-slate-700 font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span></td>
+                    <td className="py-3 px-3">{(() => { const q = quaHanTheoId[inc.dbId]; if (!q) return <span className="text-[11px] text-slate-300">—</span>;
+                      const nong = q.qua_han_tiep_nhan || q.qua_han_xu_ly;
+                      return (<div className="leading-tight">
+                        <span className={`text-[11px] font-semibold ${nong ? "text-rose-600" : "text-slate-600"}`}>{ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach || "—"}</span>
+                        {nong && <p className="text-[10px] text-rose-500 mt-0.5" title={q.chan_doan}>{q.qua_han_tiep_nhan ? "chưa tiếp nhận" : `quá hạn ${q.gio_qua_han_xu_ly}h`}</p>}
+                        {!nong && <p className="text-[10px] text-slate-400 mt-0.5">trong hạn</p>}
+                      </div>); })()}</td>
+                    <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT" || role === "QA") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Tạm hoãn</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đang tạm hoãn" : "—"}</span>}{inc.silenced && inc.tamDungDen && <div className="text-[10px] text-slate-400 mt-1" title={inc.tamDungLyDo || ""}>tới {new Date(inc.tamDungDen).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})} · {inc.tamDungBoi || "?"}</div>}</td>
+                    <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {choAi.map((r) => ROLE_VI[r] || r).join("/")}</span>}</td>
+                  </tr>
+                  </React.Fragment>
+                ); })}</tbody></table></div>)}</Card>
+              <p className="text-[11px] text-slate-500 text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
+              {/* Cụm điều tra — mục RIÊNG, đặt SAU danh sách sự cố: sự cố là thứ vận hành
+                  cần thấy trước; cụm là lớp điều tra/kết luận QA, tra cứu sau. */}
               {isLive && cumHienThi.length > 0 && (
-                <Card className="p-4 mb-3">
+                <Card className="p-4">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div>
                       <h3 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>Cụm điều tra · {cumHienThi.length} cụm / {cumHienThi.reduce((n, c) => n + (c.su_co_dang_mo || 0), 0)} sự cố</h3>
@@ -3402,61 +3470,6 @@ export default function App() {
                   </div>
                 </Card>
               )}
-              <Card className="p-2 sm:p-4">{incFiltered.length === 0 ? (incidentsXem.length === 0 ? (
-                <div className="px-5 py-10 text-center">
-                  <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div>
-                  <p className="mt-3 text-[14px] font-semibold" style={{ color: COLOR.navy }}>Chưa có sự cố nào đang mở</p>
-                  <p className="mt-1.5 text-[12px] text-slate-500 max-w-md mx-auto leading-relaxed">Sự cố được <b>tự động tạo</b> khi luồng n8n (WF1) phát hiện mức <b className="text-amber-600">Cảnh báo</b> hoặc <b className="text-rose-600">Hành động</b> từ dữ liệu theo giờ và ghi vào Supabase. Danh sách trống nghĩa là tất cả phòng đang trong ngưỡng — hoặc chưa có dữ liệu kích hoạt.</p>
-                  {isLive && <p className="mt-3 text-[11px] text-slate-400 max-w-md mx-auto">Nếu bạn chắc chắn đang có cảnh báo mà vẫn trống, kiểm tra: WF1 có đang chạy theo lịch · ngưỡng trong <b>Cài đặt</b> · và bạn đã <b>đăng nhập</b> đúng vai trò để xem.</p>}
-                </div>
-              ) : (
-                <div className="px-5 py-8 text-center text-[13px] text-slate-500">Không có sự cố khớp bộ lọc{evtKhu !== "ALL" ? ` · Khu ${evtKhu}` : ""}{evtAhu !== "ALL" ? ` · ${evtAhu}` : ""}. <button onClick={() => { setEvtKhu("ALL"); setEvtAhu("ALL"); }} className="text-teal-600 font-semibold underline">Bỏ lọc</button></div>
-              )) : (
-              <div className="overflow-x-auto"><table className="w-full min-w-[1024px] text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Phụ trách", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
-                <tbody>{incSorted.map((inc, idx) => {
-                  // P0-2: ở LIVE, nếu chưa biết bộ luật thì KHOÁ nút — không rơi về hard-code.
-                  const acts = luatSanSang ? nutKhopTrangThai(dsNut, inc.statusCode)
-                             : isLive ? [] : (STATUS_ACTIONS[inc.status] || []);
-                  const terminal = luatSanSang || !isLive ? acts.length === 0 : false;
-                  const myActs = !user ? [] : luatSanSang ? nutChoVaiTro(dsNut, inc.statusCode, role)
-                             : isLive ? [] : acts.filter((a) => a.roles.includes(role));
-                  const choAi = luatSanSang ? [...new Set(acts.map((a) => a.vai_tro))]
-                             : isLive ? [] : rolesOfStatus(inc.status);
-                  const moCum = idx === 0 || cumAhu(incSorted[idx - 1]) !== cumAhu(inc);
-                  const soTrongCum = incSorted.filter((x) => cumAhu(x) === cumAhu(inc)).length;
-                  return (
-                  <React.Fragment key={inc.id}>
-                  {moCum && (
-                    <tr className="bg-slate-50/70">
-                      <td colSpan={11} className="py-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                        {cumAhu(inc)} <span className="text-slate-400 font-normal normal-case tracking-normal">· {soTrongCum} sự cố</span>
-                      </td>
-                    </tr>)}
-                  <tr className={`border-t border-slate-100 hover:bg-sky-50/40 transition ${inc.silenced ? "opacity-60" : ""}`}>
-                    <td className="py-3 px-3 font-semibold" style={{ color: COLOR.navy }}>{inc.id}</td>
-                    <td className="py-3 px-3">{inc.cumHienThi
-                      ? <span className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-600 tabular-nums">{inc.cumHienThi}</span>
-                      : <span className="text-[11px] text-slate-300">—</span>}</td>
-                    <td className="py-3 px-3">{inc.room}{inc.mucCanhBao === "SUPPRESSED" && <span title="Cảm biến không đo được — hệ ngừng chấm mức, chờ Thiết bị đo. Không gửi email." className="ml-1.5 align-middle inline-block rounded-lg bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-medium text-slate-500">cảm biến đứng hình</span>}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[10px] text-slate-400">{kh}</span> : null; })()}</td>
-                    <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
-                    <td className="py-3 px-3 text-slate-600">{inc.sensor}{inc.huong && <span className={`ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-rose-50 text-rose-600" : inc.huong === "THAP" ? "bg-sky-50 text-sky-600" : "bg-amber-50 text-amber-600"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
-                      {inc.giaTriGanNhat != null && <div className="text-[11px] text-slate-400 mt-0.5 leading-tight">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{inc.mucGanNhat === "NORMAL" ? <span className="text-emerald-600"> · đã về ngưỡng</span> : inc.mucGanNhat && <span className="text-rose-500"> · {inc.mucGanNhat}</span>}</div>}</td>
-                    <td className="py-3 px-3 text-slate-500 tabular-nums text-[12px]">{inc.start.slice(11)}</td>
-                    <td className="py-3 px-3 text-amber-600 font-medium">{inc.duration}h</td>
-                    <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-slate-700 font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span></td>
-                    <td className="py-3 px-3">{(() => { const q = quaHanTheoId[inc.dbId]; if (!q) return <span className="text-[11px] text-slate-300">—</span>;
-                      const nong = q.qua_han_tiep_nhan || q.qua_han_xu_ly;
-                      return (<div className="leading-tight">
-                        <span className={`text-[11px] font-semibold ${nong ? "text-rose-600" : "text-slate-600"}`}>{ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach || "—"}</span>
-                        {nong && <p className="text-[10px] text-rose-500 mt-0.5" title={q.chan_doan}>{q.qua_han_tiep_nhan ? "chưa tiếp nhận" : `quá hạn ${q.gio_qua_han_xu_ly}h`}</p>}
-                        {!nong && <p className="text-[10px] text-slate-400 mt-0.5">trong hạn</p>}
-                      </div>); })()}</td>
-                    <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT" || role === "QA") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Tạm hoãn</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đang tạm hoãn" : "—"}</span>}{inc.silenced && inc.tamDungDen && <div className="text-[10px] text-slate-400 mt-1" title={inc.tamDungLyDo || ""}>tới {new Date(inc.tamDungDen).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})} · {inc.tamDungBoi || "?"}</div>}</td>
-                    <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {choAi.map((r) => ROLE_VI[r] || r).join("/")}</span>}</td>
-                  </tr>
-                  </React.Fragment>
-                ); })}</tbody></table></div>)}</Card>
-              <p className="text-[11px] text-slate-500 text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
               {isLive && suCoDongXem.length > 0 && (
                 <Card className="p-4">
                   <button onClick={() => setKhungDongMo(!khungDongMo)} className="w-full flex items-center justify-between gap-3 text-left">
