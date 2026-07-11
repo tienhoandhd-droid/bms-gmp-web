@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve } from 'node:path'
 
 // base './' để asset dùng đường dẫn tương đối → chạy đúng dù repo đặt ở
 // https://<user>.github.io/<repo>/ mà không cần biết tên repo.
@@ -14,6 +15,13 @@ export default defineConfig({
     //  • Khi deploy bản mới CHỈ phần code app đổi hash → recharts/react/... giữ
     //    nguyên trong cache trình duyệt → người dùng vào lại gần như tức thì.
     rollupOptions: {
+      // 2 entry: dashboard đầy đủ (index) + trang thao tác từ email siêu nhẹ (action).
+      // action.html KHÔNG import App/dashboard/charts → email deep-link vào đây chỉ tải
+      // react+supabase+~10KB code thay vì cả app; bấm nhiều nút không lag.
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        action: resolve(__dirname, 'action.html'),
+      },
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return

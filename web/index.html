@@ -2,6 +2,17 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
+    <!-- CHUYỂN HƯỚNG SỚM: nút trong email deep-link vào đây kèm ?token=. Chạy NGAY khi
+         parse <head>, TRƯỚC khi trình duyệt tải bundle dashboard (~335KB) + preload charts
+         → sang trang thao tác siêu nhẹ action.html. Đặt là script ĐẦU TIÊN để location.replace
+         hủy việc tải tài liệu này trước khi các <link modulepreload> phía dưới được xử lý.
+         Cũng cứu MỌI email cũ đã gửi (vẫn trỏ index.html?token). -->
+    <script>
+      try {
+        var _q = new URLSearchParams(window.location.search);
+        if (_q.get('token')) window.location.replace('action.html' + window.location.search + window.location.hash);
+      } catch (e) { /* trình duyệt cũ không có URLSearchParams → cứ vào app thường */ }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#EAF3F8" />
     <title>Giám sát HVAC phòng sạch GMP — CPC1 Hà Nội</title>
