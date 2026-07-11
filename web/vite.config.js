@@ -113,7 +113,11 @@ export default defineConfig({
             id.includes('echarts') || id.includes('zrender') ||
             id.includes('recharts') || id.includes('victory-vendor') ||
             id.includes('d3-') || id.includes('internmap') ||
-            id.includes('decimal.js') || id.includes('robust-predicates')
+            id.includes('decimal.js') || id.includes('robust-predicates') ||
+            // @xyflow/react: chỉ SoDoLuatCard (React.lazy) dùng — ép vào 'vendor'
+            // sẽ dính modulepreload ở màn hình đầu (+37KB gzip đo trên live 11/07).
+            // Trả undefined để Rollup gộp vào chunk ASYNC của SoDoLuatCard.
+            id.includes('@xyflow') || id.includes('xyflow')
           ) return
           if (id.includes('@supabase') || id.includes('supabase')) return 'supabase'
           if (id.includes('react-dom') || id.includes('scheduler') || /[\\/]react[\\/]/.test(id)) return 'react'
