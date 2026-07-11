@@ -2610,19 +2610,40 @@ function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
 // không kéo cả cây App (bảng sự cố + biểu đồ) render theo — nguồn lag cũ.
 const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuLy, onGhiKetLuan }) {
   const [mo, setMo] = useState(true);
+  const [tatCa, setTatCa] = useState(false);   // false = 5 việc + 3 cụm đầu · true = toàn bộ (khung cuộn)
+  const [an, setAn] = useState(false);         // Ẩn cho gọn → còn viên nhỏ, bấm hiện lại (tự hiện lại khi F5)
   if (viecCuaToi.length === 0 && cumChoToi.length === 0) return null;
+  const tong = viecCuaToi.length + cumChoToi.length;
+  const coQuaHan = viecCuaToi.some((x) => x.q.qua_han_tiep_nhan || x.q.qua_han_xu_ly);
+  if (an) return (
+    <button onClick={() => setAn(false)}
+      className="mb-4 inline-flex items-center gap-2 rounded-full bg-white ring-1 ring-amber-200 px-3.5 py-1.5 text-[12px] font-semibold hover:bg-amber-50"
+      style={{ color: COLOR.navy, ...cardShadow }} title="Hiện lại danh sách Việc của bạn">
+      Việc của bạn · {tong}{coQuaHan && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600">quá hạn</span>}
+      <span className="text-slate-400 font-normal">Hiện ▾</span>
+    </button>
+  );
+  const dsViec = tatCa ? viecCuaToi : viecCuaToi.slice(0, 5);
+  const dsCum = tatCa ? cumChoToi : cumChoToi.slice(0, 3);
+  const conAn = (viecCuaToi.length - dsViec.length) + (cumChoToi.length - dsCum.length);
   return (
     <div className="mb-4 rounded-2xl bg-white ring-1 ring-amber-200 px-4 py-3" style={cardShadow}>
-      <button onClick={() => setMo(!mo)} className="w-full flex items-center justify-between gap-3 text-left">
-        <span className="text-[13px] font-semibold" style={{ color: COLOR.navy }}>
-          Việc của bạn · {viecCuaToi.length + cumChoToi.length}
-          {viecCuaToi.some((x) => x.q.qua_han_tiep_nhan || x.q.qua_han_xu_ly) && <span className="ml-2 rounded-full bg-rose-50 px-2 py-0.5 text-[10.5px] font-bold text-rose-600">có việc quá hạn</span>}
-        </span>
-        <span className="shrink-0 text-[11px] text-slate-400">{mo ? "Thu gọn ▲" : "Mở ra ▼"}</span>
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <button onClick={() => setMo(!mo)} className="min-w-0 flex-1 text-left">
+          <span className="text-[13px] font-semibold" style={{ color: COLOR.navy }}>
+            Việc của bạn · {tong}
+            {coQuaHan && <span className="ml-2 rounded-full bg-rose-50 px-2 py-0.5 text-[10.5px] font-bold text-rose-600">có việc quá hạn</span>}
+          </span>
+        </button>
+        <div className="shrink-0 flex items-center gap-1">
+          <button onClick={() => setAn(true)} title="Ẩn cho gọn — còn viên nhỏ để hiện lại"
+            className="rounded-lg px-2 py-1 text-[11px] text-slate-400 hover:bg-slate-50 hover:text-slate-600">Ẩn ✕</button>
+          <button onClick={() => setMo(!mo)} className="rounded-lg px-2 py-1 text-[11px] text-slate-400 hover:bg-slate-50">{mo ? "Thu gọn ▲" : "Mở ra ▼"}</button>
+        </div>
+      </div>
       {mo && (
-        <div className="mt-2 space-y-1.5">
-          {viecCuaToi.slice(0, 5).map(({ q, inc }) => {
+        <div className={`mt-2 space-y-1.5 ${tatCa ? "max-h-[46vh] overflow-y-auto overscroll-contain pr-1" : ""}`}>
+          {dsViec.map(({ q, inc }) => {
             const nong = q.qua_han_tiep_nhan || q.qua_han_xu_ly;
             return (
               <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
@@ -2634,8 +2655,7 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
               </div>
             );
           })}
-          {viecCuaToi.length > 5 && <p className="text-[11px] text-slate-400 pl-1">… và {viecCuaToi.length - 5} việc nữa ở tab Sự cố.</p>}
-          {cumChoToi.slice(0, 3).map((c) => (
+          {dsCum.map((c) => (
             <div key={c.ma_cum} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
               <span className="min-w-0 text-[12px] text-slate-600 truncate">
                 <b style={{ color: COLOR.navy }}>{c.ma_hien_thi}</b> · {c.ahu || "?"} · {c.loai_cam_bien}
@@ -2644,8 +2664,13 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
               <button onClick={() => onGhiKetLuan(c)} className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">Ghi kết luận</button>
             </div>
           ))}
-          {cumChoToi.length > 3 && <p className="text-[11px] text-slate-400 pl-1">… và {cumChoToi.length - 3} cụm nữa ở tab Sự cố.</p>}
         </div>
+      )}
+      {mo && (conAn > 0 || tatCa) && (
+        <button onClick={() => setTatCa(!tatCa)}
+          className="mt-2 w-full rounded-xl bg-amber-50/60 px-3 py-1.5 text-[12px] font-semibold text-amber-700 ring-1 ring-amber-100 hover:bg-amber-50">
+          {tatCa ? "Thu về danh sách ngắn ▴" : `Xem tất cả ${tong} việc ▾`}
+        </button>
       )}
     </div>
   );
@@ -2793,6 +2818,10 @@ export default function App() {
   const [audit, setAudit] = useState(LIVE_MAC_DINH ? [] : [{ t: "13:05 29/5", who: "Hệ thống", act: "Tạo sự cố", obj: "SC-1042 / C4.R7", detail: "Chênh áp nghiêm trọng" }, { t: "10:18 29/5", who: "Nam (IPC)", act: "Xác nhận bất thường", obj: "SC-1038 / C4.R1", detail: "Kiểm tra thực tế" }]);
   const [ai, setAi] = useState(null);
   const [pwOpen, setPwOpen] = useState(false);   // #5 — modal đổi mật khẩu (mọi vai trò)
+  // Ẩn banner "Đang đọc/ghi dữ liệu thật…" cho gọn (nhớ qua localStorage; bấm ô
+  // "Nguồn dữ liệu" trên header để hiện/ẩn lại). Khi CÓ LỖI tải banner luôn hiện.
+  const [anBannerLive, setAnBannerLive] = useState(() => { try { return localStorage.getItem("bms_an_banner_live") === "1"; } catch { return false; } });
+  const doiBannerLive = () => setAnBannerLive((v) => { const m = !v; try { localStorage.setItem("bms_an_banner_live", m ? "1" : "0"); } catch { /* bỏ qua */ } return m; });
   const [kpiModal, setKpiModal] = useState(null); // #3 — modal danh sách phòng theo ô KPI ('dat'|'khong'|'thieu'|'p1')
   const [xemTatCaPhong, setXemTatCaPhong] = useState(false);   // Overview: ưu tiên 1&2 (mặc định) ↔ tất cả phòng
   // Nút bấm từ email: ?sc=&act=&token=. Đọc token NGAY khi tải trang rồi dọn URL
@@ -3352,10 +3381,10 @@ export default function App() {
             ); })()}
             {isLive && <SucKhoeWidget sk={live.sucKhoe} dangTai={live.dangTai} />}
             {HAS_SUPABASE ? (
-              <div className="flex items-center gap-2.5 rounded-2xl bg-white px-4 ring-1 h-[50px]" style={{ ...cardShadow, borderColor: COLOR.teal }} title="Đang đọc/ghi dữ liệu thật từ Supabase">
+              <button onClick={doiBannerLive} className="flex items-center gap-2.5 rounded-2xl bg-white px-4 ring-1 h-[50px] hover:bg-teal-50/50" style={{ ...cardShadow, borderColor: COLOR.teal }} title={`Đang đọc/ghi dữ liệu thật từ Supabase — bấm để ${anBannerLive ? "hiện" : "ẩn"} dòng mô tả nguồn dữ liệu`}>
                 <span className={`w-2.5 h-2.5 rounded-full bg-teal-400 ${live.dangTai ? "animate-pulse" : ""}`} />
                 <div className="leading-tight text-left"><p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Nguồn dữ liệu</p><p className="text-xs font-semibold" style={{ color: COLOR.teal }}>LIVE · Supabase</p></div>
-              </div>
+              </button>
             ) : (
               <div className="flex items-center gap-2.5 rounded-2xl bg-white px-4 ring-1 ring-amber-200 h-[50px]" style={cardShadow} title="Chưa cấu hình VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY">
                 <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
@@ -3371,10 +3400,14 @@ export default function App() {
         <nav className="mt-5"><div className="rounded-2xl bg-white/80 backdrop-blur ring-1 ring-slate-200 p-1.5 flex gap-1 overflow-x-auto" style={cardShadow}>{visibleTabs.map((t) => { const Icon = t.icon; const active = tab === t.k; return <button key={t.k} onClick={() => setTab(t.k)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition ${active ? "text-white" : "text-slate-600 hover:bg-slate-100"}`} style={active ? { background: "linear-gradient(135deg,#1aa899,#149e90)", boxShadow: "0 6px 16px -6px rgba(20,158,144,0.55)" } : {}}><Icon className="w-4 h-4" strokeWidth={1.8} /> {t.label}{t.k === "events" && <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={active ? { background: "rgba(255,255,255,0.25)" } : { background: "rgba(226,103,79,0.16)", color: COLOR.coralDeep }}>{p1Open}</span>}</button>; })}</div></nav>
 
         <main className="mt-6">
-          {isLive && (
+          {isLive && (!anBannerLive || live.loi) && (
             <div className="mb-4 flex items-start gap-2 rounded-2xl bg-teal-50 ring-1 ring-teal-100 px-4 py-2.5 text-[12px] text-slate-600">
               <Wifi className="w-4 h-4 mt-0.5 text-teal-600 shrink-0" strokeWidth={1.8} />
-              <span>Đang đọc/ghi dữ liệu thật từ Supabase cho <b>tất cả các tab</b> (Tổng quan · Sự cố · Phòng · Xu hướng · Báo cáo · Nhật ký). <b>Xu hướng &amp; Rủi ro</b> tính trực tiếp từ dữ liệu theo giờ (luôn có sẵn); riêng <b>Báo cáo AI</b> tổng hợp theo ngày sẽ đầy đủ dần khi WF rollup chạy.{live.loi && <span className="text-rose-600"> · Lỗi tải: {live.loi.thong_bao || live.loi.message || "kết nối"}</span>}{live.capNhatLuc && !live.loi && <span className="text-slate-400"> · Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</span>
+              <span className="flex-1">Đang đọc/ghi dữ liệu thật từ Supabase cho <b>tất cả các tab</b> (Tổng quan · Sự cố · Phòng · Xu hướng · Báo cáo · Nhật ký). <b>Xu hướng &amp; Rủi ro</b> tính trực tiếp từ dữ liệu theo giờ (luôn có sẵn); riêng <b>Báo cáo AI</b> tổng hợp theo ngày sẽ đầy đủ dần khi WF rollup chạy.{live.loi && <span className="text-rose-600"> · Lỗi tải: {live.loi.thong_bao || live.loi.message || "kết nối"}</span>}{live.capNhatLuc && !live.loi && <span className="text-slate-400"> · Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</span>
+              {!live.loi && (
+                <button onClick={doiBannerLive} title="Ẩn dòng này cho gọn — bấm ô 'Nguồn dữ liệu' trên đầu trang để hiện lại"
+                  className="shrink-0 rounded-lg px-1.5 py-0.5 text-slate-400 hover:bg-teal-100/60 hover:text-slate-600 text-[13px] leading-none">✕</button>
+              )}
             </div>
           )}
           {isLive && user && role && <ViecCuaBan viecCuaToi={viecCuaToi} cumChoToi={cumChoToi} onXuLy={openApproval} onGhiKetLuan={ghiKetLuanCum} />}
