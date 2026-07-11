@@ -175,25 +175,39 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     })
 
     // Tầng 1 hoàn tất → tắt "đang tải" + đóng dấu thời điểm. KHÔNG chờ tầng 2.
-    Promise.all([pTongQuan, pSuCo, pCanhBao, pSucKhoe, pNguong, pPhong]).then(() => {
+    const p_tier1 = Promise.all([pTongQuan, pSuCo, pCanhBao, pSucKhoe, pNguong, pPhong])
+    p_tier1.then(() => {
       if (con()) { setCapNhatLuc(new Date()); setDangTai(false) }
     })
 
     // ============================================================
-    // TẦNG 2 — dữ liệu tab phụ (Cấu hình/Rủi ro/SOP/AI/GMP): nạp NỀN,
-    // không chặn màn hình đầu. Ở nhịp tự động chỉ nạp lại khi quá TTL (đổi chậm).
+    // TẦNG 2 — dữ liệu tab phụ (Cấu hình/Rủi ro/SOP/AI/GMP): nạp NỀN.
+    // TRƯỚC ĐÂY chạy SONG SONG với tầng 1 ⇒ 14 truy vấn ập vào DB (CPU-throttle) cùng lúc,
+    // làm CHẬM CẢ tầng 1 (thứ người dùng đợi). Nay CHỜ tầng 1 xong rồi mới chạy, và hoãn
+    // tới lúc luồng rảnh (requestIdleCallback) → màn hình đầu có dữ liệu nhanh hơn, tầng 2
+    // vẫn tự nạp ngay sau đó. Nhịp tự động vẫn chỉ nạp lại khi quá TTL (đổi chậm).
     // ============================================================
     const nenTier2 = !tuDong || (Date.now() - tier2Luc.current > TIER2_TTL_MS)
     if (nenTier2) {
       tier2Luc.current = Date.now()
-      layLichSuCauHinh(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setConfigHistory(x.rows) })
-      laySuCoQuaHan(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoQuaHan(x.rows) })
-      layCumSuCo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setCumSuCo(x.rows) })
-      laySuCoDongGanDay(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoDongGanDay(x.rows) })
-      layXepHangRuiRo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setRiskRows(x.rows) })
-      layQuyTrinhSop(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSopRows(x.rows) })
-      layBaoCaoAi(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setAiRows(x.rows) })
-      layPhanTichGmp(signal).then((x) => { nhanLoi(x); if (con()) { if (x.mkt) setGmpMkt(x.mkt); if (x.spc) setGmpSpc(x.spc) } })
+      const chayTier2 = () => {
+        if (!con()) return
+        layLichSuCauHinh(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setConfigHistory(x.rows) })
+        laySuCoQuaHan(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoQuaHan(x.rows) })
+        layCumSuCo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setCumSuCo(x.rows) })
+        laySuCoDongGanDay(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoDongGanDay(x.rows) })
+        layXepHangRuiRo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setRiskRows(x.rows) })
+        layQuyTrinhSop(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSopRows(x.rows) })
+        layBaoCaoAi(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setAiRows(x.rows) })
+        layPhanTichGmp(signal).then((x) => { nhanLoi(x); if (con()) { if (x.mkt) setGmpMkt(x.mkt); if (x.spc) setGmpSpc(x.spc) } })
+      }
+      // finally: chạy tầng 2 kể cả khi tầng 1 lỗi. requestIdleCallback nhường luồng cho
+      // render màn hình đầu; setTimeout dự phòng cho trình duyệt không hỗ trợ.
+      p_tier1.finally(() => {
+        if (!con()) return
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(chayTier2, { timeout: 1500 })
+        else setTimeout(chayTier2, 200)
+      })
     }
   }, [dangBat, lamGiauPhong])
 

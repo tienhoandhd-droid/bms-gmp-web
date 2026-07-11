@@ -7,8 +7,11 @@ import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau, thuKhoiPhucPhien } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
-import AuditLogPage from "./components/AuditLogPage";
-import SoDoLuatCard from "./components/SoDoLuatCard";
+// Nạp TRỄ 2 trang nặng KHÔNG thuộc màn hình đầu: Nhật ký kiểm toán (tab Nhật ký) và
+// Sơ đồ luật (tab Cài đặt) — ~880 dòng. Cắt khỏi bundle "main" eager, chỉ tải khi mở
+// đúng tab → màn hình đầu tải & dựng nhanh hơn.
+const AuditLogPage = React.lazy(() => import("./components/AuditLogPage"));
+const SoDoLuatCard = React.lazy(() => import("./components/SoDoLuatCard"));
 import { moHoSoCumBanIn } from "./lib/hoSoCum";
 import {
   Droplets, Thermometer, Sparkles, ShieldCheck, ShieldAlert, Activity,
@@ -2937,12 +2940,20 @@ export default function App() {
 
   // #5 — nếu vai trò không được phép xem tab đang mở (vd IPC đang ở Cài đặt khi đăng nhập) → đưa về Tổng quan
   useEffect(() => { if (role && !roleCanSeeTab(role, tab)) setTab("home"); }, [role, tab]);
-  // Prefetch chunk biểu đồ (ECharts ~243KB) khi trình duyệt rảnh → mở tab Xu hướng tức thì, không khựng.
+  // Prefetch chunk biểu đồ (ECharts ~243KB gzip) → mở tab Xu hướng tức thì, không khựng.
+  // TRƯỚC ĐÂY chạy NGAY lúc mount (kể cả màn đăng nhập / màn Tổng quan) ⇒ 243KB tải song
+  // song CẠNH TRANH với lần tải dữ liệu đầu → vào trang chậm. Nay CHỜ: đã đăng nhập
+  // (có vai trò) VÀ màn hình đầu đã có dữ liệu (live.capNhatLuc), rồi mới prefetch lúc rảnh.
+  const daWarmCharts = useRef(false);
   useEffect(() => {
+    if (daWarmCharts.current || !role || !live.capNhatLuc) return;
+    daWarmCharts.current = true;
+    let id, tm;
     const warm = () => { import("./components/charts").catch(() => {}); };
-    if (typeof requestIdleCallback === "function") { const id = requestIdleCallback(warm, { timeout: 3000 }); return () => cancelIdleCallback(id); }
-    const tm = setTimeout(warm, 1500); return () => clearTimeout(tm);
-  }, []);
+    if (typeof requestIdleCallback === "function") id = requestIdleCallback(warm, { timeout: 4000 });
+    else tm = setTimeout(warm, 1200);
+    return () => { if (id) cancelIdleCallback(id); if (tm) clearTimeout(tm); };
+  }, [role, live.capNhatLuc]);
 
   // Giờ máy chủ UTC+7: trước đây dùng toISOString() (UTC) nên lệch -7h so với nhãn "UTC+7".
   // Định dạng theo đúng múi giờ Asia/Ho_Chi_Minh, không phụ thuộc múi giờ trình duyệt.
@@ -3597,7 +3608,9 @@ export default function App() {
               </div>
 
               {auditTab === "audit" && (
-              <AuditLogPage isLive={isLive} demoRows={audit} />
+              <React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: 320 }} />}>
+                <AuditLogPage isLive={isLive} demoRows={audit} />
+              </React.Suspense>
               )}
               {auditTab === "config" && (
               <Card className="p-6"><SectionTitle icon={History} hint="cấu hình ngưỡng · phòng · cảm biến">Thay đổi cấu hình & dữ liệu gốc</SectionTitle><p className="text-[11px] text-slate-500 mt-1.5">Các thay đổi cấu hình ghi tại Supabase (sửa ngưỡng cảnh báo, thêm/bớt phòng & cảm biến, chỉnh giới hạn) — kể cả khi sửa trực tiếp trên database, đều hiển thị tại đây.</p><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Thay đổi"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{configHistory.length === 0 ? <tr><td colSpan={3} className="py-6 text-center text-slate-400 text-[12px]">Chưa có thay đổi cấu hình.</td></tr> : configHistory.map((c, i) => <tr key={i} className="border-t border-slate-100"><td className="py-2.5 pr-4 text-slate-500 tabular-nums">{c.t}</td><td className="py-2.5 pr-4 text-slate-600">{c.who}</td><td className="py-2.5 pr-4 text-slate-700">{c.change}</td></tr>)}</tbody></table></div></Card>
@@ -3741,7 +3754,7 @@ export default function App() {
 
               {cfgTab === "sodo" && (
               <Card className="p-6"><SectionTitle icon={GitBranch} hint="luồng tự động + bảng luật đang chạy">Sơ đồ xử lý sự cố toàn hệ thống</SectionTitle>
-                <div className="mt-4"><SoDoLuatCard dsNut={isLive ? live.nutThaoTac : null} /></div>
+                <div className="mt-4"><React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: 320 }} />}><SoDoLuatCard dsNut={isLive ? live.nutThaoTac : null} /></React.Suspense></div>
               </Card>
               )}
               {cfgTab === "hethong" && (
