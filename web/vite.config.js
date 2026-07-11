@@ -32,7 +32,10 @@ function swPrecachePlugin() {
       }
       walk(dist)
       const precache = files
-        .filter((f) => f !== 'sw.js' && !/^assets\/charts-/.test(f))
+        // Chỉ precache LÕI màn hình đầu. Chunk lazy (charts, SoDoLuatCard,
+        // AuditLogPage) KHÔNG precache — tải lần đầu SW không tranh mạng với
+        // truy vấn dữ liệu tầng-1; chúng được cache LÚC DÙNG (runtime cache-first).
+        .filter((f) => f !== 'sw.js' && !/^assets\/(charts|SoDoLuatCard|AuditLogPage)-/.test(f))
         .sort()
       const h = createHash('sha1').update(precache.join('\n'))
       for (const f of precache) if (f.endsWith('.html')) h.update(readFileSync(resolve(dist, f)))
