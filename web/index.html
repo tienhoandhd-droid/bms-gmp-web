@@ -11,6 +11,11 @@
       try {
         var _q = new URLSearchParams(window.location.search);
         if (_q.get('token')) window.location.replace('action.html' + window.location.search + window.location.hash);
+        // Link KHÔI PHỤC MẬT KHẨU của Supabase có thể rơi về Site URL (trang này)
+        // thay vì datlai.html nếu redirect chưa được allow-list → cứu bằng cách
+        // chuyển tiếp NGUYÊN hash (chứa access_token) sang trang đặt lại mật khẩu.
+        else if (window.location.hash && window.location.hash.indexOf('type=recovery') !== -1)
+          window.location.replace('datlai.html' + window.location.hash);
       } catch (e) { /* trình duyệt cũ không có URLSearchParams → cứ vào app thường */ }
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

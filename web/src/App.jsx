@@ -3483,7 +3483,8 @@ export default function App() {
           </div>
         </header>
 
-        <nav className="mt-5"><div className="rounded-2xl bg-white/80 backdrop-blur ring-1 ring-slate-200 p-1.5 flex gap-1 overflow-x-auto" style={cardShadow}>{visibleTabs.map((t) => { const Icon = t.icon; const active = tab === t.k; return <button key={t.k} onClick={() => setTab(t.k)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition ${active ? "text-white" : "text-slate-600 hover:bg-slate-100"}`} style={active ? { background: "linear-gradient(135deg,#1aa899,#149e90)", boxShadow: "0 6px 16px -6px rgba(20,158,144,0.55)" } : {}}><Icon className="w-4 h-4" strokeWidth={1.8} /> {t.label}{t.k === "events" && <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={active ? { background: "rgba(255,255,255,0.25)" } : { background: "rgba(226,103,79,0.16)", color: COLOR.coralDeep }}>{p1Open}</span>}</button>; })}</div></nav>
+        {/* Mobile: tab TỰ XUỐNG DÒNG (không kéo ngang); desktop giữ 1 hàng cuộn. */}
+        <nav className="mt-5"><div className="rounded-2xl bg-white/80 backdrop-blur ring-1 ring-slate-200 p-1.5 flex gap-1 flex-wrap md:flex-nowrap md:overflow-x-auto" style={cardShadow}>{visibleTabs.map((t) => { const Icon = t.icon; const active = tab === t.k; return <button key={t.k} onClick={() => setTab(t.k)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition ${active ? "text-white" : "text-slate-600 hover:bg-slate-100"}`} style={active ? { background: "linear-gradient(135deg,#1aa899,#149e90)", boxShadow: "0 6px 16px -6px rgba(20,158,144,0.55)" } : {}}><Icon className="w-4 h-4" strokeWidth={1.8} /> {t.label}{t.k === "events" && <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={active ? { background: "rgba(255,255,255,0.25)" } : { background: "rgba(226,103,79,0.16)", color: COLOR.coralDeep }}>{p1Open}</span>}</button>; })}</div></nav>
 
         <main className="mt-6">
           {isLive && (!anBannerLive || live.loi) && (
@@ -3553,6 +3554,18 @@ export default function App() {
             const luatSanSang = Array.isArray(dsNut) && dsNut.length > 0;
             const luatHong = isLive && (dsNut === null || !!live.loiNut);
             const locChip = (v, label, on, click) => <button key={v} onClick={click} className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${on ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={on ? { backgroundColor: COLOR.teal } : {}}>{label}</button>;
+            // Nút hành động của 1 sự cố — DÙNG CHUNG cho bảng (desktop) và thẻ (mobile)
+            // để 2 giao diện không bao giờ lệch luật.
+            const tinhNut = (inc) => {
+              const acts = luatSanSang ? nutKhopTrangThai(dsNut, inc.statusCode)
+                         : isLive ? [] : (STATUS_ACTIONS[inc.status] || []);
+              const terminal = luatSanSang || !isLive ? acts.length === 0 : false;
+              const myActs = !user ? [] : luatSanSang ? nutChoVaiTro(dsNut, inc.statusCode, role)
+                         : isLive ? [] : acts.filter((a) => a.roles.includes(role));
+              const choAi = luatSanSang ? [...new Set(acts.map((a) => a.vai_tro))]
+                         : isLive ? [] : rolesOfStatus(inc.status);
+              return { acts, terminal, myActs, choAi };
+            };
             return (
             <div className="space-y-5">
               <SectionTitle icon={AlertOctagon} hint={user ? `vai trò: ${ROLE_VI[role]}` : "đăng nhập để thao tác"}>Sự cố đang xử lý</SectionTitle>
@@ -3577,17 +3590,48 @@ export default function App() {
                 </div>
               ) : (
                 <div className="px-5 py-8 text-center text-[13px] text-slate-500">Không có sự cố khớp bộ lọc{evtKhu !== "ALL" ? ` · Khu ${evtKhu}` : ""}{evtAhu !== "ALL" ? ` · ${evtAhu}` : ""}. <button onClick={() => { setEvtKhu("ALL"); setEvtAhu("ALL"); }} className="text-teal-600 font-semibold underline">Bỏ lọc</button></div>
-              )) : (
-              <div className="overflow-x-auto"><table className="w-full min-w-[1024px] text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Phụ trách", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
+              )) : (<>
+              {/* ═══ MOBILE (<md): thẻ dọc — KHÔNG kéo ngang ═══ */}
+              <div className="md:hidden space-y-2 p-1">
+                {incSorted.map((inc, idx) => {
+                  const { terminal, myActs, choAi } = tinhNut(inc);
+                  const q = quaHanTheoId[inc.dbId];
+                  const nong = q && (q.qua_han_tiep_nhan || q.qua_han_xu_ly);
+                  const moCum = idx === 0 || cumAhu(incSorted[idx - 1]) !== cumAhu(inc);
+                  return (
+                    <React.Fragment key={inc.id}>
+                      {moCum && <p className="pt-2 pb-0.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{cumAhu(inc)}</p>}
+                      <div className={`rounded-2xl ring-1 ring-slate-200 bg-white p-3 ${inc.silenced ? "opacity-60" : ""}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate"><b style={{ color: COLOR.navy }}>{inc.id}</b><span className="text-slate-600"> · {inc.room}</span>{inc.cumHienThi && <span className="ml-1.5 rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 tabular-nums">{inc.cumHienThi}</span>}</span>
+                          <span className="shrink-0 flex items-center gap-1.5"><MucBadge p={inc.priority} /><span className="text-[12px] text-amber-600 font-medium tabular-nums">{inc.duration}h</span></span>
+                        </div>
+                        <p className="mt-1 text-[12px] text-slate-600">
+                          {inc.sensor}{inc.huong && <span className={`ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-rose-50 text-rose-600" : inc.huong === "THAP" ? "bg-sky-50 text-sky-600" : "bg-amber-50 text-amber-600"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
+                          {inc.mucCanhBao === "SUPPRESSED" && <span className="ml-1.5 rounded-lg bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-medium text-slate-500">cảm biến đứng hình</span>}
+                        </p>
+                        {inc.giaTriGanNhat != null && <p className="text-[11px] text-slate-400 mt-0.5">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{inc.mucGanNhat === "NORMAL" && <span className="text-emerald-600"> · đã về ngưỡng</span>}</p>}
+                        <p className="mt-1.5 text-[12px] flex items-center gap-1.5 flex-wrap">
+                          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} /><span className="text-slate-700 font-medium">{inc.status}</span>
+                          {q && <span className={`text-[11px] ${nong ? "text-rose-600 font-semibold" : "text-slate-400"}`}>· {ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach}{nong ? (q.qua_han_tiep_nhan ? " chưa tiếp nhận" : ` quá hạn ${q.gio_qua_han_xu_ly}h`) : " trong hạn"}</span>}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {terminal ? <span className="text-teal-600 text-[12px] font-medium py-1">Đã khắc phục</span>
+                            : !user ? <button onClick={() => setLoginOpen(true)} className="text-[12px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white">Đăng nhập để thao tác</button>
+                            : myActs.length ? myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[12px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-black/5 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)
+                            : <span className="text-[11px] text-slate-400 py-1">Chờ {choAi.map((r) => ROLE_VI[r] || r).join(" / ")}</span>}
+                          {user && (role === "ADMIN" || role === "LOT" || role === "QA") && <button onClick={() => toggleSilence(inc.id)} className={`text-[12px] font-medium rounded-xl px-3 py-1.5 ring-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200"}`}>{inc.silenced ? "Bật lại" : "Tạm hoãn"}</button>}
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+              {/* ═══ DESKTOP (md+): bảng đầy đủ như cũ ═══ */}
+              <div className="hidden md:block overflow-x-auto"><table className="w-full min-w-[1024px] text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Phụ trách", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
                 <tbody>{incSorted.map((inc, idx) => {
-                  // P0-2: ở LIVE, nếu chưa biết bộ luật thì KHOÁ nút — không rơi về hard-code.
-                  const acts = luatSanSang ? nutKhopTrangThai(dsNut, inc.statusCode)
-                             : isLive ? [] : (STATUS_ACTIONS[inc.status] || []);
-                  const terminal = luatSanSang || !isLive ? acts.length === 0 : false;
-                  const myActs = !user ? [] : luatSanSang ? nutChoVaiTro(dsNut, inc.statusCode, role)
-                             : isLive ? [] : acts.filter((a) => a.roles.includes(role));
-                  const choAi = luatSanSang ? [...new Set(acts.map((a) => a.vai_tro))]
-                             : isLive ? [] : rolesOfStatus(inc.status);
+                  // P0-2: ở LIVE, nếu chưa biết bộ luật thì KHOÁ nút — logic chung trong tinhNut.
+                  const { terminal, myActs, choAi } = tinhNut(inc);
                   const moCum = idx === 0 || cumAhu(incSorted[idx - 1]) !== cumAhu(inc);
                   const soTrongCum = incSorted.filter((x) => cumAhu(x) === cumAhu(inc)).length;
                   return (
@@ -3621,7 +3665,7 @@ export default function App() {
                     <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {choAi.map((r) => ROLE_VI[r] || r).join("/")}</span>}</td>
                   </tr>
                   </React.Fragment>
-                ); })}</tbody></table></div>)}</Card>
+                ); })}</tbody></table></div></>)}</Card>
               <p className="text-[11px] text-slate-500 text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
               {/* Cụm điều tra — mục RIÊNG, đặt SAU danh sách sự cố: sự cố là thứ vận hành
                   cần thấy trước; cụm là lớp điều tra/kết luận QA, tra cứu sau. */}
@@ -3633,7 +3677,30 @@ export default function App() {
                       <p className="mt-0.5 text-[11px] text-slate-500 leading-relaxed max-w-2xl">Sự cố được gộp theo <b>AHU × loại cảm biến</b> — đơn vị mà Cơ điện can thiệp được và QA kết luận được. Cụm tự mở khi sự cố đầu tiên sinh ra, tự đóng khi sự cố cuối cùng đóng.</p>
                     </div>
                   </div>
-                  <div className="mt-3 overflow-x-auto">
+                  {/* MOBILE: thẻ cụm dọc — không kéo ngang */}
+                  <div className="md:hidden mt-3 space-y-2">
+                    {cumHienThi.map((c) => {
+                      const hh = c.chan_doan && c.chan_doan.startsWith("THIẾT BỊ ĐO");
+                      const honHop = c.chan_doan && c.chan_doan.startsWith("HỖN HỢP");
+                      const mauChanDoan = hh ? "text-slate-600 bg-slate-100" : honHop ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50";
+                      return (
+                        <div key={c.ma_cum} onClick={() => setCumChiTiet(c)} className="rounded-2xl ring-1 ring-slate-200 bg-white p-3 cursor-pointer active:bg-sky-50/40">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold tabular-nums" style={{ color: COLOR.navy }}>{c.ma_hien_thi}</span>
+                            <span className="text-[12px] text-slate-600">{c.ahu || "—"} · {c.loai_cam_bien} <span className="text-slate-400">· Khu {c.khu_vuc}</span></span>
+                          </div>
+                          <p className="mt-1 text-[12px] tabular-nums"><b className="text-slate-700">{c.su_co_dang_mo}</b> sự cố mở{c.so_chua_tiep_nhan > 0 && <span className="text-rose-600"> · {c.so_chua_tiep_nhan} chưa tiếp nhận</span>} · mở {Math.round(c.gio_mo)}h</p>
+                          <p className="mt-1.5"><span className={`inline-block rounded-lg px-2 py-1 text-[10.5px] leading-tight ${mauChanDoan}`}>{docTenVaiTro(c.chan_doan)}</span></p>
+                          <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
+                            {c.da_co_ket_luan_qa ? <span className="text-teal-700">✓ Kết luận: {c.qa_boi}</span> : <span className="text-slate-400">chưa có kết luận</span>}
+                            {(role === "QA" || role === "ADMIN") && <button onClick={(e) => { e.stopPropagation(); ghiKetLuanCum(c); }} className="rounded-lg bg-white px-2.5 py-1 font-medium text-slate-600 ring-1 ring-slate-200">{c.da_co_ket_luan_qa ? "Sửa" : "Ghi kết luận"}</button>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* DESKTOP: bảng như cũ */}
+                  <div className="hidden md:block mt-3 overflow-x-auto">
                     <table className="w-full text-[12px] min-w-[860px]">
                       <thead><tr className="text-slate-500 text-left text-[10px] uppercase tracking-wider">{["Cụm", "AHU · Chỉ tiêu", "Sự cố", "Chẩn đoán", "Phòng", "Mở", "Kết luận QA"].map((h) => <th key={h} className="py-2 px-3 font-semibold">{h}</th>)}</tr></thead>
                       <tbody>{cumHienThi.map((c) => {

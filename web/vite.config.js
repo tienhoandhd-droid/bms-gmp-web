@@ -124,6 +124,8 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         action: resolve(__dirname, 'action.html'),
+        // Trang đặt lại mật khẩu từ email khôi phục — siêu nhẹ như action.
+        datlai: resolve(__dirname, 'datlai.html'),
       },
       output: {
         manualChunks(id) {

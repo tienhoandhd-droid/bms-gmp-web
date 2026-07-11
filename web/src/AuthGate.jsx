@@ -5,7 +5,7 @@
 // ============================================================
 import React, { useState } from "react";
 import { LogIn } from "lucide-react";
-import { dangNhapMatKhau } from "./lib/auth";
+import { dangNhapMatKhau, guiEmailKhoiPhuc } from "./lib/auth";
 import logoCpc1hn from "./assets/logo-cpc1hn.png";
 
 const NAVY = "#1e3a56", TEAL = "#149e90";
@@ -15,6 +15,15 @@ export default function AuthGate() {
   const [matKhau, setMatKhau] = useState("");
   const [dangXuLy, setDangXuLy] = useState(false);
   const [loi, setLoi] = useState("");
+  const [kp, setKp] = useState("");   // '' | 'dang_gui' | 'da_gui'
+
+  const quenMatKhau = async () => {
+    if (!email.includes("@")) { setLoi("Nhập email của bạn vào ô trên rồi bấm 'Quên mật khẩu?'."); return; }
+    setKp("dang_gui"); setLoi("");
+    const { error } = await guiEmailKhoiPhuc(email);
+    if (error) { setKp(""); setLoi(error.message || "Không gửi được email khôi phục."); return; }
+    setKp("da_gui");
+  };
 
   const dangNhap = async () => {
     if (!email.includes("@")) { setLoi("Vui lòng nhập email hợp lệ."); return; }
@@ -55,13 +64,23 @@ export default function AuthGate() {
             placeholder="Mật khẩu" autoComplete="current-password"
             className="w-full rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-teal-300" />
           {loi && <p className="text-[12px] text-rose-600">{loi}</p>}
+          {kp === "da_gui" && (
+            <p className="text-[12px] text-teal-700 bg-teal-50 ring-1 ring-teal-100 rounded-xl px-3 py-2 leading-relaxed">
+              Nếu email <b>{email}</b> có trong hệ thống, thư đặt lại mật khẩu đã được gửi —
+              mở thư và bấm liên kết trong vòng 1 giờ. Không thấy thư? Kiểm tra mục Spam.
+            </p>
+          )}
           <button disabled={dangXuLy} onClick={dangNhap}
             className="w-full text-sm font-semibold text-white rounded-2xl py-3 flex items-center justify-center gap-2 disabled:opacity-60"
             style={{ background: "linear-gradient(135deg,#1aa899,#149e90)" }}>
             <LogIn className="w-4 h-4" strokeWidth={1.8} /> {dangXuLy ? "Đang đăng nhập…" : "Đăng nhập"}
           </button>
+          <button onClick={quenMatKhau} disabled={kp === "dang_gui"}
+            className="w-full text-[12px] font-medium text-slate-500 hover:text-teal-700 disabled:opacity-50">
+            {kp === "dang_gui" ? "Đang gửi email khôi phục…" : "Quên mật khẩu? Gửi email đặt lại"}
+          </button>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Tài khoản do quản trị (IT) cấp. Vai trò (IPC / Cơ điện / Trực HSL / QA / IT) xác định theo email.
+            Tài khoản do Quản trị hệ thống cấp. Vai trò (Kiểm soát hiện trường / Cơ điện / Trực hồ sơ lô / Đảm bảo chất lượng / Quản trị) xác định theo email.
           </p>
         </div>
       </div>

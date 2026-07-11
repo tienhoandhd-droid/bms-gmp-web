@@ -33,6 +33,28 @@ export async function dangXuat() {
   if (supabase) await supabase.auth.signOut()
 }
 
+// QUÊN MẬT KHẨU — gửi email khôi phục. Link trong email trỏ về datlai.html
+// (trang đặt lại mật khẩu siêu nhẹ, entry Vite riêng như action.html).
+// Lưu ý bảo mật: Supabase KHÔNG tiết lộ email có tồn tại hay không — luôn trả
+// thành công, chỉ gửi mail nếu tài khoản có thật (chống dò danh sách email).
+export async function guiEmailKhoiPhuc(email) {
+  if (!supabase) return { error: { message: 'Chưa cấu hình Supabase.' } }
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: new URL('datlai.html', window.location.href).href,
+  })
+  return { error }
+}
+
+// Đặt mật khẩu mới từ link khôi phục: nhận cặp token trong hash của email link,
+// dựng phiên tạm rồi updateUser. Dùng ở trang datlai.html.
+export async function datLaiMatKhauTuLink(accessToken, refreshToken, matKhauMoi) {
+  if (!supabase) return { error: { message: 'Chưa cấu hình Supabase.' } }
+  const { error: errPhien } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+  if (errPhien) return { error: { message: 'Liên kết đã hết hạn hoặc đã dùng — gửi lại email khôi phục.' } }
+  const { error } = await supabase.auth.updateUser({ password: matKhauMoi })
+  return { error }
+}
+
 // Đổi mật khẩu của tài khoản đang đăng nhập.
 // #10 — Xác thực MẬT KHẨU HIỆN TẠI trước khi đổi: thử đăng nhập lại bằng mật khẩu cũ
 // (Supabase không có API "verify password" riêng, nên dùng signInWithPassword để kiểm chứng).
