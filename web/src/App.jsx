@@ -4,7 +4,7 @@ import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
 import { PHIEN_BAN_GIAO_THUC, laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
-import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau } from "./lib/auth";
+import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau, thuKhoiPhucPhien } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
 import AuthGate from "./AuthGate";
 import AuditLogPage from "./components/AuditLogPage";
@@ -2797,6 +2797,14 @@ export default function App() {
   // Chưa đăng nhập thì AuthGate chặn màn hình, token vẫn nằm trong ref → xử lý sau khi vào.
   const tokenEmail = useRef(null);
   const [veEmail, setVeEmail] = useState(null);   // { dangTai } | { ve } | { loi }
+  // CHẾ ĐỘ THAO TÁC NHẸ (mở web từ nút trong email): bấm nút mail deep-link vào web;
+  // TRƯỚC ĐÂY mỗi cú bấm bung TOÀN BỘ dashboard + useLiveData (tải nặng) + phiên mới →
+  // bấm nhiều nút = nhiều tab nặng cùng lúc → web lag + refresh-token đa-tab đá nhau =
+  // "lỗi đăng nhập". Nay khi mở từ email chỉ dựng màn thao tác nhẹ; dashboard chỉ mount
+  // khi người dùng CHỦ ĐỘNG bấm "Mở bảng điều khiển". moTuEmail chốt ở render đầu (effect
+  // dọn URL xoá token ngay sau đó).
+  const [moTuEmail] = useState(() => { try { return !!new URLSearchParams(window.location.search).get("token"); } catch { return false; } });
+  const [vaoDashboard, setVaoDashboard] = useState(false);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const tk = q.get("token");
@@ -2824,7 +2832,10 @@ export default function App() {
 
   // P0-3: gắn hook với danh tính phiên. Đổi tài khoản ⇒ hook xoá sạch state trong lúc
   // render và bỏ mọi phản hồi của phiên cũ. Không còn cửa sổ lộ dữ liệu khu người trước.
-  const live = useLiveData(dataSource, { phienId: user?.email || null });
+  // batDau=false khi đang ở chế độ thao tác nhẹ (mở từ email, chưa vào dashboard) → hook
+  // KHÔNG tải gì cho tới khi người dùng bấm "Mở bảng điều khiển".
+  const cheDoThaoTac = moTuEmail && !vaoDashboard;
+  const live = useLiveData(dataSource, { phienId: user?.email || null, batDau: !cheDoThaoTac });
   // Có token email + đã đăng nhập → soi vé (CHỈ ĐỌC). DB kiểm vai trò, khu, hạn
   // token, và cả việc sự cố đã đổi trạng thái từ lúc gửi mail.
   //
@@ -2879,8 +2890,17 @@ export default function App() {
     off = theoDoiPhien((u) => setUser(u));
     // Phiên hết hạn giữa chừng (RPC trả CHUA_DANG_NHAP dù UI đang hiện đã đăng nhập):
     // báo rõ + đăng xuất → AuthGate tự hiện màn đăng nhập lại. Chặn lặp bằng cờ 1 lần.
-    let daBao = false;
-    const onHetHan = () => {
+    // ĐA-TAB (mở nhiều nút email cùng lúc): supabase-js xoay refresh-token; một tab có thể
+    // TẠM thấy CHUA_DANG_NHAP dù phiên vẫn còn. THỬ KHÔI PHỤC trước khi đăng xuất → tránh
+    // đá người dùng ra oan. Chỉ khi khôi phục thất bại mới thực sự đăng xuất.
+    let daBao = false, dangKhoiPhuc = false;
+    const onHetHan = async () => {
+      if (daBao || dangKhoiPhuc) return;
+      dangKhoiPhuc = true;
+      try {
+        const u = await thuKhoiPhucPhien();
+        if (u) { setUser(u); return; }   // phiên còn sống (tab khác vừa refresh) → giữ nguyên
+      } finally { dangKhoiPhuc = false; }
       if (daBao) return; daBao = true;
       alert("Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại để tiếp tục thao tác.\n(Dữ liệu giám sát không bị ảnh hưởng.)");
       setUser(null); authDangXuat();
@@ -3262,6 +3282,42 @@ export default function App() {
               className="mt-5 rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">Đăng xuất</button>
           )}
         </div>
+      </div>
+    );
+  }
+
+  // ═══ CHẾ ĐỘ THAO TÁC NHẸ (mở web từ nút trong email) ═══
+  // Đã đăng nhập + có vai trò + mở từ email và CHƯA chủ động vào dashboard → chỉ dựng
+  // màn thao tác nhẹ (soi vé + xác nhận + kết quả). useLiveData đã tắt (batDau=false) nên
+  // KHÔNG có tải nặng nào chạy. Bấm nhiều nút email = nhiều tab nhẹ, hết lag & hết đá phiên.
+  if (isLive && user && role && cheDoThaoTac) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: PAGE_BG }}>
+        <div className="max-w-md w-full">
+          <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-6 text-center" style={cardShadow}>
+            <div className="flex items-center gap-3 justify-center">
+              <div className="rounded-2xl bg-white px-2 ring-1 ring-slate-200 flex items-center justify-center h-11 w-11 shrink-0"><CpcLogo className="h-8 w-8" /></div>
+              <div className="text-left min-w-0">
+                <h1 className="text-sm font-bold leading-tight" style={{ color: COLOR.navy }}>Thao tác sự cố từ email</h1>
+                <p className="text-[12px] text-slate-500 truncate">{user.email}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-[13px] text-slate-500 leading-relaxed">
+              {veEmail
+                ? "Đang mở liên kết thao tác từ email…"
+                : "Đã xử lý xong liên kết. Bạn có thể mở bảng điều khiển để xem chi tiết, hoặc đóng tab này."}
+            </p>
+            <button onClick={() => setVaoDashboard(true)}
+              className="mt-5 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: COLOR.teal }}>
+              Mở bảng điều khiển
+            </button>
+            <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
+              Mẹo: mỗi nút trong email chỉ cần bấm MỘT lần. Trang này cố tình gọn nhẹ để bấm
+              nhiều nút không làm chậm web hay rớt đăng nhập.
+            </p>
+          </div>
+        </div>
+        {veEmail && <ModalVeEmail trangThai={veEmail} onDong={dongVe} onChay={chayVe} />}
       </div>
     );
   }

@@ -35,8 +35,12 @@ async function chayTheoLo(items, fn, soSong = SO_SONG) {
   return out
 }
 
-export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } = {}) {
+export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, batDau = true } = {}) {
   const isLive = dataSource === 'live'
+  // batDau=false ⇒ TẠM DỪNG mọi tải dữ liệu (dùng cho "chế độ thao tác nhẹ" khi mở web
+  // từ nút trong email: chỉ soi vé + xác nhận, KHÔNG bung dashboard nặng). Khi người dùng
+  // chủ động vào bảng điều khiển, batDau=true và các effect dưới tự nạp như thường.
+  const dangBat = isLive && batDau
   // Bộ nút thao tác đọc từ view xem_nut_thao_tac (bảng luật = nguồn sự thật duy nhất).
   // Đổi rất hiếm (chỉ khi sửa quy trình) → nạp MỘT lần, không nằm trong nhịp 60s.
   // P0-2: null = CHƯA BIẾT bộ luật (đang tải hoặc lỗi) ⇒ giao diện phải khoá nút.
@@ -133,7 +137,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
   }, [])
 
   const lamMoi = useCallback(async ({ nen = false, tuDong = false } = {}) => {
-    if (!isLive) return
+    if (!dangBat) return
     // Hủy chu kỳ trước (nếu còn chờ) để tránh chồng request & race
     if (ctrlRef.current) ctrlRef.current.abort()
     const ctrl = new AbortController()
@@ -191,7 +195,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
       layBaoCaoAi(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setAiRows(x.rows) })
       layPhanTichGmp(signal).then((x) => { nhanLoi(x); if (con()) { if (x.mkt) setGmpMkt(x.mkt); if (x.spc) setGmpSpc(x.spc) } })
     }
-  }, [isLive, lamGiauPhong])
+  }, [dangBat, lamGiauPhong])
 
   // P0-2: nạp lại bộ luật MỖI KHI phiên sẵn sàng, không chỉ lúc mount. Trước đây
   // layNutThaoTac() chạy một lần trước khi Supabase khôi phục phiên; hỏng một lần là
@@ -206,14 +210,14 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
 
   useEffect(() => {
     huy.current = false
-    if (isLive) {
+    if (dangBat) {
       lamMoi()
       // Cờ bắt buộc đăng nhập: đọc 1 lần (hiếm đổi), không nằm trong nhịp 60s
       layCoBatBuocDangNhap().then((r) => { if (!huy.current) setBatBuocDangNhap(!!r.batBuoc) }).catch(() => {})
       napNut()
     }
     let timer = null
-    if (isLive && tuDongMoiMs > 0) {
+    if (dangBat && tuDongMoiMs > 0) {
       timer = setInterval(() => { if (document.visibilityState === 'visible') lamMoi({ nen: true, tuDong: true }) }, tuDongMoiMs)
     }
     return () => {
@@ -221,21 +225,21 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
       if (timer) clearInterval(timer)
       if (ctrlRef.current) ctrlRef.current.abort()    // hủy request đang chờ khi unmount
     }
-  }, [isLive, lamMoi, tuDongMoiMs])
+  }, [dangBat, lamMoi, tuDongMoiMs])
 
   // ═══ Realtime: su_co đổi → nạp lại sau 1.5s (gom burst — WF1 cập nhật hàng chục
   // sự cố trong một nhịp :02). Sự kiện chỉ là tiếng gõ cửa; dữ liệu vẫn đi qua
   // đúng các view thường dùng. Poll 60s giữ nguyên làm lưới đỡ khi WebSocket rớt.
   const rtTimer = useRef(null)
   useEffect(() => {
-    if (!isLive) return
+    if (!dangBat) return
     const huyDangKy = dangKyRealtimeSuCo(() => {
       if (document.visibilityState !== 'visible') return
       if (rtTimer.current) clearTimeout(rtTimer.current)
       rtTimer.current = setTimeout(() => { lamMoi({ nen: true }) }, 1500)
     })
     return () => { if (rtTimer.current) clearTimeout(rtTimer.current); huyDangKy() }
-  }, [isLive, lamMoi])
+  }, [dangBat, lamMoi])
 
   // ============================================================
   // KHẮC PHỤC TRIỆT ĐỂ "phải F5 mới hiện dữ liệu":
@@ -250,14 +254,14 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null } 
   //   serialize Auth bằng Web Locks → dễ kẹt). Đẩy lamMoi ra khỏi callback bằng
   //   setTimeout(…, 0) cho an toàn.
   useEffect(() => {
-    if (!isLive || !supabase) return
+    if (!dangBat || !supabase) return
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
         setTimeout(() => { if (!huy.current) { lamMoi(); napNut() } }, 0)
       }
     })
     return () => sub?.subscription?.unsubscribe?.()
-  }, [isLive, lamMoi, napNut])
+  }, [dangBat, lamMoi, napNut])
 
   // P1 — TRƯỚC ĐÂY có kênh 'bms-su-co' thứ hai đăng ký TRÙNG bảng su_co (song song với
   // 'rt-su-co' ở trên), debounce lệch (1200ms vs 1500ms), không kiểm visibility. Mỗi thay

@@ -67,6 +67,28 @@ export async function layPhienHienTai() {
   }
 }
 
+// Thử KHÔI PHỤC phiên trước khi kết luận "hết hạn" → đăng xuất.
+// Bối cảnh: mở nhiều tab từ các nút trong email, supabase-js xoay refresh-token; một tab
+// có thể tạm thấy RPC trả CHUA_DANG_NHAP dù phiên vẫn còn (tab khác vừa refresh, hoặc
+// JWT vừa hết hạn và chưa refresh xong). getSession() đọc từ storage (rẻ, thấy token tab
+// khác đã xoay); nếu vẫn trống thì refreshSession() chủ động 1 lần. Chỉ khi CẢ HAI đều
+// trống mới thực sự là hết hạn. Trả người dùng nếu khôi phục được, null nếu không.
+export async function thuKhoiPhucPhien() {
+  if (!supabase) return null
+  try {
+    let { data } = await supabase.auth.getSession()
+    let email = data?.session?.user?.email || null
+    if (!email) {
+      const r = await supabase.auth.refreshSession()
+      email = r?.data?.session?.user?.email || null
+    }
+    if (!email) return null
+    return await taoNguoiDungTuEmail(email)
+  } catch {
+    return null
+  }
+}
+
 export function theoDoiPhien(callback) {
   if (!supabase) return () => {}
   const { data } = supabase.auth.onAuthStateChange((_event, session) => {
