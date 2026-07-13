@@ -77,8 +77,11 @@ export const ACTION_CODE_TO_LABEL = {
   // Luật thật từ 20260710s: `nguong_gio_sach_de_dong` = 2 GIỜ SẠCH LIÊN TIẾP.
   // Một giờ về dải không đóng gì cả — nhãn cũ "(giá trị về dải)" nói sai.
   he_thong_dong_tu_dong: 'Hệ thống tự đóng (đủ 2 giờ sạch liên tiếp)',
-  // Cảm biến đứng hình: hệ ngừng chấm mức, KHÔNG đóng sự cố.
+  // Cảm biến đứng hình (nhật ký 10-12/07, thiết kế cũ): ngừng chấm mức, giữ vé mở.
   sensor_dung_hinh: 'Hệ thống: cảm biến đứng hình — ngừng chấm mức',
+  // Chính sách 13/07: đứng hình = tách riêng như THIẾU DỮ LIỆU — hệ đóng vé,
+  // theo dõi chuyển sang danh sách cảm biến đứng hình (tab Cảm biến/Tổng quan).
+  he_thong_tach_dung_hinh: 'Hệ thống: tách cảm biến đứng hình — đóng vé, theo dõi riêng',
   // QA kết luận cả cụm; audit ghi một dòng cho TỪNG sự cố thuộc cụm.
   qa_ket_luan_cum: 'QA kết luận cụm (nguyên nhân gốc + CAPA)',
   // Hệ thống tự chuyển khi CRITICAL quá ngưỡng mà IPC chưa thao tác — KHÔNG phải IPC bấm

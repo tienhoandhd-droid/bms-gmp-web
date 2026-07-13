@@ -2354,6 +2354,7 @@ function SuCoGanDayPage({ isLive, khuChoPhep = null }) {
   const [capNhatLuc, setCapNhatLuc] = useState(null);
   const [loi, setLoi] = useState(null);
   const [locKhu, setLocKhu] = useState("ALL");
+  const [locAhu, setLocAhu] = useState("ALL");
   const gioRef = useRef(gio); gioRef.current = gio;
   const seqRef = useRef(0);      // chống race: chỉ nhận kết quả của lần gọi mới nhất
 
@@ -2399,7 +2400,9 @@ function SuCoGanDayPage({ isLive, khuChoPhep = null }) {
   // Phân quyền xem theo khu: nếu bị giới hạn, chỉ giữ phòng thuộc khu được phép
   const phongTrongQuyen = useMemo(() => (khuChoPhep ? phongList.filter((p) => khuChoPhep.includes(p.khu_vuc)) : phongList), [phongList, khuChoPhep]);
   const khus = useMemo(() => [...new Set(phongTrongQuyen.map((p) => p.khu_vuc).filter(Boolean))].sort(), [phongTrongQuyen]);
-  const phongHienThi = phongTrongQuyen.filter((p) => locKhu === "ALL" || p.khu_vuc === locKhu);
+  // Cặp khu|AHU (AHU01 có ở cả C1 lẫn C4) — cùng kiểu với danh sách sự cố phía trên
+  const ahuPairs = useMemo(() => [...new Set(phongTrongQuyen.filter((p) => (locKhu === "ALL" || p.khu_vuc === locKhu) && p.ahu).map((p) => `${p.khu_vuc}|${p.ahu}`))].sort(), [phongTrongQuyen, locKhu]);
+  const phongHienThi = phongTrongQuyen.filter((p) => (locKhu === "ALL" || p.khu_vuc === locKhu) && (locAhu === "ALL" || p.ahu === locAhu));
 
   // 1 sensor phút → series cho RoomBandChart: {label, avg, lo, hi}
   const seriesTu = (r) => (r.chuoi || []).map((pt) => ({
@@ -2423,8 +2426,14 @@ function SuCoGanDayPage({ isLive, khuChoPhep = null }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
-        <button onClick={() => setLocKhu("ALL")} className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 ${locKhu === "ALL" ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200"}`} style={locKhu === "ALL" ? { backgroundColor: COLOR.teal } : {}}>Tất cả</button>
-        {khus.map((k) => <button key={k} onClick={() => setLocKhu(k)} className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 ${locKhu === k ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200"}`} style={locKhu === k ? { backgroundColor: COLOR.teal } : {}}>Khu {k}</button>)}
+        <button onClick={() => { setLocKhu("ALL"); setLocAhu("ALL"); }} className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 ${locKhu === "ALL" ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200"}`} style={locKhu === "ALL" ? { backgroundColor: COLOR.teal } : {}}>Tất cả</button>
+        {khus.map((k) => <button key={k} onClick={() => { setLocKhu(k); setLocAhu("ALL"); }} className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 ${locKhu === k ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200"}`} style={locKhu === k ? { backgroundColor: COLOR.teal } : {}}>Khu {k}</button>)}
+        {ahuPairs.length > 0 && (
+          <select value={locAhu === "ALL" ? "ALL" : `${locKhu}|${locAhu}`} onChange={(e) => { const v = e.target.value; if (v === "ALL") { setLocAhu("ALL"); } else { const [k, a] = v.split("|"); setLocKhu(k); setLocAhu(a); } }} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] text-slate-700 outline-none ml-1">
+            <option value="ALL">AHU: tất cả</option>
+            {ahuPairs.map((p) => { const [k, a] = p.split("|"); return <option key={p} value={p}>{locKhu === "ALL" ? `Khu ${k} · ${a}` : a}</option>; })}
+          </select>
+        )}
         <span className="text-[11px] text-slate-400 ml-auto tabular-nums flex items-center gap-2">
           {capNhatLuc && <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" /> Cập nhật {capNhatLuc.toLocaleTimeString("vi-VN")}</span>}
           · {phongHienThi.length} phòng
@@ -2568,6 +2577,44 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
     </Khung>);
 }
 
+/* ═══ TỔNG QUAN — thẻ CẢM BIẾN ĐỨNG HÌNH (chính sách 13/07: tách riêng) ═══
+   Phòng có cảm biến đứng hình = tương đương THIẾU DỮ LIỆU: không chấm mức,
+   không mở sự cố, không vào báo cáo chung. Thẻ này là lối vào nhanh từ Tổng
+   quan; chi tiết + nút làm mới nằm ở tab Cảm biến. Ẩn khi không có cái nào. */
+function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
+  const [rows, setRows] = useState(null);
+  useEffect(() => {
+    if (!isLive) return;
+    let huy = false;
+    layCamBienDungHinh().then((kq) => { if (!huy) setRows(kq.error ? [] : kq.rows); });
+    return () => { huy = true; };
+  }, [isLive]);
+  const ds = (rows || []).filter((r) => !khuChoPhep || khuChoPhep.includes(r.khu_vuc));
+  if (!isLive || ds.length === 0) return null;
+  const fmtGio = (h) => (h == null ? "—" : h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`);
+  return (
+    <Card className="p-5" style={{ background: "linear-gradient(135deg,#FFFBEB,#FFFFFF 65%)" }}>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <SectionTitle icon={Gauge} hint="theo dõi riêng · không tính vào chấm điểm">Cảm biến đứng hình — {ds.length} điểm đo</SectionTitle>
+          <p className="mt-1.5 text-[12px] text-slate-500 leading-relaxed max-w-3xl">
+            Các phòng dưới đây có cảm biến <b>mất tín hiệu (giá trị không đổi ≥ 3 giờ)</b> nên được tách riêng,
+            <b> tương đương phòng thiếu dữ liệu</b>: không chấm mức, không mở sự cố, không vào báo cáo chung — chờ Cơ điện khôi phục đầu đo.
+          </p>
+        </div>
+        {onXemChiTiet && <button onClick={onXemChiTiet} className="shrink-0 flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-semibold text-amber-700 ring-1 ring-amber-200 hover:bg-amber-50">Xem chi tiết → tab Cảm biến</button>}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {ds.map((r) => (
+          <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ring-1 ${r.so_gio_dung >= 168 ? "text-rose-700 bg-rose-50 ring-rose-200" : "text-amber-700 bg-amber-50 ring-amber-200"}`}>
+            <b>{r.ma_phong}</b> · {r.loai_cam_bien} · đứng {fmtGio(r.so_gio_dung)} (kẹt {r.gia_tri_dung})
+          </span>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Sự cố gần đây", icon: Radio }, { k: "sensors", label: "Cảm biến", icon: Gauge }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2634,8 +2681,9 @@ function CamBienPage({ isLive }) {
           <SectionTitle icon={Gauge}>Cảm biến đứng hình (im lặng)</SectionTitle>
           <p className="mt-1.5 text-[12px] text-slate-500 leading-relaxed max-w-3xl">
             Cảm biến bị coi là <b>đứng hình</b> khi giá trị đo <b>không đổi ≥ 3 giờ liên tiếp</b> — thường do hỏng, mất kết nối
-            hoặc treo tín hiệu tại FMS. Cảnh báo từ các cảm biến này đã được <b>tách khỏi chấm điểm phòng</b> để không báo
-            động oan; việc cần làm là Cơ điện kiểm tra / thay thế đầu đo.
+            hoặc treo tín hiệu tại FMS. Từ 13/07, phòng có cảm biến đứng hình được <b>tách riêng như phòng thiếu dữ liệu</b>:
+            không chấm mức, <b>không mở sự cố</b> và không tính vào báo cáo chung. Danh sách này là nơi theo dõi duy nhất;
+            việc cần làm là Cơ điện kiểm tra / thay thế đầu đo — cảm biến sống lại sẽ tự trở lại chấm điểm bình thường.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -3512,6 +3560,7 @@ export default function App() {
               <p className="text-[11px] text-slate-400 px-1 leading-relaxed -mt-2">
                 <b className="text-slate-500">Cách tính:</b> tuân thủ của phòng = 100% − %thời gian ngoài khoảng (OOS) của <b className="text-slate-500">cảm biến kém nhất</b> (DP/RH/T) trong <b className="text-slate-500">khung giờ chốt gần nhất</b> — chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt, dù các chỉ tiêu khác vẫn đẹp. Phòng <b className="text-slate-500">đạt</b> khi tuân thủ ≥ 80% <b className="text-slate-500">và</b> dữ liệu còn tươi (chốt giờ cách hiện tại ≤ {Math.round(FRESH_MIN / 60)}h); phòng thiếu dữ liệu/dữ liệu quá cũ không được tính là đạt.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-slate-500">khu {khuChoPhep.join(", ")}</b>.</> : null}
               </p>
+              <TheDungHinhTongQuan isLive={isLive} khuChoPhep={khuChoPhep} onXemChiTiet={roleCanSeeTab(role, "sensors") ? () => setTab("sensors") : null} />
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
                 <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden text-[11px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={!xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Tất cả</button></div><span className="text-[11px] text-slate-500">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-slate-500">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongHienThi.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incidentsXem.find((i) => i.room === r.id && i.status !== "Đã khắc phục") || null} />)}</div>}</div>
                 <aside className="space-y-5">
