@@ -438,7 +438,7 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onEdit, onDelete, onUpdateL
   const [qTim, setQTim] = useState("");        // tìm kiếm phòng
   const [locKhu, setLocKhu] = useState("ALL");  // lọc theo khu (đồng nhất với tab Sự cố)
   const [locAhu, setLocAhu] = useState("ALL");  // lọc theo AHU trong khu đã chọn
-  const ahusLoc = [...new Set(rooms.filter((r) => locKhu === "ALL" || r.area === locKhu).map((r) => r.ahu).filter(Boolean))].sort();
+  const ahusLoc = [...new Set(rooms.filter((r) => (locKhu === "ALL" || r.area === locKhu) && r.ahu).map((r) => `${r.area}|${r.ahu}`))].sort();
   const roomsHienThi = rooms.filter((r) => (locKhu === "ALL" || r.area === locKhu) && (locAhu === "ALL" || r.ahu === locAhu) && (!qTim.trim() || (r.id + " " + (r.name || "")).toLowerCase().includes(qTim.trim().toLowerCase())));
   const locChip = (v, label, on, click) => <button key={v} onClick={click} className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${on ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={on ? { backgroundColor: COLOR.teal } : {}}>{label}</button>;
   const submit = () => {
@@ -482,10 +482,10 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onEdit, onDelete, onUpdateL
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
           {locChip("ALL", "Tất cả", locKhu === "ALL", () => { setLocKhu("ALL"); setLocAhu("ALL"); })}
           {DS_KHU.map((k) => locChip(k, `Khu ${k}`, locKhu === k, () => { setLocKhu(k); setLocAhu("ALL"); }))}
-          {locKhu !== "ALL" && ahusLoc.length > 0 && (
-            <select value={locAhu} onChange={(e) => setLocAhu(e.target.value)} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] text-slate-700 outline-none ml-1">
+          {ahusLoc.length > 0 && (
+            <select value={locAhu === "ALL" ? "ALL" : `${locKhu}|${locAhu}`} onChange={(e) => { const v = e.target.value; if (v === "ALL") { setLocAhu("ALL"); } else { const [k, a] = v.split("|"); setLocKhu(k); setLocAhu(a); } }} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] text-slate-700 outline-none ml-1">
               <option value="ALL">AHU: tất cả</option>
-              {ahusLoc.map((a) => <option key={a} value={a}>{a}</option>)}
+              {ahusLoc.map((p) => { const [k, a] = p.split("|"); return <option key={p} value={p}>{locKhu === "ALL" ? `Khu ${k} · ${a}` : a}</option>; })}
             </select>
           )}
         </div>
@@ -3530,7 +3530,9 @@ export default function App() {
             const metaPhong = {}; (rooms || []).forEach((r) => { metaPhong[r.id] = { area: r.area, ahu: r.ahu }; });
             const incKhu = (i) => (metaPhong[i.room] || {}).area || "";
             const incAhu = (i) => (metaPhong[i.room] || {}).ahu || "";
-            const ahus = [...new Set((rooms || []).filter((r) => evtKhu === "ALL" || r.area === evtKhu).map((r) => r.ahu).filter(Boolean))].sort();
+            // Cặp khu|AHU (AHU01 có ở cả C1 lẫn C4 nên tên AHU trần là nhập nhằng);
+            // đứng ở "Tất cả" vẫn chọn được AHU — chọn phát là áp luôn cả khu.
+            const ahuPairs = [...new Set((roomsXem || []).filter((r) => (evtKhu === "ALL" || r.area === evtKhu) && r.ahu).map((r) => `${r.area}|${r.ahu}`))].sort();
             const incFiltered = incidentsXem.filter((i) => (evtKhu === "ALL" || incKhu(i) === evtKhu) && (evtAhu === "ALL" || incAhu(i) === evtAhu));
             // Gom theo AHU — khớp cách email của Cơ điện được gom (mỗi AHU một mail),
             // nên đối chiếu web ↔ email không lệch. Thứ tự NHÓM: AHU chứa phòng quan
@@ -3573,10 +3575,10 @@ export default function App() {
                 <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
                 {locChip("ALL", "Tất cả", evtKhu === "ALL", () => { setEvtKhu("ALL"); setEvtAhu("ALL"); })}
                 {(khuChoPhep || DS_KHU).map((k) => locChip(k, `Khu ${k}`, evtKhu === k, () => { setEvtKhu(k); setEvtAhu("ALL"); }))}
-                {evtKhu !== "ALL" && ahus.length > 0 && (
-                  <select value={evtAhu} onChange={(e) => setEvtAhu(e.target.value)} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] text-slate-700 outline-none ml-1">
+                {ahuPairs.length > 0 && (
+                  <select value={evtAhu === "ALL" ? "ALL" : `${evtKhu}|${evtAhu}`} onChange={(e) => { const v = e.target.value; if (v === "ALL") { setEvtAhu("ALL"); } else { const [k, a] = v.split("|"); setEvtKhu(k); setEvtAhu(a); } }} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] text-slate-700 outline-none ml-1">
                     <option value="ALL">AHU: tất cả</option>
-                    {ahus.map((a) => <option key={a} value={a}>{a}</option>)}
+                    {ahuPairs.map((p) => { const [k, a] = p.split("|"); return <option key={p} value={p}>{evtKhu === "ALL" ? `Khu ${k} · ${a}` : a}</option>; })}
                   </select>
                 )}
                 <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidentsXem.length} sự cố</span>
