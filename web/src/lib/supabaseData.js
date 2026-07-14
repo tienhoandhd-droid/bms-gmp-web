@@ -264,7 +264,8 @@ export async function layChenhApTheoAhu(signal) {
     rows: (data || []).map((r) => ({
       ahu: r.ahu, maPhong: r.ma_phong, tenPhong: r.ten_phong, khuVuc: r.khu_vuc, uuTien: r.muc_uu_tien,
       ghDuoi: r.gioi_han_duoi, ghTren: r.gioi_han_tren, donVi: r.don_vi,
-      giaTri: r.gia_tri, bucketVn: r.bucket_vn, tuoiPhut: r.tuoi_phut, dat: r.dat, coDuLieu: r.co_du_lieu,
+      giaTri: r.gia_tri, thoiDiem: r.thoi_diem, tuoiPhut: r.tuoi_phut, realtime: r.realtime,
+      chuoi: Array.isArray(r.chuoi) ? r.chuoi : [], dat: r.dat, coDuLieu: r.co_du_lieu,
     })),
   }
 }

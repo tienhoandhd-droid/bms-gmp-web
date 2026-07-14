@@ -2588,7 +2588,15 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
   const [rows, setRows] = React.useState(null);   // null = đang tải
   const [khu, setKhu] = React.useState("ALL");
   const [ahuLoc, setAhuLoc] = React.useState("ALL");
-  const nap = React.useCallback(() => { layChenhApTheoAhu().then((kq) => setRows(kq.error ? [] : kq.rows)); }, []);
+  const [dangTuoi, setDangTuoi] = React.useState(false);   // đang gọi FMS lấy realtime
+  const nap = React.useCallback(async () => {
+    const kq = await layChenhApTheoAhu();          // đọc ngay (điểm phút gần nhất trong bảng, hoặc fallback giờ)
+    if (!kq.error) setRows(kq.rows);
+    setDangTuoi(true);
+    const up = await capNhatPhut8h();               // kích Edge nạp FMS 5′ mới cho mọi phòng DP (~6s)
+    setDangTuoi(false);
+    if (up && up.ok) { const kq2 = await layChenhApTheoAhu(); if (!kq2.error) setRows(kq2.rows); }
+  }, []);
   React.useEffect(() => {
     if (!isLive) return;
     nap();
@@ -2610,7 +2618,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
     : r.dat === false ? (r.uuTien === "P3" ? "text-amber-700" : "text-rose-700") : "text-emerald-700";
   return (
     <Card className="p-5">
-      <SectionTitle icon={Gauge} hint="TB 5′ cuối · yêu cầu vs kết quả · đỏ Mức 1/2 · vàng Mức 3">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b>/{filt.length} không đạt</>}</SectionTitle>
+      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · yêu cầu vs kết quả · đỏ Mức 1/2 · vàng Mức 3">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b>/{filt.length} không đạt</>}{dangTuoi && <span className="text-[10px] font-normal text-teal-600"> · đang lấy realtime…</span>}</SectionTitle>
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
         {chip("ALL", "Tất cả", khu === "ALL", () => { setKhu("ALL"); setAhuLoc("ALL"); })}
@@ -2641,12 +2649,24 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
                         <span className="text-[12.5px] font-semibold text-slate-700 truncate" title={r.tenPhong}>{r.maPhong}</span>
                         <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-white/70 text-slate-500 shrink-0">{r.uuTien}</span>
                       </div>
-                      <div className="text-[10.5px] text-slate-400 truncate mt-0.5">{r.tenPhong}</div>
+                      <div className="text-[10.5px] text-slate-400 truncate">{r.tenPhong}</div>
                       <div className="flex items-baseline justify-between mt-1.5 gap-2">
                         <span className="text-[10.5px] text-slate-400 shrink-0">YC {r.ghDuoi}–{r.ghTren} {r.donVi}</span>
-                        <span className={`text-[15px] font-bold tabular-nums ${vCls(r)}`}>{r.coDuLieu === false ? "—" : `${r.giaTri} ${r.donVi}`}</span>
+                        <span className={`text-[16px] font-bold tabular-nums ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[10px] font-medium"> {r.donVi}</span></>}</span>
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.bucketVn}{r.dat === false && <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>}</>}</div>
+                      {r.chuoi && r.chuoi.length > 0 && (
+                        <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 mt-1.5 pt-1.5 border-t border-white/70">
+                          {r.chuoi.map((p, i) => {
+                            const cuoi = i === r.chuoi.length - 1;
+                            const trongDai = Number(p.v) >= r.ghDuoi && Number(p.v) <= r.ghTren;
+                            return <span key={p.t} className={`text-[10px] tabular-nums ${cuoi ? `font-bold ${vCls(r)}` : trongDai ? "text-slate-400" : "text-rose-400 font-medium"}`}>{p.t}·{p.v}</span>;
+                          })}
+                        </div>
+                      )}
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        {r.coDuLieu === false ? "thiếu dữ liệu"
+                          : <>{r.realtime ? <span className="text-teal-600 font-semibold">● realtime</span> : <span className="text-amber-600">giờ gần nhất</span>} · {r.thoiDiem}{r.dat === false && <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>}</>}
+                      </div>
                     </div>
                   ))}
                 </div>
