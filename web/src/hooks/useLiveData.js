@@ -164,13 +164,17 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     const pNguong   = layNguongCanhBao(signal).then((x) => { nhanLoi(x); if (con() && x.cfg) setNguong(x.cfg); return x })
     // Phòng: làm giàu thống kê 8h khởi động NGAY khi có danh sách (không còn chờ
     // cả 12 truy vấn xong mới bắt đầu như trước → thẻ phòng hiện sớm hơn nhiều).
-    const pPhong = layDanhSachPhong(signal).then(async (x) => {
+    const pPhong = layDanhSachPhong(signal).then((x) => {
       nhanLoi(x)
       if (!con() || !x.rooms) return x
-      try {
-        const full = await lamGiauPhong(x.rooms, { batBuoc: !tuDong, signal })   // manual ⇒ làm mới ngay; auto ⇒ theo TTL
-        if (con()) setRooms(full)
-      } catch { if (con()) setRooms(x.rooms) }
+      // HIỆN PHÒNG NGAY (tuân thủ + trạng thái + giới hạn từ xem_phong_co_kpi) —
+      // KHÔNG chờ enrichment sensor. Thẻ phòng + KPI hiện sớm; thanh OOS nhỏ đổ nền
+      // sau. Enrichment KHÔNG còn chặn tier1 ⇒ Tổng quan/Sự cố hiện nhanh hơn, nhất
+      // là trên điện thoại/4G (bớt 1 vòng mạng khỏi đường tới hạn).
+      if (con()) setRooms(x.rooms)
+      lamGiauPhong(x.rooms, { batBuoc: !tuDong, signal })   // manual ⇒ làm mới ngay; auto ⇒ theo TTL
+        .then((full) => { if (con()) setRooms(full) })
+        .catch(() => { /* giữ bản cơ bản đã hiện */ })
       return x
     })
 
