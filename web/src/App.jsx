@@ -2584,7 +2584,7 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
 // Bảng CHÊNH ÁP THEO AHU (tab Sự cố gần đây) — yêu cầu (dải giới hạn) + kết quả (TB
 // 5′ cuối của bucket giờ mới nhất), gom theo AHU. Không đạt: Mức 1/2 (P1/P2) = ĐỎ ·
 // Mức 3 (P3) = VÀNG. Đạt = xanh. Thiếu dữ liệu = xám. Có bộ lọc khu/AHU riêng.
-function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
+function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   const [rows, setRows] = React.useState(null);   // null = đang tải
   const [khu, setKhu] = React.useState("ALL");
   const [ahuLoc, setAhuLoc] = React.useState("ALL");
@@ -2598,11 +2598,11 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
     if (up && up.ok) { const kq2 = await layChenhApTheoAhu(); if (!kq2.error) setRows(kq2.rows); }
   }, []);
   React.useEffect(() => {
-    if (!isLive) return;
+    if (!isLive || !active) return;   // CHỈ gọi FMS/đọc khi tab Chênh áp đang mở — không tải nền làm chậm tab khác
     nap();
     const t = setInterval(nap, 120000);
     return () => clearInterval(t);
-  }, [isLive, nap]);
+  }, [isLive, active, nap]);
   if (!isLive) return <Card className="p-8 text-center text-[13px] text-slate-500">Cần kết nối dữ liệu thật (LIVE) để xem chênh áp theo AHU.</Card>;
   const dsKhu = khuChoPhep || DS_KHU;
   const ahuPairs = [...new Set((rows || []).filter((r) => (khu === "ALL" || r.khuVuc === khu)).map((r) => `${r.khuVuc}|${r.ahu}`))].sort();
@@ -3923,7 +3923,7 @@ export default function App() {
             );
           })()}
 
-          {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><ChenhApTheoAhu isLive={isLive} khuChoPhep={khuChoPhep} /></div>}
+          {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><ChenhApTheoAhu isLive={isLive} khuChoPhep={khuChoPhep} active={tab === "recent"} /></div>}
           {tab === "sensors" && <CamBienPage isLive={isLive} />}
           {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
           {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
