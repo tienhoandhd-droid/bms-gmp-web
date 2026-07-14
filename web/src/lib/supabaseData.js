@@ -254,6 +254,21 @@ export async function layCamBienDungHinh(signal) {
   return { error: null, rows: data || [] }
 }
 
+// Chênh áp theo AHU (tab Sự cố) — RPC rpc_chenh_ap_theo_ahu (đã lọc khu). Trả {rows,error}.
+// giaTri = TB 5′ cuối của bucket giờ mới nhất (nguồn "phút gần nhất" phủ đủ mọi phòng).
+export async function layChenhApTheoAhu(signal) {
+  const { data, error } = await goiRPC('rpc_chenh_ap_theo_ahu', {}, { signal })
+  if (error) return { error, rows: [] }
+  return {
+    error: null,
+    rows: (data || []).map((r) => ({
+      ahu: r.ahu, maPhong: r.ma_phong, tenPhong: r.ten_phong, khuVuc: r.khu_vuc, uuTien: r.muc_uu_tien,
+      ghDuoi: r.gioi_han_duoi, ghTren: r.gioi_han_tren, donVi: r.don_vi,
+      giaTri: r.gia_tri, bucketVn: r.bucket_vn, tuoiPhut: r.tuoi_phut, dat: r.dat, coDuLieu: r.co_du_lieu,
+    })),
+  }
+}
+
 export async function layCumSuCo(signal) {
   const { data, error } = await docView('xem_cum_su_co',
     (q) => q.select('ma_cum,ma_hien_thi,khu_vuc,ahu,loai_cam_bien,dang_mo,gio_mo,'

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { PHIEN_BAN_GIAO_THUC, laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, layCamBienDungHinh, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { PHIEN_BAN_GIAO_THUC, laySuCoPhut, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, layCamBienDungHinh, layChenhApTheoAhu, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau, thuKhoiPhucPhien } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
@@ -2581,6 +2581,67 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
    Phòng có cảm biến đứng hình = tương đương THIẾU DỮ LIỆU: không chấm mức,
    không mở sự cố, không vào báo cáo chung. Thẻ này là lối vào nhanh từ Tổng
    quan; chi tiết + nút làm mới nằm ở tab Cảm biến. Ẩn khi không có cái nào. */
+// Bảng CHÊNH ÁP THEO AHU (tab Sự cố) — yêu cầu (dải giới hạn) + kết quả (TB 5′ cuối
+// của bucket giờ mới nhất), gom theo AHU. Không đạt: Mức 1/2 (P1/P2) = ĐỎ · Mức 3
+// (P3) = VÀNG. Đạt = xanh. Thiếu dữ liệu = xám. Theo bộ lọc khu/AHU của tab Sự cố.
+function ChenhApTheoAhu({ isLive, evtKhu, evtAhu }) {
+  const [rows, setRows] = React.useState(null);   // null = đang tải
+  const nap = React.useCallback(() => { layChenhApTheoAhu().then((kq) => setRows(kq.error ? [] : kq.rows)); }, []);
+  React.useEffect(() => {
+    if (!isLive) return;
+    nap();
+    const t = setInterval(nap, 120000);
+    return () => clearInterval(t);
+  }, [isLive, nap]);
+  if (!isLive) return null;
+  const filt = (rows || []).filter((r) => (evtKhu === "ALL" || r.khuVuc === evtKhu) && (evtAhu === "ALL" || r.ahu === evtAhu));
+  const groups = {};
+  filt.forEach((r) => { const k = `${r.khuVuc} / ${r.ahu}`; (groups[k] ??= []).push(r); });
+  const soKhongDat = filt.filter((r) => r.dat === false).length;
+  const oCls = (r) => r.coDuLieu === false ? "bg-slate-50 ring-slate-200"
+    : r.dat === false ? (r.uuTien === "P3" ? "bg-amber-50 ring-amber-300" : "bg-rose-50 ring-rose-300")
+    : "bg-emerald-50 ring-emerald-200";
+  const vCls = (r) => r.coDuLieu === false ? "text-slate-400"
+    : r.dat === false ? (r.uuTien === "P3" ? "text-amber-700" : "text-rose-700") : "text-emerald-700";
+  return (
+    <Card className="p-5">
+      <SectionTitle icon={Gauge} hint="TB 5′ cuối · yêu cầu vs kết quả · đỏ Mức 1/2 · vàng Mức 3">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b>/{filt.length} không đạt</>}</SectionTitle>
+      {rows === null ? <div className="mt-3 h-24 rounded-2xl bg-slate-50 animate-pulse" />
+        : filt.length === 0 ? <p className="mt-3 text-[13px] text-slate-400">Không có phòng chênh áp trong phạm vi lọc.</p>
+        : <div className="mt-3 space-y-4">
+          {Object.keys(groups).sort().map((k) => {
+            const ds = groups[k].slice().sort((a, b) => (a.dat === b.dat ? 0 : a.dat ? 1 : -1) || String(a.maPhong).localeCompare(String(b.maPhong)));
+            const soDat = ds.filter((r) => r.dat).length;
+            return (
+              <div key={k}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[12px] font-bold uppercase tracking-wide text-slate-500">{k}</span>
+                  <span className="text-[11px] text-slate-400 tabular-nums">{soDat}/{ds.length} đạt</span>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {ds.map((r) => (
+                    <div key={r.maPhong} className={`rounded-xl ring-1 p-2.5 ${oCls(r)}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[12.5px] font-semibold text-slate-700 truncate" title={r.tenPhong}>{r.maPhong}</span>
+                        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-white/70 text-slate-500 shrink-0">{r.uuTien}</span>
+                      </div>
+                      <div className="text-[10.5px] text-slate-400 truncate mt-0.5">{r.tenPhong}</div>
+                      <div className="flex items-baseline justify-between mt-1.5 gap-2">
+                        <span className="text-[10.5px] text-slate-400 shrink-0">YC {r.ghDuoi}–{r.ghTren} {r.donVi}</span>
+                        <span className={`text-[15px] font-bold tabular-nums ${vCls(r)}`}>{r.coDuLieu === false ? "—" : `${r.giaTri} ${r.donVi}`}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.bucketVn}{r.dat === false && <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>}</>}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>}
+    </Card>
+  );
+}
+
 function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
   const [rows, setRows] = useState(null);
   useEffect(() => {
@@ -3634,6 +3695,7 @@ export default function App() {
                 )}
                 <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidentsXem.length} sự cố</span>
               </div>
+              <ChenhApTheoAhu isLive={isLive} evtKhu={evtKhu} evtAhu={evtAhu} />
               <Card className="p-2 sm:p-4">{incFiltered.length === 0 ? (incidentsXem.length === 0 ? (
                 <div className="px-5 py-10 text-center">
                   <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div>
