@@ -2611,11 +2611,12 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
   const groups = {};
   filt.forEach((r) => { const k = `${r.khuVuc} / ${r.ahu}`; (groups[k] ??= []).push(r); });
   const soKhongDat = filt.filter((r) => r.dat === false).length;
-  const oCls = (r) => r.coDuLieu === false ? "bg-slate-50 ring-slate-200"
-    : r.dat === false ? (r.uuTien === "P3" ? "bg-amber-50 ring-amber-300" : "bg-rose-50 ring-rose-300")
-    : "bg-emerald-50 ring-emerald-200";
-  const vCls = (r) => r.coDuLieu === false ? "text-slate-400"
-    : r.dat === false ? (r.uuTien === "P3" ? "text-amber-700" : "text-rose-700") : "text-emerald-700";
+  const oCls = (r) => r.coDuLieu === false ? "bg-slate-100 ring-slate-300"
+    : r.dat === false ? (r.uuTien === "P3" ? "bg-amber-100 ring-2 ring-amber-500" : "bg-rose-100 ring-2 ring-rose-500")
+    : "bg-emerald-50 ring-1 ring-emerald-400";
+  const vCls = (r) => r.coDuLieu === false ? "text-slate-500"
+    : r.dat === false ? (r.uuTien === "P3" ? "text-amber-800" : "text-rose-800") : "text-emerald-800";
+  const ordUu = (p) => p === "P1" ? 1 : p === "P2" ? 2 : p === "P3" ? 3 : 4;
   return (
     <Card className="p-5">
       <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · yêu cầu vs kết quả · đỏ Mức 1/2 · vàng Mức 3">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b>/{filt.length} không đạt</>}{dangTuoi && <span className="text-[10px] font-normal text-teal-600"> · đang lấy realtime…</span>}</SectionTitle>
@@ -2634,7 +2635,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
         : filt.length === 0 ? <p className="mt-3 text-[13px] text-slate-400">Không có phòng chênh áp trong phạm vi lọc.</p>
         : <div className="mt-3 space-y-4">
           {Object.keys(groups).sort().map((k) => {
-            const ds = groups[k].slice().sort((a, b) => (a.dat === b.dat ? 0 : a.dat ? 1 : -1) || String(a.maPhong).localeCompare(String(b.maPhong)));
+            const ds = groups[k].slice().sort((a, b) => ordUu(a.uuTien) - ordUu(b.uuTien) || String(a.maPhong).localeCompare(String(b.maPhong)));
             const soDat = ds.filter((r) => r.dat).length;
             return (
               <div key={k}>
@@ -2644,7 +2645,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
                 </div>
                 <div className="space-y-1.5">
                   {ds.map((r) => (
-                    <div key={r.maPhong} className={`rounded-xl ring-1 px-3 py-2 flex items-center gap-x-4 gap-y-1 flex-wrap ${oCls(r)}`}>
+                    <div key={r.maPhong} className={`rounded-xl px-3 py-2.5 flex items-center gap-x-4 gap-y-1 flex-wrap ${oCls(r)}`}>
                       <div className="min-w-[140px]">
                         <div className="flex items-center gap-1.5">
                           <span className="text-[13px] font-semibold text-slate-700">{r.maPhong}</span>
@@ -2658,7 +2659,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
                           {r.chuoi.map((p, i) => {
                             const cuoi = i === r.chuoi.length - 1;
                             const trongDai = Number(p.v) >= r.ghDuoi && Number(p.v) <= r.ghTren;
-                            return <span key={p.t} className={`text-[10.5px] tabular-nums ${cuoi ? `font-bold ${vCls(r)}` : trongDai ? "text-slate-400" : "text-rose-400 font-medium"}`}><span className="text-slate-300">{p.t}</span> {p.v}</span>;
+                            return <span key={p.t} className={`text-[13px] tabular-nums ${cuoi ? `font-bold ${vCls(r)}` : trongDai ? "text-slate-600" : "text-rose-600 font-semibold"}`}><span className="text-[11px] text-slate-400">{p.t}</span> {p.v}</span>;
                           })}
                         </div>
                       )}
