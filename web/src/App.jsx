@@ -2581,11 +2581,13 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
    Phòng có cảm biến đứng hình = tương đương THIẾU DỮ LIỆU: không chấm mức,
    không mở sự cố, không vào báo cáo chung. Thẻ này là lối vào nhanh từ Tổng
    quan; chi tiết + nút làm mới nằm ở tab Cảm biến. Ẩn khi không có cái nào. */
-// Bảng CHÊNH ÁP THEO AHU (tab Sự cố) — yêu cầu (dải giới hạn) + kết quả (TB 5′ cuối
-// của bucket giờ mới nhất), gom theo AHU. Không đạt: Mức 1/2 (P1/P2) = ĐỎ · Mức 3
-// (P3) = VÀNG. Đạt = xanh. Thiếu dữ liệu = xám. Theo bộ lọc khu/AHU của tab Sự cố.
-function ChenhApTheoAhu({ isLive, evtKhu, evtAhu }) {
+// Bảng CHÊNH ÁP THEO AHU (tab Sự cố gần đây) — yêu cầu (dải giới hạn) + kết quả (TB
+// 5′ cuối của bucket giờ mới nhất), gom theo AHU. Không đạt: Mức 1/2 (P1/P2) = ĐỎ ·
+// Mức 3 (P3) = VÀNG. Đạt = xanh. Thiếu dữ liệu = xám. Có bộ lọc khu/AHU riêng.
+function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
   const [rows, setRows] = React.useState(null);   // null = đang tải
+  const [khu, setKhu] = React.useState("ALL");
+  const [ahuLoc, setAhuLoc] = React.useState("ALL");
   const nap = React.useCallback(() => { layChenhApTheoAhu().then((kq) => setRows(kq.error ? [] : kq.rows)); }, []);
   React.useEffect(() => {
     if (!isLive) return;
@@ -2593,8 +2595,11 @@ function ChenhApTheoAhu({ isLive, evtKhu, evtAhu }) {
     const t = setInterval(nap, 120000);
     return () => clearInterval(t);
   }, [isLive, nap]);
-  if (!isLive) return null;
-  const filt = (rows || []).filter((r) => (evtKhu === "ALL" || r.khuVuc === evtKhu) && (evtAhu === "ALL" || r.ahu === evtAhu));
+  if (!isLive) return <Card className="p-8 text-center text-[13px] text-slate-500">Cần kết nối dữ liệu thật (LIVE) để xem chênh áp theo AHU.</Card>;
+  const dsKhu = khuChoPhep || DS_KHU;
+  const ahuPairs = [...new Set((rows || []).filter((r) => (khu === "ALL" || r.khuVuc === khu)).map((r) => `${r.khuVuc}|${r.ahu}`))].sort();
+  const chip = (v, label, on, click) => <button key={v} onClick={click} className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${on ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`} style={on ? { backgroundColor: COLOR.teal } : {}}>{label}</button>;
+  const filt = (rows || []).filter((r) => (khu === "ALL" || r.khuVuc === khu) && (ahuLoc === "ALL" || r.ahu === ahuLoc));
   const groups = {};
   filt.forEach((r) => { const k = `${r.khuVuc} / ${r.ahu}`; (groups[k] ??= []).push(r); });
   const soKhongDat = filt.filter((r) => r.dat === false).length;
@@ -2606,6 +2611,17 @@ function ChenhApTheoAhu({ isLive, evtKhu, evtAhu }) {
   return (
     <Card className="p-5">
       <SectionTitle icon={Gauge} hint="TB 5′ cuối · yêu cầu vs kết quả · đỏ Mức 1/2 · vàng Mức 3">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b>/{filt.length} không đạt</>}</SectionTitle>
+      <div className="flex flex-wrap items-center gap-2 mt-3">
+        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
+        {chip("ALL", "Tất cả", khu === "ALL", () => { setKhu("ALL"); setAhuLoc("ALL"); })}
+        {dsKhu.map((k) => chip(k, `Khu ${k}`, khu === k, () => { setKhu(k); setAhuLoc("ALL"); }))}
+        {ahuPairs.length > 0 && (
+          <select value={ahuLoc === "ALL" ? "ALL" : `${khu}|${ahuLoc}`} onChange={(e) => { const v = e.target.value; if (v === "ALL") setAhuLoc("ALL"); else { const [k, a] = v.split("|"); setKhu(k); setAhuLoc(a); } }} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-[12px] text-slate-700 outline-none ml-1">
+            <option value="ALL">AHU: tất cả</option>
+            {ahuPairs.map((p) => { const [k, a] = p.split("|"); return <option key={p} value={p}>{khu === "ALL" ? `Khu ${k} · ${a}` : a}</option>; })}
+          </select>
+        )}
+      </div>
       {rows === null ? <div className="mt-3 h-24 rounded-2xl bg-slate-50 animate-pulse" />
         : filt.length === 0 ? <p className="mt-3 text-[13px] text-slate-400">Không có phòng chênh áp trong phạm vi lọc.</p>
         : <div className="mt-3 space-y-4">
@@ -3695,7 +3711,6 @@ export default function App() {
                 )}
                 <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidentsXem.length} sự cố</span>
               </div>
-              <ChenhApTheoAhu isLive={isLive} evtKhu={evtKhu} evtAhu={evtAhu} />
               <Card className="p-2 sm:p-4">{incFiltered.length === 0 ? (incidentsXem.length === 0 ? (
                 <div className="px-5 py-10 text-center">
                   <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div>
@@ -3888,7 +3903,7 @@ export default function App() {
             );
           })()}
 
-          {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><SuCoGanDayPage isLive={isLive} khuChoPhep={khuChoPhep} /></div>}
+          {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><ChenhApTheoAhu isLive={isLive} khuChoPhep={khuChoPhep} /></div>}
           {tab === "sensors" && <CamBienPage isLive={isLive} />}
           {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
           {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
