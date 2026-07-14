@@ -377,7 +377,7 @@ function KpiListModal({ kind, groups, incidents, cfg, onClose, onPickRoom, onPic
     dat:   { title: "Phòng đạt", desc: "Tuân thủ ≥ 80% trong 1 giờ gần nhất", color: COLOR.teal, grad: "#E6F4F1", Icon: CheckCircle2 },
     khong: { title: "Phòng không đạt", desc: "Tuân thủ < 80% — nên kiểm tra ngay", color: COLOR.coralDeep, grad: "#FBE9E4", Icon: AlertTriangle },
     thieu: { title: "Thiếu dữ liệu", desc: "Mất tín hiệu hoặc dữ liệu quá cũ — không coi là đạt", color: COLOR.sand, grad: "#FBF1DE", Icon: HelpCircle },
-    p1:    { title: "Sự cố Mức 1 đang mở", desc: "Phòng trọng yếu — xử lý ưu tiên cao nhất", color: COLOR.sky, grad: "#E6F1FA", Icon: Activity },
+    p1:    { title: "Sự cố Nghiêm trọng đang mở", desc: "Phòng trọng yếu & quan trọng — ưu tiên xử lý", color: COLOR.sky, grad: "#E6F1FA", Icon: Activity },
   }[kind];
   const isP1 = kind === "p1";
   const rooms = isP1 ? [] : (groups[kind] || []);
@@ -395,14 +395,14 @@ function KpiListModal({ kind, groups, incidents, cfg, onClose, onPickRoom, onPic
         </div>
         <div className="px-5 py-4 overflow-y-auto">
           {isP1 ? (
-            incidents.length === 0 ? <p className="text-center text-[13px] text-slate-500 py-8">Không có sự cố Mức 1 nào đang mở. 🎉</p> : (
+            incidents.length === 0 ? <p className="text-center text-[13px] text-slate-500 py-8">Không có sự cố Nghiêm trọng nào đang mở. 🎉</p> : (
               <div className="space-y-2">
-                {incidents.map((i) => (
-                  <button key={i.id} onClick={() => onPickIncident(i)} className="w-full text-left rounded-2xl ring-1 ring-rose-200 border-l-[6px] border-rose-600 bg-rose-50/30 hover:ring-rose-300 hover:bg-rose-50/60 px-4 py-3 transition duration-150 flex items-center justify-between gap-3">
-                    <div className="min-w-0"><div className="flex items-center gap-2"><span className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{i.id}</span><span className="text-[11px] px-2 py-0.5 rounded-full font-bold text-white bg-rose-600">Mức 1</span></div><p className="text-[12px] text-slate-600 mt-0.5 truncate">{i.room} · {i.sensor || "—"} · {i.status}</p></div>
-                    <ChevronRight className="w-4 h-4 text-rose-300 shrink-0" strokeWidth={1.8} />
+                {incidents.map((i) => { const laP1 = i.priority === "P1"; return (
+                  <button key={i.id} onClick={() => onPickIncident(i)} className={`w-full text-left rounded-2xl ring-1 border-l-[6px] px-4 py-3 transition duration-150 flex items-center justify-between gap-3 ${laP1 ? "ring-rose-200 border-rose-600 bg-rose-50/30 hover:ring-rose-300 hover:bg-rose-50/60" : "ring-amber-200 border-amber-500 bg-amber-50/30 hover:ring-amber-300 hover:bg-amber-50/60"}`}>
+                    <div className="min-w-0"><div className="flex items-center gap-2"><span className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{i.id}</span><span className="text-[11px] px-2 py-0.5 rounded-full font-bold text-white bg-rose-600">Nghiêm trọng</span>{!laP1 && <span className="ml-1 text-[10px] text-slate-400">quan trọng</span>}</div><p className="text-[12px] text-slate-600 mt-0.5 truncate">{i.room} · {i.sensor || "—"} · {i.status}</p></div>
+                    <ChevronRight className={`w-4 h-4 shrink-0 ${laP1 ? "text-rose-300" : "text-amber-300"}`} strokeWidth={1.8} />
                   </button>
-                ))}
+                ); })}
                 <button onClick={onGotoIncidents} className="w-full mt-1 rounded-2xl py-2.5 text-[12px] font-semibold text-white transition" style={{ background: COLOR.teal }}>Mở trang Sự cố để xử lý →</button>
               </div>
             )
@@ -3158,7 +3158,9 @@ export default function App() {
     : SYSTEM_ALERTS;
   const sopRows = isLive ? live.sopRows : SOP;
   const duLieuLoi = isLive && !!live.loi;
-  const p1Open = incidentsXem.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục").length;
+  // "Sự cố Mức 1 & 2" — cả phòng trọng yếu (P1) và quan trọng (P2), khớp phạm vi email cảnh báo (canh_bao_muc_uu_tien = P1,P2)
+  const suCoP12ds = incidentsXem.filter((i) => (i.priority === "P1" || i.priority === "P2") && i.status !== "Đã khắc phục");
+  const p12Open = suCoP12ds.length;
   // #3 — Phân loại phòng để bấm vào ô KPI biết "phòng nào". Quy tắc khớp với view xem_tong_quan:
   //   thiếu DL = mất dữ liệu / chưa có % / dữ liệu quá cũ (trễ > ngưỡng giờ); còn lại đạt khi ≥80%.
   const FRESH_MIN = (isLive && live.sucKhoe?.nguongGio != null ? live.sucKhoe.nguongGio : 2) * 60;
@@ -3175,8 +3177,8 @@ export default function App() {
     g.khong.sort(sx); g.thieu.sort((a, b) => (a.id < b.id ? -1 : 1));          // không đạt: thấp→cao
     return g;
   }, [roomsXem, isLive, FRESH_MIN]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Phòng "trọng yếu" gắn với sự cố Mức 1 (P1) đang mở — để link từ ô "Sự cố Mức 1 mở"
-  const suCoP1 = incidentsXem.filter((i) => i.priority === "P1" && i.status !== "Đã khắc phục");
+  // Sự cố Mức 1 & 2 đang mở — để link từ ô KPI (P1 xếp trước P2, rồi theo lúc mở)
+  const suCoP12 = [...suCoP12ds].sort((a, b) => (a.priority === b.priority ? String(a.start).localeCompare(String(b.start)) : a.priority === "P1" ? -1 : 1));
   // #9 — "Phòng trọng điểm" xếp theo NGUY CƠ để tập trung theo dõi:
   //   Hành động (3) → Cảnh báo (2) → Cần chú ý (1) → Kiểm soát tốt (0) → thiếu DL (cuối).
   //   Cùng mức cảnh báo thì phòng có % đạt thấp hơn lên trước.
@@ -3532,7 +3534,7 @@ export default function App() {
         </header>
 
         {/* Mobile: tab TỰ XUỐNG DÒNG (không kéo ngang); desktop giữ 1 hàng cuộn. */}
-        <nav className="mt-5"><div className="rounded-2xl bg-white/80 backdrop-blur ring-1 ring-slate-200 p-1.5 flex gap-1 flex-wrap md:flex-nowrap md:overflow-x-auto" style={cardShadow}>{visibleTabs.map((t) => { const Icon = t.icon; const active = tab === t.k; return <button key={t.k} onClick={() => setTab(t.k)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition ${active ? "text-white" : "text-slate-600 hover:bg-slate-100"}`} style={active ? { background: "linear-gradient(135deg,#1aa899,#149e90)", boxShadow: "0 6px 16px -6px rgba(20,158,144,0.55)" } : {}}><Icon className="w-4 h-4" strokeWidth={1.8} /> {t.label}{t.k === "events" && <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={active ? { background: "rgba(255,255,255,0.25)" } : { background: "rgba(226,103,79,0.16)", color: COLOR.coralDeep }}>{p1Open}</span>}</button>; })}</div></nav>
+        <nav className="mt-5"><div className="rounded-2xl bg-white/80 backdrop-blur ring-1 ring-slate-200 p-1.5 flex gap-1 flex-wrap md:flex-nowrap md:overflow-x-auto" style={cardShadow}>{visibleTabs.map((t) => { const Icon = t.icon; const active = tab === t.k; return <button key={t.k} onClick={() => setTab(t.k)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition ${active ? "text-white" : "text-slate-600 hover:bg-slate-100"}`} style={active ? { background: "linear-gradient(135deg,#1aa899,#149e90)", boxShadow: "0 6px 16px -6px rgba(20,158,144,0.55)" } : {}}><Icon className="w-4 h-4" strokeWidth={1.8} /> {t.label}{t.k === "events" && <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={active ? { background: "rgba(255,255,255,0.25)" } : { background: "rgba(226,103,79,0.16)", color: COLOR.coralDeep }}>{p12Open}</span>}</button>; })}</div></nav>
 
         <main className="mt-6">
           {isLive && (!anBannerLive || live.loi) && (
@@ -3554,7 +3556,7 @@ export default function App() {
                 <KpiCard icon={CheckCircle2} label="Phòng đạt" value={kpis.dat} total={kpis.tong} sub="tuân thủ ≥ 80% (1h)" accent={{ txt: "text-teal-600", bg: "bg-teal-50", glow: "bg-teal-200" }} onClick={() => setKpiModal("dat")} loading={kpiLoading} />
                 <KpiCard icon={AlertTriangle} label="Phòng không đạt" value={kpis.khongDat} total={kpis.tong} sub="tuân thủ < 80%" accent={{ txt: "text-rose-600", bg: "bg-rose-50", glow: "bg-rose-200" }} onClick={() => setKpiModal("khong")} loading={kpiLoading} />
                 <KpiCard icon={HelpCircle} label="Thiếu dữ liệu" value={kpis.thieuDL} total={kpis.tong} sub="không coi là đạt" accent={{ txt: "text-amber-600", bg: "bg-amber-50", glow: "bg-amber-200" }} onClick={() => setKpiModal("thieu")} loading={kpiLoading} />
-                <KpiCard icon={Activity} label="Sự cố Mức 1 mở" value={p1Open} sub="phòng trọng yếu" accent={{ txt: "text-sky-600", bg: "bg-sky-50", glow: "bg-sky-200" }} onClick={() => setKpiModal("p1")} loading={kpiLoading} />
+                <KpiCard icon={Activity} label="Sự cố Nghiêm trọng mở" value={p12Open} sub="phòng trọng yếu & quan trọng" accent={{ txt: "text-sky-600", bg: "bg-sky-50", glow: "bg-sky-200" }} onClick={() => setKpiModal("p1")} loading={kpiLoading} />
               </div>
               {/* Chú thích cách tính — tránh hiểu nhầm "phòng nhìn đẹp mà vẫn không đạt" */}
               <p className="text-[11px] text-slate-400 px-1 leading-relaxed -mt-2">
@@ -3565,7 +3567,7 @@ export default function App() {
                 <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden text-[11px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={!xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-slate-500 bg-white hover:bg-slate-50"}`} style={xemTatCaPhong ? { backgroundColor: COLOR.teal } : {}}>Tất cả</button></div><span className="text-[11px] text-slate-500">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-slate-500">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongHienThi.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incidentsXem.find((i) => i.room === r.id && i.status !== "Đã khắc phục") || null} />)}</div>}</div>
                 <aside className="space-y-5">
                   {isLive ? (
-                  <Card className="p-5" style={{ background: "linear-gradient(135deg,#E6F4F1,#FFFFFF 60%,#E6F1FA)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Tóm tắt hệ thống</SectionTitle>{live.capNhatLuc && !live.loi && <span className="text-[10px] text-slate-400">Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</div><p className="mt-3 text-[13px] leading-relaxed text-slate-600">{live.kpis ? <>Đang giám sát <b style={{ color: COLOR.navy }}>{kpis.tong}</b> phòng: <span className="text-teal-700 font-semibold">{kpis.dat} đạt</span> · <span className="text-rose-600 font-semibold">{kpis.khongDat} không đạt</span> · <span className="text-amber-600 font-semibold">{kpis.thieuDL} thiếu DL</span>. {p1Open > 0 ? <><b className="text-rose-600">{p1Open}</b> sự cố Mức 1 đang mở — ưu tiên xử lý.</> : "Không có sự cố Mức 1 đang mở."}</> : (live.loi ? "Không tải được dữ liệu — kiểm tra kết nối/đăng nhập." : "Đang tải dữ liệu…")}</p><p className="mt-2 text-[11px] text-slate-400">Phân tích AI chi tiết ở tab Báo cáo · Xu hướng GMP.</p></Card>
+                  <Card className="p-5" style={{ background: "linear-gradient(135deg,#E6F4F1,#FFFFFF 60%,#E6F1FA)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Tóm tắt hệ thống</SectionTitle>{live.capNhatLuc && !live.loi && <span className="text-[10px] text-slate-400">Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</div><p className="mt-3 text-[13px] leading-relaxed text-slate-600">{live.kpis ? <>Đang giám sát <b style={{ color: COLOR.navy }}>{kpis.tong}</b> phòng: <span className="text-teal-700 font-semibold">{kpis.dat} đạt</span> · <span className="text-rose-600 font-semibold">{kpis.khongDat} không đạt</span> · <span className="text-amber-600 font-semibold">{kpis.thieuDL} thiếu DL</span>. {p12Open > 0 ? <><b className="text-rose-600">{p12Open}</b> sự cố Nghiêm trọng đang mở — ưu tiên xử lý.</> : "Không có sự cố Nghiêm trọng đang mở."}</> : (live.loi ? "Không tải được dữ liệu — kiểm tra kết nối/đăng nhập." : "Đang tải dữ liệu…")}</p><p className="mt-2 text-[11px] text-slate-400">Phân tích AI chi tiết ở tab Báo cáo · Xu hướng GMP.</p></Card>
                   ) : (
                   <Card className="p-5" style={{ background: "linear-gradient(135deg,#E6F4F1,#FFFFFF 60%,#E6F1FA)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Phân tích AI</SectionTitle><span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-full"><TrendingDown className="w-3 h-3" strokeWidth={2} /> Δ 7 ngày −6%</span></div><p className="mt-3 text-[13px] leading-relaxed text-slate-600"><span className="font-semibold" style={{ color: COLOR.navy }}>AHU-K01</span> cần kiểm tra ưu tiên — C4.R7, C4.R1 đều kém, nghi lỗi quạt/filter.</p></Card>
                   )}
@@ -3661,7 +3663,7 @@ export default function App() {
                           {inc.sensor}{inc.huong && <span className={`ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-rose-50 text-rose-600" : inc.huong === "THAP" ? "bg-sky-50 text-sky-600" : "bg-amber-50 text-amber-600"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
                           {inc.mucCanhBao === "SUPPRESSED" && <span className="ml-1.5 rounded-lg bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-medium text-slate-500">cảm biến đứng hình</span>}
                         </p>
-                        {inc.giaTriGanNhat != null && <p className="text-[11px] text-slate-400 mt-0.5">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{inc.mucGanNhat === "NORMAL" && <span className="text-emerald-600"> · đã về ngưỡng</span>}</p>}
+                        {inc.giaTriGanNhat != null && <p className="text-[11px] text-slate-400 mt-0.5">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") && <span className="text-emerald-600"> · đã về ngưỡng</span>}</p>}
                         <p className="mt-1.5 text-[12px] flex items-center gap-1.5 flex-wrap">
                           <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} /><span className="text-slate-700 font-medium">{inc.status}</span>
                           {q && <span className={`text-[11px] ${nong ? "text-rose-600 font-semibold" : "text-slate-400"}`}>· {ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach}{nong ? (q.qua_han_tiep_nhan ? " chưa tiếp nhận" : ` quá hạn ${q.gio_qua_han_xu_ly}h`) : " trong hạn"}</span>}
@@ -3701,7 +3703,7 @@ export default function App() {
                     <td className="py-3 px-3">{inc.room}{inc.mucCanhBao === "SUPPRESSED" && <span title="Cảm biến không đo được — hệ ngừng chấm mức, chờ Thiết bị đo. Không gửi email." className="ml-1.5 align-middle inline-block rounded-lg bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-medium text-slate-500">cảm biến đứng hình</span>}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[10px] text-slate-400">{kh}</span> : null; })()}</td>
                     <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
                     <td className="py-3 px-3 text-slate-600">{inc.sensor}{inc.huong && <span className={`ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-rose-50 text-rose-600" : inc.huong === "THAP" ? "bg-sky-50 text-sky-600" : "bg-amber-50 text-amber-600"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
-                      {inc.giaTriGanNhat != null && <div className="text-[11px] text-slate-400 mt-0.5 leading-tight">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.cuaSo5p && <span className="tabular-nums"> ({inc.cuaSo5p}{inc.ngay5p ? ` · ${inc.ngay5p}` : ""})</span>}{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{inc.mucGanNhat === "NORMAL" ? <span className="text-emerald-600"> · đã về ngưỡng</span> : inc.mucGanNhat && <span className="text-rose-500"> · {inc.mucGanNhat}</span>}{inc.thieuDiem && <span className="text-amber-600"> · FMS thiếu điểm</span>}{inc.tuoiDuLieuPhut > 75 && <span className="text-amber-600"> · số liệu {(inc.tuoiDuLieuPhut / 60).toFixed(1)}h trước</span>}</div>}</td>
+                      {inc.giaTriGanNhat != null && <div className="text-[11px] text-slate-400 mt-0.5 leading-tight">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.cuaSo5p && <span className="tabular-nums"> ({inc.cuaSo5p}{inc.ngay5p ? ` · ${inc.ngay5p}` : ""})</span>}{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") ? <span className="text-emerald-600"> · đã về ngưỡng</span> : inc.mucGanNhat && <span className="text-rose-500"> · {inc.mucGanNhat}</span>}{inc.thieuDiem && <span className="text-amber-600"> · FMS thiếu điểm</span>}{inc.tuoiDuLieuPhut > 75 && <span className="text-amber-600"> · số liệu {(inc.tuoiDuLieuPhut / 60).toFixed(1)}h trước</span>}</div>}</td>
                     <td className="py-3 px-3 text-slate-500 tabular-nums text-[12px]">{inc.start.slice(11)}</td>
                     <td className="py-3 px-3 text-amber-600 font-medium">{inc.duration}h</td>
                     <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-slate-700 font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span></td>
@@ -4016,7 +4018,7 @@ export default function App() {
           tab khác thì state đặt xong mà modal không render (nút như chết). */}
       {cumKetLuan && <ModalKetLuanCum cum={cumKetLuan} dangChay={dangGhiCum} onDong={() => setCumKetLuan(null)} onLuu={luuKetLuanCum} />}
       {roomModal && <RoomDetailModal room={roomModal} onClose={() => setRoomModal(null)} />}
-      {kpiModal && <KpiListModal kind={kpiModal} groups={nhomPhong} incidents={suCoP1} cfg={cfg}
+      {kpiModal && <KpiListModal kind={kpiModal} groups={nhomPhong} incidents={suCoP12} cfg={cfg}
         onClose={() => setKpiModal(null)}
         onPickRoom={(r) => { setKpiModal(null); setRoomModal(r); }}
         onPickIncident={(i) => { setKpiModal(null); openApproval(i); }}

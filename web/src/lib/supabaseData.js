@@ -1249,9 +1249,10 @@ export async function luuNguoiDung(u, signal) {
 }
 
 // ---------- tiện ích ----------
-// Thang 3 mức (10/07/2026). WARNING nay nghĩa là "Chú ý — theo dõi": OOS cả giờ vượt
-// ngưỡng nhưng 10 phút cuối đã về dải ⇒ không gửi mail. Nên nó ánh xạ về LEVELS[1],
-// không phải LEVELS[2]. NOTICE là mức cũ, chỉ còn trong dữ liệu lịch sử.
+// BỎ MỨC CHÚ Ý (14/07/2026): would-be-WARNING = OOS cả giờ nhưng 10' cuối đã về dải
+// ⇒ coi như BÌNH THƯỜNG (không mở vé — migration 20260714c). Nên WARNING ánh xạ về
+// LEVELS[0] (không còn màu hổ phách "chú ý" trên bảng điều khiển). du_lieu_gio vẫn ghi
+// WARNING (dữ liệu thật), chỉ KHÔNG tô màu cảnh báo. NOTICE là mức cũ, chỉ còn lịch sử.
 //
 // SUPPRESSED (10/07/2026) = cảm biến đứng hình, KHÔNG đo được. Phải về -1 (thiếu dữ liệu),
 // tuyệt đối không rơi vào `default: 0` — nếu không, một cảm biến chết sẽ hiện màu
@@ -1260,7 +1261,7 @@ export async function luuNguoiDung(u, signal) {
 function mucCanhBaoToLevel(muc) {
   switch ((muc || '').toUpperCase()) {
     case 'CRITICAL': return 3
-    case 'WARNING': return 1
+    case 'WARNING': return 0
     case 'NOTICE': return 1
     case 'NORMAL': return 0
     case 'SUPPRESSED': return -1
