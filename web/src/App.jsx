@@ -2642,30 +2642,29 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null }) {
                   <span className="text-[12px] font-bold uppercase tracking-wide text-slate-500">{k}</span>
                   <span className="text-[11px] text-slate-400 tabular-nums">{soDat}/{ds.length} đạt</span>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-1.5">
                   {ds.map((r) => (
-                    <div key={r.maPhong} className={`rounded-xl ring-1 p-2.5 ${oCls(r)}`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[12.5px] font-semibold text-slate-700 truncate" title={r.tenPhong}>{r.maPhong}</span>
-                        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-white/70 text-slate-500 shrink-0">{r.uuTien}</span>
+                    <div key={r.maPhong} className={`rounded-xl ring-1 px-3 py-2 flex items-center gap-x-4 gap-y-1 flex-wrap ${oCls(r)}`}>
+                      <div className="min-w-[140px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-semibold text-slate-700">{r.maPhong}</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/70 text-slate-500">{r.uuTien}</span>
+                        </div>
+                        <div className="text-[10.5px] text-slate-400 truncate max-w-[200px]" title={r.tenPhong}>{r.tenPhong}</div>
                       </div>
-                      <div className="text-[10.5px] text-slate-400 truncate">{r.tenPhong}</div>
-                      <div className="flex items-baseline justify-between mt-1.5 gap-2">
-                        <span className="text-[10.5px] text-slate-400 shrink-0">YC {r.ghDuoi}–{r.ghTren} {r.donVi}</span>
-                        <span className={`text-[16px] font-bold tabular-nums ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[10px] font-medium"> {r.donVi}</span></>}</span>
-                      </div>
+                      <div className="text-[11px] text-slate-500 shrink-0">Yêu cầu <b className="text-slate-600 tabular-nums">{r.ghDuoi}–{r.ghTren}</b> {r.donVi}</div>
                       {r.chuoi && r.chuoi.length > 0 && (
-                        <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 mt-1.5 pt-1.5 border-t border-white/70">
+                        <div className="flex items-center gap-2.5 flex-wrap">
                           {r.chuoi.map((p, i) => {
                             const cuoi = i === r.chuoi.length - 1;
                             const trongDai = Number(p.v) >= r.ghDuoi && Number(p.v) <= r.ghTren;
-                            return <span key={p.t} className={`text-[10px] tabular-nums ${cuoi ? `font-bold ${vCls(r)}` : trongDai ? "text-slate-400" : "text-rose-400 font-medium"}`}>{p.t}·{p.v}</span>;
+                            return <span key={p.t} className={`text-[10.5px] tabular-nums ${cuoi ? `font-bold ${vCls(r)}` : trongDai ? "text-slate-400" : "text-rose-400 font-medium"}`}><span className="text-slate-300">{p.t}</span> {p.v}</span>;
                           })}
                         </div>
                       )}
-                      <div className="text-[10px] text-slate-400 mt-1">
-                        {r.coDuLieu === false ? "thiếu dữ liệu"
-                          : <>{r.realtime ? <span className="text-teal-600 font-semibold">● realtime</span> : <span className="text-amber-600">giờ gần nhất</span>} · {r.thoiDiem}{r.dat === false && <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>}</>}
+                      <div className="ml-auto text-right shrink-0">
+                        <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[10px] font-medium"> {r.donVi}</span></>}</div>
+                        <div className="text-[9.5px] text-slate-400 mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-teal-600 font-semibold">● realtime</span> : <span className="text-amber-600">giờ gần nhất</span>} {r.thoiDiem}{r.dat === false && <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>}</>}</div>
                       </div>
                     </div>
                   ))}
