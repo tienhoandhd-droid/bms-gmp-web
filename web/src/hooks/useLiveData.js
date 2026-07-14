@@ -234,9 +234,20 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     if (dangBat && tuDongMoiMs > 0) {
       timer = setInterval(() => { if (document.visibilityState === 'visible') lamMoi({ nen: true, tuDong: true }) }, tuDongMoiMs)
     }
+    // Mở lại app (điện thoại chuyển app / khoá màn hình) → làm mới NGAY, không đợi
+    // hết chu kỳ 60s. Chặn dồn: bỏ qua nếu vừa làm mới trong 20s.
+    let lanMoiCuoi = Date.now()
+    const onHien = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lanMoiCuoi < 20000) return
+      lanMoiCuoi = Date.now()
+      lamMoi({ nen: true, tuDong: true })
+    }
+    if (dangBat) document.addEventListener('visibilitychange', onHien)
     return () => {
       huy.current = true
       if (timer) clearInterval(timer)
+      document.removeEventListener('visibilitychange', onHien)
       if (ctrlRef.current) ctrlRef.current.abort()    // hủy request đang chờ khi unmount
     }
   }, [dangBat, lamMoi, tuDongMoiMs])

@@ -76,7 +76,24 @@
       if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
         window.addEventListener('load', function () {
           setTimeout(function () {
-            navigator.serviceWorker.register('./sw.js').catch(function () { /* không chặn app */ })
+            navigator.serviceWorker.register('./sw.js').then(function (reg) {
+              // Phát hiện BẢN MỚI: SW mới cài xong khi vẫn còn SW cũ điều khiển ⇒ đã
+              // deploy phiên bản mới. Báo app hiện banner "Tải lại" (index.html
+              // network-first nên reload 1 lần là nhận đủ HTML+asset mới).
+              function baoBanMoi() { try { window.dispatchEvent(new Event('bms:co-ban-moi')) } catch (e) {} }
+              if (reg.waiting && navigator.serviceWorker.controller) baoBanMoi()
+              reg.addEventListener('updatefound', function () {
+                var nw = reg.installing; if (!nw) return
+                nw.addEventListener('statechange', function () {
+                  if (nw.state === 'installed' && navigator.serviceWorker.controller) baoBanMoi()
+                })
+              })
+              // Kiểm bản mới định kỳ + mỗi khi mở lại app (điện thoại chuyển app liên tục)
+              setInterval(function () { reg.update().catch(function () {}) }, 5 * 60 * 1000)
+              document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'visible') reg.update().catch(function () {})
+              })
+            }).catch(function () { /* không chặn app */ })
           }, 2500)
         })
       }

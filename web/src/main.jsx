@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.jsx'
+import App, { BannerCapNhat } from './App.jsx'
 import TVMode from './components/TVMode.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import './index.css'
@@ -10,7 +10,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       {/* ?tv=1 → màn hình treo tường phòng vận hành: chữ to, tự xoay, không điều hướng */}
-      {new URLSearchParams(window.location.search).has('tv') ? <TVMode /> : <App />}
+      {new URLSearchParams(window.location.search).has('tv') ? <TVMode /> : <><App /><BannerCapNhat /></>}
     </ErrorBoundary>
   </React.StrictMode>
 )
