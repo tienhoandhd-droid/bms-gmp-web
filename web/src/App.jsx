@@ -2007,7 +2007,8 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   const [emailCfg, setEmailCfg] = useState({});
   const [nguoiNhan, setNguoiNhan] = useState([]);
   const [danhBa, setDanhBa] = useState([]);    // danh bạ cảnh báo vai trò × khu
-  const [dongHo, setDongHo] = useState([]);    // đồng hồ cảnh báo theo bộ phận (khung_gio_canh_bao)
+  const [dongHo, setDongHo] = useState([]);    // đồng hồ cảnh báo theo bộ phận (khung_gio_canh_bao) — bản NHÁP đang sửa
+  const gocDongHo = useRef([]);                // bản server đã lưu (so sánh để biết dòng nào đổi)
   const [dsAhu, setDsAhu] = useState([]);      // {ma_ahu:'C1/AHU03', khu_vuc, ahu, so_phong, co_p1_p2}
   const [dbMoi, setDbMoi] = useState(DB_MOI_MAC_DINH());   // hàng "thêm mới" cuối bảng danh bạ
   const [tai, setTai] = useState(true);
@@ -2025,6 +2026,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
     setDanhBa(d.rows || []);
     setDsAhu(a.rows || []);
     setDongHo(kg.rows || []);
+    gocDongHo.current = JSON.parse(JSON.stringify(kg.rows || []));
     gocDB.current = Object.fromEntries((d.rows || []).map((r) => [r.id, { email: r.email || "", ho_ten: r.ho_ten || "" }]));
     setTai(false);
   };
@@ -2056,14 +2058,30 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
     if (await luuDB({ ...dbMoi, id: null }, "Đã thêm vào danh bạ cảnh báo")) setDbMoi(DB_MOI_MAC_DINH());
   };
   // ---- Đồng hồ cảnh báo (ghi qua rpc_luu_khung_gio_canh_bao, gate CHỈ ADMIN) ----
-  const suaDongHo = (vaiTro, patch) => setDongHo((ds) => ds.map((r) => (r.vai_tro === vaiTro ? { ...r, ...patch } : r)));
-  const luuDongHo = async (kg) => {
-    if (!laAdmin) return;
-    const { error, data } = await luuKhungGioCanhBao(kg, actor);
-    if (error) { flash(false, error.thong_bao || error.ma_loi || "Không lưu được đồng hồ"); await napLai(); return; }
-    if (data && data.ok === false) { flash(false, data.thong_bao || data.loi); await napLai(); return; }
-    flash(true, (data && data.thong_bao) || "Đã lưu đồng hồ cảnh báo"); await napLai();
+  // Sửa NHÁP tại chỗ, một nút "Lưu thay đổi" ghi mọi dòng đã đổi trong MỘT lượt —
+  // không lưu-và-nạp-lại sau từng cú bấm (phản hồi 15/07: bấm 5 ô ngày = 5 lần giật trang).
+  const khoaDongHo = (r) => JSON.stringify([!!r.kich_hoat, r.gio_tu, r.gio_den, [...(r.ngay || [])].sort((a, b) => a - b)]);
+  const dongHoDoi = useMemo(() => dongHo.filter((r) => {
+    const g = (gocDongHo.current || []).find((x) => x.vai_tro === r.vai_tro);
+    return g && khoaDongHo(g) !== khoaDongHo(r);
+  }), [dongHo]); // eslint-disable-line react-hooks/exhaustive-deps
+  const suaDongHo = (vaiTro, patch) => { if (laAdmin) setDongHo((ds) => ds.map((r) => (r.vai_tro === vaiTro ? { ...r, ...patch } : r))); };
+  const [dangLuuDH, setDangLuuDH] = useState(false);
+  const luuTatCaDongHo = async () => {
+    if (!laAdmin || !dongHoDoi.length) return;
+    setDangLuuDH(true);
+    const loi = [];
+    for (const kg of dongHoDoi) {
+      const { error, data } = await luuKhungGioCanhBao(kg, actor);
+      if (error) loi.push(`${kg.vai_tro}: ${error.thong_bao || error.ma_loi || "lỗi kết nối"}`);
+      else if (data && data.ok === false) loi.push(`${kg.vai_tro}: ${data.thong_bao || data.loi}`);
+    }
+    setDangLuuDH(false);
+    if (loi.length) flash(false, loi.join(" · "));
+    else flash(true, `Đã lưu đồng hồ cảnh báo (${dongHoDoi.length} bộ phận)`);
+    await napLai();
   };
+  const huyDongHo = () => setDongHo(JSON.parse(JSON.stringify(gocDongHo.current || [])));
   const luuEmail = async (key, value) => {
     if (!canManage) return;
     const { error } = await datCauHinhEmail(key, value, actor);
@@ -2153,24 +2171,22 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
                 <tr key={k.vai_tro} className="border-t border-slate-100">
                   <td className="py-2.5 pr-4 font-semibold" style={{ color: COLOR.navy }}>{ROLE_VI[k.vai_tro] || k.vai_tro}</td>
                   <td className="py-2.5 pr-4">
-                    <button disabled={!laAdmin} onClick={() => luuDongHo({ ...k, kich_hoat: !k.kich_hoat })}
+                    <button disabled={!laAdmin} onClick={() => suaDongHo(k.vai_tro, { kich_hoat: !k.kich_hoat })}
                       className={`text-[11px] px-2.5 py-1 rounded-full font-semibold ${k.kich_hoat ? "bg-amber-100 text-amber-700" : "bg-teal-100 text-teal-700"} disabled:opacity-60`}>
                       {k.kich_hoat ? "Theo khung giờ" : "24/7"}
                     </button>
                   </td>
                   <td className="py-2.5 pr-4"><input type="time" value={k.gio_tu || ""} disabled={!laAdmin || !k.kich_hoat}
                     onChange={(e) => suaDongHo(k.vai_tro, { gio_tu: e.target.value })}
-                    onBlur={() => luuDongHo({ ...dongHo.find((x) => x.vai_tro === k.vai_tro) })}
                     className="rounded-xl bg-white ring-1 ring-slate-200 px-2.5 py-1.5 text-[12px] tabular-nums disabled:bg-slate-50 disabled:text-slate-400" /></td>
                   <td className="py-2.5 pr-4"><input type="time" value={k.gio_den || ""} disabled={!laAdmin || !k.kich_hoat}
                     onChange={(e) => suaDongHo(k.vai_tro, { gio_den: e.target.value })}
-                    onBlur={() => luuDongHo({ ...dongHo.find((x) => x.vai_tro === k.vai_tro) })}
                     className="rounded-xl bg-white ring-1 ring-slate-200 px-2.5 py-1.5 text-[12px] tabular-nums disabled:bg-slate-50 disabled:text-slate-400" /></td>
                   <td className="py-2.5 pr-4">
                     <div className="flex gap-1">{["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((nhan, i) => {
                       const d = i + 1; const on = (k.ngay || []).includes(d);
                       return <button key={d} disabled={!laAdmin || !k.kich_hoat}
-                        onClick={() => luuDongHo({ ...k, ngay: on ? (k.ngay || []).filter((x) => x !== d) : [...(k.ngay || []), d].sort((a, b) => a - b) })}
+                        onClick={() => suaDongHo(k.vai_tro, { ngay: on ? (k.ngay || []).filter((x) => x !== d) : [...(k.ngay || []), d].sort((a, b) => a - b) })}
                         className={`w-8 h-7 rounded-lg text-[11px] font-semibold ${on ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-300"} disabled:opacity-60`}>{nhan}</button>;
                     })}</div>
                   </td>
@@ -2182,6 +2198,20 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
                   <td className="py-2.5 pr-4 text-[11px] text-slate-400 whitespace-nowrap">{k.cap_nhat_boi ? `${k.cap_nhat_luc} · ${k.cap_nhat_boi}` : "—"}</td>
                 </tr>))}
             </tbody></table></div>}
+        {laAdmin && (
+          <div className="mt-4 flex items-center gap-2 flex-wrap">
+            <button onClick={luuTatCaDongHo} disabled={!dongHoDoi.length || dangLuuDH}
+              className="text-xs font-semibold text-white rounded-xl px-4 py-2 flex items-center gap-1.5 disabled:opacity-40"
+              style={{ backgroundColor: COLOR.coral }}>
+              <Save className="w-3.5 h-3.5" strokeWidth={2} />
+              {dangLuuDH ? "Đang lưu…" : dongHoDoi.length ? `Lưu thay đổi (${dongHoDoi.length} bộ phận)` : "Lưu thay đổi"}
+            </button>
+            {dongHoDoi.length > 0 && !dangLuuDH && (
+              <button onClick={huyDongHo} className="text-xs font-medium text-slate-500 rounded-xl px-3.5 py-2 ring-1 ring-slate-200 bg-white hover:bg-slate-50">Hủy — về bản đã lưu</button>
+            )}
+            {dongHoDoi.length > 0 && <span className="text-[11px] text-amber-600">Thay đổi CHƯA có hiệu lực cho tới khi bấm Lưu.</span>}
+          </div>
+        )}
         <p className="text-[11px] text-slate-400 mt-3"><b>Ngoài khung giờ</b> bộ phận đó KHÔNG nhận email (cả nhắc định kỳ lẫn email tức thời); vé vẫn mở, web vẫn hiện, hệ vẫn tự đóng khi đủ 2 giờ sạch. Vào lại khung giờ, lượt kiểm 5′ đầu tiên gửi ngay các vé còn mở — không mất tin. Muốn một bộ phận nhận 24/7 (ví dụ Trực HSL) thì để chế độ <b>24/7</b>.</p>
         <p className="text-[11px] text-slate-400 mt-1">Lưu ý: đồng hồ leo thang (IPC 20′ / Cơ điện 15′) vẫn chạy ngoài giờ — sáng vào khung giờ, vé tồn qua đêm sẽ hiện đã leo thang lên Trực.</p>
       </Card>
