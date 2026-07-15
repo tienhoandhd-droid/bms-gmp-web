@@ -1022,6 +1022,23 @@ export async function xoaNguoiNhanCanhBao(id, actor, signal) {
   return goiRPC('rpc_xoa_nguoi_nhan_canh_bao', { p_id: id, p_actor: actor || null }, { signal })
 }
 
+// ---- Đồng hồ cảnh báo theo bộ phận (khung_gio_canh_bao, 20260715a) ----
+// Ngoài khung giờ của một vai trò: WF8 không gửi digest cho vai trò đó và WF10 không
+// bắn email tức thời; vé/leo thang/tự đóng KHÔNG đổi. kich_hoat=false = 24/7.
+// Ghi gate CHỈ ADMIN ở server (rpc_luu_khung_gio_canh_bao).
+export async function layKhungGioCanhBao(signal) {
+  const { data, error } = await goiRPC('rpc_lay_khung_gio_canh_bao', {}, { signal })
+  if (error) return { error, rows: [] }
+  return { error: null, rows: Array.isArray(data) ? data : [] }
+}
+export async function luuKhungGioCanhBao(kg, actor, signal) {
+  return goiRPC('rpc_luu_khung_gio_canh_bao', {
+    p_vai_tro: kg.vai_tro, p_kich_hoat: !!kg.kich_hoat,
+    p_gio_tu: kg.gio_tu, p_gio_den: kg.gio_den,
+    p_ngay: Array.isArray(kg.ngay) ? kg.ngay : [], p_actor: actor || null,
+  }, { signal })
+}
+
 // ---------- Luật tự phân tuyến sự cố (tab Cài đặt) ----------
 export async function layLuatPhanTuyen(signal) {
   const { data, error } = await goiRPC('rpc_lay_luat_phan_tuyen', {}, { signal })

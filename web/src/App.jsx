@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { PHIEN_BAN_GIAO_THUC, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, layCamBienDungHinh, layChenhApTheoAhu, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { PHIEN_BAN_GIAO_THUC, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, layCamBienDungHinh, layChenhApTheoAhu, layKhungGioCanhBao, luuKhungGioCanhBao, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau, thuKhoiPhucPhien } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
@@ -2003,10 +2003,11 @@ function ChonAhu({ nn, dsAhu, canManage, onLuu }) {
     </div>
   );
 }
-function CauHinhNguoiNhan({ isLive, canManage, actor }) {
+function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   const [emailCfg, setEmailCfg] = useState({});
   const [nguoiNhan, setNguoiNhan] = useState([]);
   const [danhBa, setDanhBa] = useState([]);    // danh bạ cảnh báo vai trò × khu
+  const [dongHo, setDongHo] = useState([]);    // đồng hồ cảnh báo theo bộ phận (khung_gio_canh_bao)
   const [dsAhu, setDsAhu] = useState([]);      // {ma_ahu:'C1/AHU03', khu_vuc, ahu, so_phong, co_p1_p2}
   const [dbMoi, setDbMoi] = useState(DB_MOI_MAC_DINH());   // hàng "thêm mới" cuối bảng danh bạ
   const [tai, setTai] = useState(true);
@@ -2018,11 +2019,12 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
   const napLai = async () => {
     if (!isLive) { setTai(false); return; }
     setTai(true);
-    const [e, n, d, a] = await Promise.all([layCauHinhEmail(), layNguoiNhanBaoCao(), layNguoiNhanCanhBao(), layDanhSachAhu()]);
+    const [e, n, d, a, kg] = await Promise.all([layCauHinhEmail(), layNguoiNhanBaoCao(), layNguoiNhanCanhBao(), layDanhSachAhu(), layKhungGioCanhBao()]);
     if (e.cfg) { setEmailCfg(e.cfg); goc.current = { ...e.cfg }; }
     setNguoiNhan(n.rows || []);
     setDanhBa(d.rows || []);
     setDsAhu(a.rows || []);
+    setDongHo(kg.rows || []);
     gocDB.current = Object.fromEntries((d.rows || []).map((r) => [r.id, { email: r.email || "", ho_ten: r.ho_ten || "" }]));
     setTai(false);
   };
@@ -2052,6 +2054,15 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
   const themDB = async () => {
     if (!(dbMoi.email || "").trim()) { flash(false, "Cần nhập email trước khi thêm"); return; }
     if (await luuDB({ ...dbMoi, id: null }, "Đã thêm vào danh bạ cảnh báo")) setDbMoi(DB_MOI_MAC_DINH());
+  };
+  // ---- Đồng hồ cảnh báo (ghi qua rpc_luu_khung_gio_canh_bao, gate CHỈ ADMIN) ----
+  const suaDongHo = (vaiTro, patch) => setDongHo((ds) => ds.map((r) => (r.vai_tro === vaiTro ? { ...r, ...patch } : r)));
+  const luuDongHo = async (kg) => {
+    if (!laAdmin) return;
+    const { error, data } = await luuKhungGioCanhBao(kg, actor);
+    if (error) { flash(false, error.thong_bao || error.ma_loi || "Không lưu được đồng hồ"); await napLai(); return; }
+    if (data && data.ok === false) { flash(false, data.thong_bao || data.loi); await napLai(); return; }
+    flash(true, (data && data.thong_bao) || "Đã lưu đồng hồ cảnh báo"); await napLai();
   };
   const luuEmail = async (key, value) => {
     if (!canManage) return;
@@ -2130,6 +2141,49 @@ function CauHinhNguoiNhan({ isLive, canManage, actor }) {
             </tbody></table></div>}
         <p className="text-[11px] text-slate-400 mt-3">Sự cố ở khu nào chỉ gửi người có tích khu đó, và <b>chỉ khi tài khoản của họ được xem khu đó</b>. Khu chưa ai tích → gửi toàn bộ người hợp lệ của vai trò (không bỏ sót). <b>Phải chọn ít nhất một khu</b> — bỏ tích cả ba sẽ không lưu được.</p>
         <p className="text-[11px] text-slate-400 mt-1"><b>AHU phụ trách</b> chỉ áp dụng cho Cơ điện: mỗi AHU sẽ gửi một email riêng cho đúng người phụ trách. Bỏ trống = nhận mọi AHU trong các khu đã tích. Tên AHU trùng nhau giữa các khu nên ghi dạng <span className="font-mono">KHU/AHU</span>. AHU hiển thị mờ là AHU chỉ có phòng P3 — không bao giờ sinh sự cố.</p>
+      </Card>
+
+      <Card className="p-6">
+        <SectionTitle icon={Clock} hint="chỉ gửi email cảnh báo trong khung giờ của từng bộ phận — chỉ Quản trị chỉnh được">Đồng hồ cảnh báo theo bộ phận</SectionTitle>
+        {!laAdmin && <p className="text-[12px] text-amber-600 mt-2">Chỉ <b>Quản trị</b> được sửa đồng hồ. Bạn đang xem chỉ-đọc.</p>}
+        {tai ? <div className="h-24 rounded-2xl bg-slate-50 animate-pulse mt-4" /> :
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-slate-500 text-left text-[11px] uppercase tracking-wider">{["Bộ phận", "Chế độ", "Từ", "Đến", "Ngày trong tuần", "Hiện tại", "Cập nhật"].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+            <tbody>
+              {dongHo.map((k) => (
+                <tr key={k.vai_tro} className="border-t border-slate-100">
+                  <td className="py-2.5 pr-4 font-semibold" style={{ color: COLOR.navy }}>{ROLE_VI[k.vai_tro] || k.vai_tro}</td>
+                  <td className="py-2.5 pr-4">
+                    <button disabled={!laAdmin} onClick={() => luuDongHo({ ...k, kich_hoat: !k.kich_hoat })}
+                      className={`text-[11px] px-2.5 py-1 rounded-full font-semibold ${k.kich_hoat ? "bg-amber-100 text-amber-700" : "bg-teal-100 text-teal-700"} disabled:opacity-60`}>
+                      {k.kich_hoat ? "Theo khung giờ" : "24/7"}
+                    </button>
+                  </td>
+                  <td className="py-2.5 pr-4"><input type="time" value={k.gio_tu || ""} disabled={!laAdmin || !k.kich_hoat}
+                    onChange={(e) => suaDongHo(k.vai_tro, { gio_tu: e.target.value })}
+                    onBlur={() => luuDongHo({ ...dongHo.find((x) => x.vai_tro === k.vai_tro) })}
+                    className="rounded-xl bg-white ring-1 ring-slate-200 px-2.5 py-1.5 text-[12px] tabular-nums disabled:bg-slate-50 disabled:text-slate-400" /></td>
+                  <td className="py-2.5 pr-4"><input type="time" value={k.gio_den || ""} disabled={!laAdmin || !k.kich_hoat}
+                    onChange={(e) => suaDongHo(k.vai_tro, { gio_den: e.target.value })}
+                    onBlur={() => luuDongHo({ ...dongHo.find((x) => x.vai_tro === k.vai_tro) })}
+                    className="rounded-xl bg-white ring-1 ring-slate-200 px-2.5 py-1.5 text-[12px] tabular-nums disabled:bg-slate-50 disabled:text-slate-400" /></td>
+                  <td className="py-2.5 pr-4">
+                    <div className="flex gap-1">{["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((nhan, i) => {
+                      const d = i + 1; const on = (k.ngay || []).includes(d);
+                      return <button key={d} disabled={!laAdmin || !k.kich_hoat}
+                        onClick={() => luuDongHo({ ...k, ngay: on ? (k.ngay || []).filter((x) => x !== d) : [...(k.ngay || []), d].sort((a, b) => a - b) })}
+                        className={`w-8 h-7 rounded-lg text-[11px] font-semibold ${on ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-300"} disabled:opacity-60`}>{nhan}</button>;
+                    })}</div>
+                  </td>
+                  <td className="py-2.5 pr-4">
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${k.dang_trong_gio ? "bg-teal-50 text-teal-700 ring-1 ring-teal-200" : "bg-slate-100 text-slate-500 ring-1 ring-slate-200"}`}>
+                      {k.dang_trong_gio ? "đang gửi cảnh báo" : "ngoài giờ — im lặng"}
+                    </span>
+                  </td>
+                  <td className="py-2.5 pr-4 text-[11px] text-slate-400 whitespace-nowrap">{k.cap_nhat_boi ? `${k.cap_nhat_luc} · ${k.cap_nhat_boi}` : "—"}</td>
+                </tr>))}
+            </tbody></table></div>}
+        <p className="text-[11px] text-slate-400 mt-3"><b>Ngoài khung giờ</b> bộ phận đó KHÔNG nhận email (cả nhắc định kỳ lẫn email tức thời); vé vẫn mở, web vẫn hiện, hệ vẫn tự đóng khi đủ 2 giờ sạch. Vào lại khung giờ, lượt kiểm 5′ đầu tiên gửi ngay các vé còn mở — không mất tin. Muốn một bộ phận nhận 24/7 (ví dụ Trực HSL) thì để chế độ <b>24/7</b>.</p>
+        <p className="text-[11px] text-slate-400 mt-1">Lưu ý: đồng hồ leo thang (IPC 20′ / Cơ điện 15′) vẫn chạy ngoài giờ — sáng vào khung giờ, vé tồn qua đêm sẽ hiện đã leo thang lên Trực.</p>
       </Card>
 
       <Card className="p-6"><SectionTitle icon={Cog} hint="địa chỉ gửi đi + nhận khi ở chế độ thử + fallback báo cáo">Địa chỉ hệ thống & fallback</SectionTitle>
@@ -3850,7 +3904,7 @@ export default function App() {
             );
           })()}
 
-          {tab === "recipients" && <CauHinhNguoiNhan isLive={isLive} canManage={canManage} actor={user?.email} />}
+          {tab === "recipients" && <CauHinhNguoiNhan isLive={isLive} canManage={canManage} laAdmin={user?.role === "ADMIN"} actor={user?.email} />}
 
           {tab === "settings" && (() => {
             const cfgSubTabs = [
