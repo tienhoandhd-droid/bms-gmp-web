@@ -79,13 +79,23 @@ self.addEventListener('fetch', (e) => {
       )
       return
     }
-    // index.html: network-first — bản deploy mới ăn ngay; offline rơi về cache
-    e.respondWith(
-      fetch(req)
+    // index.html: network-first CÓ TIMEOUT 2.5s — mạng khỏe thì bản deploy mới ăn
+    // ngay như trước; mạng YẾU (chậm nhưng không rớt) thì mở NGAY từ cache thay vì
+    // màn hình trắng chờ mạng vô hạn (15/07: mở app trên điện thoại rất chậm).
+    // Bản mạng về muộn vẫn được ghi cache; banner "có bản mới — Tải lại" lo phần
+    // cập nhật, nên phục vụ cache trước KHÔNG làm người dùng kẹt bản cũ.
+    e.respondWith((async () => {
+      const nap = fetch(req)
         .then((r) => { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(req, cp)); return r })
-        // ignoreSearch: 'index.html?tab=…' phải khớp bản precache khi offline.
-        .catch(() => caches.match(req, { ignoreSearch: true }).then((r) => r || caches.match('./index.html')))
-    )
+      const som = await Promise.race([
+        nap.catch(() => null),
+        new Promise((res) => setTimeout(() => res(null), 2500)),
+      ])
+      if (som) return som
+      // ignoreSearch: 'index.html?tab=…' phải khớp bản precache khi offline.
+      const hit = (await caches.match(req, { ignoreSearch: true })) || (await caches.match('./index.html'))
+      return hit || nap   // lần đầu tiên mở app (chưa có cache) thì đành chờ mạng
+    })())
     return
   }
   if (url.pathname.includes('/assets/')) {

@@ -92,6 +92,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
   }
 
   const tier2Luc = useRef(0)   // lần cuối nạp dữ liệu tab phụ (để bỏ qua trong TTL ở nhịp tự động)
+  const lanNapLuc = useRef(0)  // lần lamMoi gần nhất — chặn INITIAL_SESSION nạp TRÙNG ngay sau mount (15/07)
 
   // Làm giàu phòng với thống kê 8h (cache + giới hạn đồng thời + abort)
   const lamGiauPhong = useCallback(async (ds, { batBuoc, signal }) => {
@@ -143,6 +144,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     const ctrl = new AbortController()
     ctrlRef.current = ctrl
     const signal = ctrl.signal
+    lanNapLuc.current = Date.now()
     if (!nen) setDangTai(true)
     setLoi(null)
 
@@ -229,7 +231,13 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
   useEffect(() => {
     huy.current = false
     if (dangBat) {
-      lamMoi()
+      // MỞ NGUỘI (15/07): chờ supabase khôi phục phiên từ localStorage (cục bộ,
+      // không tốn vòng mạng) rồi mới nạp. Trước đây lamMoi() bắn ngay khi mount —
+      // chưa có JWT nên cả loạt request đi vai anon bị RLS trả rỗng, rồi
+      // INITIAL_SESSION nạp lại từ đầu ⇒ điện thoại trả giá 2 lượt mạng cho 1 lần
+      // mở app, tab Sự cố chờ lâu gấp đôi. getSession() lỗi vẫn nạp (finally).
+      if (supabase) supabase.auth.getSession().finally(() => { if (!huy.current) lamMoi() })
+      else lamMoi()
       // Cờ bắt buộc đăng nhập: đọc 1 lần (hiếm đổi), không nằm trong nhịp 60s
       layCoBatBuocDangNhap().then((r) => { if (!huy.current) setBatBuocDangNhap(!!r.batBuoc) }).catch(() => {})
       napNut()
@@ -286,7 +294,14 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     if (!dangBat || !supabase) return
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        setTimeout(() => { if (!huy.current) { lamMoi(); napNut() } }, 0)
+        // Mount đã chờ getSession() rồi mới nạp, nên INITIAL_SESSION đến ngay sau đó
+        // sẽ nạp TRÙNG (abort lượt mount + tải lại từ đầu = chậm gấp đôi trên 4G).
+        // Vẫn giữ nhánh này cho SIGNED_IN/TOKEN_REFRESHED và làm lưới an toàn.
+        setTimeout(() => {
+          if (huy.current) return
+          napNut()
+          if (Date.now() - lanNapLuc.current > 2000) lamMoi()
+        }, 0)
       }
     })
     return () => sub?.subscription?.unsubscribe?.()
