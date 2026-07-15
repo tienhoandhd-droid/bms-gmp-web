@@ -338,7 +338,7 @@ export async function laySuCoDongGanDay(signal) {
 
 export async function laySuCoDangMo(signal) {
   const { data, error } = await docView('xem_su_co_dang_mo',
-    (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,'
+    (q) => q.select('ma_hien_thi,ma_su_co,phong,ten_phong,khu_vuc,uu_tien,cam_bien_vi,loai_cam_bien,muc_canh_bao,trang_thai,'
               + 'bat_dau,keo_dai_gio,dang_tam_hoan,tam_dung_den,tam_dung_boi,tam_dung_ly_do,lich_su,'
               + 'huong_vi_pham,gia_tri_gan_nhat,gioi_han_duoi,gioi_han_tren,don_vi,thoi_diem_so_lieu,muc_gan_nhat,'
               + 'ma_cum,cum_hien_thi,cua_so_5p,ngay_5p,tuoi_du_lieu_phut,thieu_diem'),
@@ -349,6 +349,10 @@ export async function laySuCoDangMo(signal) {
     id: r.ma_hien_thi || `SC-${r.ma_su_co}`,
     room: r.phong,
     roomName: r.ten_phong,
+    // Khu lấy THẲNG từ view (đã lọc khu_duoc_xem server-side) — trước 15/07 client
+    // suy khu từ danh sách PHÒNG (về muộn hơn sự cố) ⇒ tài khoản giới hạn khu mở
+    // app thấy "Chưa có sự cố nào" cho tới khi phòng tải xong.
+    khu: r.khu_vuc || null,
     sensor: r.cam_bien_vi || SENSOR_LABEL[r.loai_cam_bien] || r.loai_cam_bien || '—',
     huong: r.huong_vi_pham || null,   // 'THAP' | 'CAO' | 'HAI' | null — hướng vi phạm
     giaTriGanNhat: r.gia_tri_gan_nhat ?? null,   // số liệu giờ gần nhất

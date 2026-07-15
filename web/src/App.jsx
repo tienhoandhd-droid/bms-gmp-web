@@ -3200,7 +3200,10 @@ export default function App() {
   const loKhu = (khu) => !khuChoPhep || (!!khu && khuChoPhep.includes(khu));
   const areaCuaPhong = useMemo(() => { const m = {}; rooms.forEach((r) => { m[r.id] = r.area; }); return m; }, [rooms]);
   const roomsXem = useMemo(() => (khuChoPhep ? rooms.filter((r) => loKhu(r.area)) : rooms), [rooms, khuChoPhep]); // eslint-disable-line react-hooks/exhaustive-deps
-  const incidentsXem = useMemo(() => (khuChoPhep ? incidents.filter((i) => loKhu(areaCuaPhong[i.room])) : incidents), [incidents, khuChoPhep, areaCuaPhong]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Khu ưu tiên lấy từ chính sự cố (view đã lọc khu_duoc_xem SERVER-side); chỉ rơi về
+  // map phòng khi thiếu. KHÔNG loại sự cố chưa rõ khu — trước 15/07 sự cố về trước
+  // danh sách phòng bị lọc SẠCH ⇒ tab Sự cố trống rất lâu với tài khoản giới hạn khu.
+  const incidentsXem = useMemo(() => (khuChoPhep ? incidents.filter((i) => { const a = i.khu || areaCuaPhong[i.room]; return !a || loKhu(a); }) : incidents), [incidents, khuChoPhep, areaCuaPhong]); // eslint-disable-line react-hooks/exhaustive-deps
   // ⑤ Owner + SLA — ai đang giữ việc, và đã quá hạn bao lâu. Server tính, web chỉ bày.
   const quaHanTheoId = useMemo(() => {
     const m = {};
@@ -3651,7 +3654,7 @@ export default function App() {
 
           {tab === "events" && (() => {
             const metaPhong = {}; (rooms || []).forEach((r) => { metaPhong[r.id] = { area: r.area, ahu: r.ahu }; });
-            const incKhu = (i) => (metaPhong[i.room] || {}).area || "";
+            const incKhu = (i) => i.khu || (metaPhong[i.room] || {}).area || "";
             const incAhu = (i) => (metaPhong[i.room] || {}).ahu || "";
             // Cặp khu|AHU (AHU01 có ở cả C1 lẫn C4 nên tên AHU trần là nhập nhằng);
             // đứng ở "Tất cả" vẫn chọn được AHU — chọn phát là áp luôn cả khu.
@@ -3706,7 +3709,11 @@ export default function App() {
                 )}
                 <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidentsXem.length} sự cố</span>
               </div>
-              <Card className="p-2 sm:p-4">{incFiltered.length === 0 ? (incidentsXem.length === 0 ? (
+              <Card className="p-2 sm:p-4">{isLive && live.dangTai && incidentsXem.length === 0 ? (
+                /* ĐANG TẢI + chưa có gì: skeleton — không được hiện "Chưa có sự cố nào"
+                   khi thật ra là đang chờ mạng (15/07: gây hiểu lầm hệ trống vé). */
+                <div className="p-2 space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-20 rounded-2xl bg-slate-100 animate-pulse" />)}</div>
+              ) : incFiltered.length === 0 ? (incidentsXem.length === 0 ? (
                 <div className="px-5 py-10 text-center">
                   <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: COLOR.teal }} strokeWidth={1.8} /></div>
                   <p className="mt-3 text-[14px] font-semibold" style={{ color: COLOR.navy }}>Chưa có sự cố nào đang mở</p>
