@@ -29,6 +29,38 @@
     <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
     <link rel="dns-prefetch" href="%VITE_SUPABASE_URL%" />
 
+    <!-- LÀM MỚI PHIÊN SỚM (16/07 — trị "mở lần đầu trong ngày rất lâu"): token Supabase
+         sống 1 giờ, nên lần mở đầu sau giờ nghỉ luôn phải refresh — trước đây việc đó
+         chạy TUẦN TỰ sau khi tải+parse xong ~215KB JS (mất thêm 0,4–0,8s trước truy vấn
+         đầu tiên). Nay bắn refresh NGAY lúc parse HTML, song song với tải JS; ghi lại
+         đúng định dạng phiên của supabase-js v2 → client khởi động là có token tươi.
+         Mọi nhánh fail-silent; token trùng lượt refresh của client vẫn an toàn nhờ
+         cửa sổ tái dùng refresh-token của Supabase. -->
+    <script>
+      try {
+        var _su = '%VITE_SUPABASE_URL%';
+        var _sk = '%VITE_SUPABASE_ANON_KEY%';
+        var _key = 'sb-' + _su.replace('https://', '').split('.')[0] + '-auth-token';
+        var _raw = localStorage.getItem(_key);
+        if (_raw && _su.indexOf('http') === 0) {
+          var _s = JSON.parse(_raw);
+          var _now = Math.floor(Date.now() / 1000);
+          if (_s && _s.refresh_token && (!_s.expires_at || _s.expires_at < _now + 120)) {
+            fetch(_su + '/auth/v1/token?grant_type=refresh_token', {
+              method: 'POST',
+              headers: { apikey: _sk, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refresh_token: _s.refresh_token })
+            }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+              if (d && d.access_token && d.refresh_token && d.user) {
+                if (!d.expires_at) d.expires_at = Math.floor(Date.now() / 1000) + (d.expires_in || 3600);
+                localStorage.setItem(_key, JSON.stringify(d));
+              }
+            }).catch(function () {});
+          }
+        }
+      } catch (e) { /* không có phiên cũ / trình duyệt chặn storage → bỏ qua */ }
+    </script>
+
     <!-- Critical CSS cho skeleton: hiển thị NGAY, chống "màn trắng" tới khi
          ~600KB JS (react+app+supabase) parse xong. React thay #root khi mount. -->
     <style>
