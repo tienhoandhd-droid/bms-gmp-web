@@ -2645,14 +2645,26 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                         <div className="text-[10.5px] text-slate-400 truncate max-w-[200px]" title={r.tenPhong}>{r.tenPhong}</div>
                       </div>
                       <div className="text-[11px] text-slate-500 shrink-0">Yêu cầu <b className="text-slate-600 tabular-nums">{r.ghDuoi}–{r.ghTren}</b> {r.donVi}</div>
+                      {/* 16/07 (user): chuỗi 5′ kẻ BẢNG 2 hàng — giờ trên, chênh áp dưới — dễ dò cột hơn dãy chữ liền */}
                       {r.chuoi && r.chuoi.length > 0 && (
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                          {r.chuoi.map((p, i) => {
-                            const cuoi = i === r.chuoi.length - 1;
-                            const duoiSan = Number(p.v) < r.ghDuoi; const trenTran = Number(p.v) > r.ghTren;
-                            return <span key={p.t} className={`text-[13px] tabular-nums ${cuoi ? `font-bold ${vCls(r)}` : duoiSan ? "text-rose-600 font-semibold" : trenTran ? "text-amber-600 font-semibold" : "text-slate-600"}`}><span className="text-[11px] text-slate-400">{p.t}</span> {p.v}</span>;
-                          })}
-                        </div>
+                        <table className="border-collapse shrink-0">
+                          <tbody>
+                            <tr>
+                              {r.chuoi.map((p) => (
+                                <td key={`t${p.t}`} className="border border-slate-200 bg-slate-50 px-2 py-0.5 text-center text-[10.5px] text-slate-500 tabular-nums">{p.t}</td>
+                              ))}
+                            </tr>
+                            <tr>
+                              {r.chuoi.map((p, i) => {
+                                const cuoi = i === r.chuoi.length - 1;
+                                const duoiSan = Number(p.v) < r.ghDuoi; const trenTran = Number(p.v) > r.ghTren;
+                                return (
+                                  <td key={`v${p.t}`} className={`border border-slate-200 px-2 py-0.5 text-center text-[12.5px] tabular-nums ${cuoi ? `font-bold ${vCls(r)} bg-white` : duoiSan ? "text-rose-600 font-semibold bg-rose-50/50" : trenTran ? "text-amber-600 font-semibold bg-amber-50/50" : "text-slate-600 bg-white"}`}>{p.v}</td>
+                                );
+                              })}
+                            </tr>
+                          </tbody>
+                        </table>
                       )}
                       <div className="ml-auto text-right shrink-0">
                         <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[10px] font-medium"> {r.donVi}</span></>}</div>
