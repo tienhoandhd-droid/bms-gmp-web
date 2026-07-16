@@ -2601,18 +2601,18 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   const soP3 = filt.filter(p3KhongDat).length;
   const soNgoaiKhoang = filt.filter((r) => r.dat !== false && ngoaiKhoang(r)).length;
   const oCls = (r) => r.coDuLieu === false ? "bg-slate-100 ring-slate-300"
-    : canGap(r) ? "bg-rose-100 ring-2 ring-rose-500"
-    : p3KhongDat(r) ? "bg-rose-50 ring-1 ring-rose-200"
-    : ngoaiKhoang(r) ? "bg-amber-100 ring-2 ring-amber-500"
-    : "bg-emerald-50 ring-1 ring-emerald-400";
+    : canGap(r) ? "bg-rose-100 ring-2 ring-rose-600"
+    : p3KhongDat(r) ? "bg-rose-50/40 ring-1 ring-slate-200"
+    : ngoaiKhoang(r) ? "bg-amber-100 ring-2 ring-amber-600"
+    : "bg-emerald-50 ring-1 ring-emerald-500";
   const vCls = (r) => r.coDuLieu === false ? "text-slate-500"
-    : canGap(r) ? "text-rose-800"
-    : p3KhongDat(r) ? "text-rose-400"
+    : canGap(r) ? "text-rose-900"
+    : p3KhongDat(r) ? "text-slate-500"
     : ngoaiKhoang(r) ? "text-amber-800" : "text-emerald-800";
   const ordUu = (p) => p === "P1" ? 1 : p === "P2" ? 2 : p === "P3" ? 3 : 4;
   return (
     <Card className="p-5">
-      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = dưới sàn cần chỉnh (P1/P2) · ĐỎ NHẠT = P3 chưa cần xử lý ngay · VÀNG = trên dải (chú ý) · XANH = đạt">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b> cần chỉnh{soP3 > 0 && <> · <b className="text-rose-300">{soP3}</b> P3 chưa gấp</>}{soNgoaiKhoang > 0 && <> · <b className="text-amber-600">{soNgoaiKhoang}</b> trên dải</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[10px] font-normal text-teal-600"> · đang lấy realtime…</span>}</SectionTitle>
+      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = dưới sàn cần chỉnh (P1/P2) · XÁM PHỚT HỒNG = P3 chưa cần xử lý ngay · VÀNG = trên dải (chú ý) · XANH = đạt">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b> cần chỉnh{soP3 > 0 && <> · <b className="text-slate-400">{soP3}</b> P3 chưa gấp</>}{soNgoaiKhoang > 0 && <> · <b className="text-amber-600">{soNgoaiKhoang}</b> trên dải</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[10px] font-normal text-teal-600"> · đang lấy realtime…</span>}</SectionTitle>
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
         {chip("ALL", "Tất cả", khu === "ALL", () => { setKhu("ALL"); setAhuLoc("ALL"); })}
@@ -2660,7 +2660,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                           <tbody>
                             <tr>
                               {r.chuoi.map((p) => (
-                                <td key={`t${p.t}`} className="border border-slate-200 bg-slate-50 px-2 py-0.5 text-center text-[10.5px] text-slate-500 tabular-nums">{p.t}</td>
+                                <td key={`t${p.t}`} className="border border-slate-200 bg-slate-50 px-2 py-0.5 text-center text-[10.5px] text-slate-600 tabular-nums">{p.t}</td>
                               ))}
                             </tr>
                             <tr>
@@ -2668,7 +2668,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                                 const cuoi = i === r.chuoi.length - 1;
                                 const duoiSan = Number(p.v) < r.ghDuoi; const trenTran = Number(p.v) > r.ghTren;
                                 return (
-                                  <td key={`v${p.t}`} className={`border border-slate-200 px-2 py-0.5 text-center text-[12.5px] tabular-nums ${cuoi ? `font-bold ${vCls(r)} bg-white` : duoiSan ? "text-rose-600 font-semibold bg-rose-50/50" : trenTran ? "text-amber-600 font-semibold bg-amber-50/50" : "text-slate-600 bg-white"}`}>{p.v}</td>
+                                  <td key={`v${p.t}`} className={`border border-slate-200 px-2 py-0.5 text-center text-[12.5px] tabular-nums ${cuoi ? `font-bold ${vCls(r)} bg-white` : duoiSan ? "text-rose-600 font-semibold bg-rose-50/50" : trenTran ? "text-amber-600 font-semibold bg-amber-50/50" : "text-slate-700 bg-white"}`}>{p.v}</td>
                                 );
                               })}
                             </tr>
@@ -2678,7 +2678,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                       <div className="ml-auto text-right shrink-0">
                         <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[10px] font-medium"> {r.donVi}</span></>}</div>
                         <div className="text-[9.5px] text-slate-400 mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-teal-600 font-semibold">● realtime</span> : <span className="text-amber-600">giờ gần nhất</span>} {r.thoiDiem}{r.dat === false && (r.uuTien === "P3"
-                          ? <span className="font-medium text-rose-400"> · P3 — chưa cần xử lý ngay</span>
+                          ? <span className="font-medium text-slate-400"> · P3 — chưa cần xử lý ngay</span>
                           : <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>)}</>}</div>
                       </div>
                     </div>
