@@ -2593,19 +2593,26 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   // theo canh_bao_huong nên đổi hướng trong Cài đặt là màu tự đổi theo.
   const ngoaiKhoang = (r) => r.coDuLieu !== false && r.giaTri != null
     && ((r.ghDuoi != null && r.giaTri < r.ghDuoi) || (r.ghTren != null && r.giaTri > r.ghTren));
-  const soKhongDat = filt.filter((r) => r.dat === false).length;
+  // 16/07 (user): P3 không mở vé → P3 không đạt hiển thị DỊU (đỏ nhạt + nhãn
+  // "chưa cần xử lý ngay"), tách khỏi số "cần chỉnh" của P1/P2.
+  const canGap = (r) => r.dat === false && r.uuTien !== "P3";
+  const p3KhongDat = (r) => r.dat === false && r.uuTien === "P3";
+  const soKhongDat = filt.filter(canGap).length;
+  const soP3 = filt.filter(p3KhongDat).length;
   const soNgoaiKhoang = filt.filter((r) => r.dat !== false && ngoaiKhoang(r)).length;
   const oCls = (r) => r.coDuLieu === false ? "bg-slate-100 ring-slate-300"
-    : r.dat === false ? "bg-rose-100 ring-2 ring-rose-500"
+    : canGap(r) ? "bg-rose-100 ring-2 ring-rose-500"
+    : p3KhongDat(r) ? "bg-rose-50 ring-1 ring-rose-200"
     : ngoaiKhoang(r) ? "bg-amber-100 ring-2 ring-amber-500"
     : "bg-emerald-50 ring-1 ring-emerald-400";
   const vCls = (r) => r.coDuLieu === false ? "text-slate-500"
-    : r.dat === false ? "text-rose-800"
+    : canGap(r) ? "text-rose-800"
+    : p3KhongDat(r) ? "text-rose-400"
     : ngoaiKhoang(r) ? "text-amber-800" : "text-emerald-800";
   const ordUu = (p) => p === "P1" ? 1 : p === "P2" ? 2 : p === "P3" ? 3 : 4;
   return (
     <Card className="p-5">
-      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = vi phạm hướng cảnh báo (dưới sàn — cần chỉnh) · VÀNG = ngoài khoảng phía trên (chú ý, không phải sự cố) · XANH = trong dải">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b> cần chỉnh{soNgoaiKhoang > 0 && <> · <b className="text-amber-600">{soNgoaiKhoang}</b> trên dải</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[10px] font-normal text-teal-600"> · đang lấy realtime…</span>}</SectionTitle>
+      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = dưới sàn cần chỉnh (P1/P2) · ĐỎ NHẠT = P3 chưa cần xử lý ngay · VÀNG = trên dải (chú ý) · XANH = đạt">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b> cần chỉnh{soP3 > 0 && <> · <b className="text-rose-300">{soP3}</b> P3 chưa gấp</>}{soNgoaiKhoang > 0 && <> · <b className="text-amber-600">{soNgoaiKhoang}</b> trên dải</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[10px] font-normal text-teal-600"> · đang lấy realtime…</span>}</SectionTitle>
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
         {chip("ALL", "Tất cả", khu === "ALL", () => { setKhu("ALL"); setAhuLoc("ALL"); })}
@@ -2623,11 +2630,11 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
           {/* ĐỎ lên đầu (16/07): trong nhóm xếp đỏ → vàng → xanh → xám; nhóm AHU có
               phòng đỏ cũng nổi lên trước các nhóm toàn xanh. */}
           {Object.keys(groups).sort((a, b) => {
-            const rank = (r) => r.coDuLieu === false ? 3 : r.dat === false ? 0 : ngoaiKhoang(r) ? 1 : 2;
+            const rank = (r) => r.coDuLieu === false ? 4 : canGap(r) ? 0 : p3KhongDat(r) ? 1 : ngoaiKhoang(r) ? 2 : 3;
             const ma = Math.min(...groups[a].map(rank)), mb = Math.min(...groups[b].map(rank));
             return ma - mb || a.localeCompare(b);
           }).map((k) => {
-            const rank = (r) => r.coDuLieu === false ? 3 : r.dat === false ? 0 : ngoaiKhoang(r) ? 1 : 2;
+            const rank = (r) => r.coDuLieu === false ? 4 : canGap(r) ? 0 : p3KhongDat(r) ? 1 : ngoaiKhoang(r) ? 2 : 3;
             const ds = groups[k].slice().sort((a, b) => rank(a) - rank(b) || ordUu(a.uuTien) - ordUu(b.uuTien) || String(a.maPhong).localeCompare(String(b.maPhong)));
             const soDat = ds.filter((r) => r.dat).length;
             return (
@@ -2670,7 +2677,9 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                       )}
                       <div className="ml-auto text-right shrink-0">
                         <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[10px] font-medium"> {r.donVi}</span></>}</div>
-                        <div className="text-[9.5px] text-slate-400 mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-teal-600 font-semibold">● realtime</span> : <span className="text-amber-600">giờ gần nhất</span>} {r.thoiDiem}{r.dat === false && <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>}</>}</div>
+                        <div className="text-[9.5px] text-slate-400 mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-teal-600 font-semibold">● realtime</span> : <span className="text-amber-600">giờ gần nhất</span>} {r.thoiDiem}{r.dat === false && (r.uuTien === "P3"
+                          ? <span className="font-medium text-rose-400"> · P3 — chưa cần xử lý ngay</span>
+                          : <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>)}</>}</div>
                       </div>
                     </div>
                   ))}
