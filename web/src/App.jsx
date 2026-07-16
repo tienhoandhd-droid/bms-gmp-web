@@ -2575,7 +2575,9 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   React.useEffect(() => {
     if (!isLive || !active) return;   // CHỈ gọi FMS/đọc khi tab Chênh áp đang mở — không tải nền làm chậm tab khác
     nap();
-    const t = setInterval(nap, 120000);
+    // 16/07 (user): làm mới nhanh hơn — 60s/lần (mỗi lượt có gọi Edge nạp FMS ~6s,
+    // chỉ chạy khi tab Chênh áp ĐANG MỞ nên không ảnh hưởng tab khác).
+    const t = setInterval(nap, 60000);
     return () => clearInterval(t);
   }, [isLive, active, nap]);
   if (!isLive) return <Card className="p-8 text-center text-[13px] text-slate-500">Cần kết nối dữ liệu thật (LIVE) để xem chênh áp theo AHU.</Card>;
@@ -2644,7 +2646,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                         </div>
                         <div className="text-[10.5px] text-slate-400 truncate max-w-[200px]" title={r.tenPhong}>{r.tenPhong}</div>
                       </div>
-                      <div className="text-[11px] text-slate-500 shrink-0">Yêu cầu <b className="text-slate-600 tabular-nums">{r.ghDuoi}–{r.ghTren}</b> {r.donVi}</div>
+                      <div className="text-[13px] text-slate-600 shrink-0">Yêu cầu <b className="text-[15px] text-slate-800 tabular-nums">{r.ghDuoi}–{r.ghTren}</b> {r.donVi}</div>
                       {/* 16/07 (user): chuỗi 5′ kẻ BẢNG 2 hàng — giờ trên, chênh áp dưới — dễ dò cột hơn dãy chữ liền */}
                       {r.chuoi && r.chuoi.length > 0 && (
                         <table className="border-collapse shrink-0">
