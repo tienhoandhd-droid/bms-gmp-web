@@ -2564,9 +2564,11 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   const [khu, setKhu] = React.useState("ALL");
   const [ahuLoc, setAhuLoc] = React.useState("ALL");
   const [dangTuoi, setDangTuoi] = React.useState(false);   // đang gọi FMS lấy realtime
+  const [dhMap, setDhMap] = React.useState({});            // ma_phong → số giờ đứng hình (cảm biến DP)
   const nap = React.useCallback(async () => {
-    const kq = await layChenhApTheoAhu();          // đọc ngay (điểm phút gần nhất trong bảng, hoặc fallback giờ)
+    const [kq, dh] = await Promise.all([layChenhApTheoAhu(), layCamBienDungHinh()]);
     if (!kq.error) setRows(kq.rows);
+    if (dh && !dh.error && dh.rows) setDhMap(Object.fromEntries(dh.rows.filter((x) => x.loai_cam_bien === "DP").map((x) => [x.ma_phong, x.so_gio_dung])));
     setDangTuoi(true);
     const up = await capNhatPhut8h();               // kích Edge nạp FMS 5′ mới cho mọi phòng DP (~6s)
     setDangTuoi(false);
@@ -2595,24 +2597,30 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
     && ((r.ghDuoi != null && r.giaTri < r.ghDuoi) || (r.ghTren != null && r.giaTri > r.ghTren));
   // 16/07 (user): P3 không mở vé → P3 không đạt hiển thị DỊU (đỏ nhạt + nhãn
   // "chưa cần xử lý ngay"), tách khỏi số "cần chỉnh" của P1/P2.
-  const canGap = (r) => r.dat === false && r.uuTien !== "P3";
-  const p3KhongDat = (r) => r.dat === false && r.uuTien === "P3";
+  // 16/07 (user): cảm biến ĐỨNG HÌNH → số đang xem là số CHẾT — nhãn cảnh báo riêng,
+  // không tô đỏ/xanh (đỏ giả hoặc đạt giả), không tính vào "cần chỉnh".
+  const laDungHinh = (r) => dhMap[r.maPhong] != null;
+  const canGap = (r) => r.dat === false && r.uuTien !== "P3" && !laDungHinh(r);
+  const p3KhongDat = (r) => r.dat === false && r.uuTien === "P3" && !laDungHinh(r);
   const soKhongDat = filt.filter(canGap).length;
   const soP3 = filt.filter(p3KhongDat).length;
-  const soNgoaiKhoang = filt.filter((r) => r.dat !== false && ngoaiKhoang(r)).length;
+  const soDh = filt.filter(laDungHinh).length;
+  const soNgoaiKhoang = filt.filter((r) => r.dat !== false && ngoaiKhoang(r) && !laDungHinh(r)).length;
   const oCls = (r) => r.coDuLieu === false ? "bg-slate-100 ring-slate-300"
+    : laDungHinh(r) ? "bg-slate-100 ring-2 ring-amber-400"
     : canGap(r) ? "bg-rose-100 ring-2 ring-rose-600"
     : p3KhongDat(r) ? "bg-rose-50/40 ring-1 ring-slate-200"
     : ngoaiKhoang(r) ? "bg-amber-100 ring-2 ring-amber-600"
     : "bg-emerald-50 ring-1 ring-emerald-500";
   const vCls = (r) => r.coDuLieu === false ? "text-slate-500"
+    : laDungHinh(r) ? "text-slate-400 line-through"
     : canGap(r) ? "text-rose-900"
     : p3KhongDat(r) ? "text-slate-500"
     : ngoaiKhoang(r) ? "text-amber-800" : "text-emerald-800";
   const ordUu = (p) => p === "P1" ? 1 : p === "P2" ? 2 : p === "P3" ? 3 : 4;
   return (
     <Card className="p-5">
-      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = dưới sàn cần chỉnh (P1/P2) · XÁM PHỚT HỒNG = P3 chưa cần xử lý ngay · VÀNG = trên dải (chú ý) · XANH = đạt">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b> cần chỉnh{soP3 > 0 && <> · <b className="text-slate-400">{soP3}</b> P3 chưa gấp</>}{soNgoaiKhoang > 0 && <> · <b className="text-amber-600">{soNgoaiKhoang}</b> trên dải</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[10px] font-normal text-teal-600"> · đang lấy realtime…</span>}</SectionTitle>
+      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = dưới sàn cần chỉnh (P1/P2) · VIỀN VÀNG XÁM = cảm biến đứng hình · XÁM PHỚT HỒNG = P3 chưa gấp · VÀNG = trên dải · XANH = đạt">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b> cần chỉnh{soDh > 0 && <> · <b className="text-amber-600">{soDh}</b> đứng hình</>}{soP3 > 0 && <> · <b className="text-slate-400">{soP3}</b> P3 chưa gấp</>}{soNgoaiKhoang > 0 && <> · <b className="text-amber-600">{soNgoaiKhoang}</b> trên dải</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[10px] font-normal text-teal-600"> · đang lấy realtime…</span>}</SectionTitle>
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
         {chip("ALL", "Tất cả", khu === "ALL", () => { setKhu("ALL"); setAhuLoc("ALL"); })}
@@ -2630,11 +2638,11 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
           {/* ĐỎ lên đầu (16/07): trong nhóm xếp đỏ → vàng → xanh → xám; nhóm AHU có
               phòng đỏ cũng nổi lên trước các nhóm toàn xanh. */}
           {Object.keys(groups).sort((a, b) => {
-            const rank = (r) => r.coDuLieu === false ? 4 : canGap(r) ? 0 : p3KhongDat(r) ? 1 : ngoaiKhoang(r) ? 2 : 3;
+            const rank = (r) => r.coDuLieu === false ? 5 : canGap(r) ? 0 : laDungHinh(r) ? 1 : p3KhongDat(r) ? 2 : ngoaiKhoang(r) ? 3 : 4;
             const ma = Math.min(...groups[a].map(rank)), mb = Math.min(...groups[b].map(rank));
             return ma - mb || a.localeCompare(b);
           }).map((k) => {
-            const rank = (r) => r.coDuLieu === false ? 4 : canGap(r) ? 0 : p3KhongDat(r) ? 1 : ngoaiKhoang(r) ? 2 : 3;
+            const rank = (r) => r.coDuLieu === false ? 5 : canGap(r) ? 0 : laDungHinh(r) ? 1 : p3KhongDat(r) ? 2 : ngoaiKhoang(r) ? 3 : 4;
             const ds = groups[k].slice().sort((a, b) => rank(a) - rank(b) || ordUu(a.uuTien) - ordUu(b.uuTien) || String(a.maPhong).localeCompare(String(b.maPhong)));
             const soDat = ds.filter((r) => r.dat).length;
             return (
@@ -2645,17 +2653,26 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                 </div>
                 <div className="space-y-1.5">
                   {ds.map((r) => (
-                    <div key={r.maPhong} className={`rounded-xl px-3 py-2.5 flex items-center gap-x-4 gap-y-1 flex-wrap ${oCls(r)}`}>
-                      <div className="min-w-[140px]">
+                    <div key={r.maPhong} className={`rounded-xl px-3.5 py-2.5 flex items-center gap-x-5 gap-y-2 flex-wrap ${oCls(r)}`}>
+                      <div className="w-[168px] shrink-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] font-semibold text-slate-700">{r.maPhong}</span>
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/70 text-slate-500">{r.uuTien}</span>
+                          <span className="text-[13.5px] font-semibold text-slate-800">{r.maPhong}</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/80 text-slate-500">{r.uuTien}</span>
                         </div>
-                        <div className="text-[10.5px] text-slate-400 truncate max-w-[200px]" title={r.tenPhong}>{r.tenPhong}</div>
+                        <div className="text-[10.5px] text-slate-400 truncate" title={r.tenPhong}>{r.tenPhong}</div>
+                        {laDungHinh(r) && (
+                          <div className="mt-1 inline-block rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold leading-tight text-amber-800 ring-1 ring-amber-300">
+                            ⚠ Cảm biến đứng hình {dhMap[r.maPhong]} giờ — vui lòng kiểm tra lại trước khi chỉnh
+                          </div>
+                        )}
                       </div>
-                      <div className="text-[13px] text-slate-600 shrink-0">Yêu cầu <b className="text-[15px] text-slate-800 tabular-nums">{r.ghDuoi}–{r.ghTren}</b> {r.donVi}</div>
+                      <div className="w-[96px] shrink-0 rounded-lg bg-white/80 px-2 py-1 text-center ring-1 ring-slate-200/60">
+                        <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Yêu cầu ({r.donVi})</div>
+                        <div className="text-[15px] font-bold text-slate-800 tabular-nums leading-tight">{r.ghDuoi}–{r.ghTren}</div>
+                      </div>
                       {/* 16/07 (user): chuỗi 5′ kẻ BẢNG 2 hàng — giờ trên, chênh áp dưới — dễ dò cột hơn dãy chữ liền */}
                       {r.chuoi && r.chuoi.length > 0 && (
+                        <div className="grow flex justify-center"><div className="rounded-lg overflow-hidden ring-1 ring-slate-200 bg-white shrink-0">
                         <table className="border-collapse shrink-0">
                           <tbody>
                             <tr>
@@ -2674,8 +2691,9 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                             </tr>
                           </tbody>
                         </table>
+                        </div></div>
                       )}
-                      <div className="ml-auto text-right shrink-0">
+                      <div className="ml-auto w-[132px] text-right shrink-0">
                         <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[10px] font-medium"> {r.donVi}</span></>}</div>
                         <div className="text-[9.5px] text-slate-400 mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-teal-600 font-semibold">● realtime</span> : <span className="text-amber-600">giờ gần nhất</span>} {r.thoiDiem}{r.dat === false && (r.uuTien === "P3"
                           ? <span className="font-medium text-slate-400"> · P3 — chưa cần xử lý ngay</span>
@@ -2700,7 +2718,7 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
     layCamBienDungHinh().then((kq) => { if (!huy) setRows(kq.error ? [] : kq.rows); });
     return () => { huy = true; };
   }, [isLive]);
-  const ds = (rows || []).filter((r) => !khuChoPhep || khuChoPhep.includes(r.khu_vuc));
+  const ds = (rows || []).filter((r) => (!khuChoPhep || khuChoPhep.includes(r.khu_vuc)) && (r.so_gio_dung ?? 99) >= 3);
   if (!isLive || ds.length === 0) return null;
   const fmtGio = (h) => (h == null ? "—" : h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`);
   return (
@@ -2785,13 +2803,17 @@ function CamBienPage({ isLive }) {
   const fmtTu = (iso) => (iso ? new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
   const doDam = (h) => (h >= 168 ? "text-rose-700 bg-rose-50 ring-rose-200" : h >= 24 ? "text-amber-700 bg-amber-50 ring-amber-200" : "text-slate-600 bg-slate-100 ring-slate-200");
   if (!isLive) return <Card className="p-6"><SectionTitle icon={Gauge}>Cảm biến đứng hình</SectionTitle><p className="mt-3 text-sm text-slate-500">Chế độ xem trước — chưa kết nối dữ liệu thật.</p></Card>;
+  // 16/07 (user hỏi "sao ghi 1 giờ?"): cờ đứng-trong-giờ bật NGAY từ giờ đầu (60 điểm
+  // y hệt), nhưng chỉ ≥3 giờ liên tiếp mới TÁCH khỏi chấm điểm. Tab tách 2 tầng cho khớp.
+  const duNguong = (rows || []).filter((r) => (r.so_gio_dung ?? 99) >= 3);
+  const nghi = (rows || []).filter((r) => (r.so_gio_dung ?? 99) < 3);
   return (
     <Card className="p-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <SectionTitle icon={Gauge}>Cảm biến đứng hình (im lặng)</SectionTitle>
           <p className="mt-1.5 text-[12px] text-slate-500 leading-relaxed max-w-3xl">
-            Cảm biến bị coi là <b>đứng hình</b> khi giá trị đo <b>không đổi ≥ 3 giờ liên tiếp</b> — thường do hỏng, mất kết nối
+            Bảng dưới là cảm biến <b>đứng hình ≥ 3 giờ liên tiếp</b> — thường do hỏng, mất kết nối
             hoặc treo tín hiệu tại FMS. Từ 13/07, phòng có cảm biến đứng hình được <b>tách riêng như phòng thiếu dữ liệu</b>:
             không chấm mức, <b>không mở sự cố</b> và không tính vào báo cáo chung. Danh sách này là nơi theo dõi duy nhất;
             việc cần làm là Cơ điện kiểm tra / thay thế đầu đo — cảm biến sống lại sẽ tự trở lại chấm điểm bình thường.
@@ -2807,12 +2829,12 @@ function CamBienPage({ isLive }) {
       {loi && <p className="mt-3 text-[12px] text-rose-600">Không tải được danh sách: {loi.thong_bao || loi.message || "lỗi kết nối"}. Bấm Làm mới để thử lại.</p>}
       {rows === null ? (
         <div className="mt-4 space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-12 rounded-2xl bg-slate-100 animate-pulse" />)}</div>
-      ) : rows.length === 0 && !loi ? (
+      ) : duNguong.length === 0 && nghi.length === 0 && !loi ? (
         <div className="mt-4 rounded-2xl bg-teal-50 ring-1 ring-teal-100 px-4 py-6 text-center">
           <p className="text-sm font-semibold text-teal-700">Không có cảm biến nào đang đứng hình</p>
           <p className="mt-1 text-[12px] text-slate-500">Mọi cảm biến đều đang gửi giá trị thay đổi bình thường.</p>
         </div>
-      ) : rows.length > 0 && (
+      ) : duNguong.length > 0 && (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead><tr className="text-[10.5px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
@@ -2824,7 +2846,7 @@ function CamBienPage({ isLive }) {
               <th className="py-2 font-semibold">Thời gian đứng</th>
             </tr></thead>
             <tbody className="divide-y divide-slate-50">
-              {rows.map((r) => {
+              {duNguong.map((r) => {
                 const meta = SENSOR_META[r.loai_cam_bien] || {};
                 return (
                   <tr key={`${r.ma_phong}-${r.loai_cam_bien}`} className="text-[13px]">
@@ -2842,6 +2864,19 @@ function CamBienPage({ isLive }) {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+      {rows !== null && nghi.length > 0 && (
+        <div className="mt-5 rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
+          <p className="text-[12px] font-semibold text-slate-600">Nghi đứng hình — mới dưới 3 giờ ({nghi.length} điểm đo)</p>
+          <p className="mt-0.5 text-[11px] text-slate-400 leading-relaxed">Giá trị vừa lặp y hệt trong 1–2 giờ gần nhất. <b>Chưa đủ ngưỡng 3 giờ</b> nên vẫn chấm điểm và mở vé như thường; nếu tiếp tục đứng, đủ 3 giờ sẽ tự chuyển lên bảng trên và được tách khỏi cảnh báo.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {nghi.map((r) => (
+              <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ring-1 text-slate-600 bg-white ring-slate-200">
+                <b>{r.ma_phong}</b> · {r.loai_cam_bien} · {r.so_gio_dung} giờ (kẹt {r.gia_tri_dung})
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </Card>
