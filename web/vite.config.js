@@ -37,7 +37,7 @@ function swPrecachePlugin() {
         // main-* (chỉ dashboard dùng, 78KB gzip) — vì action.html cũng đăng ký
         // SW: người chỉ bấm nút email (điện thoại/4G) không phải tải phần
         // dashboard. Các chunk bị loại vẫn được cache LÚC DÙNG (cache-first).
-        .filter((f) => f !== 'sw.js' && !/^assets\/(charts|SoDoLuatCard|AuditLogPage|main)-/.test(f))
+        .filter((f) => f !== 'sw.js' && !/^assets\/(charts|SoDoLuatCard|SoDoVongDoi|AuditLogPage|main)-/.test(f))
         .sort()
       const h = createHash('sha1').update(precache.join('\n'))
       for (const f of precache) if (f.endsWith('.html')) h.update(readFileSync(resolve(dist, f)))

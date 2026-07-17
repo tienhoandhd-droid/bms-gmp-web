@@ -12,6 +12,7 @@ import AuthGate from "./AuthGate";
 // đúng tab → màn hình đầu tải & dựng nhanh hơn.
 const AuditLogPage = React.lazy(() => import("./components/AuditLogPage"));
 const SoDoLuatCard = React.lazy(() => import("./components/SoDoLuatCard"));
+const SoDoVongDoi = React.lazy(() => import("./components/SoDoVongDoi"));
 import { moHoSoCumBanIn } from "./lib/hoSoCum";
 import {
   Droplets, Thermometer, Sparkles, ShieldCheck, ShieldAlert, Activity,
@@ -390,8 +391,18 @@ function HuongDanEmailNut() {
           </div>
           <p className="mt-3 text-[10.5px] leading-relaxed text-slate-500">Nút 🔒 là link thật: bấm <b>sau khi</b> "Đã nhận" là chạy luôn; bấm sớm máy chủ từ chối đúng trình tự, <b>không mất lượt</b>. <span className="text-rose-600 font-medium">Chưa nhận việc mà im lặng quá 15′ → vé lên Trực.</span></p>
         </div>
+        <div className="rounded-2xl ring-1 ring-rose-200 bg-rose-50/40 p-4 lg:col-span-2">
+          <p className="text-[13px] font-bold text-rose-800">🚨 Nhiệm vụ Trực HSL — tầng điều phối cuối · 3 nút</p>
+          <p className="mt-0.5 text-[10.5px] text-slate-500">vé "kêu cứu" lên Trực khi: IPC im lặng &gt; 20′ · Cơ điện chưa nhận việc &gt; 15′ · đang/chờ xử lý &gt; 1 giờ · báo vắng quá 1 giờ · "không xử lý được" → lên NGAY + CC QA</p>
+          <div className="mt-3 grid gap-2 lg:grid-cols-3">
+            <Dong nut="Nhắc IPC ⟳" mau="bg-rose-100 text-rose-700" kq={<>vé giữ nguyên — IPC nhận thêm mail nhắc ra hiện trường (có ghi hồ sơ)</>} />
+            <Dong nut="Nhắc Cơ điện ⟳" mau="bg-rose-100 text-rose-700" kq={<>vé giữ nguyên — Cơ điện nhận thêm mail nhắc tiếp nhận / xử lý</>} />
+            <Dong nut="Tạm dừng cảnh báo 4 giờ ✍" mau="bg-rose-100 text-rose-700" kq={<>tắt chuông tối đa <b>4 giờ</b>, bắt ghi lý do — vé NGHIÊM TRỌNG / phòng P1 chỉ QA · Quản trị được hoãn</>} />
+          </div>
+          <p className="mt-3 text-[10.5px] leading-relaxed text-slate-500">Trực là <b>chốt chặn cuối</b>: chưa ai thao tác thì hệ nhắc Trực lại <b>mỗi 1 giờ</b> tới khi có người bấm nút. Ngoài vé leo thang, Trực còn nhận <b>email tổng quan ca 6h · 14h · 22h</b> điểm danh toàn bộ vé đang mở.</p>
+        </div>
       </div>
-      <p className="mt-3 text-[10.5px] leading-relaxed text-slate-400">Mỗi nút trong email là liên kết dùng <b>1 lần</b>, sống <b>4 giờ</b> — vé để lâu thì dùng email nhắc mới nhất. Bấm nút sẽ mở trang xác nhận, yêu cầu đăng nhập đúng vai trò và đúng khu; nút có ✍ bắt buộc ghi lý do. Email <b>Trực HSL</b>: tổng quan ca 6h·14h·22h + vé leo thang, có nút Nhắc IPC ⟳ · Nhắc Cơ điện ⟳ · Tạm dừng cảnh báo 4 giờ ✍ (nhắc lại mỗi 1 giờ tới khi có người thao tác). Email "vé đã đóng" không có nút — hết việc để bấm.</p>
+      <p className="mt-3 text-[10.5px] leading-relaxed text-slate-400">Mỗi nút trong email là liên kết dùng <b>1 lần</b>, sống <b>4 giờ</b> — vé để lâu thì dùng email nhắc mới nhất. Bấm nút sẽ mở trang xác nhận, yêu cầu đăng nhập đúng vai trò và đúng khu; nút có ✍ bắt buộc ghi lý do. Email "vé đã đóng" không có nút — hết việc để bấm. Mọi email chỉ gửi trong khung giờ <b>07:45–16:45</b>; ngoài giờ vé vẫn chạy, sáng hôm sau gửi dồn trong ≤ 5 phút.</p>
     </Card>
   );
 }
@@ -3626,7 +3637,9 @@ export default function App() {
       .map((q) => ({ q, inc: incidentsXem.find((i) => i.dbId === q.ma_su_co) }))
       .filter((x) => x.inc);
   }, [isLive, role, live.suCoPhuTrach, incidentsXem]);
-  const cumChoToi = useMemo(() => ((role === "QA" || role === "ADMIN") && isLive)
+  // 17/07: TẠM TẮT hàng chờ "kết luận điều tra cụm" (user: quá nhiều cụm tồn cũ làm
+  // ngập Việc của bạn — sẽ xử lý riêng sau). Bật lại: bỏ `false &&`.
+  const cumChoToi = useMemo(() => (false && (role === "QA" || role === "ADMIN") && isLive)
     ? cumRows.filter((c) => !c.da_co_ket_luan_qa && (!khuChoPhep || loKhu(c.khu_vuc)))
     : [], [role, isLive, cumRows, khuChoPhep]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3870,6 +3883,14 @@ export default function App() {
                 </Card>
               )}
               <HuongDanEmailNut />
+              <Card className="p-4 sm:p-5">
+                <SectionTitle icon={GitBranch} hint="mỗi bộ phận một làn · mũi tên mang màu người bấm nút · kéo ngang để xem hết">Sơ đồ vòng đời chi tiết — ai làm gì, lúc nào</SectionTitle>
+                <div className="mt-3">
+                  <React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: 420 }} />}>
+                    <SoDoVongDoi />
+                  </React.Suspense>
+                </div>
+              </Card>
               {!isLive && <Card className="p-6 text-center text-[13px] text-slate-500">Tab Nhiệm vụ chỉ hoạt động ở chế độ LIVE (đọc dữ liệu thật).</Card>}
             </div>
           )}
