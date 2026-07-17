@@ -67,12 +67,15 @@ CREATE FUNCTION pg_temp.setcfg(k text, v text) RETURNS void LANGUAGE plpgsql AS 
   PERFORM set_config('app.tg_bypass_append_only','on',true);
   INSERT INTO public.cau_hinh(key,value) VALUES(k,v) ON CONFLICT(key) DO UPDATE SET value=v; END $$;
 
--- 17/07: GHIM phạm vi KHU về ALL trong transaction test — kịch bản ingest chọn phòng
--- ở mọi khu (clean_room), không được phụ thuộc quyết định vận hành tạm thời
--- (vd canh_bao_khu_vuc='C1,Q2' đang tắt C4). ROLLBACK cuối file trả lại nguyên trạng.
+-- 17/07: GHIM phạm vi KHU + LOẠI CẢM BIẾN về ALL trong transaction test — kịch bản
+-- ingest chọn phòng mọi khu (clean_room) và bom cảm biến DP, không được phụ thuộc
+-- quyết định vận hành tạm thời (vd canh_bao_khu_vuc='C1,Q2' tắt C4;
+-- canh_bao_loai_cam_bien='DP' tắt RH/T). ROLLBACK cuối file trả lại nguyên trạng.
 DO $$ BEGIN
   PERFORM set_config('app.tg_bypass_append_only','on',true);
   INSERT INTO public.cau_hinh(key,value) VALUES('canh_bao_khu_vuc','ALL')
+  ON CONFLICT(key) DO UPDATE SET value='ALL';
+  INSERT INTO public.cau_hinh(key,value) VALUES('canh_bao_loai_cam_bien','ALL')
   ON CONFLICT(key) DO UPDATE SET value='ALL';
 END $$;
 
