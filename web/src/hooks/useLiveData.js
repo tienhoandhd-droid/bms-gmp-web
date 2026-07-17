@@ -161,6 +161,9 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     // ============================================================
     const pTongQuan = layTongQuan(signal).then((x) => { nhanLoi(x); if (con() && x.kpis) setKpis(x.kpis); return x })
     const pSuCo     = laySuCoDangMo(signal).then((x) => { nhanLoi(x); if (con() && x.incidents) setIncidents(x.incidents); return x })
+    // 17/07: suCoPhuTrach LÊN TẦNG 1 (trước ở tầng 2 TTL 5' → tab Nhiệm vụ lệch tab Sự cố
+    // vài phút sau mỗi thao tác). View gọn ~20 dòng, rẻ; realtime su_co đổi → khớp ngay.
+    const pPhuTrach = laySuCoPhuTrach(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoPhuTrach(x.rows); return x })
     const pCanhBao  = layCanhBaoHeThong(signal).then((x) => { nhanLoi(x); if (con() && x.alerts) setSystemAlerts(x.alerts); return x })
     const pSucKhoe  = laySucKhoeHeThong(null, signal).then((x) => { nhanLoi(x); if (con() && x.suc_khoe) setSucKhoe(x.suc_khoe); return x })
     const pNguong   = layNguongCanhBao(signal).then((x) => { nhanLoi(x); if (con() && x.cfg) setNguong(x.cfg); return x })
@@ -181,7 +184,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     })
 
     // Tầng 1 hoàn tất → tắt "đang tải" + đóng dấu thời điểm. KHÔNG chờ tầng 2.
-    const p_tier1 = Promise.all([pTongQuan, pSuCo, pCanhBao, pSucKhoe, pNguong, pPhong])
+    const p_tier1 = Promise.all([pTongQuan, pSuCo, pPhuTrach, pCanhBao, pSucKhoe, pNguong, pPhong])
     p_tier1.then(() => {
       if (con()) { setCapNhatLuc(new Date()); setDangTai(false) }
     })
@@ -199,7 +202,6 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
       const chayTier2 = () => {
         if (!con()) return
         layLichSuCauHinh(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setConfigHistory(x.rows) })
-        laySuCoPhuTrach(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoPhuTrach(x.rows) })
         layCumSuCo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setCumSuCo(x.rows) })
         laySuCoDongGanDay(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoDongGanDay(x.rows) })
         layXepHangRuiRo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setRiskRows(x.rows) })
