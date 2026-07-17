@@ -295,6 +295,39 @@ export function BannerCapNhat() {
 // (IPC 20′ · Cơ điện chưa nhận 15′ · đang/chờ xử lý 1h), ai đang chậm.
 // Nguồn: view xem_su_co_phu_trach (server tính, web chỉ bày).
 const fmtPhut = (m) => (m == null ? "—" : m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}′` : `${m}′`);
+// Thanh tiến trình 4 bước của MỘT vé (17/07 — user: "cần biết 1 sự cố thực sự
+// đang ở đâu, tới bước nào rồi"). Bước xong = teal ✓, bước hiện tại = vàng
+// (bế tắc = đỏ), bước chưa tới = xám.
+const BUOC_TT = {
+  CHUA_XU_LY:               { b: 1, mo: 'đang chờ IPC ra hiện trường kiểm tra' },
+  MO_LAI:                   { b: 1, mo: 'vé mở lại — IPC tiếp nhận lại từ đầu' },
+  DA_BAO_CO_DIEN:           { b: 2, mo: 'đã bàn giao — chờ Cơ điện bấm "Đã nhận"' },
+  CO_DIEN_DANG_XU_LY:       { b: 3, mo: 'Cơ điện đã nhận việc, đang sửa tại AHU' },
+  CO_DIEN_CHO_XU_LY:        { b: 3, mo: 'Cơ điện gác lại chờ vật tư — vé vẫn mở, vẫn nhắc' },
+  CO_DIEN_KHONG_XU_LY_DUOC: { b: 3, mo: 'BẾ TẮC — chờ IPC giao lại hoặc Cơ điện có vật tư (Trực + QA đã được báo)', tac: true },
+};
+const TEN_BUOC = ["IPC kiểm tra", "Cơ điện nhận", "Cơ điện xử lý", "Đóng vé"];
+function BuocSuCo({ tt }) {
+  const nd = BUOC_TT[tt] || { b: 1, mo: TRANG_THAI_CODE_TO_LABEL[tt] || tt };
+  return (
+    <div className="w-full">
+      <div className="flex items-start gap-1.5">
+        {TEN_BUOC.map((t, i) => {
+          const idx = i + 1;
+          const qua = idx < nd.b, hien = idx === nd.b;
+          return (
+            <div key={t} className="flex-1 min-w-0">
+              <div className={`h-1.5 rounded-full ${qua ? "bg-teal-400" : hien ? (nd.tac ? "bg-rose-500" : "bg-amber-400") : "bg-slate-200"}`} />
+              <p className={`mt-1 text-[9.5px] leading-tight truncate ${hien ? (nd.tac ? "text-rose-600 font-bold" : "text-amber-700 font-bold") : qua ? "text-teal-600 font-medium" : "text-slate-400"}`}>{qua ? "✓ " : hien ? "● " : ""}{t}</p>
+            </div>
+          );
+        })}
+      </div>
+      <p className={`mt-1 text-[10.5px] leading-snug ${nd.tac ? "text-rose-600 font-medium" : "text-slate-500"}`}>➜ {nd.mo}</p>
+    </div>
+  );
+}
+
 const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
   // Bấm ô bộ phận → xem danh sách vé của ĐÚNG bộ phận đó (17/07: user không muốn
   // một danh sách trộn lẫn). Bấm lại ô đang chọn để đóng.
@@ -342,18 +375,20 @@ const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
           {dsChon.length === 0 ? (
             <p className="mt-1.5 text-[12px] text-slate-400">{tenChon} không giữ vé nào. 👍</p>
           ) : (
-            <div className="mt-1.5 max-h-[42vh] overflow-y-auto overscroll-contain pr-1 space-y-1">
+            <div className="mt-1.5 max-h-[52vh] overflow-y-auto overscroll-contain pr-1 space-y-1.5">
               {dsChon.map((r) => (
-                <div key={r.ma_su_co} className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg px-3 py-1.5 text-[11.5px] ring-1 ${r.dang_cham ? "bg-white/80 ring-rose-200" : "bg-white/60 ring-slate-200"}`}>
-                  <b style={{ color: COLOR.navy }}>SC-{String(r.ma_su_co).padStart(4, "0")}</b>
-                  <span className="text-slate-500">{r.khu_vuc}</span>
-                  <span className="text-slate-600">{TRANG_THAI_CODE_TO_LABEL[r.trang_thai_hien_tai] || r.trang_thai_hien_tai}</span>
-                  {r.dang_cham
-                    ? <span className="font-semibold text-rose-600">im lặng {fmtPhut(r.phut_im_lang)}{r.nguong_phut > 0 ? ` / ngưỡng ${fmtPhut(r.nguong_phut)}` : " — bế tắc, Trực + QA đã được báo"}</span>
-                    : <span className="text-teal-700">trong nhịp · {fmtPhut(r.phut_im_lang)}/{fmtPhut(r.nguong_phut)}</span>}
-                  {r.da_bao_truc && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600">đã lên Trực</span>}
-                  {r.vang_hien_truong && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">báo vắng ({r.vang_boi || "?"})</span>}
-                  <span className="ml-auto text-slate-400">mở {r.gio_mo}h · cuối: {r.nguoi_thao_tac_cuoi ? `${r.nguoi_thao_tac_cuoi === "system" ? "hệ thống" : r.nguoi_thao_tac_cuoi}${r.hanh_dong_cuoi ? ` (${docTenVaiTro(r.hanh_dong_cuoi)})` : ""}` : "chưa ai thao tác"}</span>
+                <div key={r.ma_su_co} className={`rounded-xl px-3 py-2 ring-1 ${r.dang_cham ? "bg-white/80 ring-rose-200" : "bg-white/60 ring-slate-200"}`}>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11.5px]">
+                    <b style={{ color: COLOR.navy }}>SC-{String(r.ma_su_co).padStart(4, "0")}</b>
+                    <span className="text-slate-500">{r.khu_vuc}</span>
+                    {r.dang_cham
+                      ? <span className="font-semibold text-rose-600">im lặng {fmtPhut(r.phut_im_lang)}{r.nguong_phut > 0 ? ` / ngưỡng ${fmtPhut(r.nguong_phut)}` : ""}</span>
+                      : <span className="text-teal-700">trong nhịp · {fmtPhut(r.phut_im_lang)}/{fmtPhut(r.nguong_phut)}</span>}
+                    {r.da_bao_truc && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600">đã lên Trực</span>}
+                    {r.vang_hien_truong && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">báo vắng ({r.vang_boi || "?"})</span>}
+                    <span className="ml-auto text-slate-400">mở {r.gio_mo}h · cuối: {r.nguoi_thao_tac_cuoi ? `${r.nguoi_thao_tac_cuoi === "system" ? "hệ thống" : r.nguoi_thao_tac_cuoi}${r.hanh_dong_cuoi ? ` (${docTenVaiTro(r.hanh_dong_cuoi)})` : ""}` : "chưa ai thao tác"}</span>
+                  </div>
+                  <div className="mt-1.5"><BuocSuCo tt={r.trang_thai_hien_tai} /></div>
                 </div>
               ))}
             </div>
