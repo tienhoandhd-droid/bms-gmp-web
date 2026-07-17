@@ -289,6 +289,68 @@ export function BannerCapNhat() {
     </div>
   );
 }
+// ═══ KIỂM SOÁT XỬ LÝ (17/07 — yêu cầu Quản trị) ═══
+// Vé đang ở bộ phận nào, im lặng bao lâu so với NGƯỠNG THEO TRẠNG THÁI
+// (IPC 20′ · Cơ điện chưa nhận 15′ · đang/chờ xử lý 1h), ai đang chậm.
+// Nguồn: view xem_su_co_phu_trach (server tính, web chỉ bày).
+const fmtPhut = (m) => (m == null ? "—" : m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}′` : `${m}′`);
+const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
+  const [moDs, setMoDs] = useState(true);
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const boPhan = [["IPC", "IPC", "text-sky-700 bg-sky-50 ring-sky-200"],
+                  ["MEP", "Cơ điện", "text-amber-700 bg-amber-50 ring-amber-200"],
+                  ["LOT", "Trực HSL", "text-rose-700 bg-rose-50 ring-rose-200"]];
+  const cham = rows.filter((r) => r.dang_cham).sort((a, b) => (b.phut_im_lang || 0) - (a.phut_im_lang || 0));
+  const daBaoTruc = rows.filter((r) => r.da_bao_truc).length;
+  return (
+    <Card className="p-4 sm:p-5" style={{ background: "linear-gradient(135deg,#FDF6F2,#FFFFFF 55%)" }}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SectionTitle icon={Eye} hint="server tính theo đồng hồ im lặng — chỉ Quản trị thấy thẻ này">Kiểm soát xử lý — vé ở đâu, ai đang chậm</SectionTitle>
+        <span className="text-[11px] text-slate-400 tabular-nums">{rows.length} vé mở · <b className={cham.length ? "text-rose-600" : "text-teal-600"}>{cham.length} đang chậm</b> · {daBaoTruc} đã báo Trực</span>
+      </div>
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        {boPhan.map(([vai, ten, mau]) => {
+          const ds = rows.filter((r) => r.vai_tro_phu_trach === vai);
+          const soCham = ds.filter((r) => r.dang_cham).length;
+          const lauNhat = ds.reduce((mx, r) => Math.max(mx, r.phut_im_lang || 0), 0);
+          return (
+            <div key={vai} className={`rounded-xl px-3.5 py-2.5 ring-1 ${mau}`}>
+              <div className="flex items-baseline justify-between">
+                <span className="text-[12px] font-bold">{ten}</span>
+                <span className="text-[18px] font-bold tabular-nums">{ds.length}<span className="text-[11px] font-medium opacity-60"> vé</span></span>
+              </div>
+              <p className="text-[11px] mt-0.5 opacity-80">{ds.length === 0 ? "không giữ vé nào" : soCham > 0 ? <><b>{soCham} đang chậm</b> · im lặng lâu nhất {fmtPhut(lauNhat)}</> : "tất cả trong nhịp"}</p>
+            </div>
+          );
+        })}
+      </div>
+      {cham.length > 0 && (
+        <div className="mt-3">
+          <button onClick={() => setMoDs(!moDs)} className="text-[11px] font-semibold text-slate-500 hover:text-slate-700">
+            Danh sách đang chậm ({cham.length}) {moDs ? "▲" : "▼"}
+          </button>
+          {moDs && (
+            <div className="mt-1.5 max-h-[38vh] overflow-y-auto overscroll-contain pr-1 space-y-1">
+              {cham.map((r) => (
+                <div key={r.ma_su_co} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg bg-white/70 ring-1 ring-rose-100 px-3 py-1.5 text-[11.5px]">
+                  <b style={{ color: COLOR.navy }}>SC-{String(r.ma_su_co).padStart(4, "0")}</b>
+                  <span className="text-slate-500">{r.khu_vuc}</span>
+                  <span className="text-slate-600">{TRANG_THAI_CODE_TO_LABEL[r.trang_thai_hien_tai] || r.trang_thai_hien_tai}</span>
+                  <span className="font-semibold text-rose-600">{ROLE_VI[r.vai_tro_phu_trach] || r.vai_tro_phu_trach} im lặng {fmtPhut(r.phut_im_lang)}{r.nguong_phut > 0 ? ` / ngưỡng ${fmtPhut(r.nguong_phut)}` : " — bế tắc, Trực + QA đã được báo"}</span>
+                  {r.da_bao_truc && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600">đã lên Trực</span>}
+                  {r.vang_hien_truong && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">báo vắng ({r.vang_boi || "?"})</span>}
+                  <span className="ml-auto text-slate-400">mở {r.gio_mo}h · cuối: {r.nguoi_thao_tac_cuoi ? `${r.nguoi_thao_tac_cuoi === "system" ? "hệ thống" : r.nguoi_thao_tac_cuoi}${r.hanh_dong_cuoi ? ` (${docTenVaiTro(r.hanh_dong_cuoi)})` : ""}` : "chưa ai thao tác"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <p className="mt-2.5 text-[10.5px] text-slate-400">"Chậm" = im lặng vượt ngưỡng leo thang của trạng thái hiện tại (IPC 20′ · Cơ điện chưa nhận việc 15′ · đang/chờ xử lý 1 giờ). Đồng hồ tính từ mốc gần nhất: thao tác cuối · lần nhận email · mở vé — nên vé "chậm" nghĩa là đã nhận nhắc mà vẫn im.</p>
+    </Card>
+  );
+});
+
 /* Memo (nâng cấp 07/07): 4 thẻ KPI + lưới thẻ phòng re-render toàn bộ mỗi nhịp 60s và
    mỗi lần bấm bất kỳ nút nào trên trang. Comparator BỎ QUA identity của prop hàm/objeto
    trang trí (onClick, accent tạo inline) — chỉ so giá trị hiển thị; hành vi hàm không đổi
@@ -3780,6 +3842,9 @@ export default function App() {
                 )}
                 <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidentsXem.length} sự cố</span>
               </div>
+              {isLive && role === "ADMIN" && (
+                <KiemSoatXuLy rows={(live.suCoPhuTrach || []).filter((r) => evtKhu === "ALL" || r.khu_vuc === evtKhu)} />
+              )}
               <Card className="p-2 sm:p-4">{isLive && live.dangTai && incidentsXem.length === 0 ? (
                 /* ĐANG TẢI + chưa có gì: skeleton — không được hiện "Chưa có sự cố nào"
                    khi thật ra là đang chờ mạng (15/07: gây hiểu lầm hệ trống vé). */
@@ -3815,7 +3880,7 @@ export default function App() {
                         {inc.giaTriGanNhat != null && <p className="text-[11px] text-slate-400 mt-0.5">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") && <span className="text-emerald-600"> · đã về ngưỡng</span>}</p>}
                         <p className="mt-1.5 text-[12px] flex items-center gap-1.5 flex-wrap">
                           <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} /><span className="text-slate-700 font-medium">{inc.status}</span>
-                          {q && <span className="text-[11px] text-slate-400">· {ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach} phụ trách</span>}
+                          {q && <span className={`text-[11px] ${q.dang_cham ? "text-rose-600 font-medium" : "text-slate-400"}`}>· {ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach}{q.dang_cham ? ` im lặng ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}${q.da_bao_truc ? " · đã báo Trực" : ""}` : " phụ trách"}</span>}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {terminal ? <span className="text-teal-600 text-[12px] font-medium py-1">Đã khắc phục</span>
@@ -3857,7 +3922,16 @@ export default function App() {
                     <td className="py-3 px-3 text-amber-600 font-medium">{inc.duration}h</td>
                     <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-slate-700 font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span></td>
                     <td className="py-3 px-3">{(() => { const q = phuTrachTheoId[inc.dbId]; if (!q) return <span className="text-[11px] text-slate-300">—</span>;
-                      return <span className="text-[11px] font-semibold text-slate-600">{ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach || "—"}</span>; })()}</td>
+                      const cham = !!q.dang_cham;
+                      return (<div className="leading-tight">
+                        <span className={`text-[11px] font-semibold ${cham ? "text-rose-600" : "text-slate-600"}`}>{ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach || "—"}</span>
+                        <p className={`text-[10px] mt-0.5 ${cham ? "text-rose-500 font-medium" : "text-slate-400"}`}>
+                          {q.nguong_phut === 0 ? "bế tắc — Trực + QA được báo ngay"
+                            : cham ? `im lặng ${fmtPhut(q.phut_im_lang)} / ngưỡng ${fmtPhut(q.nguong_phut)}`
+                            : `trong nhịp · ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}`}
+                        </p>
+                        {cham && q.da_bao_truc && <p className="text-[10px] text-amber-600 mt-0.5">đã báo Trực</p>}
+                      </div>); })()}</td>
                     <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT" || role === "QA") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Tạm hoãn</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đang tạm hoãn" : "—"}</span>}{inc.silenced && inc.tamDungDen && <div className="text-[10px] text-slate-400 mt-1" title={inc.tamDungLyDo || ""}>tới {new Date(inc.tamDungDen).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})} · {inc.tamDungBoi || "?"}</div>}</td>
                     <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {choAi.map((r) => ROLE_VI[r] || r).join("/")}</span>}</td>
                   </tr>

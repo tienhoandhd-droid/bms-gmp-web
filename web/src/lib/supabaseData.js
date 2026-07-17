@@ -228,8 +228,12 @@ export async function layThongKeSensorNhieuPhong(maPhongArr, signal) {
 // 17/07/2026: BỎ cơ chế SLA hẹn giờ (ack_han/xu_ly_han) theo yêu cầu vận hành —
 // view xem_su_co_qua_han thay bằng xem_su_co_phu_trach (chỉ còn ai phụ trách).
 export async function laySuCoPhuTrach(signal) {
+  // 17/07c: thêm cột KIỂM SOÁT — im lặng bao lâu so với ngưỡng theo trạng thái
+  // (IPC 20' · MEP chưa nhận 15' · đang/chờ xử lý 60'), đã báo Trực chưa, ai thao tác cuối.
   const { data, error } = await docView('xem_su_co_phu_trach',
-    (q) => q.select('ma_su_co,vai_tro_phu_trach,gio_mo,dang_tam_hoan'),
+    (q) => q.select('ma_su_co,vai_tro_phu_trach,trang_thai_hien_tai,khu_vuc,gio_mo,dang_tam_hoan,'
+      + 'phut_im_lang,nguong_phut,dang_cham,da_bao_truc,so_lan_vang,vang_hien_truong,vang_boi,'
+      + 'nguoi_thao_tac_cuoi,hanh_dong_cuoi,thao_tac_cuoi_audit'),
     { signal })
   if (error) return { error, rows: null }
   return { error: null, rows: data || [] }
