@@ -119,16 +119,14 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <text x="869" y="942.5" font-size="14.5" font-weight="700" fill="#7a5200">① Đã nhận — xử lý tiếp</text>
 <rect x="858" y="958" width="326" height="30" rx="9" fill="#faf0dc"/>
 <text x="869" y="978.5" font-size="14.5" font-weight="700" fill="#7a5200">② Không tại hiện trường ⟳ (1 giờ)</text>
-<rect x="430" y="858" width="350" height="196" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
-<rect x="430" y="870" width="5" height="172" rx="2.5" fill="#e34948"/>
+<rect x="430" y="858" width="350" height="160" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="430" y="870" width="5" height="136" rx="2.5" fill="#e34948"/>
 <text x="450" y="888" font-size="17" font-weight="800" fill="#b3312f">KHÔNG XỬ LÝ ĐƯỢC</text>
-<text x="450" y="908" font-size="10.5" letter-spacing=".04em" fill="#98a3ad">CO_DIEN_KHONG_XU_LY_DUOC · bế tắc ✍</text>
-<rect x="448" y="922" width="316" height="30" rx="9" fill="#e9f1fb"/>
-<text x="459" y="942.5" font-size="14.5" font-weight="700" fill="#1f5fa8">① IPC: Chuyển Cơ điện (giao lại)</text>
-<rect x="448" y="958" width="316" height="30" rx="9" fill="#faf0dc"/>
-<text x="459" y="978.5" font-size="14.5" font-weight="700" fill="#7a5200">② Đã có vật tư — xử lý tiếp</text>
-<rect x="448" y="994" width="316" height="30" rx="9" fill="#e9f1fb"/>
-<text x="459" y="1014.5" font-size="14.5" font-weight="700" fill="#1f5fa8">③ IPC: Không tại hiện trường ⟳</text>
+<text x="450" y="908" font-size="10.5" letter-spacing=".04em" fill="#98a3ad">CO_DIEN_KHONG_XU_LY_DUOC · bế tắc ✍ · Trực + QA đã được báo</text>
+<rect x="448" y="922" width="316" height="30" rx="9" fill="#faf0dc"/>
+<text x="459" y="942.5" font-size="14.5" font-weight="700" fill="#7a5200">① Đã có vật tư — xử lý tiếp</text>
+<rect x="448" y="958" width="316" height="30" rx="9" fill="#e9f1fb"/>
+<text x="459" y="978.5" font-size="14.5" font-weight="700" fill="#1f5fa8">② IPC: Không tại hiện trường ⟳</text>
 <rect x="1405" y="548" width="245" height="120" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
 <rect x="1405" y="560" width="5" height="96" rx="2.5" fill="#008300"/>
 <text x="1425" y="578" font-size="17" font-weight="800" fill="#0c6b4d">ĐÃ KHẮC PHỤC ⏹</text>
@@ -155,12 +153,9 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M960,768 L960,832 L760,832 L760,858" stroke="#c98500" stroke-width="2.2" marker-end="url(#mMEP)"/>
 <circle cx="960" cy="790" r="14" fill="#fff" stroke="#c98500" stroke-width="2.4"/>
 <text x="960" y="796" font-size="17" font-weight="800" fill="#c98500" text-anchor="middle">3</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M560,858 L560,732" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
-<circle cx="560" cy="836" r="14" fill="#fff" stroke="#2a78d6" stroke-width="2.4"/>
-<text x="560" y="842" font-size="17" font-weight="800" fill="#2a78d6" text-anchor="middle">1</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M700,858 L700,820 L880,820 L880,768" stroke="#c98500" stroke-width="2.2" marker-end="url(#mMEP)"/>
 <circle cx="700" cy="840" r="14" fill="#fff" stroke="#c98500" stroke-width="2.4"/>
-<text x="700" y="846" font-size="17" font-weight="800" fill="#c98500" text-anchor="middle">2</text>
+<text x="700" y="846" font-size="17" font-weight="800" fill="#c98500" text-anchor="middle">1</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M115,486 L115,1074" stroke="#e34948" stroke-width="1.8"/>
 <text x="127" y="646" font-size="13.5" fill="#b3312f" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">KHÔNG bấm gì &gt; 20′</text>
 <text x="127" y="668" font-size="13.5" fill="#b3312f" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">· ④ báo vắng rồi quá 1 GIỜ</text>
@@ -169,8 +164,8 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <text x="392" y="940" font-size="13.5" fill="#b3312f" text-anchor="end" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">chưa nhận việc &gt; 15′</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1040,1018 L1040,1074" stroke="#e34948" stroke-width="1.8"/>
 <text x="1050" y="1046" font-size="13.5" fill="#b3312f" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đang / chờ xử lý &gt; 1 GIỜ</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M620,1054 L620,1074" stroke="#e34948" stroke-width="1.8"/>
-<text x="632" y="1068" font-size="13.5" fill="#b3312f" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">bế tắc → NGAY + CC QA</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M620,1018 L620,1074" stroke="#e34948" stroke-width="1.8"/>
+<text x="632" y="1050" font-size="13.5" fill="#b3312f" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">bế tắc → NGAY + CC QA</text>
 <path fill="none" d="M115,1074 L1040,1074" stroke="#e34948" stroke-width="1.8" stroke-linecap="round"/>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M540,1074 L540,1098" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M730,1074 L730,1098" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
@@ -221,7 +216,7 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <rect x="70" y="1592" width="795" height="330" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
 <rect x="84" y="1592" width="767" height="4" rx="2" fill="#2a78d6"/>
 <text x="90" y="1626" font-size="17" font-weight="800" fill="#1f2b38">Email IPC — nhắc 2 giờ/lần, TOÀN CẢNH khu · 4 nút</text>
-<text x="90" y="1648" font-size="13" fill="#5b6774">nút hiện khi vé ở: Chưa xử lý · Mở lại · Không xử lý được</text>
+<text x="90" y="1648" font-size="13" fill="#5b6774">nút hiện khi vé ở: Chưa xử lý · Mở lại (bế tắc: chỉ còn nút ②③④ + Cơ điện tự gỡ)</text>
 <rect x="90" y="1664" width="280" height="34" rx="9" fill="#2a78d6" filter="url(#sh)"/><text x="104" y="1687" font-size="14.5" font-weight="800" fill="#ffffff">① Chuyển Cơ điện xử lý</text>
 <text x="384" y="1687" font-size="13.5" fill="#5b6774">→ vé sang <tspan font-weight="700">ĐÃ BÁO CƠ ĐIỆN</tspan></text>
 <rect x="90" y="1710" width="280" height="34" rx="9" fill="#e9f1fb"/><text x="104" y="1733" font-size="14.5" font-weight="700" fill="#1f5fa8">② Đã kiểm tra — Bình thường ✍</text>

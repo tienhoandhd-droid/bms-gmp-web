@@ -110,21 +110,25 @@ EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','S1 · Đường vàng
 -- S2 — NHÁNH CHỜ / KHÔNG XỬ LÝ ĐƯỢC / LEO THANG LẠI (Cơ điện ↔ IPC)
 -- ══════════════════════════════════════════════════════════════════════════
 DO $$
-DECLARE v_sc bigint; a jsonb; b jsonb; c jsonb; d jsonb; e jsonb; v_dat boolean;
+DECLARE v_sc bigint; a jsonb; b jsonb; c jsonb; d jsonb; e jsonb; f jsonb; v_dat boolean;
 BEGIN
   v_sc := pg_temp.tao_sc('C1','KTS2.R1','AHU-KTS2','DA_BAO_CO_DIEN');
   a := pg_temp.tt('chanbonght@gmail.com', v_sc, 'mep_tiep_nhan');           -- → đang xử lý
   b := pg_temp.tt('chanbonght@gmail.com', v_sc, 'mep_cho_xu_ly');           -- → chờ xử lý
   c := pg_temp.tt('chanbonght@gmail.com', v_sc, 'mep_tiep_nhan');           -- chờ → đang xử lý lại
   d := pg_temp.tt('chanbonght@gmail.com', v_sc, 'mep_khong_xu_ly_duoc', 'Thiếu vật tư — chờ mua bổ sung'); -- → không xử lý được
-  e := pg_temp.tt('ipcbfs@gmail.com',  v_sc, 'ipc_bao_co_dien');            -- IPC leo thang lại → Đã báo Cơ điện
-  v_dat := pg_temp.ok(a) AND pg_temp.ok(b) AND pg_temp.ok(c) AND pg_temp.ok(d) AND pg_temp.ok(e)
-       AND pg_temp.tt_now(v_sc)='DA_BAO_CO_DIEN' AND NOT pg_temp.dong_chua(v_sc);
-  PERFORM pg_temp.ghi('KICH_BAN','S2 · Nhánh chờ / không xử lý được / leo thang lại', v_dat,
-    format('cuối=%s (kỳ vọng DA_BAO_CO_DIEN) · bước ok=[%s%s%s%s%s]',
-      pg_temp.tt_now(v_sc), a->>'ok',b->>'ok',c->>'ok',d->>'ok',e->>'ok'),
-    'Các cạnh vệ tinh Cơ điện + ipc_bao_co_dien từ CO_DIEN_KHONG_XU_LY_DUOC (bảng luật)');
-EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','S2 · Nhánh chờ / không xử lý được / leo thang lại', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+  -- 17/07 (user chốt): đường "IPC giao lại" từ bế tắc ĐÃ TẮT — IPC bấm phải BỊ CHẶN;
+  -- lối ra duy nhất của Cơ điện là "Đã có vật tư — xử lý tiếp" (mep_tiep_nhan).
+  e := pg_temp.tt('ipcbfs@gmail.com',  v_sc, 'ipc_bao_co_dien');            -- PHẢI CHẶN (luật đã tắt)
+  f := pg_temp.tt('chanbonght@gmail.com', v_sc, 'mep_tiep_nhan');           -- Đã có vật tư → đang xử lý
+  v_dat := pg_temp.ok(a) AND pg_temp.ok(b) AND pg_temp.ok(c) AND pg_temp.ok(d)
+       AND (NOT pg_temp.ok(e)) AND pg_temp.ok(f)
+       AND pg_temp.tt_now(v_sc)='CO_DIEN_DANG_XU_LY' AND NOT pg_temp.dong_chua(v_sc);
+  PERFORM pg_temp.ghi('KICH_BAN','S2 · Nhánh chờ / không xử lý được / tự gỡ bế tắc', v_dat,
+    format('cuối=%s (kỳ vọng CO_DIEN_DANG_XU_LY) · bước ok=[%s%s%s%s] · giao lại BỊ CHẶN=%s(%s) · có vật tư=%s',
+      pg_temp.tt_now(v_sc), a->>'ok',b->>'ok',c->>'ok',d->>'ok', e->>'ok', e->>'loi', f->>'ok'),
+    'Các cạnh vệ tinh Cơ điện; ipc_bao_co_dien từ KHONG_XU_LY_DUOC đã TẮT 17/07 (bảng luật) — chỉ mep_tiep_nhan gỡ bế tắc');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','S2 · Nhánh chờ / không xử lý được / tự gỡ bế tắc', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
 
 -- ══════════════════════════════════════════════════════════════════════════
 -- S3 — GUARD VAI TRÒ: bộ phận SAI không bấm được nút của bộ phận khác

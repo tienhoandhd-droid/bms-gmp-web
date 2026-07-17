@@ -304,7 +304,7 @@ const BUOC_TT = {
   DA_BAO_CO_DIEN:           { b: 2, mo: 'đã bàn giao — chờ Cơ điện bấm "Đã nhận"' },
   CO_DIEN_DANG_XU_LY:       { b: 3, mo: 'Cơ điện đã nhận việc, đang sửa tại AHU' },
   CO_DIEN_CHO_XU_LY:        { b: 3, mo: 'Cơ điện gác lại chờ vật tư — vé vẫn mở, vẫn nhắc' },
-  CO_DIEN_KHONG_XU_LY_DUOC: { b: 3, mo: 'BẾ TẮC — chờ IPC giao lại hoặc Cơ điện có vật tư (Trực + QA đã được báo)', tac: true },
+  CO_DIEN_KHONG_XU_LY_DUOC: { b: 3, mo: 'BẾ TẮC — chờ Cơ điện có vật tư để tự nhận lại (Trực + QA đã được báo)', tac: true },
 };
 const TEN_BUOC = ["IPC kiểm tra", "Cơ điện nhận", "Cơ điện xử lý", "Đóng vé"];
 function BuocSuCo({ tt }) {
@@ -418,7 +418,7 @@ function HuongDanEmailNut() {
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         <div className="rounded-2xl ring-1 ring-sky-200 bg-sky-50/40 p-4">
           <p className="text-[13px] font-bold text-sky-800">📧 Email IPC — toàn cảnh khu · 4 nút</p>
-          <p className="mt-0.5 text-[10.5px] text-slate-500">nút hiện khi vé ở: Chưa xử lý · Mở lại · Không xử lý được</p>
+          <p className="mt-0.5 text-[10.5px] text-slate-500">nút hiện khi vé ở: Chưa xử lý · Mở lại (vé bế tắc: chỉ Cơ điện tự gỡ bằng "Đã có vật tư")</p>
           <div className="mt-3 space-y-2">
             <Dong nut="Chuyển Cơ điện xử lý" mau="bg-sky-100 text-sky-700" kq={<>vé sang <b>Đã báo Cơ điện</b> — đường duy nhất sang tay</>} />
             <Dong nut="Đã kiểm tra — Bình thường ✍" mau="bg-sky-100 text-sky-700" kq={<><b>ĐÓNG vé</b> — cảnh báo giả (IPC đã ra tận nơi, bắt ghi lý do)</>} />
