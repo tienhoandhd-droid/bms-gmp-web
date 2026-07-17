@@ -54,8 +54,8 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <text x="1425" y="156" font-size="13" fill="#5b6774">— áp dụng mọi vé đang mở</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M760,145 L1405,145" stroke="#008300" stroke-width="2.3" stroke-dasharray="7 5" marker-end="url(#mQA)"/>
 <text x="770" y="131" font-size="13.5" fill="#0c6b4d" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">KHÔNG cần bấm gì: số liệu đẹp 2 GIỜ liên tiếp → TỰ ĐÓNG (mọi vé đang mở)</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M560,78 L560,52 L1680,52 L1680,850 L1650,850" stroke="#4a3aa7" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mSYS)"/>
-<text x="750" y="47" font-size="13" fill="#98a3ad" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">vé đang mở của cảm biến đứng hình bị hệ ĐÓNG (ngoài phạm vi)</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M560,78 L560,30 L1676,30 L1676,850 L1650,850" stroke="#4a3aa7" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mSYS)"/>
+<text x="750" y="25" font-size="13" fill="#98a3ad" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">vé đang mở của cảm biến đứng hình bị hệ ĐÓNG (ngoài phạm vi)</text>
 <rect x="70" y="246" width="340" height="240" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
 <rect x="70" y="258" width="5" height="216" rx="2.5" fill="#2a78d6"/>
 <text x="90" y="276" font-size="17" font-weight="800" fill="#1f2b38">CHƯA XỬ LÝ</text>
@@ -76,18 +76,18 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M410,268 L1405,268" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
 <circle cx="432" cy="268" r="11" fill="#fff" stroke="#2a78d6" stroke-width="1.7"/>
 <text x="432" y="272.5" font-size="12.5" font-weight="800" fill="#2a78d6" text-anchor="middle">②</text>
-<text x="452" y="261" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đóng — cảnh báo giả</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M410,300 L1368,300 L1368,578 L1405,578" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
+<text x="452" y="257" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đóng — cảnh báo giả</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M410,300 L1352,300 L1352,578 L1405,578" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
 <circle cx="432" cy="300" r="11" fill="#fff" stroke="#2a78d6" stroke-width="1.7"/>
 <text x="432" y="304.5" font-size="12.5" font-weight="800" fill="#2a78d6" text-anchor="middle">③</text>
 <text x="452" y="322" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đóng — IPC tự xử lý được</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M410,332 L560,332 L560,522" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M410,332 L560,332 L560,552" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
 <circle cx="432" cy="332" r="11" fill="#fff" stroke="#2a78d6" stroke-width="1.7"/>
 <text x="432" y="336.5" font-size="12.5" font-weight="800" fill="#2a78d6" text-anchor="middle">①</text>
 <text x="452" y="354" font-size="13.5" fill="#5b6774" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đường DUY NHẤT sang Cơ điện</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M950,268 l16,0" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M950,300 l16,0" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1368,450 l0,16" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1352,450 l0,16" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M185,178 L185,246" stroke="#4a3aa7" stroke-width="2.2" marker-end="url(#mSYS)"/>
 <text x="197" y="218" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">mở vé · email đi ≤ 5′</text>
 <rect x="430" y="552" width="350" height="180" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
@@ -161,21 +161,19 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <circle cx="700" cy="840" r="11" fill="#fff" stroke="#c98500" stroke-width="1.7"/>
 <text x="700" y="844.5" font-size="12.5" font-weight="800" fill="#c98500" text-anchor="middle">②</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M115,486 L115,1074" stroke="#e34948" stroke-width="1.8"/>
-<text x="125" y="660" font-size="13.5" fill="#b3312f" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">KHÔNG bấm gì &gt; 20′</text>
-<text x="125" y="682" font-size="12" fill="#98a3ad" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">(đồng hồ tính từ lúc nhận mail)</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M190,486 L190,1074" stroke="#e34948" stroke-width="1.8"/>
-<text x="200" y="770" font-size="13.5" fill="#b3312f" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">④ báo vắng rồi quá 1 GIỜ</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M400,690 L400,1074" stroke="#e34948" stroke-width="1.8"/>
+<text x="127" y="646" font-size="13.5" fill="#b3312f" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">KHÔNG bấm gì &gt; 20′</text>
+<text x="127" y="668" font-size="13.5" fill="#b3312f" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">· ④ báo vắng rồi quá 1 GIỜ</text>
+<text x="127" y="690" font-size="12" fill="#98a3ad" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">(đồng hồ tính từ lúc nhận mail)</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M430,690 L400,690 L400,1074" stroke="#e34948" stroke-width="1.8"/>
 <text x="392" y="940" font-size="13.5" fill="#b3312f" text-anchor="end" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">chưa nhận việc &gt; 15′</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1040,1018 L1040,1074" stroke="#e34948" stroke-width="1.8"/>
 <text x="1050" y="1046" font-size="13.5" fill="#b3312f" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đang / chờ xử lý &gt; 1 GIỜ</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M620,1054 L620,1074" stroke="#e34948" stroke-width="1.8"/>
 <text x="632" y="1068" font-size="13.5" fill="#b3312f" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">bế tắc → NGAY + CC QA</text>
 <path fill="none" d="M115,1074 L1100,1074" stroke="#e34948" stroke-width="1.8" stroke-linecap="round"/>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M540,1074 L540,1096" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M730,1074 L730,1096" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M920,1074 L920,1096" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
-<text x="1110" y="1079" font-size="12.5" fill="#b3312f" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">mọi đường "KHÔNG THAO TÁC" đổ về Trực</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M540,1074 L540,1098" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M730,1074 L730,1098" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M920,1074 L920,1098" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
 <rect x="430" y="1098" width="620" height="180" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
 <rect x="430" y="1110" width="5" height="156" rx="2.5" fill="#e34948"/>
 <text x="450" y="1128" font-size="17" font-weight="800" fill="#b3312f">TRỰC HSL ĐƯỢC BÁO — tầng điều phối cuối</text>
@@ -206,11 +204,11 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <rect x="1405" y="1366" width="5" height="86" rx="2.5" fill="#008300"/>
 <text x="1425" y="1384" font-size="17" font-weight="800" fill="#0c6b4d">MỞ LẠI ⟲ ✍</text>
 <text x="1425" y="1408" font-size="13" fill="#5b6774">QA / Quản trị — vé đã đóng</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M650,1354 L650,1316 L1368,1316 L1368,646 L1405,646" stroke="#008300" stroke-width="2.2" marker-end="url(#mQA)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M650,1354 L650,1316 L1372,1316 L1372,646 L1405,646" stroke="#008300" stroke-width="2.2" marker-end="url(#mQA)"/>
 <circle cx="760" cy="1316" r="11" fill="#fff" stroke="#008300" stroke-width="1.7"/>
 <text x="760" y="1320.5" font-size="12.5" font-weight="800" fill="#008300" text-anchor="middle">①</text>
 <text x="782" y="1308" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">QA đóng được từ MỌI trạng thái đang mở ✍</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1368,980 l0,-16" stroke="#008300" stroke-width="2.2" marker-end="url(#mQA)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1372,980 l0,-16" stroke="#008300" stroke-width="2.2" marker-end="url(#mQA)"/>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1650,880 L1686,880 L1686,1400 L1650,1400" stroke="#5b6774" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mCLOSE)"/>
 <text transform="rotate(90 1699 1140)" x="1699" y="1140" font-size="12" font-weight="600" fill="#98a3ad" text-anchor="middle">vé đã đóng → mở lại ✍</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1520,1464 L1520,1496 L56,1496 L56,360 L70,360" stroke="#008300" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mQA)"/>
