@@ -62,8 +62,8 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <text x="90" y="276" font-size="17" font-weight="800" fill="#1f2b38">CHƯA XỬ LÝ</text>
 <text x="232" y="276" font-size="10.5" letter-spacing=".04em" fill="#98a3ad">CHUA_XU_LY</text>
 <text x="90" y="300" font-size="13" fill="#5b6774">vé mới · vé MỞ LẠI — IPC ra hiện trường, 4 nút:</text>
-<rect x="88" y="314" width="306" height="30" rx="9" fill="#e9f1fb"/>
-<text x="99" y="334.5" font-size="14.5" font-weight="700" fill="#1f5fa8">① Chuyển Cơ điện xử lý</text>
+<rect x="88" y="314" width="306" height="30" rx="9" fill="#2a78d6" filter="url(#sh)"/>
+<text x="99" y="334.5" font-size="14.5" font-weight="800" fill="#ffffff">① Chuyển Cơ điện xử lý</text>
 <rect x="88" y="350" width="306" height="30" rx="9" fill="#e9f1fb"/>
 <text x="99" y="370.5" font-size="14.5" font-weight="700" fill="#1f5fa8">② Đã kiểm tra — Bình thường ✍ ⏹</text>
 <rect x="88" y="386" width="306" height="30" rx="9" fill="#e9f1fb"/>
@@ -82,21 +82,21 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <circle cx="432" cy="300" r="15" fill="#fff" stroke="#2a78d6" stroke-width="2.2"/>
 <text x="432" y="305.5" font-size="15.5" font-weight="800" fill="#2a78d6" text-anchor="middle">③</text>
 <text x="452" y="322" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đóng — IPC tự xử lý được</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M410,332 L560,332 L560,552" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M410,332 L560,332 L560,552" stroke="#2a78d6" stroke-width="3.6" marker-end="url(#mIPC)"/>
 <circle cx="432" cy="332" r="15" fill="#fff" stroke="#2a78d6" stroke-width="2.2"/>
 <text x="432" y="337.5" font-size="15.5" font-weight="800" fill="#2a78d6" text-anchor="middle">①</text>
 <text x="452" y="354" font-size="13.5" fill="#5b6774" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đường DUY NHẤT sang Cơ điện</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M950,268 l16,0" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M950,300 l16,0" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1352,450 l0,16" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M185,178 L185,246" stroke="#4a3aa7" stroke-width="2.2" marker-end="url(#mSYS)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M185,178 L185,246" stroke="#4a3aa7" stroke-width="3.2" marker-end="url(#mSYS)"/>
 <text x="197" y="218" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">mở vé · email đi ≤ 5′</text>
 <rect x="430" y="552" width="350" height="180" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
 <rect x="430" y="564" width="5" height="156" rx="2.5" fill="#c98500"/>
 <text x="450" y="582" font-size="17" font-weight="800" fill="#1f2b38">ĐÃ BÁO CƠ ĐIỆN</text>
 <text x="450" y="602" font-size="10.5" letter-spacing=".04em" fill="#98a3ad">DA_BAO_CO_DIEN · chờ nhận việc</text>
-<rect x="448" y="616" width="316" height="30" rx="9" fill="#faf0dc"/>
-<text x="459" y="636.5" font-size="14.5" font-weight="700" fill="#7a5200">① Đã nhận thông tin — đang xử lý</text>
+<rect x="448" y="616" width="316" height="30" rx="9" fill="#8a5e00" filter="url(#sh)"/>
+<text x="459" y="636.5" font-size="14.5" font-weight="800" fill="#ffffff">① Đã nhận thông tin — đang xử lý</text>
 <rect x="448" y="652" width="316" height="30" rx="9" fill="#faf0dc"/>
 <text x="459" y="672.5" font-size="14.5" font-weight="700" fill="#7a5200">② Không tại hiện trường ⟳ (1 giờ)</text>
 <text x="450" y="710" font-size="13" fill="#5b6774">email nhắc 2 giờ/lần (07:45–16:45)</text>
@@ -139,10 +139,10 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <text x="1425" y="830" font-size="17" font-weight="800" fill="#1f2b38">ĐÓNG — NGOÀI PHẠM VI ⏹</text>
 <text x="1425" y="854" font-size="13" fill="#5b6774">cảm biến đứng hình ≥ 3h</text>
 <text x="1425" y="876" font-size="13" fill="#5b6774">hoặc Quản trị đóng ✍</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M780,630 L840,630" stroke="#c98500" stroke-width="2.2" marker-end="url(#mMEP)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M780,630 L840,630" stroke="#c98500" stroke-width="3.6" marker-end="url(#mMEP)"/>
 <circle cx="806" cy="630" r="15" fill="#fff" stroke="#c98500" stroke-width="2.2"/>
 <text x="806" y="635.5" font-size="15.5" font-weight="800" fill="#c98500" text-anchor="middle">①</text>
-<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1200,630 L1405,630" stroke="#c98500" stroke-width="2.2" marker-end="url(#mMEP)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1200,630 L1405,630" stroke="#c98500" stroke-width="3.6" marker-end="url(#mMEP)"/>
 <circle cx="1226" cy="630" r="15" fill="#fff" stroke="#c98500" stroke-width="2.2"/>
 <text x="1226" y="635.5" font-size="15.5" font-weight="800" fill="#c98500" text-anchor="middle">①</text>
 <text x="1246" y="622" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đóng — xong việc</text>
@@ -222,7 +222,7 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <rect x="84" y="1592" width="767" height="4" rx="2" fill="#2a78d6"/>
 <text x="90" y="1626" font-size="17" font-weight="800" fill="#1f2b38">Email IPC — nhắc 2 giờ/lần, TOÀN CẢNH khu · 4 nút</text>
 <text x="90" y="1648" font-size="13" fill="#5b6774">nút hiện khi vé ở: Chưa xử lý · Mở lại · Không xử lý được</text>
-<rect x="90" y="1664" width="280" height="34" rx="9" fill="#e9f1fb"/><text x="104" y="1687" font-size="14.5" font-weight="700" fill="#1f5fa8">① Chuyển Cơ điện xử lý</text>
+<rect x="90" y="1664" width="280" height="34" rx="9" fill="#2a78d6" filter="url(#sh)"/><text x="104" y="1687" font-size="14.5" font-weight="800" fill="#ffffff">① Chuyển Cơ điện xử lý</text>
 <text x="384" y="1687" font-size="13.5" fill="#5b6774">→ vé sang <tspan font-weight="700">ĐÃ BÁO CƠ ĐIỆN</tspan></text>
 <rect x="90" y="1710" width="280" height="34" rx="9" fill="#e9f1fb"/><text x="104" y="1733" font-size="14.5" font-weight="700" fill="#1f5fa8">② Đã kiểm tra — Bình thường ✍</text>
 <text x="384" y="1733" font-size="13.5" fill="#5b6774">→ <tspan font-weight="700">ĐÓNG vé</tspan> (cảnh báo giả)</text>
@@ -236,7 +236,7 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <rect x="909" y="1592" width="747" height="4" rx="2" fill="#c98500"/>
 <text x="915" y="1626" font-size="17" font-weight="800" fill="#1f2b38">Email Cơ điện — theo KHU/AHU · đủ 5 nút</text>
 <text x="915" y="1648" font-size="13" fill="#5b6774">2 nút bấm ngay + 3 nút 🔒 (mở SAU khi bấm "Đã nhận")</text>
-<rect x="915" y="1664" width="280" height="32" rx="9" fill="#faf0dc"/><text x="929" y="1686" font-size="14.5" font-weight="700" fill="#7a5200">① Đã nhận — đang xử lý</text>
+<rect x="915" y="1664" width="280" height="32" rx="9" fill="#8a5e00" filter="url(#sh)"/><text x="929" y="1686" font-size="14.5" font-weight="800" fill="#ffffff">① Đã nhận — đang xử lý</text>
 <text x="1209" y="1686" font-size="13.5" fill="#5b6774">→ sang <tspan font-weight="700">ĐANG XỬ LÝ</tspan> · đồng hồ 1 giờ</text>
 <rect x="915" y="1706" width="280" height="32" rx="9" fill="#faf0dc"/><text x="929" y="1728" font-size="14.5" font-weight="700" fill="#7a5200">② Không tại hiện trường ⟳</text>
 <text x="1209" y="1728" font-size="13.5" fill="#5b6774">→ ân hạn <tspan font-weight="700">1 giờ</tspan> rồi lên Trực</text>
