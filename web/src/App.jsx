@@ -351,6 +351,51 @@ const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
   );
 });
 
+// ═══ HƯỚNG DẪN NÚT EMAIL (17/07 — tab Nhiệm vụ, cho mọi người đọc) ═══
+// Nội dung TĨNH khớp bảng luật + sơ đồ vòng đời: email gửi nút gì, bấm mỗi nút vé đi đâu.
+function HuongDanEmailNut() {
+  const Nut = ({ mau, khoa, children }) => (
+    <span className={`inline-block shrink-0 rounded-lg px-2.5 py-1 text-[11.5px] font-bold ${khoa ? "bg-slate-100 text-slate-400 ring-1 ring-dashed ring-slate-300" : mau}`}>{khoa ? "🔒 " : ""}{children}</span>
+  );
+  const Dong = ({ nut, mau, khoa, kq }) => (
+    <div className="flex items-start gap-2.5">
+      <Nut mau={mau} khoa={khoa}>{nut}</Nut>
+      <span className="pt-0.5 text-[12px] leading-snug text-slate-600">→ {kq}</span>
+    </div>
+  );
+  return (
+    <Card className="p-4 sm:p-5">
+      <SectionTitle icon={Mail} hint="khớp bảng luật đang chạy — email nhắc 2 giờ/lần, chỉ gửi trong khung 07:45–16:45">Email cảnh báo — bấm nút nào, vé đi đâu</SectionTitle>
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-2xl ring-1 ring-sky-200 bg-sky-50/40 p-4">
+          <p className="text-[13px] font-bold text-sky-800">📧 Email IPC — toàn cảnh khu · 4 nút</p>
+          <p className="mt-0.5 text-[10.5px] text-slate-500">nút hiện khi vé ở: Chưa xử lý · Mở lại · Không xử lý được</p>
+          <div className="mt-3 space-y-2">
+            <Dong nut="Chuyển Cơ điện xử lý" mau="bg-sky-100 text-sky-700" kq={<>vé sang <b>Đã báo Cơ điện</b> — đường duy nhất sang tay</>} />
+            <Dong nut="Đã kiểm tra — Bình thường ✍" mau="bg-sky-100 text-sky-700" kq={<><b>ĐÓNG vé</b> — cảnh báo giả (IPC đã ra tận nơi, bắt ghi lý do)</>} />
+            <Dong nut="Đã khắc phục sự cố ✍" mau="bg-sky-100 text-sky-700" kq={<><b>ĐÓNG vé</b> — IPC tự xử lý được tại chỗ</>} />
+            <Dong nut="Không tại hiện trường ⟳" mau="bg-sky-100 text-sky-700" kq={<>vé đứng yên · <b>ân hạn 1 giờ</b>, quá thì lên Trực</>} />
+          </div>
+          <p className="mt-3 text-[10.5px] leading-relaxed text-slate-500">Mail còn mục 2 <b>"Cơ điện đang xử lý"</b> — chỉ theo dõi, không nút. Vé đã sang Cơ điện thì IPC còn đúng 2 nút đóng (luật "mọi trạng thái" — không phải mất nút). <span className="text-rose-600 font-medium">Nhận mail rồi im lặng quá 20′ → vé tự lên Trực.</span></p>
+        </div>
+        <div className="rounded-2xl ring-1 ring-amber-200 bg-amber-50/40 p-4">
+          <p className="text-[13px] font-bold text-amber-800">📧 Email Cơ điện — theo khu/AHU · đủ 5 nút ngay từ mail đầu</p>
+          <p className="mt-0.5 text-[10.5px] text-slate-500">2 nút bấm được ngay + 3 nút 🔒 mở khóa SAU khi bấm "Đã nhận"</p>
+          <div className="mt-3 space-y-2">
+            <Dong nut="Đã nhận — đang xử lý" mau="bg-amber-100 text-amber-800" kq={<>vé sang <b>Đang xử lý</b> · đồng hồ im lặng nới thành 1 giờ</>} />
+            <Dong nut="Không tại hiện trường ⟳" mau="bg-amber-100 text-amber-800" kq={<>vé đứng yên · <b>ân hạn 1 giờ</b>, quá thì lên Trực</>} />
+            <Dong nut="Đã khắc phục ✍" khoa kq={<><b>ĐÓNG vé</b> — xong việc, hết email</>} />
+            <Dong nut="Không thể xử lý ✍" khoa kq={<span className="text-rose-600"><b>bế tắc</b> — Trực + QA được báo NGAY LẬP TỨC</span>} />
+            <Dong nut="Chờ xử lý (khi rảnh)" khoa kq={<>vé sang <b>Chờ xử lý</b> — vẫn nhắc 2h/lần, đồng hồ 1 giờ</>} />
+          </div>
+          <p className="mt-3 text-[10.5px] leading-relaxed text-slate-500">Nút 🔒 là link thật: bấm <b>sau khi</b> "Đã nhận" là chạy luôn; bấm sớm máy chủ từ chối đúng trình tự, <b>không mất lượt</b>. <span className="text-rose-600 font-medium">Chưa nhận việc mà im lặng quá 15′ → vé lên Trực.</span></p>
+        </div>
+      </div>
+      <p className="mt-3 text-[10.5px] leading-relaxed text-slate-400">Mỗi nút trong email là liên kết dùng <b>1 lần</b>, sống <b>4 giờ</b> — vé để lâu thì dùng email nhắc mới nhất. Bấm nút sẽ mở trang xác nhận, yêu cầu đăng nhập đúng vai trò và đúng khu; nút có ✍ bắt buộc ghi lý do. Email <b>Trực HSL</b>: tổng quan ca 6h·14h·22h + vé leo thang, có nút Nhắc IPC ⟳ · Nhắc Cơ điện ⟳ · Tạm dừng cảnh báo 4 giờ ✍ (nhắc lại mỗi 1 giờ tới khi có người thao tác). Email "vé đã đóng" không có nút — hết việc để bấm.</p>
+    </Card>
+  );
+}
+
 /* Memo (nâng cấp 07/07): 4 thẻ KPI + lưới thẻ phòng re-render toàn bộ mỗi nhịp 60s và
    mỗi lần bấm bất kỳ nút nào trên trang. Comparator BỎ QUA identity của prop hàm/objeto
    trang trí (onClick, accent tạo inline) — chỉ so giá trị hiển thị; hành vi hàm không đổi
@@ -3824,6 +3869,7 @@ export default function App() {
                   )}
                 </Card>
               )}
+              <HuongDanEmailNut />
               {!isLive && <Card className="p-6 text-center text-[13px] text-slate-500">Tab Nhiệm vụ chỉ hoạt động ở chế độ LIVE (đọc dữ liệu thật).</Card>}
             </div>
           )}
