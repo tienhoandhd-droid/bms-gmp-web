@@ -224,6 +224,11 @@ EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','S6 · ap_dung_khi (m�
 DO $$
 DECLARE v_sc_c1 bigint; v_sc_q2 bigint; r_ngoai jsonb; r_trong jsonb; v_dat boolean;
 BEGIN
+  -- 17/07: GHIM fixture — hoavu.qc trên live đã bị đổi vai trò (LOT) làm test vỡ oan.
+  -- Toàn file chạy trong 1 transaction ROLLBACK nên UPDATE này không chạm dữ liệu thật.
+  PERFORM set_config('app.tg_bypass_append_only','on',true);
+  UPDATE public.nguoi_dung SET vai_tro='IPC', khu_vuc=ARRAY['Q2']::text[], kich_hoat=true
+   WHERE email='hoavu.qc@cpc1hn.vn';
   v_sc_c1 := pg_temp.tao_sc('C1','KTS7.C1','AHU-KTS7a','CHUA_XU_LY');
   v_sc_q2 := pg_temp.tao_sc('Q2','KTS7.Q2','AHU-KTS7b','CHUA_XU_LY');
   r_ngoai := pg_temp.tt('hoavu.qc@cpc1hn.vn', v_sc_c1, 'ipc_bao_co_dien');   -- IPC Q2 thao tác sự cố C1 → PHẢI CHẶN
@@ -384,33 +389,32 @@ BEGIN
   r_ml   := pg_temp.tt('khoado.qa@cpc1hn.vn', v_sc, 'qa_mo_lai', 'Tái phát ngay sau đó, mở lại điều tra');
   SELECT thoi_gian_dong IS NULL INTO v_cum_mo FROM public.cum_su_co WHERE ma_cum=v_cum;
   SELECT tam_dung_den INTO v_tam FROM public.su_co WHERE ma_su_co=v_sc;
-  SELECT EXISTS(SELECT 1 FROM public.xem_su_co_qua_han WHERE ma_su_co=v_sc) INTO v_trong_qh;
+  SELECT EXISTS(SELECT 1 FROM public.xem_su_co_phu_trach WHERE ma_su_co=v_sc) INTO v_trong_qh;
   v_dat := pg_temp.ok(r_dong) AND pg_temp.ok(r_ml)
        AND pg_temp.tt_now(v_sc)='MO_LAI' AND NOT pg_temp.dong_chua(v_sc)
        AND v_tam IS NULL AND v_cum_mo AND v_trong_qh;
   PERFORM pg_temp.ghi('KICH_BAN','T4 · Mở lại: sống lại đầy đủ (dấu đóng + tạm dừng + cụm + trách nhiệm)', v_dat,
-    format('mở lại ok=%s → %s (đóng=%s) · tam_dung_den=%s (kỳ vọng NULL) · cụm mở lại=%s · lại vào hàng quá hạn=%s',
+    format('mở lại ok=%s → %s (đóng=%s) · tam_dung_den=%s (kỳ vọng NULL) · cụm mở lại=%s · lại vào danh sách phụ trách=%s',
       r_ml->>'ok', pg_temp.tt_now(v_sc), pg_temp.dong_chua(v_sc), v_tam, v_cum_mo, v_trong_qh),
     'rpc_thao_tac_su_co nhánh mo_lai: thoi_gian_dong=NULL, tam_dung_den=NULL, lan_nhac_cuoi=NULL; tg_cum_tu_dong mở lại cụm');
 EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','T4 · Mở lại: sống lại đầy đủ (dấu đóng + tạm dừng + cụm + trách nhiệm)', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
 
--- T5 — SLA QUÁ HẠN: sự cố P1 quá SLA tiếp nhận hiện cờ quá hạn; sau khi tiếp nhận → hết cờ
+-- T5 — (ĐÃ BỎ 17/07/2026) SLA quá hạn tiếp nhận: cơ chế SLA hẹn giờ (ack_han/xu_ly_han)
+-- đã gỡ khỏi hệ thống theo yêu cầu vận hành — view xem_su_co_qua_han không còn.
+-- Trách nhiệm vé vẫn kiểm ở T4 (xem_su_co_phu_trach) + leo thang im lặng 20'/15' (K-series).
+-- T5 — TIẾP NHẬN GHI DẤU: trigger tg_su_co_ack vẫn phải đóng dấu ack_luc khi tiếp nhận (ALCOA+)
 DO $$
-DECLARE v_sc bigint; v_qh_truoc boolean; v_qh_sau boolean; v_ack timestamptz; v_dat boolean;
+DECLARE v_sc bigint; v_ack timestamptz; v_dat boolean;
 BEGIN
-  v_sc := pg_temp.tao_sc('C1','x','AHU-KTT5','CHUA_XU_LY','P1');   -- thoi_gian_mo = now-90' > SLA ack 30'
-  SELECT qua_han_tiep_nhan INTO v_qh_truoc FROM public.xem_su_co_qua_han WHERE ma_su_co=v_sc;
-  -- Cơ điện tiếp nhận (qua IPC báo trước) → trigger tg_su_co_ack set ack_luc
+  v_sc := pg_temp.tao_sc('C1','x','AHU-KTT5','CHUA_XU_LY','P1');
   PERFORM pg_temp.tt('ipcbfs@gmail.com', v_sc, 'ipc_bao_co_dien');
   PERFORM pg_temp.tt('chanbonght@gmail.com', v_sc, 'mep_tiep_nhan');
   SELECT ack_luc INTO v_ack FROM public.su_co WHERE ma_su_co=v_sc;
-  SELECT qua_han_tiep_nhan INTO v_qh_sau FROM public.xem_su_co_qua_han WHERE ma_su_co=v_sc;
-  v_dat := (v_qh_truoc IS TRUE) AND (v_ack IS NOT NULL) AND (v_qh_sau IS NOT TRUE);
-  PERFORM pg_temp.ghi('KICH_BAN','T5 · SLA quá hạn tiếp nhận: hiện cờ rồi tự hết khi tiếp nhận', v_dat,
-    format('trước tiếp nhận quá_hạn=%s · ack_luc sau=%s · sau tiếp nhận quá_hạn=%s',
-      v_qh_truoc, (v_ack IS NOT NULL), v_qh_sau),
-    'xem_su_co_qua_han: ack_luc IS NULL AND now()>ack_han; trigger tg_su_co_ack set ack_luc khi bộ phận tiếp nhận');
-EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','T5 · SLA quá hạn tiếp nhận: hiện cờ rồi tự hết khi tiếp nhận', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+  v_dat := (v_ack IS NOT NULL);
+  PERFORM pg_temp.ghi('KICH_BAN','T5 · Tiếp nhận ghi dấu ack_luc (hồ sơ ALCOA+)', v_dat,
+    format('ack_luc sau tiếp nhận=%s', (v_ack IS NOT NULL)),
+    'trigger tg_su_co_ack set ack_luc khi bộ phận tiếp nhận — dấu hồ sơ, không còn dùng cho SLA');
+EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('KICH_BAN','T5 · Tiếp nhận ghi dấu ack_luc (hồ sơ ALCOA+)', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
 
 -- ══════════════════════════════════════════════════════════════════════════
 -- VẬN HÀNH ĐẦY ĐỦ (U1–U7): các đường vận hành chưa test ở S/T/K

@@ -2895,12 +2895,11 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
   const [an, setAn] = useState(false);         // Ẩn cho gọn → còn viên nhỏ, bấm hiện lại (tự hiện lại khi F5)
   if (viecCuaToi.length === 0 && cumChoToi.length === 0) return null;
   const tong = viecCuaToi.length + cumChoToi.length;
-  const coQuaHan = viecCuaToi.some((x) => x.q.qua_han_tiep_nhan || x.q.qua_han_xu_ly);
   if (an) return (
     <button onClick={() => setAn(false)}
       className="mb-4 inline-flex items-center gap-2 rounded-full bg-white ring-1 ring-amber-200 px-3.5 py-1.5 text-[12px] font-semibold hover:bg-amber-50"
       style={{ color: COLOR.navy, ...cardShadow }} title="Hiện lại danh sách Việc của bạn">
-      Việc của bạn · {tong}{coQuaHan && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600">quá hạn</span>}
+      Việc của bạn · {tong}
       <span className="text-slate-400 font-normal">Hiện ▾</span>
     </button>
   );
@@ -2913,7 +2912,6 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
         <button onClick={() => setMo(!mo)} className="min-w-0 flex-1 text-left">
           <span className="text-[13px] font-semibold" style={{ color: COLOR.navy }}>
             Việc của bạn · {tong}
-            {coQuaHan && <span className="ml-2 rounded-full bg-rose-50 px-2 py-0.5 text-[10.5px] font-bold text-rose-600">có việc quá hạn</span>}
           </span>
         </button>
         <div className="shrink-0 flex items-center gap-1">
@@ -2924,18 +2922,15 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
       </div>
       {mo && (
         <div className={`mt-2 space-y-1.5 ${tatCa ? "max-h-[46vh] overflow-y-auto overscroll-contain pr-1" : ""}`}>
-          {dsViec.map(({ q, inc }) => {
-            const nong = q.qua_han_tiep_nhan || q.qua_han_xu_ly;
-            return (
-              <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
-                <span className="min-w-0 text-[12px] text-slate-600 truncate">
-                  <b style={{ color: COLOR.navy }}>{inc.id}</b> · {inc.room} · {inc.sensor}
-                  <span className={`ml-2 ${nong ? "text-rose-600 font-medium" : "text-slate-400"}`}>{docTenVaiTro(q.chan_doan)}</span>
-                </span>
-                <button onClick={() => onXuLy(inc)} className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-semibold text-teal-700 ring-1 ring-teal-200 hover:bg-teal-50">Xử lý</button>
-              </div>
-            );
-          })}
+          {dsViec.map(({ q, inc }) => (
+            <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+              <span className="min-w-0 text-[12px] text-slate-600 truncate">
+                <b style={{ color: COLOR.navy }}>{inc.id}</b> · {inc.room} · {inc.sensor}
+                {q.gio_mo != null && <span className="ml-2 text-slate-400 tabular-nums">mở {q.gio_mo}h</span>}
+              </span>
+              <button onClick={() => onXuLy(inc)} className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-semibold text-teal-700 ring-1 ring-teal-200 hover:bg-teal-50">Xử lý</button>
+            </div>
+          ))}
           {dsCum.map((c) => (
             <div key={c.ma_cum} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
               <span className="min-w-0 text-[12px] text-slate-600 truncate">
@@ -3279,12 +3274,12 @@ export default function App() {
   // map phòng khi thiếu. KHÔNG loại sự cố chưa rõ khu — trước 15/07 sự cố về trước
   // danh sách phòng bị lọc SẠCH ⇒ tab Sự cố trống rất lâu với tài khoản giới hạn khu.
   const incidentsXem = useMemo(() => (khuChoPhep ? incidents.filter((i) => { const a = i.khu || areaCuaPhong[i.room]; return !a || loKhu(a); }) : incidents), [incidents, khuChoPhep, areaCuaPhong]); // eslint-disable-line react-hooks/exhaustive-deps
-  // ⑤ Owner + SLA — ai đang giữ việc, và đã quá hạn bao lâu. Server tính, web chỉ bày.
-  const quaHanTheoId = useMemo(() => {
+  // ⑤ Owner — ai đang giữ việc (suy từ trạng thái, server tính). 17/07: bỏ SLA hẹn giờ.
+  const phuTrachTheoId = useMemo(() => {
     const m = {};
-    (isLive && Array.isArray(live.suCoQuaHan) ? live.suCoQuaHan : []).forEach((r) => { m[r.ma_su_co] = r; });
+    (isLive && Array.isArray(live.suCoPhuTrach) ? live.suCoPhuTrach : []).forEach((r) => { m[r.ma_su_co] = r; });
     return m;
-  }, [isLive, live.suCoQuaHan]);
+  }, [isLive, live.suCoPhuTrach]);
 
   const demoKpis = useMemo(() => ({ dat: roomsXem.filter((r) => { const c = roomCompliance(r); return !r.noData && c >= 80; }).length, khongDat: roomsXem.filter((r) => { const c = roomCompliance(r); return !r.noData && c < 80; }).length, thieuDL: roomsXem.filter((r) => r.noData).length, tong: roomsXem.length }), [roomsXem]);
   // Server đã tự lọc KPI theo quyền khu của phiên đăng nhập (khu_duoc_xem() trong
@@ -3514,17 +3509,16 @@ export default function App() {
   };
 
   // ═══ VIỆC CỦA TÔI — hiện trên MỌI tab (10/07/2026) ═══
-  // Máy chủ đã tính ai phụ trách (vai_tro_phu_trach) và hạn SLA; banner chỉ bày
-  // đúng phần của người đang đăng nhập. Không thêm truy vấn nào: ghép từ
-  // suCoQuaHan + incidents + cumRows đã nạp sẵn.
+  // Máy chủ đã tính ai phụ trách (vai_tro_phu_trach); banner chỉ bày đúng phần
+  // của người đang đăng nhập. Không thêm truy vấn nào: ghép từ
+  // suCoPhuTrach + incidents + cumRows đã nạp sẵn. View đã xếp P1 trước, cũ trước.
   const viecCuaToi = useMemo(() => {
     if (!isLive || !role) return [];
-    const qh = Array.isArray(live.suCoQuaHan) ? live.suCoQuaHan : [];
+    const qh = Array.isArray(live.suCoPhuTrach) ? live.suCoPhuTrach : [];
     return qh.filter((q) => q.vai_tro_phu_trach === role)
       .map((q) => ({ q, inc: incidentsXem.find((i) => i.dbId === q.ma_su_co) }))
-      .filter((x) => x.inc)
-      .sort((a, b) => Number(!!(b.q.qua_han_tiep_nhan || b.q.qua_han_xu_ly)) - Number(!!(a.q.qua_han_tiep_nhan || a.q.qua_han_xu_ly)));
-  }, [isLive, role, live.suCoQuaHan, incidentsXem]);
+      .filter((x) => x.inc);
+  }, [isLive, role, live.suCoPhuTrach, incidentsXem]);
   const cumChoToi = useMemo(() => ((role === "QA" || role === "ADMIN") && isLive)
     ? cumRows.filter((c) => !c.da_co_ket_luan_qa && (!khuChoPhep || loKhu(c.khu_vuc)))
     : [], [role, isLive, cumRows, khuChoPhep]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -3804,8 +3798,7 @@ export default function App() {
               <div className="md:hidden space-y-2 p-1">
                 {incSorted.map((inc, idx) => {
                   const { terminal, myActs, choAi } = tinhNut(inc);
-                  const q = quaHanTheoId[inc.dbId];
-                  const nong = q && (q.qua_han_tiep_nhan || q.qua_han_xu_ly);
+                  const q = phuTrachTheoId[inc.dbId];
                   const moCum = idx === 0 || cumAhu(incSorted[idx - 1]) !== cumAhu(inc);
                   return (
                     <React.Fragment key={inc.id}>
@@ -3822,7 +3815,7 @@ export default function App() {
                         {inc.giaTriGanNhat != null && <p className="text-[11px] text-slate-400 mt-0.5">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") && <span className="text-emerald-600"> · đã về ngưỡng</span>}</p>}
                         <p className="mt-1.5 text-[12px] flex items-center gap-1.5 flex-wrap">
                           <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} /><span className="text-slate-700 font-medium">{inc.status}</span>
-                          {q && <span className={`text-[11px] ${nong ? "text-rose-600 font-semibold" : "text-slate-400"}`}>· {ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach}{nong ? (q.qua_han_tiep_nhan ? " chưa tiếp nhận" : ` quá hạn ${q.gio_qua_han_xu_ly}h`) : " trong hạn"}</span>}
+                          {q && <span className="text-[11px] text-slate-400">· {ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach} phụ trách</span>}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {terminal ? <span className="text-teal-600 text-[12px] font-medium py-1">Đã khắc phục</span>
@@ -3863,13 +3856,8 @@ export default function App() {
                     <td className="py-3 px-3 text-slate-500 tabular-nums text-[12px]">{inc.start.slice(11)}</td>
                     <td className="py-3 px-3 text-amber-600 font-medium">{inc.duration}h</td>
                     <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-slate-700 font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span></td>
-                    <td className="py-3 px-3">{(() => { const q = quaHanTheoId[inc.dbId]; if (!q) return <span className="text-[11px] text-slate-300">—</span>;
-                      const nong = q.qua_han_tiep_nhan || q.qua_han_xu_ly;
-                      return (<div className="leading-tight">
-                        <span className={`text-[11px] font-semibold ${nong ? "text-rose-600" : "text-slate-600"}`}>{ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach || "—"}</span>
-                        {nong && <p className="text-[10px] text-rose-500 mt-0.5" title={docTenVaiTro(q.chan_doan)}>{q.qua_han_tiep_nhan ? "chưa tiếp nhận" : `quá hạn ${q.gio_qua_han_xu_ly}h`}</p>}
-                        {!nong && <p className="text-[10px] text-slate-400 mt-0.5">trong hạn</p>}
-                      </div>); })()}</td>
+                    <td className="py-3 px-3">{(() => { const q = phuTrachTheoId[inc.dbId]; if (!q) return <span className="text-[11px] text-slate-300">—</span>;
+                      return <span className="text-[11px] font-semibold text-slate-600">{ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach || "—"}</span>; })()}</td>
                     <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT" || role === "QA") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Tạm hoãn</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đang tạm hoãn" : "—"}</span>}{inc.silenced && inc.tamDungDen && <div className="text-[10px] text-slate-400 mt-1" title={inc.tamDungLyDo || ""}>tới {new Date(inc.tamDungDen).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})} · {inc.tamDungBoi || "?"}</div>}</td>
                     <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {choAi.map((r) => ROLE_VI[r] || r).join("/")}</span>}</td>
                   </tr>

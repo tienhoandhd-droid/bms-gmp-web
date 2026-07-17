@@ -224,11 +224,12 @@ export async function layThongKeSensorNhieuPhong(maPhongArr, signal) {
 //      loai_cam_bien, muc_canh_bao, trang_thai, bat_dau, keo_dai_gio,
 //      da_tat_canh_bao, lich_su[{t,who,role,act,ly_do}]
 // ============================================================
-// ⑤ Owner + SLA. Mỗi sự cố có MỘT người chịu trách nhiệm (suy từ trạng thái) và MỘT
-// deadline (theo mức ưu tiên). "Nhắc 120 lần" không phải là quản lý trách nhiệm.
-export async function laySuCoQuaHan(signal) {
-  const { data, error } = await docView('xem_su_co_qua_han',
-    (q) => q.select('ma_su_co,vai_tro_phu_trach,ack_han,xu_ly_han,qua_han_tiep_nhan,qua_han_xu_ly,gio_qua_han_xu_ly,chan_doan'),
+// ⑤ Owner. Mỗi sự cố có MỘT người chịu trách nhiệm (suy từ trạng thái).
+// 17/07/2026: BỎ cơ chế SLA hẹn giờ (ack_han/xu_ly_han) theo yêu cầu vận hành —
+// view xem_su_co_qua_han thay bằng xem_su_co_phu_trach (chỉ còn ai phụ trách).
+export async function laySuCoPhuTrach(signal) {
+  const { data, error } = await docView('xem_su_co_phu_trach',
+    (q) => q.select('ma_su_co,vai_tro_phu_trach,gio_mo,dang_tam_hoan'),
     { signal })
   if (error) return { error, rows: null }
   return { error: null, rows: data || [] }

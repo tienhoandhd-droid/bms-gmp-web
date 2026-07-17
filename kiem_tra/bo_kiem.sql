@@ -146,26 +146,18 @@ BEGIN
   PERFORM pg_temp.ghi('BAT_BIEN','Không lỗi workflow ghi nhận trong 24h', n=0,
     coalesce(v,'sạch'), 'Đọc mo_ta_loi + du_lieu của từng dòng; CANH_BAO_DINH_TRE = xem lớp lỗi 6 trong sổ tay');
 
-  -- B14 (79): cảm biến đứng hình ≥3h TRONG phạm vi cảnh báo ⇒ phải có sự cố mở
+  -- B14 (79 → 13/07 ĐẢO CHIỀU, chính sách chủ hệ thống): cảm biến đứng hình đủ chuỗi
+  -- = PHÒNG THIẾU DỮ LIỆU, tách riêng — KHÔNG được còn sự cố mở (ingest 20260713c
+  -- tự đóng DONG_NGOAI_PHAM_VI); theo dõi tập trung ở xem_cam_bien_dung_hinh
+  -- (tab Cảm biến + thẻ Tổng quan), không phải ở su_co.
   SELECT count(*), string_agg(ma_phong||'/'||loai_cam_bien,', ') INTO n, v FROM (
-    WITH moi AS (SELECT max(bucket_utc) b FROM public.du_lieu_gio),
-    dh AS (SELECT g.ma_phong, g.loai_cam_bien, g.muc_uu_tien
-             FROM public.du_lieu_gio g, moi WHERE g.bucket_utc=moi.b
-              AND g.gia_tri_max IS NOT NULL AND g.gia_tri_max=g.gia_tri_min
-              AND coalesce(g.diem_hop_le,g.tong_diem,0) >= public.cfg_int('dung_hinh_diem_toi_thieu',30))
-    SELECT d.* FROM dh d
-     WHERE public.trong_pham_vi_canh_bao(d.ma_phong, d.muc_uu_tien)
-       AND NOT EXISTS (SELECT 1 FROM public.su_co s
-                        WHERE s.ma_phong=d.ma_phong AND s.loai_cam_bien=d.loai_cam_bien
-                          AND s.thoi_gian_dong IS NULL)
-       -- mới đứng hình <3h thì chưa tới ngưỡng — chỉ soi cái đã đứng đủ lâu
-       AND (SELECT count(*) FROM (SELECT g2.gia_tri_max=g2.gia_tri_min AND coalesce(g2.diem_hop_le,g2.tong_diem,0)>=30 dh2
-              FROM public.du_lieu_gio g2 WHERE g2.ma_phong=d.ma_phong AND g2.loai_cam_bien=d.loai_cam_bien
-              ORDER BY g2.bucket_utc DESC LIMIT public.cfg_int('dung_hinh_gio_lien_tiep',3)) t WHERE t.dh2)
-           >= public.cfg_int('dung_hinh_gio_lien_tiep',3)) y;
-  PERFORM pg_temp.ghi('BAT_BIEN','Mất giám sát không vô hình (đứng hình ⇒ có sự cố)', n=0,
-    coalesce('vô hình: '||v, 'đủ'),
-    'Ingest 20260710ap phải mở sự cố SUPPRESSED; nếu thiếu → xem nhánh IF v_bo_qua');
+    SELECT d.ma_phong, d.loai_cam_bien FROM public.xem_cam_bien_dung_hinh d
+     WHERE EXISTS (SELECT 1 FROM public.su_co s
+                    WHERE s.ma_phong=d.ma_phong AND s.loai_cam_bien=d.loai_cam_bien
+                      AND s.thoi_gian_dong IS NULL)) y;
+  PERFORM pg_temp.ghi('BAT_BIEN','Đứng hình tách riêng (không còn sự cố mở)', n=0,
+    coalesce('còn vé mở: '||v, 'sạch'),
+    'Ingest 20260713c phải ĐÓNG vé của cảm biến đứng hình — xem nhánh IF v_bo_qua');
 
   -- B15 (71): sự cố SUPPRESSED không được lọt vào định tuyến email
   SELECT count(*) INTO n FROM public.xem_dinh_tuyen_email_v14 v14
@@ -174,13 +166,14 @@ BEGIN
   PERFORM pg_temp.ghi('BAT_BIEN','SUPPRESSED không bao giờ vào email', n=0,
     n||' dòng lọt', 'View v14 phải lọc muc_canh_bao_hien_tai=''CRITICAL'' — ai đó đã nới nó');
 
-  -- B16: sự cố mở nào cũng nằm trong danh sách quá hạn (im tiếng chuông ≠ xoá trách nhiệm)
+  -- B16: sự cố mở nào cũng nằm trong danh sách phụ trách (im tiếng chuông ≠ xoá trách nhiệm)
+  -- 17/07: xem_su_co_qua_han (SLA) đã bỏ → bất biến chuyển sang xem_su_co_phu_trach.
   SELECT count(*) INTO n FROM public.su_co s
    WHERE s.thoi_gian_dong IS NULL
-     AND NOT EXISTS (SELECT 1 FROM public.xem_su_co_qua_han q WHERE q.ma_su_co=s.ma_su_co);
-  PERFORM pg_temp.ghi('BAT_BIEN','Mọi sự cố mở đều hiện trong xem_su_co_qua_han', n=0,
+     AND NOT EXISTS (SELECT 1 FROM public.xem_su_co_phu_trach q WHERE q.ma_su_co=s.ma_su_co);
+  PERFORM pg_temp.ghi('BAT_BIEN','Mọi sự cố mở đều hiện trong xem_su_co_phu_trach', n=0,
     n||' sự cố mở biến mất khỏi danh sách trách nhiệm',
-    'xem_su_co_qua_han không được lọc theo mức — ai đó thêm WHERE muc_canh_bao?');
+    'xem_su_co_phu_trach không được lọc theo mức — ai đó thêm WHERE muc_canh_bao?');
 
   -- B17 (P0-4/2026-07-10u): vé mới phát TTL ≤ 12 giờ
   SELECT count(*) INTO n FROM public.ma_token_email
@@ -201,7 +194,7 @@ BEGIN
   SELECT count(*) INTO n FROM public.rpc_lo_hong_du_lieu(3);
   PERFORM pg_temp.ghi('BAT_BIEN','Không lỗ hổng dữ liệu cục bộ chưa lấp (3h qua)', n=0,
     n||' điểm (phòng×cảm biến) thiếu — FMS lỗi một phần lúc thu thập',
-    'WF1b lấp lỗ (:35) nạp lại đúng phòng thiếu; hoặc chạy tay WF1 lần nữa cho giờ đó (RPC idempotent)');
+    'WF1b (:35) tự lấp KHI FMS HỒI. Nếu vẫn thiếu: kiểm FMS_LOGIN_LOI/FMS_HTTP_LOI trong ngoai_le_du_lieu — lỗ do FMS chết thì phần mềm không cứu được, báo đội FMS.');
 
   -- B20 (88): chuỗi hash audit phải liền mạch (tamper-evident)
   DECLARE r jsonb;
@@ -305,29 +298,37 @@ BEGIN
   END;
 END $kb$;
 
--- ── K3 (71): cảm biến chết 3 giờ → SUPPRESSED, KHÔNG đóng dù "trong dải" ────
+-- ── K3 (71 → 13/07 ĐẢO CHÍNH SÁCH): chết 3 giờ → TÁCH RIÊNG — đóng vé, giờ SUPPRESSED ──
 DO $kb$
 DECLARE v_dat boolean; v_cd text;
 BEGIN
   BEGIN
     PERFORM pg_temp.bom('C1.R20','AHU04','P1',1,60,10,1.0,true);
     PERFORM pg_temp.bom('C1.R20','AHU04','P1',2,60,10,1.0,true);
-    PERFORM pg_temp.bom('C1.R20','AHU04','P1',3,60,10,1.0,true);   -- giờ 3 → SUPPRESSED
-    v_dat := EXISTS (SELECT 1 FROM public.su_co WHERE ma_phong='C1.R20' AND loai_cam_bien='DP'
-                       AND thoi_gian_dong IS NULL AND muc_canh_bao_hien_tai='SUPPRESSED');
-    -- cảm biến chết đọc "trong dải" 2 giờ → TUYỆT ĐỐI không tự đóng
+    PERFORM pg_temp.bom('C1.R20','AHU04','P1',3,60,10,1.0,true);   -- giờ 3 → đủ chuỗi đứng hình
+    -- Chính sách 13/07: đứng hình = THIẾU DỮ LIỆU — vé mở giờ 1-2 bị hệ ĐÓNG,
+    -- KHÔNG vé mới, giờ dữ liệu mang mức SUPPRESSED (web hiện "thiếu dữ liệu")
+    v_dat := NOT EXISTS (SELECT 1 FROM public.su_co WHERE ma_phong='C1.R20' AND loai_cam_bien='DP'
+                           AND thoi_gian_dong IS NULL)
+         AND EXISTS (SELECT 1 FROM public.su_co WHERE ma_phong='C1.R20' AND loai_cam_bien='DP'
+                       AND trang_thai_hien_tai='DONG_NGOAI_PHAM_VI'
+                       AND (du_lieu->>'cam_bien_dung_hinh')::boolean)
+         AND EXISTS (SELECT 1 FROM public.du_lieu_gio WHERE ma_phong='C1.R20' AND loai_cam_bien='DP'
+                       AND muc_canh_bao='SUPPRESSED'
+                       AND bucket_utc=date_trunc('hour',now())+interval '3 hour');
+    -- cảm biến chết đọc "trong dải" tiếp → vẫn nhánh đứng hình: không vé mới nào mở
     PERFORM pg_temp.bom('C1.R20','AHU04','P1',4,0,0,15,true);
     PERFORM pg_temp.bom('C1.R20','AHU04','P1',5,0,0,15,true);
-    v_dat := v_dat AND EXISTS (SELECT 1 FROM public.su_co WHERE ma_phong='C1.R20' AND loai_cam_bien='DP'
-                                 AND thoi_gian_dong IS NULL);
-    RAISE EXCEPTION 'KQ|%|3 giờ chết → SUPPRESSED; "trong dải" từ số liệu chết không đóng', coalesce(v_dat,false);
+    v_dat := v_dat AND NOT EXISTS (SELECT 1 FROM public.su_co WHERE ma_phong='C1.R20' AND loai_cam_bien='DP'
+                                     AND thoi_gian_dong IS NULL);
+    RAISE EXCEPTION 'KQ|%|3 giờ chết → vé đóng DONG_NGOAI_PHAM_VI + giờ SUPPRESSED; số liệu chết không mở vé mới', coalesce(v_dat,false);
   EXCEPTION WHEN OTHERS THEN
     v_cd := SQLERRM;
     IF v_cd LIKE 'KQ|%' THEN
-      PERFORM pg_temp.ghi('KICH_BAN','Không phán xét từ cảm biến chết', (split_part(v_cd,'|',2) IN ('t','true')), split_part(v_cd,'|',3),
-        'Khối CẢM BIẾN ĐỨNG HÌNH trong ingest (20260710ah/aj) — không cộng giờ sạch, không đóng');
+      PERFORM pg_temp.ghi('KICH_BAN','Đứng hình tách riêng (đóng vé, không phán xét)', (split_part(v_cd,'|',2) IN ('t','true')), split_part(v_cd,'|',3),
+        'Nhánh v_bo_qua trong ingest (20260713c) — đóng vé hệ thống, giờ ghi SUPPRESSED, không vé mới');
     ELSE
-      PERFORM pg_temp.ghi('KICH_BAN','Không phán xét từ cảm biến chết', false, 'NỔ: '||v_cd, 'đọc lỗi');
+      PERFORM pg_temp.ghi('KICH_BAN','Đứng hình tách riêng (đóng vé, không phán xét)', false, 'NỔ: '||v_cd, 'đọc lỗi');
     END IF;
   END;
 END $kb$;
@@ -463,6 +464,31 @@ BEGIN
     v_hong=0 AND v_anon=0,
     v_hong||' view hỏng dưới authenticated ('||v_ten||') · '||v_anon||' đối tượng nhạy cảm mở cho anon',
     'Hỏng = bug lớp 7 (REVOKE hàm trong view — 20260710ab/ad); anon mở = 20260710ac/ae/at tái diễn');
+END $kb$;
+
+-- ── K8 (14/07): BỎ MỨC CHÚ Ý — would-be-WARNING KHÔNG mở vé, chỉ CRITICAL mở ──
+DO $kb$
+DECLARE v_dat boolean; v_cd text;
+BEGIN
+  BEGIN
+    PERFORM set_config('app.tg_bypass_append_only','on',true);
+    UPDATE public.su_co SET thoi_gian_dong=now() WHERE ma_phong IN ('C1.R16','C1.R17') AND loai_cam_bien='DP' AND thoi_gian_dong IS NULL;
+    PERFORM set_config('app.tg_bypass_append_only','off',true);
+    PERFORM pg_temp.bom('C1.R16','AHU-KW8','P1',1,55,2,8,false);   -- OOS 55>20 nhưng 10' cuối 2<4 → WARNING → KHÔNG mở vé
+    PERFORM pg_temp.bom('C1.R17','AHU-KC8','P1',1,55,9,8,false);   -- 10' cuối 9>=4 → CRITICAL → mở vé
+    v_dat := NOT EXISTS (SELECT 1 FROM public.su_co WHERE ma_phong='C1.R16' AND loai_cam_bien='DP' AND thoi_gian_dong IS NULL)
+         AND EXISTS (SELECT 1 FROM public.su_co WHERE ma_phong='C1.R17' AND loai_cam_bien='DP' AND thoi_gian_dong IS NULL AND muc_canh_bao_hien_tai='CRITICAL')
+         AND EXISTS (SELECT 1 FROM public.du_lieu_gio WHERE ma_phong='C1.R16' AND loai_cam_bien='DP' AND muc_canh_bao='WARNING');   -- dữ liệu thật vẫn ghi WARNING
+    RAISE EXCEPTION 'KQ|%|WARNING không mở vé · CRITICAL mở vé · du_lieu_gio vẫn ghi WARNING', coalesce(v_dat,false);
+  EXCEPTION WHEN OTHERS THEN
+    v_cd := SQLERRM;
+    IF v_cd LIKE 'KQ|%' THEN
+      PERFORM pg_temp.ghi('KICH_BAN','Bỏ mức Chú ý: would-be-WARNING không mở vé (chỉ CRITICAL)', (split_part(v_cd,'|',2) IN ('t','true')), split_part(v_cd,'|',3),
+        'rpc_xu_ly_du_lieu_phong_hang_gio (20260714c): cổng mở vé mới thêm điều kiện v_sev=CRITICAL');
+    ELSE
+      PERFORM pg_temp.ghi('KICH_BAN','Bỏ mức Chú ý: would-be-WARNING không mở vé (chỉ CRITICAL)', false, 'NỔ: '||v_cd, 'đọc lỗi');
+    END IF;
+  END;
 END $kb$;
 
 -- =============================================================================

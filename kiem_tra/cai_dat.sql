@@ -221,23 +221,9 @@ BEGIN
     'trong_pham_vi_canh_bao đọc canh_bao_muc_uu_tien ⇒ đổi cài đặt đổi phòng nào được alert');
 EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('CAI_DAT','E1 · Đổi ưu tiên cảnh báo → phạm vi phòng đổi', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
 
--- E2 — Đổi MỨC ƯU TIÊN sự cố → SLA quá hạn đổi (P1 gắt hơn P2)
-DO $$
-DECLARE v_p1 bigint; v_p2 bigint; v_qh_p1 boolean; v_qh_p2 boolean; v_dat boolean;
-BEGIN
-  v_p1 := pg_temp.tao_sc('C1','AHU-KTE2a','CHUA_XU_LY','P1');   -- mở 90' trước; SLA ack P1=30'
-  v_p2 := pg_temp.tao_sc('C1','AHU-KTE2b','CHUA_XU_LY','P2');   -- SLA ack P2=60'
-  -- cả hai 90' đều quá hạn, nhưng test: P1 luôn quá hạn (30'); dựng P2 mới hơn để khác biệt
-  PERFORM set_config('app.tg_bypass_append_only','on',true);
-  UPDATE public.su_co SET thoi_gian_mo=now()-interval '45 minutes', thao_tac_cuoi_luc=now()-interval '45 minutes' WHERE ma_su_co=v_p2;  -- 45': quá P1(30) chưa quá P2(60)
-  UPDATE public.su_co SET thoi_gian_mo=now()-interval '45 minutes', thao_tac_cuoi_luc=now()-interval '45 minutes' WHERE ma_su_co=v_p1;
-  SELECT qua_han_tiep_nhan INTO v_qh_p1 FROM public.xem_su_co_qua_han WHERE ma_su_co=v_p1;
-  SELECT qua_han_tiep_nhan INTO v_qh_p2 FROM public.xem_su_co_qua_han WHERE ma_su_co=v_p2;
-  v_dat := (v_qh_p1 IS TRUE) AND (v_qh_p2 IS NOT TRUE);   -- 45': P1 quá hạn, P2 chưa
-  PERFORM pg_temp.ghi('CAI_DAT','E2 · Mức ưu tiên → SLA quá hạn khác nhau (P1 gắt hơn P2)', v_dat,
-    format('cùng 45'' chưa tiếp nhận: P1 quá hạn=%s (SLA 30'') · P2 quá hạn=%s (SLA 60'')', v_qh_p1, v_qh_p2),
-    'xem_su_co_qua_han: ack_han theo muc_uu_tien (sla_ack_phut_p1=30, p2=60)');
-EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('CAI_DAT','E2 · Mức ưu tiên → SLA quá hạn khác nhau (P1 gắt hơn P2)', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+-- E2 — (ĐÃ BỎ 17/07/2026) SLA quá hạn theo mức ưu tiên: cơ chế SLA hẹn giờ đã gỡ
+-- (view xem_su_co_qua_han + 4 khoá sla_* không còn). Phạm vi ưu tiên vẫn kiểm ở E1;
+-- trách nhiệm vé kiểm ở bất biến B16 (xem_su_co_phu_trach).
 
 -- E3 — NGƯỜI NHẬN ↔ ĐỊNH TUYẾN SỰ CỐ: thêm người nhận → email_to của sự cố có họ
 DO $$

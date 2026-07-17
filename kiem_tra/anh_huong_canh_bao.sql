@@ -217,22 +217,9 @@ BEGIN
     'WF1 "Đọc cấu hình + phòng" chỉ lấy phong_sach.kich_hoat ⇒ ngừng thu; phong_duoc_xem KHÔNG kiểm kich_hoat nên sự cố đang mở không bị mồ côi');
 EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('CANHBAO','N8 · Vô hiệu hoá phòng → WF1 ngừng thu, sự cố cũ vẫn đóng được', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
 
--- N9 — Đổi MỨC ƯU TIÊN phòng (P1→P3) → SLA & phạm vi đổi theo
-DO $$
-DECLARE v_sc_p1 bigint; v_sc_p3 bigint; v_qh_p1 boolean; v_qh_p3 boolean; v_dat boolean;
-BEGIN
-  -- sự cố P1 và P3 cùng 45' chưa tiếp nhận: P1 quá hạn (SLA 30'), P3 dùng SLA P2(60') → chưa
-  v_sc_p1 := pg_temp.tao_sc('C1','AHU-KTN9a','CHUA_XU_LY','P1');
-  v_sc_p3 := pg_temp.tao_sc('C1','AHU-KTN9b','CHUA_XU_LY','P3');
-  UPDATE public.su_co SET thoi_gian_mo=now()-interval '45 minutes', thao_tac_cuoi_luc=now()-interval '45 minutes'
-   WHERE ma_su_co IN (v_sc_p1, v_sc_p3);
-  SELECT qua_han_tiep_nhan INTO v_qh_p1 FROM public.xem_su_co_qua_han WHERE ma_su_co=v_sc_p1;
-  SELECT qua_han_tiep_nhan INTO v_qh_p3 FROM public.xem_su_co_qua_han WHERE ma_su_co=v_sc_p3;
-  v_dat := (v_qh_p1 IS TRUE) AND (v_qh_p3 IS NOT TRUE);
-  PERFORM pg_temp.ghi('CANHBAO','N9 · Mức ưu tiên phòng → SLA cảnh báo quá hạn đổi', v_dat,
-    format('cùng 45'': P1 quá hạn tiếp nhận=%s (SLA 30'') · P3 quá hạn=%s (SLA rộng hơn)', v_qh_p1, v_qh_p3),
-    'xem_su_co_qua_han tính ack_han theo muc_uu_tien của sự cố (kế thừa từ phòng) ⇒ đổi ưu tiên phòng đổi SLA');
-EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('CANHBAO','N9 · Mức ưu tiên phòng → SLA cảnh báo quá hạn đổi', false, 'NỔ: '||SQLERRM, 'đọc lỗi'); END $$;
+-- N9 — (ĐÃ BỎ 17/07/2026) Mức ưu tiên → SLA quá hạn: cơ chế SLA hẹn giờ đã gỡ
+-- (view xem_su_co_qua_han + 4 khoá sla_* không còn). Ảnh hưởng của mức ưu tiên
+-- lên PHẠM VI cảnh báo vẫn kiểm ở cai_dat.sql E1 và bộ kiểm chính.
 
 -- ══════════ KẾT HỢP ══════════
 
@@ -240,6 +227,11 @@ EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.ghi('CANHBAO','N9 · Mức ưu tiên 
 DO $$
 DECLARE v_sc bigint; v_phong text; r_q2_truoc jsonb; r_q2_sau jsonb; v_dat boolean;
 BEGIN
+  -- 17/07: GHIM fixture — hoavu.qc trên live đã bị đổi vai trò (LOT) làm test vỡ oan.
+  -- File chạy trong transaction ROLLBACK nên UPDATE này không chạm dữ liệu thật.
+  PERFORM set_config('app.tg_bypass_append_only','on',true);
+  UPDATE public.nguoi_dung SET vai_tro='IPC', khu_vuc=ARRAY['Q2']::text[], kich_hoat=true
+   WHERE email='hoavu.qc@cpc1hn.vn';
   v_sc := pg_temp.tao_sc('C1','AHU-KTN10','CHUA_XU_LY');
   SELECT ma_phong INTO v_phong FROM public.su_co WHERE ma_su_co=v_sc;
   -- tài khoản Q2 (hoavu.qc): khi phòng còn C1 → KHÔNG thao tác được

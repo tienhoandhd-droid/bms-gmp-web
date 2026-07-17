@@ -16,7 +16,7 @@ import { supabase } from '../lib/bmsClient'
 import {
   layTongQuan, laySuCoDangMo, layCanhBaoHeThong, layLichSuCauHinh,
   layDanhSachPhong, layThongKeSensorPhong, layThongKeSensorNhieuPhong, layXepHangRuiRo, layQuyTrinhSop, layBaoCaoAi,
-  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp, layNutThaoTac, laySuCoQuaHan, layCumSuCo, laySuCoDongGanDay, dangKyRealtimeSuCo,
+  layNguongCanhBao, layCoBatBuocDangNhap, laySucKhoeHeThong, layPhanTichGmp, layNutThaoTac, laySuCoPhuTrach, layCumSuCo, laySuCoDongGanDay, dangKyRealtimeSuCo,
 } from '../lib/supabaseData'
 
 const ENRICH_TTL_MS = 4 * 60 * 1000   // thống kê 8h chỉ đổi mỗi giờ → cache 4'
@@ -57,7 +57,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
   const [aiRows, setAiRows] = useState(null)
   const [nguong, setNguong] = useState(null)
   const [sucKhoe, setSucKhoe] = useState(null)
-  const [suCoQuaHan, setSuCoQuaHan] = useState(null)
+  const [suCoPhuTrach, setSuCoPhuTrach] = useState(null)
   const [cumSuCo, setCumSuCo] = useState(null)
   const [suCoDongGanDay, setSuCoDongGanDay] = useState(null)
   const [gmpMkt, setGmpMkt] = useState(null)
@@ -199,7 +199,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
       const chayTier2 = () => {
         if (!con()) return
         layLichSuCauHinh(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setConfigHistory(x.rows) })
-        laySuCoQuaHan(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoQuaHan(x.rows) })
+        laySuCoPhuTrach(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoPhuTrach(x.rows) })
         layCumSuCo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setCumSuCo(x.rows) })
         laySuCoDongGanDay(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoDongGanDay(x.rows) })
         layXepHangRuiRo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setRiskRows(x.rows) })
@@ -314,7 +314,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
 
   return {
     isLive, kpis, incidents, systemAlerts, configHistory,
-    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, suCoQuaHan, cumSuCo, suCoDongGanDay, gmpMkt, gmpSpc, batBuocDangNhap, nutThaoTac, loiNut,
+    rooms, riskRows, sopRows, aiRows, nguong, sucKhoe, suCoPhuTrach, cumSuCo, suCoDongGanDay, gmpMkt, gmpSpc, batBuocDangNhap, nutThaoTac, loiNut,
     dangTai, loi, capNhatLuc, lamMoi,
   }
 }

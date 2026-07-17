@@ -62,8 +62,6 @@ export default function TVMode() {
   const incidents = Array.isArray(live.incidents) ? live.incidents : [];
   const critical = incidents.filter((i) => i.mucCanhBao === "CRITICAL");
   const dungHinh = incidents.filter((i) => i.mucCanhBao === "SUPPRESSED");
-  const quaHan = Array.isArray(live.suCoQuaHan) ? live.suCoQuaHan : [];
-  const chuaTiepNhan = quaHan.filter((q) => q.qua_han_tiep_nhan).length;
   const cum = Array.isArray(live.cumSuCo) ? live.cumSuCo : [];
   const kpis = live.kpis || { dat: 0, khongDat: 0, thieuDL: 0, tong: 0 };
 
@@ -109,7 +107,6 @@ export default function TVMode() {
         <So nhan="Không đạt" giaTri={kpis.khongDat} mau={kpis.khongDat > 0 ? "#f87171" : "#34d399"} />
         <So nhan="Thiếu dữ liệu" giaTri={kpis.thieuDL} mau={kpis.thieuDL > 0 ? "#fbbf24" : "#34d399"} />
         <So nhan="Sự cố CRITICAL" giaTri={critical.length} mau={critical.length > 0 ? "#f87171" : "#34d399"} />
-        <So nhan="Chưa tiếp nhận" giaTri={chuaTiepNhan} mau={chuaTiepNhan > 0 ? "#fbbf24" : "#34d399"} />
       </div>
     ));
   } else if (MAN[man] === "SU_CO") {
@@ -118,19 +115,15 @@ export default function TVMode() {
       ds.length === 0
         ? <p style={{ fontSize: "3vw", color: "#34d399", textAlign: "center", paddingTop: "12vh" }}>✓ Không có sự cố CRITICAL</p>
         : <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "1.7vw" }}>
-            <tbody>{ds.map((i) => {
-              const q = quaHan.find((x) => x.ma_su_co === i.dbId);
-              const nong = q && (q.qua_han_tiep_nhan || q.qua_han_xu_ly);
-              return (
+            <tbody>{ds.map((i) => (
                 <tr key={i.id} style={{ borderBottom: "1px solid #1e293b" }}>
                   <td style={{ padding: "0.8vw 0.5vw", color: "#e2e8f0", fontWeight: 700, whiteSpace: "nowrap" }}>{i.id}</td>
                   <td style={{ padding: "0.8vw 0.5vw", color: "#cbd5e1" }}>{i.room} · {i.sensor}</td>
                   <td style={{ padding: "0.8vw 0.5vw", color: "#94a3b8" }}>{i.status}</td>
-                  <td style={{ padding: "0.8vw 0.5vw", color: nong ? "#f87171" : "#94a3b8", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
-                    {i.duration} giờ{nong ? " · QUÁ HẠN" : ""}</td>
+                  <td style={{ padding: "0.8vw 0.5vw", color: "#94a3b8", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                    {i.duration} giờ</td>
                 </tr>
-              );
-            })}</tbody>
+            ))}</tbody>
           </table>
     ));
   } else {
