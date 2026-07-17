@@ -20,7 +20,7 @@ import {
   Wind, FileBarChart, LayoutDashboard, AlertOctagon, Building2, LineChart as LineIcon,
   ScrollText, Settings as Cog, Wifi, Printer, Plus, Trash2, Search, LogIn, LogOut,
   User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus, Save, GitBranch, Power,
-  Radio, RefreshCw
+  Radio, RefreshCw, ClipboardList
 } from "lucide-react";
 import logoCpc1hn from "./assets/logo-cpc1hn.png";
 
@@ -305,7 +305,7 @@ const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
   return (
     <Card className="p-4 sm:p-5" style={{ background: "linear-gradient(135deg,#FDF6F2,#FFFFFF 55%)" }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <SectionTitle icon={Eye} hint="server tính theo đồng hồ im lặng — chỉ Quản trị thấy thẻ này">Kiểm soát xử lý — vé ở đâu, ai đang chậm</SectionTitle>
+        <SectionTitle icon={Eye} hint="server tính theo đồng hồ im lặng — minh bạch cho mọi vai trò">Kiểm soát xử lý — vé ở đâu, ai đang chậm</SectionTitle>
         <span className="text-[11px] text-slate-400 tabular-nums">{rows.length} vé mở · <b className={cham.length ? "text-rose-600" : "text-teal-600"}>{cham.length} đang chậm</b> · {daBaoTruc} đã báo Trực</span>
       </div>
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -2806,7 +2806,7 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
   );
 }
 
-const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Chênh áp", icon: Gauge }, { k: "sensors", label: "Cảm biến", icon: Gauge }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
+const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "tasks", label: "Nhiệm vụ", icon: ClipboardList }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Chênh áp", icon: Gauge }, { k: "sensors", label: "Cảm biến", icon: Gauge }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CỤM ĐIỀU TRA & MỞ LẠI SỰ CỐ — modal/ngăn kéo (10/07/2026)
@@ -3248,7 +3248,7 @@ export default function App() {
   // (khai báo SAU isLive để tránh dùng biến trước khi khởi tạo — TDZ).
   const visibleTabs = useMemo(() => {
     const base = TABS.filter((t) => roleCanSeeTab(role, t.k));
-    if (isLive && user && !role) return base.filter((t) => ["home", "events", "recent"].includes(t.k));
+    if (isLive && user && !role) return base.filter((t) => ["home", "tasks", "events", "recent"].includes(t.k));
     return base;
   }, [role, isLive, user]);
 
@@ -3785,6 +3785,49 @@ export default function App() {
             </div>
           )}
 
+          {/* ═══ TAB NHIỆM VỤ (17/07 — yêu cầu user: "ai cũng thấy") ═══
+              Vé đang ở bộ phận nào, ai đang chậm (KiemSoatXuLy — mọi vai trò đều xem
+              được) + danh sách việc đang chờ đúng vai trò của mình, bấm xử lý ngay. */}
+          {tab === "tasks" && (
+            <div className="space-y-5">
+              <SectionTitle icon={ClipboardList} hint={user ? `vai trò: ${ROLE_VI[role] || "chưa phân quyền"}` : "đăng nhập để thao tác"}>Nhiệm vụ — vé đang ở đâu, ai đang chậm</SectionTitle>
+              {isLive && Array.isArray(live.suCoPhuTrach) && live.suCoPhuTrach.length === 0 && (
+                <Card className="p-6 text-center"><CheckCircle2 className="mx-auto w-7 h-7" style={{ color: COLOR.teal }} strokeWidth={1.8} /><p className="mt-2 text-[14px] font-semibold" style={{ color: COLOR.navy }}>Không có vé nào đang mở</p><p className="mt-1 text-[12px] text-slate-500">Tất cả sự cố đã được xử lý hoặc hệ đã tự đóng.</p></Card>
+              )}
+              <KiemSoatXuLy rows={isLive ? (live.suCoPhuTrach || []) : []} />
+              {isLive && user && role && (
+                <Card className="p-4 sm:p-5">
+                  <SectionTitle icon={User} hint="các vé đang chờ đúng vai trò của bạn bấm nút — bấm Xử lý để thao tác ngay">Việc của bạn — {ROLE_VI[role] || role}</SectionTitle>
+                  {viecCuaToi.length === 0 && cumChoToi.length === 0 ? (
+                    <p className="mt-3 text-[13px] text-slate-500">Không có vé nào đang chờ vai trò của bạn. 👍</p>
+                  ) : (
+                    <div className="mt-3 space-y-1.5">
+                      {viecCuaToi.map(({ q, inc }) => (
+                        <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                          <span className="min-w-0 text-[12.5px] text-slate-600 truncate">
+                            <b style={{ color: COLOR.navy }}>{inc.id}</b> · {inc.room} · {inc.sensor}
+                            <span className={`ml-2 ${q.dang_cham ? "text-rose-600 font-medium" : "text-slate-400"}`}>{q.dang_cham ? `im lặng ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}${q.da_bao_truc ? " · đã lên Trực" : ""}` : `mở ${q.gio_mo}h · trong nhịp`}</span>
+                          </span>
+                          <button onClick={() => openApproval(inc)} className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-[12px] font-semibold text-teal-700 ring-1 ring-teal-200 hover:bg-teal-50">Xử lý</button>
+                        </div>
+                      ))}
+                      {cumChoToi.map((c) => (
+                        <div key={c.ma_cum} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                          <span className="min-w-0 text-[12.5px] text-slate-600 truncate">
+                            <b style={{ color: COLOR.navy }}>{c.ma_hien_thi}</b> · {c.ahu || "?"} · {c.loai_cam_bien}
+                            <span className="ml-2 text-amber-600">chưa có kết luận điều tra</span>
+                          </span>
+                          <button onClick={() => ghiKetLuanCum(c)} className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-[12px] font-semibold text-amber-700 ring-1 ring-amber-200 hover:bg-amber-50">Ghi kết luận</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              )}
+              {!isLive && <Card className="p-6 text-center text-[13px] text-slate-500">Tab Nhiệm vụ chỉ hoạt động ở chế độ LIVE (đọc dữ liệu thật).</Card>}
+            </div>
+          )}
+
           {tab === "events" && (() => {
             const metaPhong = {}; (rooms || []).forEach((r) => { metaPhong[r.id] = { area: r.area, ahu: r.ahu }; });
             const incKhu = (i) => i.khu || (metaPhong[i.room] || {}).area || "";
@@ -3842,9 +3885,6 @@ export default function App() {
                 )}
                 <span className="text-[11px] text-slate-400 ml-auto tabular-nums">{incFiltered.length}/{incidentsXem.length} sự cố</span>
               </div>
-              {isLive && role === "ADMIN" && (
-                <KiemSoatXuLy rows={(live.suCoPhuTrach || []).filter((r) => evtKhu === "ALL" || r.khu_vuc === evtKhu)} />
-              )}
               <Card className="p-2 sm:p-4">{isLive && live.dangTai && incidentsXem.length === 0 ? (
                 /* ĐANG TẢI + chưa có gì: skeleton — không được hiện "Chưa có sự cố nào"
                    khi thật ra là đang chờ mạng (15/07: gây hiểu lầm hệ trống vé). */
