@@ -296,48 +296,61 @@ export function BannerCapNhat() {
 // Nguồn: view xem_su_co_phu_trach (server tính, web chỉ bày).
 const fmtPhut = (m) => (m == null ? "—" : m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}′` : `${m}′`);
 const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
-  const [moDs, setMoDs] = useState(true);
+  // Bấm ô bộ phận → xem danh sách vé của ĐÚNG bộ phận đó (17/07: user không muốn
+  // một danh sách trộn lẫn). Bấm lại ô đang chọn để đóng.
+  const [locVai, setLocVai] = useState(null);
   if (!Array.isArray(rows) || rows.length === 0) return null;
-  const boPhan = [["IPC", "IPC", "text-sky-700 bg-sky-50 ring-sky-200"],
-                  ["MEP", "Cơ điện", "text-amber-700 bg-amber-50 ring-amber-200"],
-                  ["LOT", "Trực HSL", "text-rose-700 bg-rose-50 ring-rose-200"]];
-  const cham = rows.filter((r) => r.dang_cham).sort((a, b) => (b.phut_im_lang || 0) - (a.phut_im_lang || 0));
+  const boPhan = [["IPC", "IPC", "text-sky-700 bg-sky-50 ring-sky-200", "ring-sky-400"],
+                  ["MEP", "Cơ điện", "text-amber-700 bg-amber-50 ring-amber-200", "ring-amber-400"],
+                  ["LOT", "Trực HSL", "text-rose-700 bg-rose-50 ring-rose-200", "ring-rose-400"]];
+  const chamTong = rows.filter((r) => r.dang_cham).length;
   const daBaoTruc = rows.filter((r) => r.da_bao_truc).length;
+  const dsChon = locVai
+    ? rows.filter((r) => r.vai_tro_phu_trach === locVai)
+        .sort((a, b) => Number(!!b.dang_cham) - Number(!!a.dang_cham) || (b.phut_im_lang || 0) - (a.phut_im_lang || 0))
+    : [];
+  const tenChon = locVai ? (boPhan.find(([v]) => v === locVai) || [])[1] : "";
   return (
     <Card className="p-4 sm:p-5" style={{ background: "linear-gradient(135deg,#FDF6F2,#FFFFFF 55%)" }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <SectionTitle icon={Eye} hint="server tính theo đồng hồ im lặng — minh bạch cho mọi vai trò">Kiểm soát xử lý — vé ở đâu, ai đang chậm</SectionTitle>
-        <span className="text-[11px] text-slate-400 tabular-nums">{rows.length} vé mở · <b className={cham.length ? "text-rose-600" : "text-teal-600"}>{cham.length} đang chậm</b> · {daBaoTruc} đã báo Trực</span>
+        <SectionTitle icon={Eye} hint="bấm vào ô bộ phận để xem danh sách vé của bộ phận đó">Kiểm soát xử lý — vé ở đâu, ai đang chậm</SectionTitle>
+        <span className="text-[11px] text-slate-400 tabular-nums">{rows.length} vé mở · <b className={chamTong ? "text-rose-600" : "text-teal-600"}>{chamTong} đang chậm</b> · {daBaoTruc} đã báo Trực</span>
       </div>
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-        {boPhan.map(([vai, ten, mau]) => {
+        {boPhan.map(([vai, ten, mau, vien]) => {
           const ds = rows.filter((r) => r.vai_tro_phu_trach === vai);
           const soCham = ds.filter((r) => r.dang_cham).length;
           const lauNhat = ds.reduce((mx, r) => Math.max(mx, r.phut_im_lang || 0), 0);
+          const chon = locVai === vai;
           return (
-            <div key={vai} className={`rounded-xl px-3.5 py-2.5 ring-1 ${mau}`}>
+            <button key={vai} type="button" aria-pressed={chon}
+              onClick={() => setLocVai(chon ? null : vai)}
+              className={`rounded-xl px-3.5 py-2.5 text-left transition ring-1 ${mau} ${chon ? `ring-2 ${vien} shadow-md` : "hover:ring-2 hover:shadow-sm"}`}>
               <div className="flex items-baseline justify-between">
                 <span className="text-[12px] font-bold">{ten}</span>
                 <span className="text-[18px] font-bold tabular-nums">{ds.length}<span className="text-[11px] font-medium opacity-60"> vé</span></span>
               </div>
               <p className="text-[11px] mt-0.5 opacity-80">{ds.length === 0 ? "không giữ vé nào" : soCham > 0 ? <><b>{soCham} đang chậm</b> · im lặng lâu nhất {fmtPhut(lauNhat)}</> : "tất cả trong nhịp"}</p>
-            </div>
+              <p className="text-[10px] mt-1 opacity-60">{chon ? "▲ đang xem — bấm để đóng" : "▼ bấm xem danh sách"}</p>
+            </button>
           );
         })}
       </div>
-      {cham.length > 0 && (
+      {locVai && (
         <div className="mt-3">
-          <button onClick={() => setMoDs(!moDs)} className="text-[11px] font-semibold text-slate-500 hover:text-slate-700">
-            Danh sách đang chậm ({cham.length}) {moDs ? "▲" : "▼"}
-          </button>
-          {moDs && (
-            <div className="mt-1.5 max-h-[38vh] overflow-y-auto overscroll-contain pr-1 space-y-1">
-              {cham.map((r) => (
-                <div key={r.ma_su_co} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg bg-white/70 ring-1 ring-rose-100 px-3 py-1.5 text-[11.5px]">
+          <p className="text-[11px] font-semibold text-slate-500">Vé {tenChon} đang giữ ({dsChon.length}) — chậm xếp trên</p>
+          {dsChon.length === 0 ? (
+            <p className="mt-1.5 text-[12px] text-slate-400">{tenChon} không giữ vé nào. 👍</p>
+          ) : (
+            <div className="mt-1.5 max-h-[42vh] overflow-y-auto overscroll-contain pr-1 space-y-1">
+              {dsChon.map((r) => (
+                <div key={r.ma_su_co} className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg px-3 py-1.5 text-[11.5px] ring-1 ${r.dang_cham ? "bg-white/80 ring-rose-200" : "bg-white/60 ring-slate-200"}`}>
                   <b style={{ color: COLOR.navy }}>SC-{String(r.ma_su_co).padStart(4, "0")}</b>
                   <span className="text-slate-500">{r.khu_vuc}</span>
                   <span className="text-slate-600">{TRANG_THAI_CODE_TO_LABEL[r.trang_thai_hien_tai] || r.trang_thai_hien_tai}</span>
-                  <span className="font-semibold text-rose-600">{ROLE_VI[r.vai_tro_phu_trach] || r.vai_tro_phu_trach} im lặng {fmtPhut(r.phut_im_lang)}{r.nguong_phut > 0 ? ` / ngưỡng ${fmtPhut(r.nguong_phut)}` : " — bế tắc, Trực + QA đã được báo"}</span>
+                  {r.dang_cham
+                    ? <span className="font-semibold text-rose-600">im lặng {fmtPhut(r.phut_im_lang)}{r.nguong_phut > 0 ? ` / ngưỡng ${fmtPhut(r.nguong_phut)}` : " — bế tắc, Trực + QA đã được báo"}</span>
+                    : <span className="text-teal-700">trong nhịp · {fmtPhut(r.phut_im_lang)}/{fmtPhut(r.nguong_phut)}</span>}
                   {r.da_bao_truc && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600">đã lên Trực</span>}
                   {r.vang_hien_truong && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">báo vắng ({r.vang_boi || "?"})</span>}
                   <span className="ml-auto text-slate-400">mở {r.gio_mo}h · cuối: {r.nguoi_thao_tac_cuoi ? `${r.nguoi_thao_tac_cuoi === "system" ? "hệ thống" : r.nguoi_thao_tac_cuoi}${r.hanh_dong_cuoi ? ` (${docTenVaiTro(r.hanh_dong_cuoi)})` : ""}` : "chưa ai thao tác"}</span>
