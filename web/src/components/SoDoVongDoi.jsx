@@ -1,11 +1,15 @@
 // ============================================================
 // SoDoVongDoi.jsx — SƠ ĐỒ VÒNG ĐỜI SỰ CỐ chi tiết (tab Nhiệm vụ, 17/07).
 // SVG TĨNH đồng bộ từ tài liệu VONG-DOI-SU-CO.html (làn bơi 5 bộ phận +
-// tầng chi tiết email). ĐỔI LUẬT → cập nhật tài liệu rồi đồng bộ lại
-// khối SVG này (nội dung tin cậy, tự soạn — không phải dữ liệu người dùng).
-// Lazy-load (React.lazy) để không phình bundle chính.
+// tầng chi tiết email). ĐỔI LUẬT → cập nhật tài liệu rồi đồng bộ lại khối
+// SVG này (nội dung tin cậy, tự soạn — không phải dữ liệu người dùng).
+// Hiển thị: co giãn 100% chiều ngang (viewBox giữ tỉ lệ); màn hình hẹp
+// (<1000px) chuyển sang kéo ngang để chữ không quá nhỏ; nút ⛶ mở toàn
+// màn hình (Esc/✕ để đóng). Lazy-load để không phình bundle chính.
 // ============================================================
-const SVG = `<svg viewBox="0 0 1560 1500" width="1560" style="min-width:1200px;max-width:none;font-family:Inter,'Segoe UI',system-ui,Arial,sans-serif" role="img" aria-label="Sơ đồ vòng đời sự cố theo bộ phận">
+import React, { useState, useEffect } from "react";
+
+const SVG = `<svg viewBox="0 0 1560 1500" style="width:100%;height:auto;display:block;font-family:Inter,'Segoe UI',system-ui,Arial,sans-serif" role="img" aria-label="Sơ đồ vòng đời sự cố theo bộ phận">
   <defs>
     <marker id="mIpc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#185fa5"/></marker>
     <marker id="mMep" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#854f0b"/></marker>
@@ -234,9 +238,38 @@ const SVG = `<svg viewBox="0 0 1560 1500" width="1560" style="min-width:1200px;m
 </svg>`;
 
 export default function SoDoVongDoi() {
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    if (!full) return;
+    const onKey = (e) => { if (e.key === "Escape") setFull(false); };
+    window.addEventListener("keydown", onKey);
+    const cu = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = cu; };
+  }, [full]);
+
   return (
-    <div style={{ overflowX: "auto" }}>
-      <div style={{ minWidth: 1200 }} dangerouslySetInnerHTML={{ __html: SVG }} />
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-[11px] text-slate-400">Sơ đồ tự co theo màn hình — bấm phóng to nếu muốn xem chữ lớn.</span>
+        <button onClick={() => setFull(true)}
+          className="shrink-0 rounded-xl bg-slate-100 px-3 py-1.5 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-200">
+          ⛶ Phóng to toàn màn hình
+        </button>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ minWidth: 1000 }} dangerouslySetInnerHTML={{ __html: SVG }} />
+      </div>
+      {full && (
+        <div className="fixed inset-0 z-[90] overflow-auto bg-white p-3 sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <b className="text-[14px] text-slate-800">Sơ đồ vòng đời sự cố — toàn màn hình</b>
+            <button onClick={() => setFull(false)}
+              className="rounded-xl bg-slate-900 px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:bg-slate-700">✕ Đóng (Esc)</button>
+          </div>
+          <div style={{ minWidth: 1280 }} dangerouslySetInnerHTML={{ __html: SVG }} />
+        </div>
+      )}
     </div>
   );
 }
