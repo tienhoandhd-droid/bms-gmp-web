@@ -2886,7 +2886,8 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
   }, [isLive]);
   const ds = (rows || []).filter((r) => (!khuChoPhep || khuChoPhep.includes(r.khu_vuc)) && (r.so_gio_dung ?? 99) >= 3);
   if (!isLive || ds.length === 0) return null;
-  const fmtGio = (h) => (h == null ? "—" : h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`);
+  // tu_dau_lich_su = chưa từng thấy cảm biến sống trong dữ liệu còn lưu ⇒ "≥", không phải "="
+  const fmtGio = (h, tuDau) => (h == null ? "—" : `${tuDau ? "≥ " : ""}${h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`}`);
   return (
     <Card className="p-5" style={{ background: "linear-gradient(135deg,#FFFBEB,#FFFFFF 65%)" }}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -2902,7 +2903,7 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
       <div className="mt-3 flex flex-wrap gap-2">
         {ds.map((r) => (
           <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ring-1 ${r.so_gio_dung >= 168 ? "text-rose-700 bg-rose-50 ring-rose-200" : "text-amber-700 bg-amber-50 ring-amber-200"}`}>
-            <b>{r.ma_phong}</b> · {r.loai_cam_bien} · đứng {fmtGio(r.so_gio_dung)} (kẹt {r.gia_tri_dung})
+            <b>{r.ma_phong}</b> · {r.loai_cam_bien} · đứng {fmtGio(r.so_gio_dung, r.tu_dau_lich_su)} (kẹt {r.gia_tri_dung})
           </span>
         ))}
       </div>
@@ -2965,8 +2966,10 @@ function CamBienPage({ isLive }) {
     setRows(kq.rows); setLuc(new Date());
   }, []);
   useEffect(() => { if (isLive) taiVe(); }, [isLive, taiVe]);
-  const fmtGio = (h) => (h == null ? "—" : h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`);
-  const fmtTu = (iso) => (iso ? new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
+  // 27/07: cờ tu_dau_lich_su = cảm biến chưa từng cho một giờ "còn sống" nào trong dữ liệu
+  // còn lưu ⇒ chỉ khẳng định được "đứng TỪ TRƯỚC mốc đầu dữ liệu", không khẳng định đúng bằng.
+  const fmtGio = (h, tuDau) => (h == null ? "—" : `${tuDau ? "≥ " : ""}${h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`}`);
+  const fmtTu = (iso, tuDau) => (iso ? `${tuDau ? "trước " : ""}${new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}` : "—");
   const doDam = (h) => (h >= 168 ? "text-rose-700 bg-rose-50 ring-rose-200" : h >= 24 ? "text-amber-700 bg-amber-50 ring-amber-200" : "text-slate-600 bg-slate-100 ring-slate-200");
   if (!isLive) return <Card className="p-6"><SectionTitle icon={Gauge}>Cảm biến đứng hình</SectionTitle><p className="mt-3 text-sm text-slate-500">Chế độ xem trước — chưa kết nối dữ liệu thật.</p></Card>;
   // 16/07 (user hỏi "sao ghi 1 giờ?"): cờ đứng-trong-giờ bật NGAY từ giờ đầu (60 điểm
@@ -2983,6 +2986,7 @@ function CamBienPage({ isLive }) {
             hoặc treo tín hiệu tại FMS. Từ 13/07, phòng có cảm biến đứng hình được <b>tách riêng như phòng thiếu dữ liệu</b>:
             không chấm mức, <b>không mở sự cố</b> và không tính vào báo cáo chung. Danh sách này là nơi theo dõi duy nhất;
             việc cần làm là Cơ điện kiểm tra / thay thế đầu đo — cảm biến sống lại sẽ tự trở lại chấm điểm bình thường.
+            <br /><span className="text-slate-400">Dấu <b>≥</b> nghĩa là cảm biến chưa từng cho một giờ đo &ldquo;còn sống&rdquo; nào trong toàn bộ dữ liệu còn lưu — thời gian đứng thật có thể dài hơn con số hiển thị.</span>
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -3023,8 +3027,8 @@ function CamBienPage({ isLive }) {
                       {r.gia_tri_dung != null ? `${r.gia_tri_dung} ${meta.unit || ""}` : "—"}
                       {(r.gioi_han_duoi != null || r.gioi_han_tren != null) && <span className="text-[11px] text-slate-400"> (giới hạn {r.gioi_han_duoi ?? "—"}–{r.gioi_han_tren ?? "—"})</span>}
                     </td>
-                    <td className="py-2.5 pr-4 text-slate-600 tabular-nums">{fmtTu(r.dung_tu)}</td>
-                    <td className="py-2.5"><span className={`inline-block rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ${doDam(r.so_gio_dung)}`}>{fmtGio(r.so_gio_dung)}</span></td>
+                    <td className="py-2.5 pr-4 text-slate-600 tabular-nums">{fmtTu(r.dung_tu, r.tu_dau_lich_su)}</td>
+                    <td className="py-2.5"><span className={`inline-block rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ${doDam(r.so_gio_dung)}`}>{fmtGio(r.so_gio_dung, r.tu_dau_lich_su)}</span></td>
                   </tr>
                 );
               })}
