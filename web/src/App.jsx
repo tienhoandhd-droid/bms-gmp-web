@@ -68,8 +68,15 @@ const levelGlyph = (lvl) => (lvl == null || lvl < 0 ? "–" : (LEVEL_GLYPH[lvl] 
 // KHÔNG hardcode ở đây (tránh lộ email nội bộ ra source công khai).
 // Tên vai trò ĐẦY ĐỦ theo chức năng (yêu cầu 11/07: không dùng viết tắt trên giao diện).
 const ROLE_VI = { IPC: "Kiểm soát hiện trường", MEP: "Cơ điện", LOT: "Trực hồ sơ lô", QA: "Đảm bảo chất lượng", ADMIN: "Quản trị hệ thống", IT: "Quản trị hệ thống" };
+// 31/07: khu Q2 do QC kiểm soát, không phải IPC. Chỉ đổi CHỮ HIỂN THỊ theo khu — mã vai trò,
+// phân quyền và luật nút (xem_nut_thao_tac) vẫn là 'IPC'. Cùng bảng ánh xạ với node
+// "Đổi tên vai trò theo khu" của WF8, để email và web không gọi hai tên khác nhau.
+const TEN_VAI_KHU = { Q2: { IPC: "QC" } };
+// Nhận "Q2" hoặc mã phòng "Q2.R7" — khu là phần trước dấu chấm.
+const khuCua = (s) => String(s || "").split(".")[0];
+const tenVaiTro = (vai, khuHoacPhong) => (TEN_VAI_KHU[khuCua(khuHoacPhong)] || {})[vai] || ROLE_VI[vai] || vai;
 // Chuỗi server trả về (chẩn đoán SLA, nhật ký…) vẫn chứa mã vai trò → dịch khi hiển thị.
-const docTenVaiTro = (s) => (s == null ? s : String(s).replace(/\b(IPC|MEP|LOT|QA|ADMIN)\b/g, (m) => ROLE_VI[m] || m));
+const docTenVaiTro = (s, khuHoacPhong) => (s == null ? s : String(s).replace(/\b(IPC|MEP|LOT|QA|ADMIN)\b/g, (m) => tenVaiTro(m, khuHoacPhong)));
 const FULL_ACCESS = ["QA", "ADMIN", "IT"];                 // QA và IT: xem TẤT CẢ các tab
 const canManageRooms = (role) => FULL_ACCESS.includes(role);
 // PHÂN QUYỀN TAB (yêu cầu #5):
@@ -3164,7 +3171,7 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo })
           </div>
         </div>
         <div className="px-5 py-4 space-y-4">
-          <span className={`inline-block rounded-lg px-2.5 py-1 text-[11px] leading-tight ${hh ? "text-slate-600 bg-slate-100" : honHop ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"}`}>{docTenVaiTro(cum.chan_doan)}</span>
+          <span className={`inline-block rounded-lg px-2.5 py-1 text-[11px] leading-tight ${hh ? "text-slate-600 bg-slate-100" : honHop ? "text-amber-700 bg-amber-50" : "text-rose-700 bg-rose-50"}`}>{docTenVaiTro(cum.chan_doan, cum.khu_vuc)}</span>
           <div className="grid grid-cols-2 gap-2 text-[12px]">
             <div className="rounded-xl bg-slate-50 px-3 py-2"><span className="text-slate-400 block text-[10px] uppercase tracking-wider">Khu · mở</span><span className="font-semibold text-slate-700 tabular-nums">{cum.khu_vuc} · {Math.round(cum.gio_mo)} giờ</span></div>
             <div className="rounded-xl bg-slate-50 px-3 py-2"><span className="text-slate-400 block text-[10px] uppercase tracking-wider">Sự cố mở</span><span className="font-semibold text-slate-700 tabular-nums">{cum.su_co_dang_mo}{cum.so_chua_tiep_nhan > 0 && <span className="text-rose-600 font-medium"> · {cum.so_chua_tiep_nhan} chưa tiếp nhận</span>}</span></div>
@@ -4039,13 +4046,13 @@ export default function App() {
                         {inc.giaTriGanNhat != null && <p className="text-[11px] text-slate-400 mt-0.5">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") && <span className="text-emerald-600"> · đã về ngưỡng</span>}</p>}
                         <p className="mt-1.5 text-[12px] flex items-center gap-1.5 flex-wrap">
                           <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} /><span className="text-slate-700 font-medium">{inc.status}</span>
-                          {q && <span className={`text-[11px] ${q.dang_cham ? "text-rose-600 font-medium" : "text-slate-400"}`}>· {ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach}{q.dang_cham ? ` im lặng ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}${q.da_bao_truc ? " · đã báo Trực" : ""}` : " phụ trách"}</span>}
+                          {q && <span className={`text-[11px] ${q.dang_cham ? "text-rose-600 font-medium" : "text-slate-400"}`}>· {tenVaiTro(q.vai_tro_phu_trach, inc.room)}{q.dang_cham ? ` im lặng ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}${q.da_bao_truc ? " · đã báo Trực" : ""}` : " phụ trách"}</span>}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {terminal ? <span className="text-teal-600 text-[12px] font-medium py-1">Đã khắc phục</span>
                             : !user ? <button onClick={() => setLoginOpen(true)} className="text-[12px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white">Đăng nhập để thao tác</button>
                             : myActs.length ? myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[12px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-black/5 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)
-                            : <span className="text-[11px] text-slate-400 py-1">Chờ {choAi.map((r) => ROLE_VI[r] || r).join(" / ")}</span>}
+                            : <span className="text-[11px] text-slate-400 py-1">Chờ {choAi.map((r) => tenVaiTro(r, inc.room)).join(" / ")}</span>}
                           {user && (role === "ADMIN" || role === "LOT" || role === "QA") && <button onClick={() => toggleSilence(inc.id)} className={`text-[12px] font-medium rounded-xl px-3 py-1.5 ring-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200"}`}>{inc.silenced ? "Bật lại" : "Tạm hoãn"}</button>}
                         </div>
                       </div>
@@ -4083,7 +4090,7 @@ export default function App() {
                     <td className="py-3 px-3">{(() => { const q = phuTrachTheoId[inc.dbId]; if (!q) return <span className="text-[11px] text-slate-300">—</span>;
                       const cham = !!q.dang_cham;
                       return (<div className="leading-tight">
-                        <span className={`text-[11px] font-semibold ${cham ? "text-rose-600" : "text-slate-600"}`}>{ROLE_VI[q.vai_tro_phu_trach] || q.vai_tro_phu_trach || "—"}</span>
+                        <span className={`text-[11px] font-semibold ${cham ? "text-rose-600" : "text-slate-600"}`}>{tenVaiTro(q.vai_tro_phu_trach, inc.room) || "—"}</span>
                         <p className={`text-[10px] mt-0.5 ${cham ? "text-rose-500 font-medium" : "text-slate-400"}`}>
                           {q.nguong_phut === 0 ? "bế tắc — Trực + QA được báo ngay"
                             : cham ? `im lặng ${fmtPhut(q.phut_im_lang)} / ngưỡng ${fmtPhut(q.nguong_phut)}`
@@ -4092,7 +4099,7 @@ export default function App() {
                         {cham && q.da_bao_truc && <p className="text-[10px] text-amber-600 mt-0.5">đã báo Trực</p>}
                       </div>); })()}</td>
                     <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT" || role === "QA") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-slate-500 bg-slate-100 ring-slate-200 hover:bg-slate-200" : "text-rose-600 bg-rose-50 ring-rose-200 hover:bg-rose-100"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Tạm hoãn</>}</button> : <span className="text-[11px] text-slate-300">{inc.silenced ? "đang tạm hoãn" : "—"}</span>}{inc.silenced && inc.tamDungDen && <div className="text-[10px] text-slate-400 mt-1" title={inc.tamDungLyDo || ""}>tới {new Date(inc.tamDungDen).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})} · {inc.tamDungBoi || "?"}</div>}</td>
-                    <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {choAi.map((r) => ROLE_VI[r] || r).join("/")}</span>}</td>
+                    <td className="py-3 px-3">{terminal ? <span className="text-teal-600 text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[11px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-slate-200 text-slate-500 bg-white hover:bg-slate-50">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[11px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[11px] text-slate-400">Chờ {choAi.map((r) => tenVaiTro(r, inc.room)).join("/")}</span>}</td>
                   </tr>
                   </React.Fragment>
                 ); })}</tbody></table></div></>)}</Card>
@@ -4120,7 +4127,7 @@ export default function App() {
                             <span className="text-[12px] text-slate-600">{c.ahu || "—"} · {c.loai_cam_bien} <span className="text-slate-400">· Khu {c.khu_vuc}</span></span>
                           </div>
                           <p className="mt-1 text-[12px] tabular-nums"><b className="text-slate-700">{c.su_co_dang_mo}</b> sự cố mở{c.so_chua_tiep_nhan > 0 && <span className="text-rose-600"> · {c.so_chua_tiep_nhan} chưa tiếp nhận</span>} · mở {Math.round(c.gio_mo)}h</p>
-                          <p className="mt-1.5"><span className={`inline-block rounded-lg px-2 py-1 text-[10.5px] leading-tight ${mauChanDoan}`}>{docTenVaiTro(c.chan_doan)}</span></p>
+                          <p className="mt-1.5"><span className={`inline-block rounded-lg px-2 py-1 text-[10.5px] leading-tight ${mauChanDoan}`}>{docTenVaiTro(c.chan_doan, c.khu_vuc)}</span></p>
                           <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
                             {c.da_co_ket_luan_qa ? <span className="text-teal-700">✓ Kết luận: {c.qa_boi}</span> : <span className="text-slate-400">chưa có kết luận</span>}
                             {(role === "QA" || role === "ADMIN") && <button onClick={(e) => { e.stopPropagation(); ghiKetLuanCum(c); }} className="rounded-lg bg-white px-2.5 py-1 font-medium text-slate-600 ring-1 ring-slate-200">{c.da_co_ket_luan_qa ? "Sửa" : "Ghi kết luận"}</button>}
@@ -4145,7 +4152,7 @@ export default function App() {
                               <span className="font-semibold text-slate-700">{c.su_co_dang_mo}</span>
                               {c.so_chua_tiep_nhan > 0 && <span className="ml-1.5 text-[10px] text-rose-600">{c.so_chua_tiep_nhan} chưa tiếp nhận</span>}
                             </td>
-                            <td className="py-2.5 px-3"><span className={`inline-block rounded-lg px-2 py-1 text-[10.5px] leading-tight ${mauChanDoan}`}>{docTenVaiTro(c.chan_doan)}</span></td>
+                            <td className="py-2.5 px-3"><span className={`inline-block rounded-lg px-2 py-1 text-[10.5px] leading-tight ${mauChanDoan}`}>{docTenVaiTro(c.chan_doan, c.khu_vuc)}</span></td>
                             <td className="py-2.5 px-3 text-slate-500 max-w-[190px]"><span className="line-clamp-2" title={c.cac_phong}>{c.cac_phong || "—"}</span></td>
                             <td className="py-2.5 px-3 tabular-nums text-slate-500">{Math.round(c.gio_mo)} h</td>
                             <td className="py-2.5 px-3">
