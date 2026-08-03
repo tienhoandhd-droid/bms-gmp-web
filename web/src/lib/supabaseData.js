@@ -350,6 +350,16 @@ export async function layDanhGiaHieuQuaCanhBao(soNgay = 21, signal) {
   return { error: null, bc: data || null }
 }
 
+// Bổ theo TUẦN, chia theo KHU, và CHỈ tính lệch phía DƯỚI SÀN (03/08 — chủ hệ
+// thống chốt). Tách khỏi RPC trên vì thước đo khác: bản trên lấy %OOS gộp hai
+// hướng từ rollup ngày, bản này đọc du_lieu_gio để tách được hướng — đúng cái mà
+// cảnh báo đang canh (canh_bao_huong DP = DUOI).
+export async function layDanhGiaCanhBaoTuan(soTuan = 3, signal) {
+  const { data, error } = await goiRPC('rpc_danh_gia_canh_bao_tuan', { p_so_tuan: soTuan }, { signal })
+  if (error) return { error, bc: null }
+  return { error: null, bc: data || null }
+}
+
 // Hồ sơ cụm đầy đủ (cụm + CAPA + mọi sự cố thành viên + audit) — cho bản in thanh tra.
 export async function kiemChuoiHashAudit(signal) {
   return goiRPC('rpc_kiem_chuoi_hash_audit', {}, { signal })

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { PHIEN_BAN_GIAO_THUC, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, layCamBienDungHinh, layChenhApTheoAhu, dangKyRealtimeChenhAp, layDanhGiaHieuQuaCanhBao, layKhungGioCanhBao, luuKhungGioCanhBao, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { PHIEN_BAN_GIAO_THUC, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, layCamBienDungHinh, layChenhApTheoAhu, dangKyRealtimeChenhAp, layDanhGiaHieuQuaCanhBao, layDanhGiaCanhBaoTuan, layKhungGioCanhBao, luuKhungGioCanhBao, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau, thuKhoiPhucPhien } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
@@ -2963,8 +2963,9 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
    loại vẫn hiện, kèm LÝ DO bị loại — vì chỗ nguy hiểm nhất không phải phòng hỏng
    mà có cảnh báo, mà là phòng hỏng nặng KHÔNG AI ĐƯỢC BÁO. */
 function DanhGiaHieuQuaCanhBao({ isLive }) {
-  const [soNgay, setSoNgay] = React.useState(21);
-  const [bc, setBc] = React.useState(null);
+  const [soTuan, setSoTuan] = React.useState(3);
+  const [bc, setBc] = React.useState(null);      // luật + bộ phận + phòng ngoài phạm vi
+  const [tuanBc, setTuanBc] = React.useState(null); // bổ theo tuần, chia theo khu
   const [dangTai, setDangTai] = React.useState(false);
   const [loi, setLoi] = React.useState(null);
   const [xemHet, setXemHet] = React.useState(false);
@@ -2972,86 +2973,72 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
     if (!isLive) return;
     let huy = false;
     setDangTai(true); setLoi(null);
-    layDanhGiaHieuQuaCanhBao(soNgay).then((kq) => {
-      if (huy) return;
-      setDangTai(false);
-      if (kq.error) { setLoi(moTaLoi(kq.error)); setBc(null); } else setBc(kq.bc);
-    });
+    Promise.all([layDanhGiaHieuQuaCanhBao(soTuan * 7), layDanhGiaCanhBaoTuan(soTuan)])
+      .then(([a, b]) => {
+        if (huy) return;
+        setDangTai(false);
+        if (a.error || b.error) { setLoi(moTaLoi(a.error || b.error)); setBc(null); setTuanBc(null); }
+        else { setBc(a.bc); setTuanBc(b.bc); }
+      });
     return () => { huy = true; };
-  }, [isLive, soNgay]);
+  }, [isLive, soTuan]);
 
   if (!isLive) return null;
-  const mauDat = (p) => p == null ? "text-slate-400"
-    : p < 70 ? "text-rose-700 font-bold" : p < 80 ? "text-rose-600 font-semibold"
-    : p < 88 ? "text-amber-600 font-semibold" : p < 95 ? "text-teal-700" : "text-emerald-700 font-semibold";
+  // Thước đo nay là % KHÔNG ĐẠT — càng cao càng xấu (ngược với "% đạt" bản đầu).
+  const mauKhongDat = (p) => p == null ? "text-slate-400"
+    : p >= 50 ? "text-rose-700 font-bold" : p >= 25 ? "text-rose-600 font-semibold"
+    : p >= 10 ? "text-amber-600 font-semibold" : p > 0 ? "text-teal-700" : "text-emerald-700 font-semibold";
   const ROLE = { IPC: "IPC / QC", MEP: "Cơ điện", LOT: "Trực HSL", QA: "QA" };
-  const hangPhong = (r) => (
-    <tr key={r.ma_phong} className={r.pct_dat != null && r.pct_dat < 90 ? "bg-rose-50/40" : ""}>
-      <td className="border border-slate-200 px-2 py-1.5"><b style={{ color: COLOR.navy }}>{r.ma_phong}</b></td>
-      <td className="border border-slate-200 px-2 py-1.5 text-slate-600">{r.khu_vuc} / {r.ahu || "—"}</td>
-      <td className="border border-slate-200 px-2 py-1.5 text-center text-slate-600">{r.muc_uu_tien}</td>
-      <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-600">{r.gioi_han_duoi}–{r.gioi_han_tren} {r.don_vi}</td>
-      <td className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums ${mauDat(r.pct_dat)}`}>{r.pct_dat == null ? "—" : `${r.pct_dat}%`}</td>
-      <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-600">{r.so_ve}{r.ve_dang_mo > 0 && <span className="text-rose-600"> ({r.ve_dang_mo} mở)</span>}</td>
-      <td className="border border-slate-200 px-2 py-1.5">
-        {r.trong_pham_vi
-          ? <span className="text-emerald-700 font-medium">✓ có</span>
-          : <span className="text-slate-500">✕ không — {(r.ly_do_loai || []).join("; ")}</span>}
-      </td>
-    </tr>
-  );
-
   const chip = (v, label) => (
-    <button key={v} onClick={() => setSoNgay(v)}
-      className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 transition ${soNgay === v ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`}
-      style={soNgay === v ? { backgroundColor: COLOR.teal } : {}}>{label}</button>
+    <button key={v} onClick={() => setSoTuan(v)}
+      className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 transition ${soTuan === v ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`}
+      style={soTuan === v ? { backgroundColor: COLOR.teal } : {}}>{label}</button>
   );
 
   const luat = bc?.luat, tk = bc?.tong_ket;
-  const phong = Array.isArray(bc?.phong) ? bc.phong : [];
-  // 03/08 (chủ hệ thống chốt): báo cáo CHẤM đúng các phòng đã được đưa vào danh
-  // sách sự cố. Phòng ngoài phạm vi KHÔNG biến mất — xuống mục phụ thu gọn, vì
-  // "có phòng nào hỏng nặng mà không ai được báo không" vẫn là câu phải trả lời.
-  const trongPv = phong.filter((r) => r.trong_pham_vi);
-  const ngoaiPv = phong.filter((r) => !r.trong_pham_vi);
-  const coSo = trongPv.filter((r) => r.pct_dat != null);
-  const datChuan = coSo.filter((r) => r.pct_dat >= 90).length;
-  const khongDat = coSo.filter((r) => r.pct_dat < 90);
-  // Phòng vừa hỏng nặng vừa KHÔNG được cảnh báo — cảnh báo phụ, không phải trọng tâm.
+  const tuan = Array.isArray(tuanBc?.tuan) ? tuanBc.tuan : [];
+  const khu = Array.isArray(tuanBc?.khu) ? tuanBc.khu : [];
+  const ngoaiPv = (Array.isArray(bc?.phong) ? bc.phong : []).filter((r) => !r.trong_pham_vi);
   const muP1P2 = ngoaiPv.filter((r) => r.pct_dat != null && r.pct_dat < 90 && (r.muc_uu_tien === "P1" || r.muc_uu_tien === "P2"));
+  const oTuan = (r, t) => (r.tuan || []).find((w) => w.tuan === t);
 
   return (
     <Card className="p-4 sm:p-5">
-      <SectionTitle icon={ShieldAlert} hint="cảnh báo đang phủ tới đâu · bộ phận nào phản hồi · phòng nào đạt/không đạt">
+      <SectionTitle icon={ShieldAlert} hint="chỉ tính lệch phía DƯỚI SÀN — đúng hướng mà cảnh báo đang canh">
         Đánh giá hiệu quả cảnh báo
       </SectionTitle>
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Kỳ đánh giá</span>
-        {chip(14, "2 tuần")}{chip(21, "3 tuần")}{chip(42, "6 tuần")}
+        {chip(2, "2 tuần")}{chip(3, "3 tuần")}{chip(6, "6 tuần")}
         {dangTai && <span className="text-[11px] text-teal-600">đang tính…</span>}
       </div>
       {loi && <p className="mt-3 text-[12.5px] text-rose-600">Không đọc được báo cáo: {loi}</p>}
 
-      {bc && (<>
-        {/* ── 1. Luật cảnh báo đang áp ── */}
-        <div className="mt-4 rounded-xl bg-slate-50 p-3.5 ring-1 ring-slate-200">
+      {bc && tuanBc && (<>
+        <div className="mt-3 rounded-lg bg-teal-50 px-3 py-2 text-[12px] text-teal-900 ring-1 ring-teal-200">
+          <b>Thước đo:</b> % số giờ chênh áp <b>TỤT DƯỚI SÀN</b>. Đây đúng là hướng mà cảnh báo đang canh
+          (<code>canh_bao_huong</code> DP = <b>DUOI</b>), nên cột % và cột số vé nói cùng một chuyện.
+          Phần <b>vượt trần</b> để riêng ở cột cuối — không sinh vé nhưng vẫn là sai lệch.
+        </div>
+
+        {/* ── Luật cảnh báo ── */}
+        <div className="mt-3 rounded-xl bg-slate-50 p-3.5 ring-1 ring-slate-200">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Luật cảnh báo đang áp</p>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-[12.5px] text-slate-700">
             <span>Khu: <b>{luat.khu_vuc || "—"}</b></span>
             <span>Mức ưu tiên: <b>{luat.muc_uu_tien || "—"}</b></span>
             <span>Loại cảm biến: <b>{luat.loai_cam_bien || "—"}</b></span>
-            <span>Hướng vi phạm (DP): <b>{luat.huong_dp === "DUOI" ? "chỉ khi DƯỚI sàn" : luat.huong_dp}</b></span>
+            <span>Hướng vi phạm: <b>{luat.huong_dp === "DUOI" ? "chỉ khi DƯỚI sàn" : luat.huong_dp}</b></span>
           </div>
-          <p className="mt-2.5 text-[13px]">
-            <b className={luat.so_phong_trong_pv / luat.so_phong_dp < 0.5 ? "text-rose-600" : "text-slate-800"}>
-              {luat.so_phong_trong_pv}/{luat.so_phong_dp}
-            </b>{" "}
-            <span className="text-slate-600">phòng có cảm biến chênh áp nằm trong phạm vi cảnh báo
-              {" "}({Math.round((1 - luat.so_phong_trong_pv / luat.so_phong_dp) * 100)}% số phòng không bao giờ sinh vé).</span>
+          <p className="mt-2.5 text-[13px] text-slate-600">
+            <b className="text-slate-800">{tuanBc.tong_ket.so_phong}</b> phòng trong danh sách sự cố, thuộc{" "}
+            <b className="text-slate-800">{tuanBc.tong_ket.so_khu}</b> khu · trung bình{" "}
+            <b className={mauKhongDat(tuanBc.tong_ket.pct_duoi_san_tb)}>{tuanBc.tong_ket.pct_duoi_san_tb}%</b> thời gian dưới sàn ·{" "}
+            <b className="text-slate-800">{tuanBc.tong_ket.so_ve}</b> vé trong kỳ.
           </p>
         </div>
 
-        {/* ── 2. Tỉ lệ phản hồi từng bộ phận ── */}
+        {/* ── Tỉ lệ phản hồi ── */}
         <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tỉ lệ phản hồi của các bộ phận</p>
         <div className="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
           {(bc.bo_phan || []).map((b) => {
@@ -3061,55 +3048,82 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
               <div key={b.vai_tro} className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
                 <p className="text-[11.5px] font-semibold text-slate-500">{ROLE[b.vai_tro] || b.vai_tro}</p>
                 <p className={`text-[22px] font-bold tabular-nums leading-tight ${mau}`}>{t == null ? "—" : `${t}%`}</p>
-                <p className="text-[10.5px] text-slate-500 leading-snug">
-                  động vào <b>{b.ve_da_thao_tac}</b>/{b.ve_can_xu_ly} vé · {b.tong_thao_tac} thao tác
-                </p>
-                <p className="text-[10.5px] text-slate-400">
-                  {b.gio_phan_hoi_tb == null ? "chưa có phản hồi nào" : `phản hồi sau TB ${b.gio_phan_hoi_tb} giờ`}
-                </p>
+                <p className="text-[10.5px] text-slate-500 leading-snug">động vào <b>{b.ve_da_thao_tac}</b>/{b.ve_can_xu_ly} vé · {b.tong_thao_tac} thao tác</p>
+                <p className="text-[10.5px] text-slate-400">{b.gio_phan_hoi_tb == null ? "chưa có phản hồi nào" : `phản hồi sau TB ${b.gio_phan_hoi_tb} giờ`}</p>
               </div>
             );
           })}
         </div>
 
-        {/* ── 3. Kết luận tuân thủ ── */}
-        <div className={`mt-4 rounded-xl p-3.5 ring-1 ${muP1P2.length > 0 ? "bg-rose-50 ring-rose-300" : "bg-amber-50 ring-amber-300"}`}>
-          <p className="text-[12.5px] font-bold text-slate-800">Kết luận kỳ {soNgay} ngày — {trongPv.length} phòng trong danh sách sự cố</p>
+        {/* ── Kết luận ── */}
+        <div className="mt-4 rounded-xl bg-amber-50 p-3.5 ring-1 ring-amber-300">
+          <p className="text-[12.5px] font-bold text-slate-800">Kết luận kỳ {soTuan} tuần ({tuan[0]?.tu} → {tuan[tuan.length - 1]?.den})</p>
           <ul className="mt-1.5 space-y-1 text-[12.5px] text-slate-700 list-disc pl-4">
-            <li>
-              <b className={datChuan === coSo.length ? "text-emerald-700" : "text-rose-600"}>{datChuan}/{coSo.length}</b> phòng đạt từ 90% trở lên.
-              {khongDat.length > 0 && <> Không đạt: {khongDat.slice(0, 5).map((r) => `${r.ma_phong} ${r.pct_dat}%`).join(" · ")}{khongDat.length > 5 ? " …" : ""}</>}
-            </li>
             <li><b>{tk.ve_mo_trong_ky}</b> vé mở, trong đó <b className={tk.ve_he_thong_dong / Math.max(1, tk.ve_mo_trong_ky) > 0.5 ? "text-rose-600" : ""}>{tk.ve_he_thong_dong}</b> vé <b>hệ thống tự đóng</b> — chênh áp tự về dải trước khi có người xử lý.</li>
             <li>Đã gửi <b>{tk.email_digest}</b> email cảnh báo trong kỳ.</li>
             {muP1P2.length > 0 && (
-              <li className="text-rose-700">
-                Ngoài danh sách: <b>{muP1P2.length}</b> phòng <b>P1/P2</b> đạt dưới 90% mà không được cảnh báo — {muP1P2.slice(0, 4).map((r) => `${r.ma_phong} (${r.muc_uu_tien}, ${r.pct_dat}%)`).join(" · ")}{muP1P2.length > 4 ? " …" : ""}. Cân nhắc có nên đưa vào danh sách không.
-              </li>
+              <li className="text-rose-700">Ngoài danh sách: <b>{muP1P2.length}</b> phòng <b>P1/P2</b> đạt dưới 90% mà không được cảnh báo. Cân nhắc có nên đưa vào danh sách không.</li>
             )}
           </ul>
         </div>
 
-        {/* ── 4. Bảng từng phòng ── */}
-        <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-          Từng phòng trong danh sách sự cố ({trongPv.length} phòng, xếp theo % đạt tăng dần)
+        {/* ── Bảng theo KHU → PHÒNG → TUẦN ── */}
+        {khu.map((k) => (
+          <div key={k.khu_vuc} className="mt-4">
+            <p className="text-[12.5px] font-bold" style={{ color: COLOR.navy }}>
+              Khu {k.khu_vuc}
+              <span className="ml-2 font-normal text-slate-500">{k.so_phong} phòng · trung bình <b className={mauKhongDat(k.pct_duoi_san_tb)}>{k.pct_duoi_san_tb}%</b> dưới sàn</span>
+            </p>
+            <div className="mt-1.5 overflow-x-auto">
+              <table className="w-full border-collapse text-[12px]">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-500">
+                    <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold">Phòng</th>
+                    <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Ưu tiên</th>
+                    <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Yêu cầu</th>
+                    {tuan.map((w) => (
+                      <th key={w.tuan} className="border border-slate-200 px-2 py-1.5 text-center font-semibold">
+                        {w.nhan}<br /><span className="font-normal text-[10px] text-slate-400">{w.tu?.slice(5)}→{w.den?.slice(5)}</span>
+                      </th>
+                    ))}
+                    <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold bg-slate-100">Cả kỳ</th>
+                    <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Vé</th>
+                    <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold text-slate-400">Vượt trần</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(k.phong || []).map((r) => {
+                    const veTong = (r.tuan || []).reduce((a, w) => a + (w.so_ve || 0), 0);
+                    return (
+                      <tr key={r.ma_phong} className={r.pct_duoi_san >= 25 ? "bg-rose-50/40" : ""}>
+                        <td className="border border-slate-200 px-2 py-1.5"><b style={{ color: COLOR.navy }}>{r.ma_phong}</b><span className="ml-1 text-slate-400">{r.ahu}</span></td>
+                        <td className="border border-slate-200 px-2 py-1.5 text-center text-slate-600">{r.muc_uu_tien}</td>
+                        <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-600">{r.gioi_han_duoi}–{r.gioi_han_tren} {r.don_vi}</td>
+                        {tuan.map((w) => {
+                          const o = oTuan(r, w.tuan);
+                          return (
+                            <td key={w.tuan} className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums ${mauKhongDat(o?.pct_duoi_san)}`}>
+                              {o == null ? "—" : `${o.pct_duoi_san}%`}
+                            </td>
+                          );
+                        })}
+                        <td className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums bg-slate-50 ${mauKhongDat(r.pct_duoi_san)}`}>{r.pct_duoi_san == null ? "—" : `${r.pct_duoi_san}%`}</td>
+                        <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-600">{veTong}</td>
+                        <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-400">{r.pct_tren_tran == null ? "—" : `${r.pct_tren_tran}%`}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+        <p className="mt-2.5 text-[11px] text-slate-400 leading-snug">
+          Số trong ô = % số giờ chênh áp nằm DƯỚI giới hạn dưới. <b>Càng cao càng xấu</b> (0% = luôn đạt).
+          Giờ thiếu dữ liệu và giờ cảm biến đứng hình bị loại khỏi phép tính — không tính là đạt cũng không tính là hỏng.
         </p>
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full border-collapse text-[12px]">
-            <thead>
-              <tr className="bg-slate-50 text-slate-500">
-                <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold">Phòng</th>
-                <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold">Khu / AHU</th>
-                <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Ưu tiên</th>
-                <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Yêu cầu</th>
-                <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">% đạt</th>
-                <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Vé</th>
-                <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold">Được cảnh báo?</th>
-              </tr>
-            </thead>
-            <tbody>{trongPv.map(hangPhong)}</tbody>
-          </table>
-        </div>
+
+        {/* ── Mục phụ: phòng ngoài danh sách ── */}
         {ngoaiPv.length > 0 && (
           <div className="mt-4">
             <button onClick={() => setXemHet((v) => !v)} className="text-[12px] font-semibold text-teal-700 hover:underline">
@@ -3123,25 +3137,27 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                       <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold">Phòng</th>
                       <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold">Khu / AHU</th>
                       <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Ưu tiên</th>
-                      <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Yêu cầu</th>
-                      <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">% đạt</th>
-                      <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Vé</th>
-                      <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold">Được cảnh báo?</th>
+                      <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">% đạt (cả 2 hướng)</th>
+                      <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold">Vì sao không cảnh báo</th>
                     </tr>
                   </thead>
-                  <tbody>{ngoaiPv.map(hangPhong)}</tbody>
+                  <tbody>
+                    {ngoaiPv.map((r) => (
+                      <tr key={r.ma_phong}>
+                        <td className="border border-slate-200 px-2 py-1.5"><b style={{ color: COLOR.navy }}>{r.ma_phong}</b></td>
+                        <td className="border border-slate-200 px-2 py-1.5 text-slate-600">{r.khu_vuc} / {r.ahu || "—"}</td>
+                        <td className="border border-slate-200 px-2 py-1.5 text-center text-slate-600">{r.muc_uu_tien}</td>
+                        <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-600">{r.pct_dat == null ? "—" : `${r.pct_dat}%`}</td>
+                        <td className="border border-slate-200 px-2 py-1.5 text-slate-500">{(r.ly_do_loai || []).join("; ")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
-                <p className="mt-1.5 text-[11px] text-slate-400">
-                  Các phòng này KHÔNG sinh vé sự cố nên không được chấm tuân thủ ở kết luận phía trên. Bảng để đối chiếu khi soát lại phạm vi cảnh báo.
-                </p>
+                <p className="mt-1.5 text-[11px] text-slate-400">Các phòng này không sinh vé nên không được chấm ở phần trên. Cột % đạt ở đây tính CẢ HAI hướng lệch (nguồn rollup ngày), khác thước đo của bảng chính.</p>
               </div>
             )}
           </div>
         )}
-        <p className="mt-2.5 text-[11px] text-slate-400 leading-snug">
-          % đạt = 100 − trung bình tỉ lệ ngoài dải theo giờ, tính trên các giờ CÓ dữ liệu (nguồn: rollup <code>kpi_ngay_sensor</code>).
-          Giờ thiếu dữ liệu và giờ cảm biến đứng hình không được tính là đạt cũng không tính là hỏng.
-        </p>
       </>)}
     </Card>
   );
