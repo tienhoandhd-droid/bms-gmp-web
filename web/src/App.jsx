@@ -3067,6 +3067,32 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           })}
         </div>
 
+        {/* ── Phản hồi theo NGÀY (đường) ── */}
+        {Array.isArray(bc.bo_phan_ngay) && bc.bo_phan_ngay.length > 0 && (() => {
+          const dsNgay = [...new Set(bc.bo_phan_ngay.map((x) => x.ngay))].sort();
+          const MAU = { IPC: COLOR.teal, MEP: COLOR.softCoral, LOT: COLOR.sand, QA: COLOR.sky };
+          const chuoi = ["IPC", "MEP", "LOT", "QA"].map((v) => {
+            const theoNgay = new Map(bc.bo_phan_ngay.filter((x) => x.vai_tro === v).map((x) => [x.ngay, x]));
+            return {
+              vai_tro: v, nhan: ROLE[v] || v, mau: MAU[v],
+              diem: dsNgay.map((n) => {
+                const o = theoNgay.get(n);
+                return o ? { pct: o.ty_le_phan_hoi, can: o.ve_can_xu_ly, da: o.ve_da_thao_tac } : {};
+              }),
+            };
+          });
+          return (
+            <div className="mt-3">
+              <Chart type="phanHoiNgay" h={260} ngay={dsNgay.map((n) => n.slice(5))} series={chuoi} />
+              <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">
+                Mỗi điểm = lứa vé <b>mở trong ngày đó</b>, tính xem bao nhiêu % được bộ phận ấy động vào (bất kỳ lúc nào sau đó).
+                Ngày <b>không có vé nào</b> để trống nên đường bị đứt — cố ý: "không có vé" khác hẳn "có vé mà không ai đụng".
+                Cơ điện chỉ tính trên các vé đã được chuyển sang Cơ điện.
+              </p>
+            </div>
+          );
+        })()}
+
         {/* ── Kết luận ── */}
         <div className="mt-4 rounded-xl bg-amber-50 p-3.5 ring-1 ring-amber-300">
           <p className="text-[12.5px] font-bold text-slate-800">Kết luận kỳ {soTuan} tuần ({tuan[0]?.tu} → {tuan[tuan.length - 1]?.den})</p>

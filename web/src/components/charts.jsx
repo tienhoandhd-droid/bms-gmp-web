@@ -558,6 +558,44 @@ export function ForecastChart({ chuoi, duBao, height = 180 }) {
 }
 
 // ====== Điểm vào điều phối ======
+// ====== Tỉ lệ phản hồi của các bộ phận theo NGÀY (tab Nhiệm vụ) ======
+// Dữ liệu vào: { ngay[], series: [{vai_tro, nhan, mau, diem:[{pct, can, da}]}] }.
+// Ngày KHÔNG có vé nào để pct = null ⇒ đường ĐỨT tại đó (connectNulls:false).
+// Cố ý không nối liền: "hôm đó không có vé" khác hẳn "có vé mà không ai đụng",
+// nối liền hai đoạn qua ngày rỗng là bịa ra một xu hướng không có thật.
+export function PhanHoiTheoNgayChart({ ngay, series, height = 260 }) {
+  const option = {
+    animation: false,
+    grid: { top: 30, right: 14, bottom: 34, left: 8, containLabel: true },
+    tooltip: {
+      trigger: "axis", ...tooltipBase,
+      formatter: (ps) => {
+        if (!ps || !ps.length) return "";
+        const i = ps[0].dataIndex;
+        let h = `<b>${ngay[i]}</b>`;
+        for (const s of series) {
+          const d = s.diem[i] || {};
+          h += `<br/><span style="display:inline-block;width:8px;height:8px;border-radius:9px;background:${s.mau}"></span> ${s.nhan}: `
+            + (d.pct == null ? `<i style="color:#94a3b8">không có vé</i>` : `<b>${d.pct}%</b> <span style="color:#94a3b8">(${d.da}/${d.can} vé)</span>`);
+        }
+        return h;
+      },
+    },
+    legend: { top: 0, itemWidth: 14, itemHeight: 8, textStyle: { fontSize: 11, color: "#5f7a90" } },
+    xAxis: axisX(ngay, xTickEvery(ngay.length)),
+    yAxis: { type: "value", min: 0, max: 100, axisLine: { show: false }, axisTick: { show: false },
+             splitLine: { lineStyle: { color: "#e6f0f5" } },
+             axisLabel: { fontSize: 10, color: "#5f7a90", formatter: "{value}%" } },
+    series: series.map((s) => ({
+      name: s.nhan, type: "line", smooth: false, connectNulls: false,
+      showSymbol: true, symbolSize: 5,
+      data: s.diem.map((d) => (d && d.pct != null ? d.pct : null)),
+      lineStyle: { color: s.mau, width: 2.2 }, itemStyle: { color: s.mau },
+    })),
+  };
+  return <EChart option={option} height={height} />;
+}
+
 export default function LazyChart({ type, ...p }) {
   switch (type) {
     case "oosMini": return <OOSMini data={p.data} />;
@@ -572,6 +610,7 @@ export default function LazyChart({ type, ...p }) {
     case "calHeat": return <CalendarHeat days={p.days} />;
     case "roomDayHeat": return <RoomDayHeatmap rooms={p.rooms} days={p.days} values={p.values} height={p.height} cellH={p.cellH} />;
     case "forecast": return <ForecastChart chuoi={p.chuoi} duBao={p.duBao} height={p.height} />;
+    case "phanHoiNgay": return <PhanHoiTheoNgayChart ngay={p.ngay} series={p.series} height={p.height} />;
     default: return null;
   }
 }
