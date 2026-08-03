@@ -3101,13 +3101,19 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                         <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-600">{r.gioi_han_duoi}–{r.gioi_han_tren} {r.don_vi}</td>
                         {tuan.map((w) => {
                           const o = oTuan(r, w.tuan);
+                          // Độ phủ thấp ⇒ KHÔNG tô màu. Một tuần chỉ 4 giờ dữ liệu mà hiện
+                          // "100%" đỏ chót là con số nói dối — C1.R11 tuần 1 đúng ca đó.
+                          const thua = o != null && o.gio_co_dl >= 84;
                           return (
-                            <td key={w.tuan} className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums ${mauKhongDat(o?.pct_duoi_san)}`}>
-                              {o == null ? "—" : `${o.pct_duoi_san}%`}
+                            <td key={w.tuan} className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums ${thua ? mauKhongDat(o.pct_duoi_san) : "text-slate-400"}`}>
+                              {o == null ? "—" : <>{o.pct_duoi_san}%{!thua && <span title="ít dữ liệu — không đủ tin cậy để so sánh">†</span>}
+                                <br /><span className="text-[9px] font-normal text-slate-400">{o.gio_co_dl}h</span></>}
                             </td>
                           );
                         })}
-                        <td className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums bg-slate-50 ${mauKhongDat(r.pct_duoi_san)}`}>{r.pct_duoi_san == null ? "—" : `${r.pct_duoi_san}%`}</td>
+                        <td className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums bg-slate-50 ${mauKhongDat(r.pct_duoi_san)}`}>
+                          {r.pct_duoi_san == null ? "—" : <>{r.pct_duoi_san}%<br /><span className="text-[9px] font-normal text-slate-400">{r.gio_co_dl}h</span></>}
+                        </td>
                         <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-600">{veTong}</td>
                         <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-400">{r.pct_tren_tran == null ? "—" : `${r.pct_tren_tran}%`}</td>
                       </tr>
@@ -3120,6 +3126,8 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
         ))}
         <p className="mt-2.5 text-[11px] text-slate-400 leading-snug">
           Số trong ô = % số giờ chênh áp nằm DƯỚI giới hạn dưới. <b>Càng cao càng xấu</b> (0% = luôn đạt).
+          Số nhỏ bên dưới là <b>số giờ có dữ liệu</b> làm cơ sở tính — một tuần trọn vẹn là 168 giờ.
+          Ô có dấu <b>†</b> nghĩa là dưới 84 giờ (chưa tới nửa tuần): số đó <b>không đủ tin cậy để so sánh</b>, nên không tô màu.
           Giờ thiếu dữ liệu và giờ cảm biến đứng hình bị loại khỏi phép tính — không tính là đạt cũng không tính là hỏng.
         </p>
 
