@@ -3183,6 +3183,80 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           </ul>
         </div>
 
+        {/* ── Trung bình TOÀN KHU theo tuần ── */}
+        {Array.isArray(tuanBc.toan_bo_tuan) && tuanBc.toan_bo_tuan.length > 0 && (() => {
+          const hang = [
+            ...khu.map((k) => ({ ten: `Khu ${k.khu_vuc}`, sl: k.tuan || [], dam: false })),
+            { ten: "Toàn bộ", sl: tuanBc.toan_bo_tuan, dam: true },
+          ];
+          const tienBo = (sl) => {
+            const ds = [...sl].sort((x, y) => x.tuan - y.tuan).filter((o) => o.pct_duoi_san_tb != null);
+            if (ds.length < 2) return { ma: "?", nhan: "chưa đủ", mau: "text-slate-400", d: null };
+            const d = Math.round((ds[ds.length - 1].pct_duoi_san_tb - ds[0].pct_duoi_san_tb) * 10) / 10;
+            if (Math.abs(d) < 5) return { ma: "→", nhan: "đi ngang", mau: "text-slate-500", d };
+            return d < 0 ? { ma: "▼", nhan: "tiến bộ", mau: "text-emerald-700 font-semibold", d }
+                         : { ma: "▲", nhan: "kém đi", mau: "text-rose-600 font-semibold", d };
+          };
+          const o = (sl, t) => sl.find((x) => x.tuan === t);
+          return (
+            <div className="mt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Trung bình toàn khu theo tuần — có tiến bộ không</p>
+              <div className="mt-2 overflow-x-auto">
+                <table className="w-full border-collapse text-[12px]">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500">
+                      <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold" rowSpan={2}>Phạm vi</th>
+                      {tuan.map((w) => <th key={w.tuan} className="border border-slate-200 px-2 py-1 text-center font-semibold" colSpan={2}>Tuần {w.tuan}</th>)}
+                      <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold bg-slate-100" rowSpan={2}>Tiến bộ<br /><span className="font-normal text-[9.5px]">(dưới sàn)</span></th>
+                    </tr>
+                    <tr className="bg-slate-50 text-slate-400 text-[10px]">
+                      {tuan.map((w) => (
+                        <React.Fragment key={w.tuan}>
+                          <th className="border border-slate-200 px-1.5 py-1 text-center font-semibold">dưới sàn</th>
+                          <th className="border border-slate-200 px-1.5 py-1 text-center font-normal">vượt trần</th>
+                        </React.Fragment>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hang.map((h) => {
+                      const tb = tienBo(h.sl);
+                      return (
+                        <tr key={h.ten} className={h.dam ? "bg-slate-50 font-semibold" : ""}>
+                          <td className="border border-slate-200 px-2 py-1.5" style={{ color: COLOR.navy }}>{h.ten}</td>
+                          {tuan.map((w) => {
+                            const x = o(h.sl, w.tuan);
+                            return (
+                              <React.Fragment key={w.tuan}>
+                                <td className={`border border-slate-200 px-1.5 py-1.5 text-center tabular-nums ${mauKhongDat(x?.pct_duoi_san_tb)}`}>
+                                  {x == null ? "—" : `${x.pct_duoi_san_tb}%`}
+                                </td>
+                                <td className="border border-slate-200 px-1.5 py-1.5 text-center tabular-nums text-slate-400">
+                                  {x == null ? "—" : `${x.pct_tren_tran_tb}%`}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                          <td className={`border border-slate-200 px-2 py-1.5 text-center text-[11.5px] bg-slate-50 ${tb.mau}`}>
+                            {tb.ma} {tb.nhan}
+                            {tb.d != null && <span className="block text-[9.5px] font-normal tabular-nums">{tb.d > 0 ? "+" : ""}{tb.d} điểm %</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">
+                Trung bình <b>cân theo số giờ</b>, không phải trung bình cộng các phòng — phòng ít dữ liệu tự động
+                ảnh hưởng ít, đúng với mức bằng chứng nó mang lại. Cột <b>vượt trần</b> để cạnh có chủ đích:
+                chênh áp rời khỏi sàn có thể là do <b>đã về dải</b>, mà cũng có thể là do <b>bị đẩy quá lên trên</b> —
+                nhìn một cột dễ mừng nhầm.
+              </p>
+            </div>
+          );
+        })()}
+
         {/* ── Bảng theo KHU → PHÒNG → TUẦN ── */}
         {khu.map((k) => (
           <div key={k.khu_vuc} className="mt-4">
