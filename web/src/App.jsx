@@ -3001,6 +3001,18 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
   const ngoaiPv = (Array.isArray(bc?.phong) ? bc.phong : []).filter((r) => !r.trong_pham_vi);
   const muP1P2 = ngoaiPv.filter((r) => r.pct_dat != null && r.pct_dat < 90 && (r.muc_uu_tien === "P1" || r.muc_uu_tien === "P2"));
   const oTuan = (r, t) => (r.tuan || []).find((w) => w.tuan === t);
+  const DU = 84;   // nửa tuần — dưới mức này không đủ tin cậy để so sánh
+  // Xu hướng = tuần CUỐI so tuần ĐẦU, và chỉ tính khi cả hai đầu mút đủ dữ liệu.
+  // Suy xu hướng từ một tuần 4 giờ là bịa; thà trả "không đủ dữ liệu".
+  const xuHuong = (r) => {
+    const ds = (r.tuan || []).filter((w) => w.gio_co_dl >= DU).sort((x, y) => x.tuan - y.tuan);
+    if (ds.length < 2) return { ma: "?", nhan: "không đủ dữ liệu", mau: "text-slate-400", delta: null };
+    const d = Math.round((ds[ds.length - 1].pct_duoi_san - ds[0].pct_duoi_san) * 10) / 10;
+    if (Math.abs(d) < 5) return { ma: "→", nhan: "đi ngang", mau: "text-slate-500", delta: d };
+    return d > 0
+      ? { ma: "▲", nhan: "xấu đi", mau: "text-rose-600 font-semibold", delta: d }
+      : { ma: "▼", nhan: "tốt lên", mau: "text-emerald-700 font-semibold", delta: d };
+  };
 
   return (
     <Card className="p-4 sm:p-5">
@@ -3060,6 +3072,20 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           <p className="text-[12.5px] font-bold text-slate-800">Kết luận kỳ {soTuan} tuần ({tuan[0]?.tu} → {tuan[tuan.length - 1]?.den})</p>
           <ul className="mt-1.5 space-y-1 text-[12.5px] text-slate-700 list-disc pl-4">
             <li><b>{tk.ve_mo_trong_ky}</b> vé mở, trong đó <b className={tk.ve_he_thong_dong / Math.max(1, tk.ve_mo_trong_ky) > 0.5 ? "text-rose-600" : ""}>{tk.ve_he_thong_dong}</b> vé <b>hệ thống tự đóng</b> — chênh áp tự về dải trước khi có người xử lý.</li>
+            {(() => {
+              const ds = khu.flatMap((k) => k.phong || []).map(xuHuong);
+              const xau = ds.filter((x) => x.ma === "▲").length;
+              const tot = ds.filter((x) => x.ma === "▼").length;
+              const ngang = ds.filter((x) => x.ma === "→").length;
+              const thieu = ds.filter((x) => x.ma === "?").length;
+              return (
+                <li>
+                  Xu hướng qua {soTuan} tuần: <b className="text-emerald-700">{tot} phòng tốt lên</b> ·{" "}
+                  <b className="text-rose-600">{xau} phòng xấu đi</b> · {ngang} đi ngang
+                  {thieu > 0 && <> · {thieu} chưa đủ dữ liệu để kết luận</>}.
+                </li>
+              );
+            })()}
             <li>Đã gửi <b>{tk.email_digest}</b> email cảnh báo trong kỳ.</li>
             {muP1P2.length > 0 && (
               <li className="text-rose-700">Ngoài danh sách: <b>{muP1P2.length}</b> phòng <b>P1/P2</b> đạt dưới 90% mà không được cảnh báo. Cân nhắc có nên đưa vào danh sách không.</li>
@@ -3087,6 +3113,7 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                       </th>
                     ))}
                     <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold bg-slate-100">Cả kỳ</th>
+                    <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Xu hướng</th>
                     <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Vé</th>
                     <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold text-slate-400">Vượt trần</th>
                   </tr>
@@ -3114,6 +3141,10 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                         <td className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums bg-slate-50 ${mauKhongDat(r.pct_duoi_san)}`}>
                           {r.pct_duoi_san == null ? "—" : <>{r.pct_duoi_san}%<br /><span className="text-[9px] font-normal text-slate-400">{r.gio_co_dl}h</span></>}
                         </td>
+                        <td className={`border border-slate-200 px-2 py-1.5 text-center text-[11.5px] ${xuHuong(r).mau}`}>
+                          {xuHuong(r).ma} {xuHuong(r).nhan}
+                          {xuHuong(r).delta != null && <span className="block text-[9.5px] font-normal tabular-nums">{xuHuong(r).delta > 0 ? "+" : ""}{xuHuong(r).delta} điểm %</span>}
+                        </td>
                         <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-600">{veTong}</td>
                         <td className="border border-slate-200 px-2 py-1.5 text-center tabular-nums text-slate-400">{r.pct_tren_tran == null ? "—" : `${r.pct_tren_tran}%`}</td>
                       </tr>
@@ -3127,6 +3158,7 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
         <p className="mt-2.5 text-[11px] text-slate-400 leading-snug">
           Số trong ô = % số giờ chênh áp nằm DƯỚI giới hạn dưới. <b>Càng cao càng xấu</b> (0% = luôn đạt).
           Số nhỏ bên dưới là <b>số giờ có dữ liệu</b> làm cơ sở tính — một tuần trọn vẹn là 168 giờ.
+          Cột <b>Xu hướng</b> so tuần cuối với tuần đầu, và chỉ tính khi cả hai tuần đó đủ dữ liệu.
           Ô có dấu <b>†</b> nghĩa là dưới 84 giờ (chưa tới nửa tuần): số đó <b>không đủ tin cậy để so sánh</b>, nên không tô màu.
           Giờ thiếu dữ liệu và giờ cảm biến đứng hình bị loại khỏi phép tính — không tính là đạt cũng không tính là hỏng.
         </p>
