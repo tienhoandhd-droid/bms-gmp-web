@@ -3093,6 +3093,70 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           );
         })()}
 
+        {/* ── Bảng phản hồi theo TUẦN (có tiến bộ không) ── */}
+        {Array.isArray(bc.bo_phan_tuan) && bc.bo_phan_tuan.length > 0 && (() => {
+          const dsTuan = [...new Set(bc.bo_phan_tuan.map((x) => x.tuan))].sort((a2, b2) => a2 - b2);
+          const lay = (v, t) => bc.bo_phan_tuan.find((x) => x.vai_tro === v && x.tuan === t);
+          const mauPct = (t) => t == null ? "text-slate-400" : t < 20 ? "text-rose-600 font-semibold" : t < 50 ? "text-amber-600 font-semibold" : "text-emerald-700 font-semibold";
+          // Tiến bộ = tuần CÓ VÉ cuối cùng so tuần CÓ VÉ đầu tiên. Tuần không có vé
+          // nào để bộ phận ấy xử lý thì không phải thành tích cũng không phải lỗi.
+          const tienBo = (v) => {
+            const ds = dsTuan.map((t) => lay(v, t)).filter((o) => o && o.ve_can_xu_ly > 0 && o.ty_le_phan_hoi != null);
+            if (ds.length < 2) return { ma: "?", nhan: "chưa đủ tuần có vé", mau: "text-slate-400", d: null };
+            const d = Math.round((ds[ds.length - 1].ty_le_phan_hoi - ds[0].ty_le_phan_hoi) * 10) / 10;
+            if (Math.abs(d) < 5) return { ma: "→", nhan: "đi ngang", mau: "text-slate-500", d };
+            return d > 0 ? { ma: "▲", nhan: "tiến bộ", mau: "text-emerald-700 font-semibold", d }
+                         : { ma: "▼", nhan: "kém đi", mau: "text-rose-600 font-semibold", d };
+          };
+          return (
+            <div className="mt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tình trạng phản hồi từng tuần — có tiến bộ không</p>
+              <div className="mt-2 overflow-x-auto">
+                <table className="w-full border-collapse text-[12px]">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500">
+                      <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold">Bộ phận</th>
+                      {dsTuan.map((t) => <th key={t} className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Tuần {t}</th>)}
+                      <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold bg-slate-100">Tiến bộ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {["IPC", "MEP", "LOT", "QA"].map((v) => {
+                      const tb = tienBo(v);
+                      return (
+                        <tr key={v}>
+                          <td className="border border-slate-200 px-2 py-1.5 font-semibold" style={{ color: COLOR.navy }}>{ROLE[v] || v}</td>
+                          {dsTuan.map((t) => {
+                            const o = lay(v, t);
+                            return (
+                              <td key={t} className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums ${mauPct(o?.ty_le_phan_hoi)}`}>
+                                {!o || o.ve_can_xu_ly === 0
+                                  ? <span className="text-slate-400 text-[11px]">không có vé</span>
+                                  : <>{o.ty_le_phan_hoi}%<br />
+                                      <span className="text-[9.5px] font-normal text-slate-400">{o.ve_da_thao_tac}/{o.ve_can_xu_ly} vé{o.gio_phan_hoi_tb != null && ` · ${o.gio_phan_hoi_tb}h`}</span>
+                                    </>}
+                              </td>
+                            );
+                          })}
+                          <td className={`border border-slate-200 px-2 py-1.5 text-center text-[11.5px] bg-slate-50 ${tb.mau}`}>
+                            {tb.ma} {tb.nhan}
+                            {tb.d != null && <span className="block text-[9.5px] font-normal tabular-nums">{tb.d > 0 ? "+" : ""}{tb.d} điểm %</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">
+                Số nhỏ = <b>vé đã động vào / vé cần xử lý</b> và thời gian phản hồi trung bình.
+                Cột <b>Tiến bộ</b> so tuần có vé cuối với tuần có vé đầu; tuần <b>không có vé</b> nào để bộ phận ấy xử lý
+                thì không tính là thành tích cũng không tính là lỗi.
+              </p>
+            </div>
+          );
+        })()}
+
         {/* ── Kết luận ── */}
         <div className="mt-4 rounded-xl bg-amber-50 p-3.5 ring-1 ring-amber-300">
           <p className="text-[12.5px] font-bold text-slate-800">Kết luận kỳ {soTuan} tuần ({tuan[0]?.tu} → {tuan[tuan.length - 1]?.den})</p>
