@@ -325,6 +325,22 @@ export function dangKyRealtimeSuCo(onDoi) {
   return () => { try { supabase.removeChannel(kenh) } catch { /* kênh đã đóng */ } }
 }
 
+// ═══ REALTIME chênh áp (03/08/2026) ═══
+// Đo được: FMS đóng dấu điểm ở giây :56 mỗi phút, trễ dưới 1 phút. Phần trễ còn
+// lại là của mình — web hỏi mỗi 60s không khớp pha mốc :56. Nay cron kéo FMS mỗi
+// phút (migration 20260803a) và bảng du_lieu_phut_8h nằm trong publication
+// supabase_realtime ⇒ ghi xong là đẩy thẳng xuống mọi máy đang mở, hết khoảng
+// chờ 0–60s. Cùng lối làm với su_co: sự kiện chỉ là TIẾNG GÕ CỬA, số vẫn đọc lại
+// qua RPC cũ (một đường dữ liệu duy nhất). Poll giữ nguyên làm lưới đỡ khi rớt WS.
+export function dangKyRealtimeChenhAp(onDoi) {
+  if (!supabase) return () => {}
+  const kenh = supabase
+    .channel('rt-phut-8h')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'du_lieu_phut_8h' }, () => onDoi())
+    .subscribe()
+  return () => { try { supabase.removeChannel(kenh) } catch { /* kênh đã đóng */ } }
+}
+
 // Hồ sơ cụm đầy đủ (cụm + CAPA + mọi sự cố thành viên + audit) — cho bản in thanh tra.
 export async function kiemChuoiHashAudit(signal) {
   return goiRPC('rpc_kiem_chuoi_hash_audit', {}, { signal })

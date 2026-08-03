@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { DEFAULT_DATA_SOURCE, HAS_SUPABASE } from "./lib/config";
 import { useLiveData } from "./hooks/useLiveData";
-import { PHIEN_BAN_GIAO_THUC, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, layCamBienDungHinh, layChenhApTheoAhu, layKhungGioCanhBao, luuKhungGioCanhBao, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
+import { PHIEN_BAN_GIAO_THUC, capNhatPhut8h, layNguoiDung, luuNguoiDung, layTaiKhoanChuaPhanQuyen, thaoTacSuCo, kiemVeThaoTac, thaoTacSuCoTuEmail, tamDungCanhBao, batLaiCanhBao, kiemGiaoThuc, ketLuanCum, layHoSoCum, kiemChuoiHashAudit, ACTION_LABEL_TO_CODE, TRANG_THAI_CODE_TO_LABEL, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layChuoiGiaTriPhong, layPhanTichSau, layQuetBatThuong, layDuBaoXuHuong, layMaTranPhongNgay, luuPhanTichAi, layWebhookAi, layWebhookAiSau, phanTichAiQuaWorkflow, layWebhookWf7b, guiNhanDinhXuHuong, layWebhookBaoCaoBu, guiBaoCaoBu, themPhong, suaPhong, xoaPhong, suaGioiHan, themCamBien, xoaCamBien, suaNguong, moPhongNguong, layCanhBaoUuTien, datCanhBaoUuTien, layCanhBaoHuong, datCanhBaoHuong, layCauHinhEmail, datCauHinhEmail, layNguoiNhanBaoCao, luuNguoiNhanBaoCao, xoaNguoiNhanBaoCao, layNguoiNhanCanhBao, luuNguoiNhanCanhBao, xoaNguoiNhanCanhBao, layDanhSachAhu, layLuatPhanTuyen, luuLuatPhanTuyen, xoaLuatPhanTuyen, datCongTacPhanTuyen, layCamBienDungHinh, layChenhApTheoAhu, dangKyRealtimeChenhAp, layKhungGioCanhBao, luuKhungGioCanhBao, EMAIL_KEYS_HE_THONG, EMAIL_KEYS_BAO_CAO } from "./lib/supabaseData";
 import { moTaLoi } from "./lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau, thuKhoiPhucPhien } from "./lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "./lib/designTokens";
@@ -2738,23 +2738,48 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   const [ahuLoc, setAhuLoc] = React.useState("ALL");
   const [dangTuoi, setDangTuoi] = React.useState(false);   // đang gọi FMS lấy realtime
   const [dhMap, setDhMap] = React.useState({});            // ma_phong → số giờ đứng hình (cảm biến DP)
-  const nap = React.useCallback(async () => {
+  const [napLuc, setNapLuc] = React.useState(Date.now());  // mốc client nhận lô số hiện hành
+  const [dongHo, setDongHo] = React.useState(Date.now());  // nhịp 10s để nhãn tuổi TỰ ĐẾM LÊN
+  // 03/08: TÁCH ĐÔI NHỊP. Trước đây một hàm `nap()` vừa đọc số vừa gọi Edge (~6s)
+  // rồi lặp mỗi 60s ⇒ màn hình chỉ đổi mỗi 60s dù số trong bảng đã mới. Nay:
+  //   • docSo (RPC ~100ms) — nhịp nhanh + mỗi khi realtime gõ cửa
+  //   • kichEdge (gọi FMS ~6s) — nhịp CHẬM, chỉ còn là lưới đỡ vì cron
+  //     `bms-phut-8h` đã kéo FMS mỗi phút phía máy chủ (migration 20260803a).
+  const docSo = React.useCallback(async () => {
     const [kq, dh] = await Promise.all([layChenhApTheoAhu(), layCamBienDungHinh()]);
-    if (!kq.error) setRows(kq.rows);
+    if (!kq.error) { setRows(kq.rows); setNapLuc(Date.now()); }
     if (dh && !dh.error && dh.rows) setDhMap(Object.fromEntries(dh.rows.filter((x) => x.loai_cam_bien === "DP").map((x) => [x.ma_phong, x.so_gio_dung])));
-    setDangTuoi(true);
-    const up = await capNhatPhut8h();               // kích Edge nạp FMS 5′ mới cho mọi phòng DP (~6s)
-    setDangTuoi(false);
-    if (up && up.ok) { const kq2 = await layChenhApTheoAhu(); if (!kq2.error) setRows(kq2.rows); }
   }, []);
+  const kichEdge = React.useCallback(async () => {
+    setDangTuoi(true);
+    const up = await capNhatPhut8h();
+    setDangTuoi(false);
+    if (up && up.ok) { const kq = await layChenhApTheoAhu(); if (!kq.error) { setRows(kq.rows); setNapLuc(Date.now()); } }
+  }, []);
+  const nap = React.useCallback(async () => { await docSo(); await kichEdge(); }, [docSo, kichEdge]);
   React.useEffect(() => {
     if (!isLive || !active) return;   // CHỈ gọi FMS/đọc khi tab Chênh áp đang mở — không tải nền làm chậm tab khác
     nap();
-    // 16/07 (user): làm mới nhanh hơn — 60s/lần (mỗi lượt có gọi Edge nạp FMS ~6s,
-    // chỉ chạy khi tab Chênh áp ĐANG MỞ nên không ảnh hưởng tab khác).
-    const t = setInterval(nap, 60000);
+    // Đọc số: 20s/lần. Rẻ (RPC ~100ms), KHÔNG đụng FMS. Đây là lưới đỡ cho realtime.
+    const tDoc = setInterval(docSo, 20000);
+    // Gọi FMS: 180s/lần. Cron `bms-phut-8h` đã kéo mỗi phút; nhịp này chỉ để phòng
+    // khi cron tắt / ngoài khung giờ (cau_hinh.edge_capnhat_phut_gio_dau|_cuoi).
+    const tEdge = setInterval(kichEdge, 180000);
+    // Realtime: bảng du_lieu_phut_8h đổi → đọc lại sau 1.2s (gom burst: đo lượt cron
+    // thật ngày 03/08 = 112 điểm / 56 phòng; không gom thì nạp lại hơn trăm lần).
+    let hen = null;
+    const huyRt = dangKyRealtimeChenhAp(() => {
+      if (hen) clearTimeout(hen);
+      hen = setTimeout(() => { hen = null; docSo(); }, 1200);
+    });
+    return () => { clearInterval(tDoc); clearInterval(tEdge); if (hen) clearTimeout(hen); huyRt(); };
+  }, [isLive, active, nap, docSo, kichEdge]);
+  // Nhịp riêng 10s: KHÔNG gọi mạng, chỉ để nhãn tuổi dữ liệu đếm lên giữa 2 lần nạp.
+  React.useEffect(() => {
+    if (!isLive || !active) return;
+    const t = setInterval(() => setDongHo(Date.now()), 10000);
     return () => clearInterval(t);
-  }, [isLive, active, nap]);
+  }, [isLive, active]);
   if (!isLive) return <Card className="p-8 text-center text-[13px] text-slate-500">Cần kết nối dữ liệu thật (LIVE) để xem chênh áp theo AHU.</Card>;
   const dsKhu = khuChoPhep || DS_KHU;
   const ahuPairs = [...new Set((rows || []).filter((r) => (khu === "ALL" || r.khuVuc === khu)).map((r) => `${r.khuVuc}|${r.ahu}`))].sort();
@@ -2790,6 +2815,17 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
     : canGap(r) ? "text-rose-900"
     : p3KhongDat(r) ? "text-slate-500"
     : ngoaiKhoang(r) ? "text-amber-800" : "text-emerald-800";
+  // 03/08 (user: "cơ điện đọc trên app để sửa rất khó vì chậm vài phút"): hiện TUỔI
+  // dữ liệu, không bắt người đứng máy tự nhẩm "10:32 là mấy phút trước". `tuoi_phut`
+  // do server tính LÚC TRUY VẤN nên phải CỘNG thời gian trôi từ lúc nạp — nếu chỉ in
+  // số của server thì nhãn đứng yên trong khi màn hình mỗi lúc một cũ (đúng loại lỗi
+  // "hệ nói sai về chính nó" đã mắc với nhãn TB-5-phút).
+  const nhanTuoi = (r) => {
+    if (r.tuoiPhut == null) return null;
+    const p = r.tuoiPhut + Math.floor(Math.max(0, dongHo - napLuc) / 60000);
+    const mau = p >= 6 ? "text-rose-600" : p >= 3 ? "text-amber-600" : "text-slate-400";
+    return <span className={`font-semibold ${mau}`}> · {p <= 0 ? "vừa xong" : `${p}′ trước`}</span>;
+  };
   const ordUu = (p) => p === "P1" ? 1 : p === "P2" ? 2 : p === "P3" ? 3 : 4;
   return (
     <Card className="p-5">
@@ -2868,7 +2904,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                       )}
                       <div className="ml-auto w-[132px] text-right shrink-0">
                         <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[10px] font-medium"> {r.donVi}</span></>}</div>
-                        <div className="text-[9.5px] text-slate-400 mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-teal-600 font-semibold">● realtime</span> : <span className="text-amber-600">giờ gần nhất</span>} {r.thoiDiem}{r.dat === false && (r.uuTien === "P3"
+                        <div className="text-[9.5px] text-slate-400 mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-teal-600 font-semibold">● realtime</span> : <span className="text-amber-600">giờ gần nhất</span>} {r.thoiDiem}{nhanTuoi(r)}{r.dat === false && (r.uuTien === "P3"
                           ? <span className="font-medium text-slate-400"> · P3 — chưa cần xử lý ngay</span>
                           : <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>)}</>}</div>
                       </div>
