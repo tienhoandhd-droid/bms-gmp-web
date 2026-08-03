@@ -341,6 +341,15 @@ export function dangKyRealtimeChenhAp(onDoi) {
   return () => { try { supabase.removeChannel(kenh) } catch { /* kênh đã đóng */ } }
 }
 
+// Báo cáo ĐÁNH GIÁ HIỆU QUẢ CẢNH BÁO (tab Nhiệm vụ) — RPC trả nguyên một jsonb:
+// { ky, luat, phong[], bo_phan[], tong_ket }. Gộp một lượt gọi vì bốn phần đều
+// phải cùng một mốc thời gian: tách ra nhiều RPC là mời gọi bốn kỳ lệch nhau.
+export async function layDanhGiaHieuQuaCanhBao(soNgay = 21, signal) {
+  const { data, error } = await goiRPC('rpc_danh_gia_hieu_qua_canh_bao', { p_ngay: soNgay }, { signal })
+  if (error) return { error, bc: null }
+  return { error: null, bc: data || null }
+}
+
 // Hồ sơ cụm đầy đủ (cụm + CAPA + mọi sự cố thành viên + audit) — cho bản in thanh tra.
 export async function kiemChuoiHashAudit(signal) {
   return goiRPC('rpc_kiem_chuoi_hash_audit', {}, { signal })
