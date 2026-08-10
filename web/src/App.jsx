@@ -2989,6 +2989,19 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
     : p >= 50 ? "text-rose-700 font-bold" : p >= 25 ? "text-rose-600 font-semibold"
     : p >= 10 ? "text-amber-600 font-semibold" : p > 0 ? "text-teal-700" : "text-emerald-700 font-semibold";
   const ROLE = { IPC: "IPC / QC", MEP: "Cơ điện", LOT: "Trực HSL", QA: "QA" };
+  // 10/08: IPC tách theo khu (C1 · Q2) — vé thuộc phòng, phòng thuộc khu, nên gộp
+  // chung một số % là chấm điểm đội này bằng vé của đội kia. Khu Q2 hiển thị "QC"
+  // theo quy ước TEN_VAI_KHU. MEP/Trực/QA phụ trách chéo khu nên vẫn một dòng.
+  const khoaBoPhan = (b) => b.vai_tro + (b.khu_vuc ? "·" + b.khu_vuc : "");
+  const nhanBoPhan = (b) => b.khu_vuc
+    ? `${(TEN_VAI_KHU[b.khu_vuc] || {})[b.vai_tro] || b.vai_tro} · khu ${b.khu_vuc}`
+    : (ROLE[b.vai_tro] || b.vai_tro);
+  const THU_TU_VAI = { IPC: 0, MEP: 1, LOT: 2, QA: 3 };
+  const sapBoPhan = (ds) => [...ds].sort((a, b2) =>
+    (THU_TU_VAI[a.vai_tro] ?? 9) - (THU_TU_VAI[b2.vai_tro] ?? 9)
+    || String(a.khu_vuc || "").localeCompare(String(b2.khu_vuc || "")));
+  // 'YYYY-MM-DD' → 'dd/mm' — người đọc xem theo lịch nhà máy, không bắt họ dịch ISO.
+  const dmy = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "");
   const chip = (v, label) => (
     <button key={v} onClick={() => setSoTuan(v)}
       className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 transition ${soTuan === v ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`}
@@ -3022,6 +3035,11 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Kỳ đánh giá</span>
         {chip(2, "2 tuần")}{chip(3, "3 tuần")}{chip(6, "6 tuần")}
+        {tuan.length > 0 && (
+          <span className="text-[12px] text-slate-500">
+            từ <b className="text-slate-700">{dmy(tuan[0]?.tu)}</b> đến <b className="text-slate-700">{dmy(tuan[tuan.length - 1]?.den)}</b>
+          </span>
+        )}
         {dangTai && <span className="text-[11px] text-teal-600">đang tính…</span>}
       </div>
       {loi && <p className="mt-3 text-[12.5px] text-rose-600">Không đọc được báo cáo: {loi}</p>}
@@ -3052,13 +3070,13 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
 
         {/* ── Tỉ lệ phản hồi ── */}
         <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tỉ lệ phản hồi của các bộ phận</p>
-        <div className="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-          {(bc.bo_phan || []).map((b) => {
+        <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+          {sapBoPhan(bc.bo_phan || []).map((b) => {
             const t = b.ty_le_phan_hoi;
             const mau = t == null ? "text-slate-400" : t < 20 ? "text-rose-600" : t < 50 ? "text-amber-600" : "text-emerald-700";
             return (
-              <div key={b.vai_tro} className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
-                <p className="text-[11.5px] font-semibold text-slate-500">{ROLE[b.vai_tro] || b.vai_tro}</p>
+              <div key={khoaBoPhan(b)} className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
+                <p className="text-[11.5px] font-semibold text-slate-500">{nhanBoPhan(b)}</p>
                 <p className={`text-[22px] font-bold tabular-nums leading-tight ${mau}`}>{t == null ? "—" : `${t}%`}</p>
                 <p className="text-[10.5px] text-slate-500 leading-snug">động vào <b>{b.ve_da_thao_tac}</b>/{b.ve_can_xu_ly} vé · {b.tong_thao_tac} thao tác</p>
                 <p className="text-[10.5px] text-slate-400">{b.gio_phan_hoi_tb == null ? "chưa có phản hồi nào" : `phản hồi sau TB ${b.gio_phan_hoi_tb} giờ`}</p>
@@ -3070,11 +3088,15 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
         {/* ── Phản hồi theo NGÀY (đường) ── */}
         {Array.isArray(bc.bo_phan_ngay) && bc.bo_phan_ngay.length > 0 && (() => {
           const dsNgay = [...new Set(bc.bo_phan_ngay.map((x) => x.ngay))].sort();
-          const MAU = { IPC: COLOR.teal, MEP: COLOR.softCoral, LOT: COLOR.sand, QA: COLOR.sky };
-          const chuoi = ["IPC", "MEP", "LOT", "QA"].map((v) => {
-            const theoNgay = new Map(bc.bo_phan_ngay.filter((x) => x.vai_tro === v).map((x) => [x.ngay, x]));
+          const MAU = { "IPC·C1": COLOR.teal, "IPC·Q2": COLOR.navy, IPC: COLOR.teal, MEP: COLOR.softCoral, LOT: COLOR.sand, QA: COLOR.sky };
+          const nhom = sapBoPhan(bc.bo_phan || []);
+          const chuoi = nhom.map((b) => {
+            const k = khoaBoPhan(b);
+            const theoNgay = new Map(bc.bo_phan_ngay
+              .filter((x) => x.vai_tro === b.vai_tro && (x.khu_vuc || null) === (b.khu_vuc || null))
+              .map((x) => [x.ngay, x]));
             return {
-              vai_tro: v, nhan: ROLE[v] || v, mau: MAU[v],
+              vai_tro: k, nhan: nhanBoPhan(b), mau: MAU[k] || COLOR.ink,
               diem: dsNgay.map((n) => {
                 const o = theoNgay.get(n);
                 return o ? { pct: o.ty_le_phan_hoi, can: o.ve_can_xu_ly, da: o.ve_da_thao_tac } : {};
@@ -3096,12 +3118,14 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
         {/* ── Bảng phản hồi theo TUẦN (có tiến bộ không) ── */}
         {Array.isArray(bc.bo_phan_tuan) && bc.bo_phan_tuan.length > 0 && (() => {
           const dsTuan = [...new Set(bc.bo_phan_tuan.map((x) => x.tuan))].sort((a2, b2) => a2 - b2);
-          const lay = (v, t) => bc.bo_phan_tuan.find((x) => x.vai_tro === v && x.tuan === t);
+          const mocTuan = (t) => (Array.isArray(bc.tuan_moc) ? bc.tuan_moc : []).find((m) => m.tuan === t);
+          const nhom = sapBoPhan(bc.bo_phan || []);
+          const lay = (b, t) => bc.bo_phan_tuan.find((x) => x.vai_tro === b.vai_tro && (x.khu_vuc || null) === (b.khu_vuc || null) && x.tuan === t);
           const mauPct = (t) => t == null ? "text-slate-400" : t < 20 ? "text-rose-600 font-semibold" : t < 50 ? "text-amber-600 font-semibold" : "text-emerald-700 font-semibold";
           // Tiến bộ = tuần CÓ VÉ cuối cùng so tuần CÓ VÉ đầu tiên. Tuần không có vé
           // nào để bộ phận ấy xử lý thì không phải thành tích cũng không phải lỗi.
-          const tienBo = (v) => {
-            const ds = dsTuan.map((t) => lay(v, t)).filter((o) => o && o.ve_can_xu_ly > 0 && o.ty_le_phan_hoi != null);
+          const tienBo = (b) => {
+            const ds = dsTuan.map((t) => lay(b, t)).filter((o) => o && o.ve_can_xu_ly > 0 && o.ty_le_phan_hoi != null);
             if (ds.length < 2) return { ma: "?", nhan: "chưa đủ tuần có vé", mau: "text-slate-400", d: null };
             const d = Math.round((ds[ds.length - 1].ty_le_phan_hoi - ds[0].ty_le_phan_hoi) * 10) / 10;
             if (Math.abs(d) < 5) return { ma: "→", nhan: "đi ngang", mau: "text-slate-500", d };
@@ -3116,18 +3140,25 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                   <thead>
                     <tr className="bg-slate-50 text-slate-500">
                       <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold">Bộ phận</th>
-                      {dsTuan.map((t) => <th key={t} className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Tuần {t}</th>)}
+                      {dsTuan.map((t) => {
+                        const m = mocTuan(t);
+                        return (
+                          <th key={t} className="border border-slate-200 px-2 py-1.5 text-center font-semibold">
+                            Tuần {t}{m && <><br /><span className="font-normal text-[10px] text-slate-400">{dmy(m.tu)}–{dmy(m.den)}</span></>}
+                          </th>
+                        );
+                      })}
                       <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold bg-slate-100">Tiến bộ</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {["IPC", "MEP", "LOT", "QA"].map((v) => {
-                      const tb = tienBo(v);
+                    {nhom.map((b) => {
+                      const tb = tienBo(b);
                       return (
-                        <tr key={v}>
-                          <td className="border border-slate-200 px-2 py-1.5 font-semibold" style={{ color: COLOR.navy }}>{ROLE[v] || v}</td>
+                        <tr key={khoaBoPhan(b)}>
+                          <td className="border border-slate-200 px-2 py-1.5 font-semibold" style={{ color: COLOR.navy }}>{nhanBoPhan(b)}</td>
                           {dsTuan.map((t) => {
-                            const o = lay(v, t);
+                            const o = lay(b, t);
                             return (
                               <td key={t} className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums ${mauPct(o?.ty_le_phan_hoi)}`}>
                                 {!o || o.ve_can_xu_ly === 0
@@ -3159,7 +3190,7 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
 
         {/* ── Kết luận ── */}
         <div className="mt-4 rounded-xl bg-amber-50 p-3.5 ring-1 ring-amber-300">
-          <p className="text-[12.5px] font-bold text-slate-800">Kết luận kỳ {soTuan} tuần ({tuan[0]?.tu} → {tuan[tuan.length - 1]?.den})</p>
+          <p className="text-[12.5px] font-bold text-slate-800">Kết luận kỳ {soTuan} tuần (từ {dmy(tuan[0]?.tu)} đến {dmy(tuan[tuan.length - 1]?.den)})</p>
           <ul className="mt-1.5 space-y-1 text-[12.5px] text-slate-700 list-disc pl-4">
             <li><b>{tk.ve_mo_trong_ky}</b> vé mở, trong đó <b className={tk.ve_he_thong_dong / Math.max(1, tk.ve_mo_trong_ky) > 0.5 ? "text-rose-600" : ""}>{tk.ve_he_thong_dong}</b> vé <b>hệ thống tự đóng</b> — chênh áp tự về dải trước khi có người xử lý.</li>
             {(() => {
@@ -3206,7 +3237,11 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                   <thead>
                     <tr className="bg-slate-50 text-slate-500">
                       <th className="border border-slate-200 px-2 py-1.5 text-left font-semibold" rowSpan={2}>Phạm vi</th>
-                      {tuan.map((w) => <th key={w.tuan} className="border border-slate-200 px-2 py-1 text-center font-semibold" colSpan={2}>Tuần {w.tuan}</th>)}
+                      {tuan.map((w) => (
+                        <th key={w.tuan} className="border border-slate-200 px-2 py-1 text-center font-semibold" colSpan={2}>
+                          Tuần {w.tuan}<br /><span className="font-normal text-[10px] text-slate-400">{dmy(w.tu)}–{dmy(w.den)}</span>
+                        </th>
+                      ))}
                       <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold bg-slate-100" rowSpan={2}>Tiến bộ<br /><span className="font-normal text-[9.5px]">(dưới sàn)</span></th>
                     </tr>
                     <tr className="bg-slate-50 text-slate-400 text-[10px]">
@@ -3273,7 +3308,7 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                     <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold">Yêu cầu</th>
                     {tuan.map((w) => (
                       <th key={w.tuan} className="border border-slate-200 px-2 py-1.5 text-center font-semibold">
-                        {w.nhan}<br /><span className="font-normal text-[10px] text-slate-400">{w.tu?.slice(5)}→{w.den?.slice(5)}</span>
+                        {w.nhan}<br /><span className="font-normal text-[10px] text-slate-400">{dmy(w.tu)}–{dmy(w.den)}</span>
                       </th>
                     ))}
                     <th className="border border-slate-200 px-2 py-1.5 text-center font-semibold bg-slate-100">Cả kỳ</th>
