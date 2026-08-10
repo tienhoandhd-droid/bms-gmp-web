@@ -623,9 +623,12 @@ function KpiListModal({ kind, groups, incidents, cfg, onClose, onPickRoom, onPic
 
 /* ===== QUẢN LÝ PHÒNG (gồm sửa cảm biến/giới hạn phòng cũ) ===== */
 const SENSOR_DEFAULT = { DP: { min: 12.5, max: 30 }, RH: { min: 30, max: 55 }, T: { min: 18, max: 24 } };
-function RoomManager({ rooms, cfg, canManage, onAdd, onEdit, onDelete, onUpdateLimit, onAddSensor, onRemoveSensor }) {
+function RoomManager({ rooms, cfg, canManage, onAdd, onDelete, onSaveEdits }) {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
+  // Bản NHÁP của phòng đang sửa — gõ chỉ đổi state cục bộ, bấm "Lưu thay đổi" mới ghi hệ thống.
+  const [draft, setDraft] = useState(null);
+  const [dangLuu, setDangLuu] = useState(false);
   const blank = { id: "", name: "", area: "C1", ahu: "AHU01", priority: "P3", note: "", noData: false, DP: true, RH: true, T: true, DPmin: 12.5, DPmax: 30, RHmin: 30, RHmax: 55, Tmin: 18, Tmax: 24 };
   const [f, setF] = useState(blank);
   const [qTim, setQTim] = useState("");        // tìm kiếm phòng
@@ -641,11 +644,39 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onEdit, onDelete, onUpdateL
   };
   const inp = "rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 text-[13px] text-slate-700 outline-none focus:ring-2 focus:ring-teal-200";
   const editing = rooms.find((r) => r.id === editId);
+  // So bản nháp với bản gốc → danh sách thay đổi sẽ ghi khi bấm Lưu.
+  const num = (v) => (v === "" || v == null ? null : Number(v));
+  const diff = useMemo(() => {
+    if (!editing || !draft) return null;
+    const patch = {};
+    ["name", "area", "ahu", "priority", "note"].forEach((k) => { if ((draft[k] ?? "") !== (editing[k] ?? "")) patch[k] = draft[k]; });
+    const gocS = editing.sensors || [], drS = draft.sensors || [];
+    const boSensor = gocS.filter((s) => !drS.some((d) => d.k === s.k)).map((s) => s.k);
+    const themSensor = drS.filter((d) => !gocS.some((s) => s.k === d.k)).map((d) => ({ k: d.k, min: num(d.min), max: num(d.max) }));
+    const capNhatGioiHan = drS.filter((d) => { const g = gocS.find((s) => s.k === d.k); return g && (num(d.min) !== (g.min ?? null) || num(d.max) !== (g.max ?? null)); }).map((d) => ({ k: d.k, min: num(d.min), max: num(d.max) }));
+    return { patch, boSensor, themSensor, capNhatGioiHan };
+  }, [editing, draft]);
+  const soThayDoi = diff ? Object.keys(diff.patch).length + diff.boSensor.length + diff.themSensor.length + diff.capNhatGioiHan.length : 0;
+  const dongSua = () => { if (soThayDoi > 0 && !window.confirm("Bỏ các thay đổi chưa lưu?")) return; setEditId(null); setDraft(null); };
+  const moSua = (r) => {
+    if (editId === r.id) { dongSua(); return; }
+    if (editId && soThayDoi > 0 && !window.confirm("Bỏ các thay đổi chưa lưu?")) return;
+    setOpen(false); setEditId(r.id);
+    setDraft({ name: r.name || "", area: r.area, ahu: r.ahu || "", priority: r.priority, note: r.note || "", sensors: (r.sensors || []).map((s) => ({ ...s })) });
+  };
+  const doiGioiHan = (k, field, value) => setDraft((d) => ({ ...d, sensors: d.sensors.map((s) => (s.k === k ? { ...s, [field]: value } : s)) }));
+  const luuSua = async () => {
+    if (!diff || soThayDoi === 0 || dangLuu) return;
+    setDangLuu(true);
+    const ok = await onSaveEdits(editing.id, diff);
+    setDangLuu(false);
+    if (ok) { setEditId(null); setDraft(null); }
+  };
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <SectionTitle icon={Building2} hint="thêm / sửa cảm biến & giới hạn / xóa">Quản lý phòng</SectionTitle>
-        {canManage ? <button onClick={() => { setOpen((o) => !o); setEditId(null); }} className="text-xs font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: COLOR.coral }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm phòng</button> : <span className="text-[11px] text-slate-400">Cần quyền QA/Quản trị để chỉnh sửa</span>}
+        {canManage ? <button onClick={() => { if (editId && soThayDoi > 0 && !window.confirm("Bỏ các thay đổi chưa lưu?")) return; setOpen((o) => !o); setEditId(null); setDraft(null); }} className="text-xs font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: COLOR.coral }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm phòng</button> : <span className="text-[11px] text-slate-400">Cần quyền QA/Quản trị để chỉnh sửa</span>}
       </div>
 
       {open && canManage && (
@@ -694,36 +725,55 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onEdit, onDelete, onUpdateL
                 <td className="py-2 pr-4 text-slate-600">{r.name}</td>
                 <td className="py-2 pr-4 text-slate-500">{r.area}</td>
                 <td className="py-2 pr-4 text-slate-500">{r.ahu}</td>
-                <td className="py-2 pr-4"><select disabled={!canManage} value={r.priority} onChange={(e) => onEdit(r.id, { priority: e.target.value })} className="rounded-lg bg-white ring-1 ring-slate-200 px-2 py-1 text-[12px] disabled:bg-slate-50"><option value="P1">Mức 1</option><option value="P2">Mức 2</option><option value="P3">Mức 3</option></select></td>
+                <td className="py-2 pr-4"><MucBadge p={r.priority} /></td>
                 <td className="py-2 pr-4 text-slate-500">{r.noData ? "—" : r.sensors.map((s) => s.k).join(", ")}</td>
                 <td className="py-2 pr-4">{lm ? <span className={`text-[11px] px-2 py-0.5 rounded-full ${lm.bg} ${lm.txt}`}>{lm.label}</span> : <span className="text-[11px] text-amber-600">Mất DL</span>}</td>
-                <td className="py-2 pr-4">{canManage && <div className="flex gap-1.5"><button onClick={() => { setEditId(editId === r.id ? null : r.id); setOpen(false); }} className="text-sky-600 hover:text-sky-800" title="Sửa cảm biến/giới hạn"><Pencil className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => onDelete(r.id)} className="text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button></div>}</td>
+                <td className="py-2 pr-4">{canManage && <div className="flex gap-1.5"><button onClick={() => moSua(r)} className="text-sky-600 hover:text-sky-800" title="Sửa phòng / cảm biến / giới hạn"><Pencil className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => onDelete(r.id)} className="text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button></div>}</td>
               </tr>
             ); })}
           </tbody>
         </table>
       </div>
 
-      {editing && canManage && !editing.noData && (
+      {editing && canManage && draft && (
         <div className="mt-4 rounded-2xl bg-teal-50/50 ring-1 ring-teal-100 p-4">
-          <div className="flex items-center justify-between mb-3"><p className="text-sm font-semibold" style={{ color: COLOR.navy }}>Sửa cảm biến & giới hạn — {editing.id} ({editing.name})</p><button onClick={() => setEditId(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button></div>
-          <div className="space-y-2">
-            {editing.sensors.map((s) => (
-              <div key={s.k} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 flex items-center gap-2 text-[12px] flex-wrap">
-                <span className="font-semibold w-16" style={{ color: COLOR.navy }}>{SENSOR_META[s.k].label}</span>
-                <span className="text-slate-400">min</span><input type="number" value={s.min ?? ""} onChange={(e) => onUpdateLimit(editing.id, s.k, "min", e.target.value)} className="w-16 rounded ring-1 ring-slate-200 px-1.5 py-0.5" />
-                <span className="text-slate-400">max</span><input type="number" value={s.max ?? ""} onChange={(e) => onUpdateLimit(editing.id, s.k, "max", e.target.value)} className="w-16 rounded ring-1 ring-slate-200 px-1.5 py-0.5" />
-                <span className="text-slate-400">{SENSOR_META[s.k].unit}</span>
-                <button onClick={() => onRemoveSensor(editing.id, s.k)} className="ml-auto text-rose-500 hover:text-rose-700 text-[11px] flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> bỏ</button>
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold" style={{ color: COLOR.navy }}>Sửa phòng & cảm biến — {editing.id}{soThayDoi > 0 && <span className="ml-2 align-middle text-[10px] font-semibold text-amber-700 bg-amber-50 ring-1 ring-amber-200 rounded-full px-2 py-0.5">{soThayDoi} thay đổi chưa lưu</span>}</p>
+            <button onClick={dongSua} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
           </div>
-          {["DP", "RH", "T"].filter((k) => !editing.sensors.some((s) => s.k === k)).length > 0 && (
-            <div className="flex items-center gap-2 mt-3"><span className="text-[11px] text-slate-500">Thêm cảm biến:</span>{["DP", "RH", "T"].filter((k) => !editing.sensors.some((s) => s.k === k)).map((k) => <button key={k} onClick={() => onAddSensor(editing.id, k)} className="text-[11px] rounded-lg px-2 py-1 ring-1 ring-teal-200 text-teal-700 bg-teal-50 hover:bg-teal-100 flex items-center gap-1"><Plus className="w-3 h-3" strokeWidth={2} /> {SENSOR_META[k].label}</button>)}</div>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div className="flex flex-col gap-1 col-span-2"><label className="text-[10px] uppercase text-slate-500 font-semibold">Tên phòng</label><input className={inp} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></div>
+            <div className="flex flex-col gap-1"><label className="text-[10px] uppercase text-slate-500 font-semibold">Khu</label><select className={inp} value={draft.area} onChange={(e) => setDraft({ ...draft, area: e.target.value })}>{AREAS.map((a) => <option key={a}>{a}</option>)}</select></div>
+            <div className="flex flex-col gap-1"><label className="text-[10px] uppercase text-slate-500 font-semibold">AHU</label><select className={inp} value={draft.ahu} onChange={(e) => setDraft({ ...draft, ahu: e.target.value })}>{[...new Set([draft.ahu, ...AHUS])].filter(Boolean).map((a) => <option key={a}>{a}</option>)}</select></div>
+            <div className="flex flex-col gap-1"><label className="text-[10px] uppercase text-slate-500 font-semibold">Mức ưu tiên</label><select className={inp} value={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.value })}><option value="P1">Mức 1</option><option value="P2">Mức 2</option><option value="P3">Mức 3</option></select></div>
+            <div className="flex flex-col gap-1"><label className="text-[10px] uppercase text-slate-500 font-semibold">Ghi chú</label><input className={inp} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="(tuỳ chọn)" /></div>
+          </div>
+          {!editing.noData && (
+            <div className="space-y-2 mt-3">
+              {draft.sensors.map((s) => (
+                <div key={s.k} className="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2 flex items-center gap-2 text-[12px] flex-wrap">
+                  <span className="font-semibold w-16" style={{ color: COLOR.navy }}>{SENSOR_META[s.k].label}</span>
+                  <span className="text-slate-400">min</span><input type="number" value={s.min ?? ""} onChange={(e) => doiGioiHan(s.k, "min", e.target.value)} className="w-16 rounded ring-1 ring-slate-200 px-1.5 py-0.5" />
+                  <span className="text-slate-400">max</span><input type="number" value={s.max ?? ""} onChange={(e) => doiGioiHan(s.k, "max", e.target.value)} className="w-16 rounded ring-1 ring-slate-200 px-1.5 py-0.5" />
+                  <span className="text-slate-400">{SENSOR_META[s.k].unit}</span>
+                  <button onClick={() => setDraft((d) => ({ ...d, sensors: d.sensors.filter((x) => x.k !== s.k) }))} className="ml-auto text-rose-500 hover:text-rose-700 text-[11px] flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> bỏ</button>
+                </div>
+              ))}
+              {["DP", "RH", "T"].filter((k) => !draft.sensors.some((s) => s.k === k)).length > 0 && (
+                <div className="flex items-center gap-2 pt-1"><span className="text-[11px] text-slate-500">Thêm cảm biến:</span>{["DP", "RH", "T"].filter((k) => !draft.sensors.some((s) => s.k === k)).map((k) => <button key={k} onClick={() => setDraft((d) => ({ ...d, sensors: [...d.sensors, { k, ...SENSOR_DEFAULT[k] }] }))} className="text-[11px] rounded-lg px-2 py-1 ring-1 ring-teal-200 text-teal-700 bg-teal-50 hover:bg-teal-100 flex items-center gap-1"><Plus className="w-3 h-3" strokeWidth={2} /> {SENSOR_META[k].label}</button>)}</div>
+              )}
+            </div>
           )}
+          <div className="flex items-center justify-between flex-wrap gap-2 mt-4">
+            <p className="text-[11px] text-slate-500 max-w-md">Thay đổi chỉ ghi vào hệ thống khi bấm <b>Lưu</b>. Giới hạn là <b>mốc so sánh gốc</b> — sau khi lưu, KPI, mức cảnh báo, thẻ phòng và báo cáo đều tính theo giá trị mới.</p>
+            <div className="flex gap-2">
+              <button onClick={dongSua} className="text-xs text-slate-500 rounded-xl px-4 py-2 hover:bg-slate-100">Hủy</button>
+              <button onClick={luuSua} disabled={soThayDoi === 0 || dangLuu} className="text-xs font-medium text-white rounded-xl px-4 py-2 flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: COLOR.teal }}><Save className={`w-3.5 h-3.5 ${dangLuu ? "animate-pulse" : ""}`} strokeWidth={2} /> {dangLuu ? "Đang lưu…" : "Lưu thay đổi"}</button>
+            </div>
+          </div>
         </div>
       )}
-      <p className="text-[11px] text-slate-400 mt-3">Mọi thay đổi cập nhật ngay KPI, thẻ phòng và được ghi vào <b>lịch sử thay đổi cấu hình</b> (tab Nhật ký &amp; SOP).</p>
+      <p className="text-[11px] text-slate-400 mt-3">Thay đổi sau khi <b>Lưu</b> cập nhật ngay KPI, thẻ phòng và được ghi vào <b>lịch sử thay đổi cấu hình</b> (tab Nhật ký &amp; SOP).</p>
     </Card>
   );
 }
@@ -4012,25 +4062,38 @@ export default function App() {
     if (isLive) { const { error } = await themPhong({ p_ma_phong: r.id, p_ten_phong: r.name, p_khu_vuc: r.area, p_ahu: r.ahu, p_muc_uu_tien: r.priority, p_ghi_chu: r.note || null, p_thieu_du_lieu: !!r.noData, p_cam_bien: (r.sensors || []).map((s) => ({ loai: s.k, min: s.min, max: s.max })), p_actor: user?.email || null }); if (baoLoi(error, "Không thêm được phòng")) await apMoi(); return; }
     setRooms((rs) => [...rs, r]); logConfig(`Thêm phòng ${r.id} (${r.name}) · ${r.noData ? "no-data" : r.sensors.map((s) => s.k).join("/")}`);
   };
-  const editRoom = async (id, patch) => {
-    if (isLive) { const M = { name: "ten_phong", area: "khu_vuc", ahu: "ahu", priority: "muc_uu_tien", note: "ghi_chu", noData: "thieu_du_lieu" }; const p_patch = {}; Object.keys(patch).forEach((k) => { if (M[k]) p_patch[M[k]] = patch[k]; }); const { error } = await suaPhong({ p_ma_phong: id, p_patch, p_actor: user?.email || null }); if (baoLoi(error, "Không sửa được phòng")) await apMoi(); return; }
-    setRooms((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r))); if (patch.priority) logConfig(`Đổi mức ưu tiên phòng ${id} → ${MUC[patch.priority]}`);
-  };
   const deleteRoom = async (id) => {
     if (isLive) { const { error } = await xoaPhong({ p_ma_phong: id, p_actor: user?.email || null }); if (baoLoi(error, "Không xóa được phòng")) await apMoi(); return; }
     setRooms((rs) => rs.filter((r) => r.id !== id)); logConfig(`Xóa phòng ${id}`);
   };
-  const updateLimit = async (roomId, k, field, value) => {
-    if (isLive) { const room = rooms.find((r) => r.id === roomId); const s = (room && room.sensors.find((x) => x.k === k)) || {}; const v = value === "" ? null : Number(value); const duoi = field === "min" ? v : (s.min ?? null); const tren = field === "max" ? v : (s.max ?? null); const { error } = await suaGioiHan({ p_ma_phong: roomId, p_loai_cam_bien: k, p_gioi_han_duoi: duoi, p_gioi_han_tren: tren, p_actor: user?.email || null }); if (baoLoi(error, "Không sửa được giới hạn")) await apMoi(); return; }
-    setRooms((rs) => rs.map((r) => r.id === roomId ? { ...r, sensors: r.sensors.map((s) => s.k === k ? { ...s, [field]: value === "" ? null : Number(value) } : s) } : r)); logConfig(`Sửa giới hạn ${k}.${field} phòng ${roomId} = ${value}`);
-  };
-  const addSensor = async (roomId, k) => {
-    if (isLive) { const d = SENSOR_DEFAULT[k] || {}; const { error } = await themCamBien({ p_ma_phong: roomId, p_loai_cam_bien: k, p_gioi_han_duoi: d.min ?? null, p_gioi_han_tren: d.max ?? null, p_actor: user?.email || null }); if (baoLoi(error, "Không thêm được cảm biến")) await apMoi(); return; }
-    setRooms((rs) => rs.map((r) => r.id === roomId && !r.sensors.some((s) => s.k === k) ? { ...r, sensors: [...r.sensors, { k, ...SENSOR_DEFAULT[k] }] } : r)); logConfig(`Thêm cảm biến ${k} cho phòng ${roomId}`);
-  };
-  const removeSensor = async (roomId, k) => {
-    if (isLive) { const { error } = await xoaCamBien({ p_ma_phong: roomId, p_loai_cam_bien: k, p_actor: user?.email || null }); if (baoLoi(error, "Không bỏ được cảm biến")) await apMoi(); return; }
-    setRooms((rs) => rs.map((r) => r.id === roomId ? { ...r, sensors: r.sensors.filter((s) => s.k !== k) } : r)); logConfig(`Bỏ cảm biến ${k} khỏi phòng ${roomId}`);
+  // Lưu GỘP các thay đổi từ panel sửa phòng (bản nháp + nút Lưu): chạy tuần tự các RPC
+  // cần thiết rồi làm mới MỘT lần — đây là dữ liệu gốc (mốc so sánh) nên sau khi lưu,
+  // KPI/thẻ phòng/ngưỡng cảnh báo đều tính lại theo giá trị mới. Trả về true nếu lưu trọn vẹn.
+  const saveRoomEdits = async (id, { patch = {}, capNhatGioiHan = [], themSensor = [], boSensor = [] }) => {
+    if (isLive) {
+      const actor = user?.email || null; const loi = [];
+      const ghi = (nhan, error) => { if (error) loi.push(`${nhan}: ${error.thong_bao || error.ma_loi || "lỗi kết nối"}`); };
+      if (Object.keys(patch).length) {
+        const M = { name: "ten_phong", area: "khu_vuc", ahu: "ahu", priority: "muc_uu_tien", note: "ghi_chu" };
+        const p_patch = {}; Object.keys(patch).forEach((k) => { if (M[k]) p_patch[M[k]] = patch[k] === "" ? null : patch[k]; });
+        const { error } = await suaPhong({ p_ma_phong: id, p_patch, p_actor: actor }); ghi("Thông tin phòng", error);
+      }
+      for (const k of boSensor) { const { error } = await xoaCamBien({ p_ma_phong: id, p_loai_cam_bien: k, p_actor: actor }); ghi(`Bỏ cảm biến ${k}`, error); }
+      for (const s of themSensor) { const { error } = await themCamBien({ p_ma_phong: id, p_loai_cam_bien: s.k, p_gioi_han_duoi: s.min, p_gioi_han_tren: s.max, p_actor: actor }); ghi(`Thêm cảm biến ${s.k}`, error); }
+      for (const s of capNhatGioiHan) { const { error } = await suaGioiHan({ p_ma_phong: id, p_loai_cam_bien: s.k, p_gioi_han_duoi: s.min, p_gioi_han_tren: s.max, p_actor: actor }); ghi(`Giới hạn ${s.k}`, error); }
+      await apMoi();
+      if (loi.length) { alert(`Một số thay đổi của ${id} CHƯA lưu được:\n• ` + loi.join("\n• ")); return false; }
+      return true;
+    }
+    setRooms((rs) => rs.map((r) => {
+      if (r.id !== id) return r;
+      let sensors = (r.sensors || []).filter((s) => !boSensor.includes(s.k));
+      sensors = sensors.map((s) => { const c = capNhatGioiHan.find((x) => x.k === s.k); return c ? { ...s, min: c.min, max: c.max } : s; });
+      themSensor.forEach((t) => { if (!sensors.some((s) => s.k === t.k)) sensors = [...sensors, { k: t.k, min: t.min, max: t.max }]; });
+      return { ...r, ...patch, sensors };
+    }));
+    logConfig(`Lưu phòng ${id}: ${[Object.keys(patch).length && "thông tin phòng", capNhatGioiHan.length && `giới hạn ${capNhatGioiHan.map((s) => s.k).join("/")}`, themSensor.length && `thêm ${themSensor.map((s) => s.k).join("/")}`, boSensor.length && `bỏ ${boSensor.join("/")}`].filter(Boolean).join(" · ")}`);
+    return true;
   };
   const handleSaveAI = async ({ scopeType, scopeId, scopeName, sensor, days, text, level }) => {
     if (!isLive) return;
@@ -4850,7 +4913,7 @@ export default function App() {
               )}
 
               {cfgTab === "phong" && (
-              <div className="space-y-5"><SectionTitle icon={Building2}>Quản lý phòng & cảm biến</SectionTitle><RoomManager rooms={rooms} cfg={cfg} canManage={canManage} onAdd={addRoom} onEdit={editRoom} onDelete={deleteRoom} onUpdateLimit={updateLimit} onAddSensor={addSensor} onRemoveSensor={removeSensor} /></div>
+              <div className="space-y-5"><SectionTitle icon={Building2}>Quản lý phòng & cảm biến</SectionTitle><RoomManager rooms={rooms} cfg={cfg} canManage={canManage} onAdd={addRoom} onDelete={deleteRoom} onSaveEdits={saveRoomEdits} /></div>
               )}
 
               {cfgTab === "phantuyen" && (
