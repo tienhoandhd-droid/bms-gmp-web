@@ -3012,6 +3012,78 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
    Điểm thiết kế quan trọng: bảng KHÔNG chỉ liệt kê phòng trong phạm vi. Phòng bị
    loại vẫn hiện, kèm LÝ DO bị loại — vì chỗ nguy hiểm nhất không phải phòng hỏng
    mà có cảnh báo, mà là phòng hỏng nặng KHÔNG AI ĐƯỢC BÁO. */
+// Phễu vòng đời vé (11/08) — trả lời câu "IPC kích 4 vé, 2 vé chuyển Cơ điện,
+// còn 2 vé kia đi đâu?". Một con số % không nói được điều đó: vé có thể được IPC
+// tự kết luận "bình thường", chỉ bị báo vắng, hoặc tự tan trước khi ai kịp đụng.
+// Chặng 3-5 là nhánh CON của chặng 2, chặng 7-8 là nhánh con của chặng 3 — thụt
+// vào để không đọc nhầm thành các nhóm rời nhau cộng lại bằng tổng.
+function PhieuVongDoiVe({ chang }) {
+  const [moKhu, setMoKhu] = React.useState(null);   // "C1|ipc_bao_cd" đang xổ mã vé
+  const dsKhu = [...new Set(chang.map((c) => c.khu_vuc))].sort();
+  const CON = { ipc_bao_cd: 1, ipc_ket_luan: 1, ipc_chi_vang: 1, mep_nhan: 2, mep_xong: 2 };
+  const MAU = {
+    ipc_bao_cd: COLOR.navy, ipc_ket_luan: COLOR.teal, ipc_chi_vang: COLOR.sand,
+    ipc_khong_dung: COLOR.softCoral, mep_nhan: COLOR.sky, mep_xong: COLOR.teal,
+    he_tu_dong: COLOR.softCoral, con_mo: COLOR.sand,
+  };
+  return (
+    <div className="mt-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Vé đi đâu — phễu vòng đời</p>
+      <div className="mt-2 grid gap-3 lg:grid-cols-2">
+        {dsKhu.map((k) => {
+          const ds = chang.filter((c) => c.khu_vuc === k).sort((a, b) => a.thu_tu - b.thu_tu);
+          const tong = ds.find((c) => c.ma === "mo")?.so_ve || 0;
+          return (
+            <div key={k} className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
+              <p className="text-[12.5px] font-bold" style={{ color: COLOR.navy }}>Khu {k} · {tong} vé trong kỳ</p>
+              <div className="mt-2 space-y-1">
+                {ds.map((c) => {
+                  const muc = CON[c.ma] || 0;
+                  const rong = tong > 0 ? Math.max(c.so_ve > 0 ? 2 : 0, (c.so_ve / tong) * 100) : 0;
+                  const khoa = k + "|" + c.ma;
+                  const co = Array.isArray(c.ma_ve) && c.ma_ve.length > 0;
+                  return (
+                    <div key={c.ma} style={{ paddingLeft: muc * 14 }}>
+                      <button
+                        onClick={() => co && setMoKhu(moKhu === khoa ? null : khoa)}
+                        title={c.giai_thich}
+                        className={`w-full text-left rounded-md px-1.5 py-1 ${co ? "hover:bg-slate-50 cursor-pointer" : "cursor-default"}`}>
+                        <span className="flex items-baseline gap-2">
+                          <span className={`text-[12px] ${muc ? "text-slate-600" : "font-semibold text-slate-700"}`}>{c.nhan}</span>
+                          <span className="ml-auto tabular-nums text-[12.5px] font-bold text-slate-800">{c.so_ve}</span>
+                          <span className="tabular-nums text-[10.5px] text-slate-400 w-10 text-right">
+                            {tong > 0 ? `${Math.round((c.so_ve / tong) * 100)}%` : ""}
+                          </span>
+                        </span>
+                        <span className="mt-0.5 block h-1.5 rounded-full bg-slate-100">
+                          <span className="block h-1.5 rounded-full" style={{ width: `${rong}%`, backgroundColor: MAU[c.ma] || COLOR.ink }} />
+                        </span>
+                      </button>
+                      {moKhu === khoa && co && (
+                        <p className="mt-0.5 mb-1 rounded-md bg-slate-50 px-2 py-1 text-[10.5px] leading-snug text-slate-500 ring-1 ring-slate-200">
+                          <b className="text-slate-600">Mã vé:</b> {c.ma_ve.join(", ")}
+                          {c.ma_ve.length >= 50 && <span className="text-slate-400"> … (chỉ liệt kê 50 vé đầu)</span>}
+                          <br /><span className="text-slate-400">{c.giai_thich}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">
+        Các dòng <b>thụt vào</b> là nhánh con: "chuyển Cơ điện" / "IPC tự kết luận" / "chỉ báo vắng" nằm trong
+        "IPC/QC có động vào"; "Cơ điện bấm…" nằm trong "chuyển Cơ điện". Nên đừng cộng dồn tất cả các dòng.
+        Một vé có thể vào nhiều nhánh (vừa báo vắng vừa chuyển Cơ điện), và <b>hệ thống tự đóng</b> chồng lên mọi nhánh —
+        chênh áp về dải thì vé đóng bất kể ai đang giữ. Bấm vào một chặng để xem mã vé.
+      </p>
+    </div>
+  );
+}
+
 function DanhGiaHieuQuaCanhBao({ isLive }) {
   const [soTuan, setSoTuan] = React.useState(3);
   const [bc, setBc] = React.useState(null);      // luật + bộ phận + phòng ngoài phạm vi
@@ -3052,6 +3124,21 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
     || String(a.khu_vuc || "").localeCompare(String(b2.khu_vuc || "")));
   // 'YYYY-MM-DD' → 'dd/mm' — người đọc xem theo lịch nhà máy, không bắt họ dịch ISO.
   const dmy = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "");
+  // 11/08: thước đo chính chuyển sang tỉ lệ trên VÉ CÓ BÁO. Fallback về số cũ để
+  // web bản mới vẫn đọc được RPC bản cũ (và ngược lại) trong lúc deploy lệch nhau.
+  const coBao = (o) => (o && o.ty_le_phan_hoi_co_bao !== undefined ? o.ty_le_phan_hoi_co_bao : null);
+  const mauSo = (o) => (o && o.ve_co_bao != null ? o.ve_co_bao : o?.ve_can_xu_ly);
+  const tuSo = (o) => (o && o.ve_co_bao != null ? o.ve_da_thao_tac_co_bao : o?.ve_da_thao_tac);
+  const pct = (o) => (coBao(o) != null ? coBao(o) : o?.ty_le_phan_hoi);
+  // Khung giờ cảnh báo, viết gọn cho chú thích. Các vai đang dùng chung một khung
+  // nên gộp một dòng; nếu sau này lệch nhau thì liệt kê từng vai.
+  const THU_VI = { 1: "T2", 2: "T3", 3: "T4", 4: "T5", 5: "T6", 6: "T7", 7: "CN" };
+  const khungGio = (() => {
+    const ds = (Array.isArray(bc?.khung_gio) ? bc.khung_gio : []).filter((k) => k.kich_hoat);
+    if (!ds.length) return null;
+    const k = ds[0];
+    return `${k.gio_tu}–${k.gio_den}, ${(k.ngay || []).map((n) => THU_VI[n] || n).join("/")}`;
+  })();
   const chip = (v, label) => (
     <button key={v} onClick={() => setSoTuan(v)}
       className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 transition ${soTuan === v ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`}
@@ -3122,24 +3209,56 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
         <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tỉ lệ phản hồi của các bộ phận</p>
         <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
           {sapBoPhan(bc.bo_phan || []).map((b) => {
-            const t = b.ty_le_phan_hoi;
+            // QA là vai GIÁM SÁT — không có hàng đợi nên không chấm %. Trước 11/08
+            // thẻ này ra "0% — 0/94 vé", đọc như thể QA bỏ sót 94 lần.
+            if (b.vai_giam_sat) return (
+              <div key={khoaBoPhan(b)} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                <p className="text-[11.5px] font-semibold text-slate-500">{ROLE[b.vai_tro] || b.vai_tro} <span className="font-normal">· giám sát</span></p>
+                <p className="text-[22px] font-bold tabular-nums leading-tight text-slate-600">{b.ve_da_thao_tac}</p>
+                <p className="text-[10.5px] text-slate-500 leading-snug">vé đã can thiệp · {b.tong_thao_tac} thao tác</p>
+                <p className="text-[10.5px] text-slate-400 leading-snug">Không có hàng đợi — chỉ vào khi xác nhận khắc phục hoặc mở lại vé, nên không tính tỉ lệ.</p>
+              </div>
+            );
+            const tCoBao = coBao(b);        // trên vé bộ phận thực sự được báo
+            const tTong = b.ty_le_phan_hoi; // trên MỌI vé, kể cả vé ngoài giờ
+            const t = tCoBao ?? tTong;
             const mau = t == null ? "text-slate-400" : t < 20 ? "text-rose-600" : t < 50 ? "text-amber-600" : "text-emerald-700";
+            const boSot = b.ve_co_bao != null && b.ve_can_xu_ly != null ? b.ve_can_xu_ly - b.ve_co_bao : 0;
             return (
               <div key={khoaBoPhan(b)} className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
                 <p className="text-[11.5px] font-semibold text-slate-500">{nhanBoPhan(b)}</p>
                 <p className={`text-[22px] font-bold tabular-nums leading-tight ${mau}`}>{t == null ? "—" : `${t}%`}</p>
-                <p className="text-[10.5px] text-slate-500 leading-snug">động vào <b>{b.ve_da_thao_tac}</b>/{b.ve_can_xu_ly} vé · {b.tong_thao_tac} thao tác</p>
+                <p className="text-[10.5px] text-slate-500 leading-snug">
+                  động vào <b>{tCoBao != null ? b.ve_da_thao_tac_co_bao : b.ve_da_thao_tac}</b>/{tCoBao != null ? b.ve_co_bao : b.ve_can_xu_ly} vé
+                  {tCoBao != null && <span className="text-slate-400"> có báo</span>} · {b.tong_thao_tac} thao tác
+                </p>
+                {boSot > 0 && (
+                  <p className="text-[10.5px] text-slate-400 leading-snug">
+                    tính cả <b>{boSot}</b> vé ngoài khung giờ báo: <b>{tTong}%</b> ({b.ve_da_thao_tac}/{b.ve_can_xu_ly})
+                  </p>
+                )}
                 <p className="text-[10.5px] text-slate-400">{b.gio_phan_hoi_tb == null ? "chưa có phản hồi nào" : `phản hồi sau TB ${b.gio_phan_hoi_tb} giờ`}</p>
+                {b.gio_ipc_giu_tb != null && (
+                  <p className="text-[10.5px] text-amber-700">IPC giữ TB <b>{b.gio_ipc_giu_tb} giờ</b> trước khi chuyển</p>
+                )}
               </div>
             );
           })}
         </div>
+        {khungGio && (
+          <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">
+            <b>"Vé có báo"</b> = vé còn đang mở trong khung giờ cảnh báo ({khungGio}) nên bộ phận mới có email để biết.
+            Vé mở rồi tự tan gọn trong đêm/Chủ nhật không ai được báo — để trong mẫu số là chấm điểm người ta trên việc họ không thể biết.
+            Số cũ (trên MỌI vé) vẫn để ở dòng dưới để truy vết.
+            Riêng <b>Cơ điện</b> tính từ lúc vé được <b>chuyển sang</b>, không phải từ lúc mở vé.
+          </p>
+        )}
 
         {/* ── Phản hồi theo NGÀY (đường) ── */}
         {Array.isArray(bc.bo_phan_ngay) && bc.bo_phan_ngay.length > 0 && (() => {
           const dsNgay = [...new Set(bc.bo_phan_ngay.map((x) => x.ngay))].sort();
           const MAU = { "IPC·C1": COLOR.teal, "IPC·Q2": COLOR.navy, IPC: COLOR.teal, MEP: COLOR.softCoral, LOT: COLOR.sand, QA: COLOR.sky };
-          const nhom = sapBoPhan(bc.bo_phan || []);
+          const nhom = sapBoPhan(bc.bo_phan || []).filter((b) => !b.vai_giam_sat);
           const chuoi = nhom.map((b) => {
             const k = khoaBoPhan(b);
             const theoNgay = new Map(bc.bo_phan_ngay
@@ -3149,7 +3268,7 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
               vai_tro: k, nhan: nhanBoPhan(b), mau: MAU[k] || COLOR.ink,
               diem: dsNgay.map((n) => {
                 const o = theoNgay.get(n);
-                return o ? { pct: o.ty_le_phan_hoi, can: o.ve_can_xu_ly, da: o.ve_da_thao_tac } : {};
+                return o ? { pct: pct(o), can: mauSo(o), da: tuSo(o) } : {};
               }),
             };
           });
@@ -3157,9 +3276,9 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
             <div className="mt-3">
               <Chart type="phanHoiNgay" h={260} ngay={dsNgay.map((n) => n.slice(5))} series={chuoi} />
               <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">
-                Mỗi điểm = lứa vé <b>mở trong ngày đó</b>, tính xem bao nhiêu % được bộ phận ấy động vào (bất kỳ lúc nào sau đó).
+                Mỗi điểm = lứa vé <b>mở trong ngày đó</b> mà bộ phận ấy <b>có được báo</b>, tính xem bao nhiêu % được động vào (bất kỳ lúc nào sau đó).
                 Ngày <b>không có vé nào</b> để trống nên đường bị đứt — cố ý: "không có vé" khác hẳn "có vé mà không ai đụng".
-                Cơ điện chỉ tính trên các vé đã được chuyển sang Cơ điện.
+                Cơ điện chỉ tính trên các vé đã được chuyển sang Cơ điện, và xếp theo <b>ngày được chuyển</b> chứ không phải ngày mở vé.
               </p>
             </div>
           );
@@ -3169,15 +3288,16 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
         {Array.isArray(bc.bo_phan_tuan) && bc.bo_phan_tuan.length > 0 && (() => {
           const dsTuan = [...new Set(bc.bo_phan_tuan.map((x) => x.tuan))].sort((a2, b2) => a2 - b2);
           const mocTuan = (t) => (Array.isArray(bc.tuan_moc) ? bc.tuan_moc : []).find((m) => m.tuan === t);
-          const nhom = sapBoPhan(bc.bo_phan || []);
+          const nhom = sapBoPhan(bc.bo_phan || []).filter((b) => !b.vai_giam_sat);
           const lay = (b, t) => bc.bo_phan_tuan.find((x) => x.vai_tro === b.vai_tro && (x.khu_vuc || null) === (b.khu_vuc || null) && x.tuan === t);
           const mauPct = (t) => t == null ? "text-slate-400" : t < 20 ? "text-rose-600 font-semibold" : t < 50 ? "text-amber-600 font-semibold" : "text-emerald-700 font-semibold";
           // Tiến bộ = tuần CÓ VÉ cuối cùng so tuần CÓ VÉ đầu tiên. Tuần không có vé
           // nào để bộ phận ấy xử lý thì không phải thành tích cũng không phải lỗi.
+          // Từ 11/08 so trên cùng thước đo đang hiện trong ô: tỉ lệ trên VÉ CÓ BÁO.
           const tienBo = (b) => {
-            const ds = dsTuan.map((t) => lay(b, t)).filter((o) => o && o.ve_can_xu_ly > 0 && o.ty_le_phan_hoi != null);
+            const ds = dsTuan.map((t) => lay(b, t)).filter((o) => o && mauSo(o) > 0 && pct(o) != null);
             if (ds.length < 2) return { ma: "?", nhan: "chưa đủ tuần có vé", mau: "text-slate-400", d: null };
-            const d = Math.round((ds[ds.length - 1].ty_le_phan_hoi - ds[0].ty_le_phan_hoi) * 10) / 10;
+            const d = Math.round((pct(ds[ds.length - 1]) - pct(ds[0])) * 10) / 10;
             if (Math.abs(d) < 5) return { ma: "→", nhan: "đi ngang", mau: "text-slate-500", d };
             return d > 0 ? { ma: "▲", nhan: "tiến bộ", mau: "text-emerald-700 font-semibold", d }
                          : { ma: "▼", nhan: "kém đi", mau: "text-rose-600 font-semibold", d };
@@ -3210,11 +3330,16 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                           {dsTuan.map((t) => {
                             const o = lay(b, t);
                             return (
-                              <td key={t} className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums ${mauPct(o?.ty_le_phan_hoi)}`}>
-                                {!o || o.ve_can_xu_ly === 0
+                              <td key={t} className={`border border-slate-200 px-2 py-1.5 text-center tabular-nums ${mauPct(pct(o))}`}>
+                                {!o || !o.ve_can_xu_ly
                                   ? <span className="text-slate-400 text-[11px]">không có vé</span>
-                                  : <>{o.ty_le_phan_hoi}%<br />
-                                      <span className="text-[9.5px] font-normal text-slate-400">{o.ve_da_thao_tac}/{o.ve_can_xu_ly} vé{o.gio_phan_hoi_tb != null && ` · ${o.gio_phan_hoi_tb}h`}</span>
+                                  : !mauSo(o)
+                                  ? <span className="text-slate-400 text-[11px]" title={`${o.ve_can_xu_ly} vé nhưng không vé nào rơi vào khung giờ báo`}>không vé nào được báo<br /><span className="text-[9.5px]">({o.ve_can_xu_ly} vé ngoài giờ)</span></span>
+                                  : <>{pct(o)}%<br />
+                                      <span className="text-[9.5px] font-normal text-slate-400">
+                                        {tuSo(o)}/{mauSo(o)} vé{o.gio_phan_hoi_tb != null && ` · ${o.gio_phan_hoi_tb}h`}
+                                        {o.ve_co_bao != null && o.ve_can_xu_ly > o.ve_co_bao && <><br />({o.ve_can_xu_ly - o.ve_co_bao} vé ngoài giờ không tính)</>}
+                                      </span>
                                     </>}
                               </td>
                             );
@@ -3230,13 +3355,19 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                 </table>
               </div>
               <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">
-                Số nhỏ = <b>vé đã động vào / vé cần xử lý</b> và thời gian phản hồi trung bình.
-                Cột <b>Tiến bộ</b> so tuần có vé cuối với tuần có vé đầu; tuần <b>không có vé</b> nào để bộ phận ấy xử lý
-                thì không tính là thành tích cũng không tính là lỗi.
+                Số nhỏ = <b>vé đã động vào / vé có báo</b> và thời gian phản hồi trung bình; vé mở ngoài khung giờ cảnh báo
+                được đếm riêng chứ không nằm trong mẫu số. Cột <b>Tiến bộ</b> so tuần có vé cuối với tuần có vé đầu; tuần
+                <b> không có vé</b> nào để bộ phận ấy xử lý thì không tính là thành tích cũng không tính là lỗi.
+                Lưu ý đọc: tỉ lệ tụt còn có thể vì <b>vé tự tan nhanh hơn</b> — xem tuổi thọ vé ở phễu bên dưới trước khi kết luận người kém đi.
               </p>
             </div>
           );
         })()}
+
+        {/* ── Phễu vòng đời vé — "vé kia đi đâu" ── */}
+        {Array.isArray(bc.phieu_vong_doi) && bc.phieu_vong_doi.length > 0 && (
+          <PhieuVongDoiVe chang={bc.phieu_vong_doi} />
+        )}
 
         {/* ── Kết luận ── */}
         <div className="mt-4 rounded-xl bg-amber-50 p-3.5 ring-1 ring-amber-300">
