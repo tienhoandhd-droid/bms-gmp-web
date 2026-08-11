@@ -275,6 +275,10 @@ export async function layChenhApTheoAhu(signal) {
       ghDuoi: r.gioi_han_duoi, ghTren: r.gioi_han_tren, donVi: r.don_vi,
       giaTri: r.gia_tri, thoiDiem: r.thoi_diem, tuoiPhut: r.tuoi_phut, realtime: r.realtime,
       chuoi: Array.isArray(r.chuoi) ? r.chuoi : [], dat: r.dat, coDuLieu: r.co_du_lieu,
+      // 11/08: ba trạng thái thay vì hai — 'phut' (điểm phút ≤6′) · 'gio' (rơi về
+      // rollup giờ, số của giờ vừa xong) · quá hạn thì server trả dat=null +
+      // co_du_lieu=false để web KHÔNG đếm là đạt. tuoiToiDaPhut = ngưỡng server dùng.
+      nguon: r.nguon || null, duLieuCu: r.du_lieu_cu === true, tuoiToiDaPhut: r.tuoi_toi_da_phut ?? null,
     })),
   }
 }

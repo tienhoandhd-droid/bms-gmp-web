@@ -2854,6 +2854,12 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   const soP3 = filt.filter(p3KhongDat).length;
   const soDh = filt.filter(laDungHinh).length;
   const soNgoaiKhoang = filt.filter((r) => r.dat !== false && ngoaiKhoang(r) && !laDungHinh(r)).length;
+  // 11/08: phòng KHÔNG có số đo đủ mới phải hiện thành một con số riêng. Trước đây
+  // chúng lặng lẽ nằm trong mẫu số "/57 phòng" như thể vẫn đang được theo dõi.
+  const soMatDuLieu = filt.filter((r) => r.coDuLieu === false).length;
+  // Nguồn đang dùng: rơi về rollup giờ nghĩa là mạch phút đã tắt.
+  const soDungGio = filt.filter((r) => r.duLieuCu && r.coDuLieu !== false).length;
+  const nguongTuoi = filt.find((r) => r.tuoiToiDaPhut != null)?.tuoiToiDaPhut ?? null;
   const oCls = (r) => r.coDuLieu === false ? "bg-slate-100 ring-slate-300"
     : laDungHinh(r) ? "bg-slate-100 ring-2 ring-amber-400"
     : canGap(r) ? "bg-rose-100 ring-2 ring-rose-600"
@@ -2879,7 +2885,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   const ordUu = (p) => p === "P1" ? 1 : p === "P2" ? 2 : p === "P3" ? 3 : 4;
   return (
     <Card className="p-5">
-      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = dưới sàn cần chỉnh (P1/P2) · VIỀN VÀNG XÁM = cảm biến đứng hình · XÁM PHỚT HỒNG = P3 chưa gấp · VÀNG = trên dải · XANH = đạt">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b> cần chỉnh{soDh > 0 && <> · <b className="text-amber-600">{soDh}</b> đứng hình</>}{soP3 > 0 && <> · <b className="text-slate-400">{soP3}</b> P3 chưa gấp</>}{soNgoaiKhoang > 0 && <> · <b className="text-amber-600">{soNgoaiKhoang}</b> trên dải</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[10px] font-normal text-teal-600"> · đang lấy realtime…</span>}</SectionTitle>
+      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = dưới sàn cần chỉnh (P1/P2) · VIỀN VÀNG XÁM = cảm biến đứng hình · XÁM PHỚT HỒNG = P3 chưa gấp · VÀNG = trên dải · XANH = đạt">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-rose-600">{soKhongDat}</b> cần chỉnh{soDh > 0 && <> · <b className="text-amber-600">{soDh}</b> đứng hình</>}{soP3 > 0 && <> · <b className="text-slate-400">{soP3}</b> P3 chưa gấp</>}{soNgoaiKhoang > 0 && <> · <b className="text-amber-600">{soNgoaiKhoang}</b> trên dải</>}{soMatDuLieu > 0 && <> · <b className="text-slate-500">{soMatDuLieu}</b> mất dữ liệu</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[10px] font-normal text-teal-600"> · đang lấy realtime…</span>}</SectionTitle>
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
         {chip("ALL", "Tất cả", khu === "ALL", () => { setKhu("ALL"); setAhuLoc("ALL"); })}
@@ -2891,6 +2897,29 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
           </select>
         )}
       </div>
+      {/* 11/08 — BĂNG BÁO MẤT NGUỒN. Sự cố FMS treo 08:42–10:07 cho thấy bảng vẫn
+          xanh mướt suốt 85 phút vì rơi âm thầm về rollup giờ. Nay trạng thái nguồn
+          phải nằm ở chỗ dễ thấy nhất, không phải chữ nhỏ cạnh từng ô. */}
+      {rows !== null && soMatDuLieu > 0 && (
+        <div className="mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 ring-1 ring-rose-300">
+          <p className="text-[12.5px] font-bold text-rose-800">
+            ⚠ MẤT NGUỒN SỐ LIỆU — {soMatDuLieu}/{filt.length} phòng không có số đo đủ mới
+          </p>
+          <p className="mt-0.5 text-[11.5px] leading-snug text-rose-900">
+            Số cuối cùng đo được vẫn hiện để tham khảo, nhưng hệ <b>KHÔNG kết luận đạt/không đạt</b> trên số đã cũ
+            {nguongTuoi != null && <> (quá {nguongTuoi} phút)</>} — các phòng này không được tính vào số "đạt" lẫn số "cần chỉnh".
+            Kiểm FMS ngay: nguồn treo thì phải có người khởi động lại, hệ không tự khỏi.
+          </p>
+        </div>
+      )}
+      {rows !== null && soMatDuLieu === 0 && soDungGio > 0 && (
+        <div className="mt-3 rounded-xl bg-amber-50 px-3.5 py-2 ring-1 ring-amber-300">
+          <p className="text-[12px] text-amber-900">
+            <b>Đang dùng số liệu theo GIỜ</b> ({soDungGio}/{filt.length} phòng) — mạch phút không có điểm mới trong 6 phút.
+            Số đang xem là trung bình 5 phút cuối của giờ đã xong, không phải hiện tại.
+          </p>
+        </div>
+      )}
       {rows === null ? <div className="mt-3 h-24 rounded-2xl bg-slate-50 animate-pulse" />
         : filt.length === 0 ? <p className="mt-3 text-[13px] text-slate-400">Không có phòng chênh áp trong phạm vi lọc.</p>
         : <div className="mt-3 space-y-4">
@@ -2903,12 +2932,22 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
           }).map((k) => {
             const rank = (r) => r.coDuLieu === false ? 5 : canGap(r) ? 0 : laDungHinh(r) ? 1 : p3KhongDat(r) ? 2 : ngoaiKhoang(r) ? 3 : 4;
             const ds = groups[k].slice().sort((a, b) => rank(a) - rank(b) || ordUu(a.uuTien) - ordUu(b.uuTien) || String(a.maPhong).localeCompare(String(b.maPhong)));
-            const soDat = ds.filter((r) => r.dat).length;
+            // 11/08: mẫu số là phòng CÓ SỐ ĐO DÙNG ĐƯỢC, không phải mọi phòng.
+            // Trước đây "{soDat}/{ds.length} đạt" đếm cả phòng đang mất nguồn mà
+            // server vẫn trả dat=true từ bucket giờ cũ ⇒ số phòng đạt là đạt giả.
+            const dsCo = ds.filter((r) => r.coDuLieu !== false);
+            const soDat = dsCo.filter((r) => r.dat).length;
+            const soMatDl = ds.length - dsCo.length;
             return (
               <div key={k}>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-[12px] font-bold uppercase tracking-wide text-slate-500">{k}</span>
-                  <span className="text-[11px] text-slate-400 tabular-nums">{soDat}/{ds.length} đạt</span>
+                  <span className="text-[11px] tabular-nums">
+                    {dsCo.length === 0
+                      ? <span className="font-semibold text-slate-500">không có số đo — không kết luận</span>
+                      : <><span className="text-slate-400">{soDat}/{dsCo.length} đạt</span>
+                          {soMatDl > 0 && <span className="ml-1.5 font-semibold text-slate-500">· {soMatDl} mất dữ liệu</span>}</>}
+                  </span>
                 </div>
                 <div className="space-y-1.5">
                   {ds.map((r) => (
