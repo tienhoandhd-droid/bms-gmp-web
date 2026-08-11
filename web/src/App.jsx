@@ -3056,9 +3056,26 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
 // tự kết luận "bình thường", chỉ bị báo vắng, hoặc tự tan trước khi ai kịp đụng.
 // Chặng 3-5 là nhánh CON của chặng 2, chặng 7-8 là nhánh con của chặng 3 — thụt
 // vào để không đọc nhầm thành các nhóm rời nhau cộng lại bằng tổng.
-function PhieuVongDoiVe({ chang }) {
+function PhieuVongDoiVe({ chang, tuanMoc, soTuan, dmy }) {
   const [moKhu, setMoKhu] = React.useState(null);   // "C1|ipc_bao_cd" đang xổ mã vé
+  // 11/08 (chủ hệ thống): lọc theo TUẦN. null = cả kỳ (server trả sẵn dòng tuan=null),
+  // nên đổi tuần KHÔNG gọi lại mạng — chỉ lọc trên mảng đã có.
+  const [tuan, setTuan] = React.useState(null);
+  const moc = Array.isArray(tuanMoc) ? tuanMoc : [];
+  const dsTuan = moc.length ? moc.map((m) => m.tuan)
+                            : [...new Set(chang.map((c) => c.tuan).filter((t) => t != null))].sort((a, b) => a - b);
+  React.useEffect(() => { setTuan(null); setMoKhu(null); }, [soTuan]);  // đổi kỳ ⇒ về cả kỳ
+  const loc = chang.filter((c) => (c.tuan ?? null) === tuan);
   const dsKhu = [...new Set(chang.map((c) => c.khu_vuc))].sort();
+  const nhanTuan = (t) => {
+    const m = moc.find((x) => x.tuan === t);
+    return m ? `Tuần ${t} · ${dmy(m.tu)}–${dmy(m.den)}` : `Tuần ${t}`;
+  };
+  const chipTuan = (v, label) => (
+    <button key={String(v)} onClick={() => { setTuan(v); setMoKhu(null); }}
+      className={`px-2.5 py-1 rounded-full text-[11.5px] font-medium ring-1 transition ${tuan === v ? "text-white ring-transparent" : "text-slate-600 bg-white ring-slate-200 hover:ring-teal-300"}`}
+      style={tuan === v ? { backgroundColor: COLOR.navy } : {}}>{label}</button>
+  );
   const CON = { ipc_bao_cd: 1, ipc_ket_luan: 1, ipc_chi_vang: 1, mep_nhan: 2, mep_xong: 2 };
   const MAU = {
     ipc_bao_cd: COLOR.navy, ipc_ket_luan: COLOR.teal, ipc_chi_vang: COLOR.sand,
@@ -3068,13 +3085,28 @@ function PhieuVongDoiVe({ chang }) {
   return (
     <div className="mt-4">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Vé đi đâu — phễu vòng đời</p>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {chipTuan(null, "Cả kỳ")}
+        {dsTuan.map((t) => chipTuan(t, nhanTuan(t)))}
+        <span className="ml-1 text-[11px] text-slate-400">vé xếp theo tuần MỞ VÉ</span>
+      </div>
       <div className="mt-2 grid gap-3 lg:grid-cols-2">
         {dsKhu.map((k) => {
-          const ds = chang.filter((c) => c.khu_vuc === k).sort((a, b) => a.thu_tu - b.thu_tu);
+          const ds = loc.filter((c) => c.khu_vuc === k).sort((a, b) => a.thu_tu - b.thu_tu);
+          // Không có dòng nào = tuần đó khu này KHÔNG có vé. Khác hẳn "có vé mà mọi
+          // chặng bằng 0" — nên phải nói rõ, đừng vẽ phễu rỗng gây hiểu nhầm.
+          if (ds.length === 0) return (
+            <div key={k} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+              <p className="text-[12.5px] font-bold" style={{ color: COLOR.navy }}>Khu {k}</p>
+              <p className="mt-1 text-[12px] text-slate-500">Không có vé nào {tuan == null ? "trong kỳ" : `trong tuần ${tuan}`}.</p>
+            </div>
+          );
           const tong = ds.find((c) => c.ma === "mo")?.so_ve || 0;
           return (
             <div key={k} className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
-              <p className="text-[12.5px] font-bold" style={{ color: COLOR.navy }}>Khu {k} · {tong} vé trong kỳ</p>
+              <p className="text-[12.5px] font-bold" style={{ color: COLOR.navy }}>
+                Khu {k} · {tong} vé {tuan == null ? "trong kỳ" : nhanTuan(tuan).toLowerCase()}
+              </p>
               <div className="mt-2 space-y-1">
                 {ds.map((c) => {
                   const muc = CON[c.ma] || 0;
@@ -3405,7 +3437,7 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
 
         {/* ── Phễu vòng đời vé — "vé kia đi đâu" ── */}
         {Array.isArray(bc.phieu_vong_doi) && bc.phieu_vong_doi.length > 0 && (
-          <PhieuVongDoiVe chang={bc.phieu_vong_doi} />
+          <PhieuVongDoiVe chang={bc.phieu_vong_doi} tuanMoc={bc.tuan_moc} soTuan={soTuan} dmy={dmy} />
         )}
 
         {/* ── Kết luận ── */}
