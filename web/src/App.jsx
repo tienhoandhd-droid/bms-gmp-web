@@ -4775,9 +4775,36 @@ export default function App() {
                          : isLive ? [] : rolesOfStatus(inc.status);
               return { acts, terminal, myActs, choAi };
             };
+            // 12/08 — TUỔI SỐ LIỆU PHẢI ĐỨNG NGANG HÀNG VỚI MỨC CẢNH BÁO khi mất nguồn.
+            // Vé SC-4177 hô CRITICAL bằng số đo lúc 08:00 (186 phút trước): chữ CRITICAL
+            // to và đỏ, còn tuổi số liệu là chữ xám nhỏ cuối dòng ⇒ người trực đọc lướt
+            // tưởng phòng ĐANG lệch ngay lúc này. Sự thật là KHÔNG BIẾT — có thể tệ hơn,
+            // có thể đã về đạt. Mất nguồn thì nhãn hiện với MỌI tuổi, không chờ quá 75′.
+            const nhanSoCu = (inc) => {
+              const t = inc.tuoiDuLieuPhut;
+              if (t == null || (!matNguon && t <= 75)) return null;
+              const txt = t < 60 ? `${t}′` : `${(t / 60).toFixed(1)}h`;
+              return <span title="Số đo cuối cùng lấy được. Nguồn đang mất nên KHÔNG khẳng định được tình trạng hiện tại của phòng." className="ml-1.5 align-middle inline-block rounded-md bg-amber-100 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-800 ring-1 ring-amber-300 whitespace-nowrap">số liệu {txt} trước</span>;
+            };
             return (
             <div className="space-y-5">
               <SectionTitle icon={AlertOctagon} hint={user ? `vai trò: ${ROLE_VI[role]}` : "đăng nhập để thao tác"}>Sự cố đang xử lý</SectionTitle>
+              {/* Vé VẪN hiện khi mất nguồn là ĐÚNG — mất dữ liệu không xoá được sự kiện đã
+                  xảy ra, đóng vé vì hết dữ liệu là làm mất hồ sơ GMP (bài học 14/07). Cái
+                  phải nói rõ là: mức đang hiện dựa trên số CŨ, và khoảng mù này KHÔNG mở
+                  được vé mới vì WF1 không chạy. */}
+              {matNguon && (
+                <div className="rounded-2xl bg-rose-50 px-4 sm:px-5 py-3.5 ring-1 ring-rose-300">
+                  <p className="text-[13px] font-bold text-rose-800 flex items-center gap-2">
+                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> MẤT NGUỒN SỐ LIỆU — mức cảnh báo bên dưới dựa trên số đo CŨ
+                  </p>
+                  <p className="mt-1 text-[12px] leading-snug text-rose-900">
+                    {skTomTat || "Nguồn dữ liệu không cập nhật."} Vé đang mở <b>vẫn giữ nguyên</b> (sự cố đã xảy ra là có thật, hệ không tự đóng khi thiếu dữ liệu),
+                    nhưng <b>không khẳng định được phòng hiện giờ ra sao</b> — có thể đã nặng hơn, có thể đã về đạt.
+                    Nguy hơn: trong lúc mất nguồn hệ <b>không mở được vé mới</b>, phòng lệch chuẩn lúc này sẽ không có ai báo.
+                  </p>
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mr-1">Lọc khu</span>
                 {locChip("ALL", "Tất cả", evtKhu === "ALL", () => { setEvtKhu("ALL"); setEvtAhu("ALL"); })}
@@ -4821,6 +4848,7 @@ export default function App() {
                         <p className="mt-1 text-[12px] text-slate-600">
                           {inc.sensor}{inc.huong && <span className={`ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-rose-50 text-rose-600" : inc.huong === "THAP" ? "bg-sky-50 text-sky-600" : "bg-amber-50 text-amber-600"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
                           {inc.mucCanhBao === "SUPPRESSED" && <span className="ml-1.5 rounded-lg bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-medium text-slate-500">cảm biến đứng hình</span>}
+                          {nhanSoCu(inc)}
                         </p>
                         {inc.giaTriGanNhat != null && <p className="text-[11px] text-slate-400 mt-0.5">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") && <span className="text-emerald-600"> · đã về ngưỡng</span>}</p>}
                         <p className="mt-1.5 text-[12px] flex items-center gap-1.5 flex-wrap">
@@ -4862,6 +4890,7 @@ export default function App() {
                     <td className="py-3 px-3">{inc.room}{inc.mucCanhBao === "SUPPRESSED" && <span title="Cảm biến không đo được — hệ ngừng chấm mức, chờ Thiết bị đo. Không gửi email." className="ml-1.5 align-middle inline-block rounded-lg bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-medium text-slate-500">cảm biến đứng hình</span>}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[10px] text-slate-400">{kh}</span> : null; })()}</td>
                     <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
                     <td className="py-3 px-3 text-slate-600">{inc.sensor}{inc.huong && <span className={`ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-rose-50 text-rose-600" : inc.huong === "THAP" ? "bg-sky-50 text-sky-600" : "bg-amber-50 text-amber-600"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
+                      {nhanSoCu(inc)}
                       {inc.giaTriGanNhat != null && <div className="text-[11px] text-slate-400 mt-0.5 leading-tight">TB 5′ cuối <b className="text-slate-600 tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.cuaSo5p && <span className="tabular-nums"> ({inc.cuaSo5p}{inc.ngay5p ? ` · ${inc.ngay5p}` : ""})</span>}{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") ? <span className="text-emerald-600"> · đã về ngưỡng</span> : inc.mucGanNhat && <span className="text-rose-500"> · {inc.mucGanNhat}</span>}{inc.thieuDiem && <span className="text-amber-600"> · FMS thiếu điểm</span>}{inc.tuoiDuLieuPhut > 75 && <span className="text-amber-600"> · số liệu {(inc.tuoiDuLieuPhut / 60).toFixed(1)}h trước</span>}</div>}</td>
                     <td className="py-3 px-3 text-slate-500 tabular-nums text-[12px]">{inc.start.slice(11)}</td>
                     <td className="py-3 px-3 text-amber-600 font-medium">{inc.duration}h</td>
