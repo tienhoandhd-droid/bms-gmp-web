@@ -1675,7 +1675,10 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         </div>
       </Card>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={CheckCircle2} label="Tỉ lệ đạt hiện tại" value={fmtPct(latest.comp)} sub={`${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label}`} accent={{ txt: "text-teal-600", bg: "bg-teal-50", glow: "bg-teal-200" }} />
+        {/* 12/08: KHÔNG gọi là "hiện tại". Đây là điểm CUỐI CÙNG CÓ DỮ LIỆU của chuỗi —
+            nguồn chết thì nó đứng yên ở mốc cũ mà chữ "hiện tại" vẫn khẳng định như thật.
+            Nêu thẳng mốc thời gian để người đọc tự thấy số này già bao nhiêu. */}
+        <KpiCard icon={CheckCircle2} label="Tỉ lệ đạt — mốc mới nhất" value={fmtPct(latest.comp)} sub={`${latest.label ? latest.label + " · " : ""}${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label}`} accent={{ txt: "text-teal-600", bg: "bg-teal-50", glow: "bg-teal-200" }} />
         <KpiCard icon={Wifi} label="Độ đầy đủ dữ liệu" value={`${latest.dq || "—"}%`} sub="dùng để kết luận" accent={{ txt: "text-sky-600", bg: "bg-sky-50", glow: "bg-sky-200" }} />
         <KpiCard icon={delta7 != null && delta7 < 0 ? TrendingDown : TrendingUp} label="Delta ngày / 7 ngày" value={fmtDelta(deltaDay)} sub={`7 ngày: ${fmtDelta(delta7)}`} accent={{ txt: deltaTone(delta7), bg: "bg-amber-50", glow: "bg-amber-200" }} />
         <KpiCard icon={AlertTriangle} label="Giờ cảnh báo (kỳ)" value={fmtH(totalAlert)} sub="Warning + Critical" accent={{ txt: "text-rose-600", bg: "bg-rose-50", glow: "bg-rose-200" }} />
