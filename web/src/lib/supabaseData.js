@@ -881,6 +881,12 @@ export async function laySucKhoeHeThong(nguongGio, signal) {
       treGio: data.tre_gio != null ? Number(data.tre_gio) : null,
       matDuLieu: !!data.mat_du_lieu,
       nguongGio: data.nguong_gio != null ? Number(data.nguong_gio) : null,
+      // 12/08: server nay noi RO hong o dau (mach phut / mach gio / WF1 thu 0 phong)
+      // thay vi chi mot co "mat du lieu" chung chung. Web cu thieu 2 truong nay van chay.
+      lyDo: Array.isArray(data.ly_do) ? data.ly_do : [],
+      tomTat: data.tom_tat || null,
+      machPhutPhut: data.mach_phut_phut != null ? Number(data.mach_phut_phut) : null,
+      trongKhungEdge: data.trong_khung_edge === true,
       suCoDangMo: data.so_su_co_dang_mo ?? 0,
       soCritical: data.so_critical ?? 0,
       soWarning: data.so_warning ?? 0,
