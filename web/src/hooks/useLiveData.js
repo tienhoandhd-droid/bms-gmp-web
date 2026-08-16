@@ -87,7 +87,8 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     if (ctrlRef.current) ctrlRef.current.abort()
     setKpis(null); setIncidents(null); setSystemAlerts(null)
     setConfigHistory(null); setRooms(null); setRiskRows(null); setSopRows(null)
-    setAiRows(null); setSucKhoe(null); setSuCoQuaHan(null); setCumSuCo(null); setSuCoDongGanDay(null); setGmpMkt(null); setGmpSpc(null)
+    // 17/08: bỏ setSuCoQuaHan — state đã xoá trong đợt bỏ SLA 17/07, gọi nữa là ReferenceError khi đổi tài khoản
+    setAiRows(null); setSucKhoe(null); setCumSuCo(null); setSuCoDongGanDay(null); setGmpMkt(null); setGmpSpc(null)
     setLoi(null)
   }
 
