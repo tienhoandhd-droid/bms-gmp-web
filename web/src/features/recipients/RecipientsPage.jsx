@@ -176,7 +176,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
       {!canManage && <p className="text-[12px] text-warning">Bạn đang xem ở chế độ chỉ-đọc. Cần quyền <b>QA/Quản trị</b> để chỉnh.</p>}
 
       <Card className="p-6">
-        <SectionTitle icon={AlertOctagon} hint="định tuyến cảnh báo theo vai trò × khu — sự cố khu nào gửi người tích khu đó">Danh bạ email CẢNH BÁO (vai trò × khu)</SectionTitle>
+        <SectionTitle icon={AlertOctagon} hint="định tuyến cảnh báo theo vai trò × khu — sự cố khu nào gửi người tích khu đó">Cảnh báo — danh bạ email (vai trò × khu)</SectionTitle>
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> :
           <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Email", "Họ tên", "Vai trò", "C1", "C4", "Q2", "AHU phụ trách", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
             <tbody>
@@ -207,7 +207,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
       </Card>
 
       <Card className="p-6">
-        <SectionTitle icon={Clock} hint="chỉ gửi email cảnh báo trong khung giờ của từng bộ phận — chỉ Quản trị chỉnh được">Đồng hồ cảnh báo theo bộ phận</SectionTitle>
+        <SectionTitle icon={Clock} hint="chỉ gửi email cảnh báo trong khung giờ của từng bộ phận — chỉ Quản trị chỉnh được">Nhắc việc — khung giờ nhận email theo bộ phận</SectionTitle>
         {!laAdmin && <p className="text-[12px] text-warning mt-2">Chỉ <b>Quản trị</b> được sửa đồng hồ. Bạn đang xem chỉ-đọc.</p>}
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> :
           <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Bộ phận", "Chế độ", "Từ", "Đến", "Ngày trong tuần", "Hiện tại", "Cập nhật"].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
@@ -268,7 +268,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
 
       <Card className="p-6">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <SectionTitle icon={FileBarChart} hint="ai nhận báo cáo quản trị tuần / tháng / quý (WF5)">Người nhận BÁO CÁO</SectionTitle>
+          <SectionTitle icon={FileBarChart} hint="ai nhận báo cáo quản trị tuần / tháng / quý (WF5)">Báo cáo định kỳ — người nhận (tuần / tháng / quý)</SectionTitle>
           {canManage && <button onClick={() => setForm({ ho_ten: "", email: "", vai_tro: "", nhan_tuan: true, nhan_thang: true, nhan_quy: true, kich_hoat: true })} className="text-xs font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: "var(--danger-solid)" }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm người</button>}
         </div>
         {form && (

@@ -869,31 +869,6 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             <div className="flex items-center gap-3"><Sparkles className="w-5 h-5 animate-pulse" style={{ color: "var(--primary)" }} strokeWidth={1.9} /><div><p className="text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>Đang phân tích qua AI…</p><p className="text-[12px] text-muted">Đang gửi dữ liệu biểu đồ cho AI (OpenAI). Thường mất 10–30 giây — vui lòng đợi.</p></div></div>
           </Card>
         )}
-        {!aiBusy && aiResult && (() => { const al = [{ l: "Kiểm soát tốt", c: "text-success", bg: "bg-success-soft", ring: "ring-success-line" }, { l: "Cần chú ý", c: "text-info", bg: "bg-info-soft", ring: "ring-info-line" }, { l: "Cảnh báo", c: "text-warning", bg: "bg-warning-soft", ring: "ring-warning-line" }, { l: "Hành động", c: "text-danger", bg: "bg-danger-soft", ring: "ring-danger-line" }][aiResult.level]; return (
-          <Card className={`p-5 ring-1 ${al.ring}`}>
-            <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Gợi ý đọc biểu đồ (AI hỗ trợ)</SectionTitle><div className="flex items-center gap-2">{aiResult.nguon === "openai" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-success-soft text-success ring-1 ring-success-line">OpenAI</span>}{aiResult.nguon === "cuc_bo" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-subtle text-muted">Tự luận cục bộ</span>}<span className={`text-[12px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Gợi ý mức: {al.l}</span></div></div>
-            <p className="mt-1 mb-2 text-[12px] text-muted bg-subtle ring-1 ring-line/70 rounded-lg px-3 py-1.5">ℹ️ AI chỉ <b>đọc số liệu và gợi ý</b> — mọi con số do hệ thống tính (SQL/thống kê), <b>không phải AI</b>. Kết luận &amp; quyết định GMP do IPC/QA phê duyệt.</p>
-            <AiSections text={aiResult.text} />
-            {aiNote && <p className="mt-3 text-[12px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-3 py-2">⚠ {aiNote}</p>}
-            {wf7bUrl && (
-              <div className="mt-4 border-t border-line pt-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button onClick={() => { setEmailOpen((v) => !v); setSendMsg(null); }} disabled={!!sendBusy} className="text-xs font-medium rounded-xl px-3.5 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 disabled:opacity-60"><Mail className="w-3.5 h-3.5" strokeWidth={1.8} /> Gửi email (tuỳ chọn)</button>
-                  <button onClick={luuDriveNhanDinh} disabled={!!sendBusy} className="text-xs font-medium rounded-xl px-3.5 py-2 text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: "var(--primary-solid)" }}><Save className={`w-3.5 h-3.5 ${sendBusy === "drive" ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {sendBusy === "drive" ? "Đang lưu…" : "Lưu vào Drive"}</button>
-                  <span className="text-[12px] text-muted">Lưu bản nhận định này (.html) vào Google Drive; email là tuỳ chọn.</span>
-                </div>
-                {emailOpen && (
-                  <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && guiEmailNhanDinh()} placeholder="email1@…, email2@… (phân tách bằng dấu phẩy)" className="flex-1 min-w-[240px] rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[12px] text-body outline-none focus:ring-2 focus:ring-success-line" />
-                    <button onClick={guiEmailNhanDinh} disabled={sendBusy === "email"} className="text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: "var(--primary-solid)" }}>{sendBusy === "email" ? "Đang gửi…" : "Gửi email"}</button>
-                  </div>
-                )}
-                {sendMsg && <p className={`mt-2 text-[12px] rounded-xl px-3 py-2 ring-1 ${sendMsg.ok ? "text-success bg-success-soft ring-success-line" : "text-danger bg-danger-soft ring-danger-line"}`}>{sendMsg.ok ? "✓ " : "✗ "}{sendMsg.text}</p>}
-              </div>
-            )}
-            <p className="mt-3 text-[12px] text-muted">Nhận định lúc {aiResult.time} · đã lưu vào hệ thống (tab Báo cáo).</p>
-          </Card>
-        ); })()}
         {/* ============ PHÒNG: phân tích chi tiết khi có lỗi ============ */}
         {isRoom && (<>
           {/* (1) Giá trị trung bình mỗi giờ + dải giới hạn — hiện CẢ 3 chỉ tiêu của phòng */}
@@ -1075,6 +1050,32 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <div className="mt-3"><Chart type="roomDayHeat" rooms={maTran.rooms} days={maTran.days} values={maTran.values} height={Math.max(180, maTran.rooms.length * 20 + 70)} h={Math.max(180, maTran.rooms.length * 20 + 70)} /></div>
       </Card>
       )}
+        {/* G3: Nhận định hỗ trợ đặt SAU toàn bộ dữ liệu tất định (thứ tự theo báo cáo nâng cấp) */}
+        {!aiBusy && aiResult && (() => { const al = [{ l: "Kiểm soát tốt", c: "text-success", bg: "bg-success-soft", ring: "ring-success-line" }, { l: "Cần chú ý", c: "text-info", bg: "bg-info-soft", ring: "ring-info-line" }, { l: "Cảnh báo", c: "text-warning", bg: "bg-warning-soft", ring: "ring-warning-line" }, { l: "Hành động", c: "text-danger", bg: "bg-danger-soft", ring: "ring-danger-line" }][aiResult.level]; return (
+          <Card className={`p-5 ring-1 ${al.ring}`}>
+            <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Gợi ý đọc biểu đồ (AI hỗ trợ)</SectionTitle><div className="flex items-center gap-2">{aiResult.nguon === "openai" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-success-soft text-success ring-1 ring-success-line">OpenAI</span>}{aiResult.nguon === "cuc_bo" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-subtle text-muted">Tự luận cục bộ</span>}<span className={`text-[12px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Gợi ý mức: {al.l}</span></div></div>
+            <p className="mt-1 mb-2 text-[12px] text-muted bg-subtle ring-1 ring-line/70 rounded-lg px-3 py-1.5">ℹ️ AI chỉ <b>đọc số liệu và gợi ý</b> — mọi con số do hệ thống tính (SQL/thống kê), <b>không phải AI</b>. Kết luận &amp; quyết định GMP do IPC/QA phê duyệt.</p>
+            <AiSections text={aiResult.text} />
+            {aiNote && <p className="mt-3 text-[12px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-3 py-2">⚠ {aiNote}</p>}
+            {wf7bUrl && (
+              <div className="mt-4 border-t border-line pt-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={() => { setEmailOpen((v) => !v); setSendMsg(null); }} disabled={!!sendBusy} className="text-xs font-medium rounded-xl px-3.5 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 disabled:opacity-60"><Mail className="w-3.5 h-3.5" strokeWidth={1.8} /> Gửi email (tuỳ chọn)</button>
+                  <button onClick={luuDriveNhanDinh} disabled={!!sendBusy} className="text-xs font-medium rounded-xl px-3.5 py-2 text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: "var(--primary-solid)" }}><Save className={`w-3.5 h-3.5 ${sendBusy === "drive" ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {sendBusy === "drive" ? "Đang lưu…" : "Lưu vào Drive"}</button>
+                  <span className="text-[12px] text-muted">Lưu bản nhận định này (.html) vào Google Drive; email là tuỳ chọn.</span>
+                </div>
+                {emailOpen && (
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && guiEmailNhanDinh()} placeholder="email1@…, email2@… (phân tách bằng dấu phẩy)" className="flex-1 min-w-[240px] rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[12px] text-body outline-none focus:ring-2 focus:ring-success-line" />
+                    <button onClick={guiEmailNhanDinh} disabled={sendBusy === "email"} className="text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: "var(--primary-solid)" }}>{sendBusy === "email" ? "Đang gửi…" : "Gửi email"}</button>
+                  </div>
+                )}
+                {sendMsg && <p className={`mt-2 text-[12px] rounded-xl px-3 py-2 ring-1 ${sendMsg.ok ? "text-success bg-success-soft ring-success-line" : "text-danger bg-danger-soft ring-danger-line"}`}>{sendMsg.ok ? "✓ " : "✗ "}{sendMsg.text}</p>}
+              </div>
+            )}
+            <p className="mt-3 text-[12px] text-muted">Nhận định lúc {aiResult.time} · đã lưu vào hệ thống (tab Báo cáo).</p>
+          </Card>
+        ); })()}
     </div>
   );
 }

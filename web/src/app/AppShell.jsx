@@ -1152,9 +1152,9 @@ export default function AppShell() {
 
           {tab === "audit" && (() => {
             const subTabs = [
-              { k: "audit", label: "Nhật ký audit", icon: FileText },
+              { k: "audit", label: "Nhật ký kiểm toán", icon: FileText },
               { k: "config", label: "Thay đổi cấu hình", icon: History },
-              { k: "sop", label: "SOP & CAPA", icon: ShieldCheck },
+              { k: "sop", label: "SOP & quy trình", icon: ShieldCheck },
             ];
             return (
             <div className="space-y-5">
