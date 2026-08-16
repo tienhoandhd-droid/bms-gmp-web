@@ -43,8 +43,8 @@ function AiSections({ text }) {
             const [head, ...than] = rows;
             return (
               <div key={j} className="overflow-x-auto rounded-lg ring-1 ring-line/80 bg-surface/70 my-1">
-                <table className="w-full text-[11.5px]">
-                  <thead><tr className="text-left text-[10.5px] uppercase tracking-wide text-muted bg-subtle/80">{head.map((c, i) => <th key={i} className="py-1.5 px-2.5 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
+                <table className="w-full text-[12px]">
+                  <thead><tr className="text-left text-[12px] uppercase tracking-wide text-muted bg-subtle/80">{head.map((c, i) => <th key={i} className="py-1.5 px-2.5 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
                   <tbody>{than.map((r, ri) => <tr key={ri} className="border-t border-line">{r.map((c, ci) => <td key={ci} className={`py-1.5 px-2.5 ${ci === 0 ? "font-medium text-body" : "text-body tabular-nums"}`}>{c}</td>)}</tr>)}</tbody>
                 </table>
               </div>

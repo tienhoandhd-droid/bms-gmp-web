@@ -18,7 +18,7 @@ const DS_VAI_TRO_CB = [["IPC", "IPC hiện trường"], ["MEP", "Cơ điện"], 
 // Chỉ liệt kê AHU thuộc khu người đó phụ trách; AHU toàn phòng P3 hiện mờ vì không sinh sự cố.
 function ChonAhu({ nn, dsAhu, canManage, onLuu }) {
   const [mo, setMo] = useState(false);
-  if (nn.vai_tro !== "MEP") return <span className="text-[11px] text-muted">—</span>;
+  if (nn.vai_tro !== "MEP") return <span className="text-[12px] text-muted">—</span>;
   const daChon = nn.ahu || [];
   const trongKhu = dsAhu.filter((a) => (nn.khu_vuc || []).includes(a.khu_vuc));
   const toggle = (maAhu) => onLuu({ ...nn, ahu: daChon.includes(maAhu) ? daChon.filter((x) => x !== maAhu) : [...daChon, maAhu] });
@@ -26,15 +26,15 @@ function ChonAhu({ nn, dsAhu, canManage, onLuu }) {
   return (
     <div className="relative">
       <button disabled={!canManage} onClick={() => setMo((v) => !v)}
-        className={`text-[11px] px-2 py-1 rounded-lg font-medium whitespace-nowrap ${daChon.length ? "bg-info-soft text-info" : "bg-subtle text-muted"} disabled:opacity-60`}>
+        className={`text-[12px] px-2 py-1 rounded-lg font-medium whitespace-nowrap ${daChon.length ? "bg-info-soft text-info" : "bg-subtle text-muted"} disabled:opacity-60`}>
         {nhan} ▾
       </button>
       {mo && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setMo(false)} />
           <div className="absolute z-20 mt-1 left-0 w-56 rounded-xl bg-surface ring-1 ring-line shadow-lg p-2 max-h-64 overflow-y-auto">
-            <p className="text-[10px] text-muted px-1 pb-1.5 leading-snug">Bỏ trống = nhận mọi AHU trong khu đã tích.</p>
-            {trongKhu.length === 0 && <p className="text-[11px] text-muted px-1 py-2 italic">Chưa tích khu nào.</p>}
+            <p className="text-[12px] text-muted px-1 pb-1.5 leading-snug">Bỏ trống = nhận mọi AHU trong khu đã tích.</p>
+            {trongKhu.length === 0 && <p className="text-[12px] text-muted px-1 py-2 italic">Chưa tích khu nào.</p>}
             {trongKhu.map((a) => (
               <label key={a.ma_ahu} className={`flex items-center gap-2 px-1 py-1 rounded-lg text-[12px] cursor-pointer hover:bg-subtle ${a.co_p1_p2 ? "" : "opacity-45"}`}>
                 <input type="checkbox" checked={daChon.includes(a.ma_ahu)} onChange={() => toggle(a.ma_ahu)} className="rounded" />
@@ -160,12 +160,12 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   const emailFields = (keys) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">{keys.map((k) => (
       <div key={k} className="rounded-2xl bg-subtle ring-1 ring-line p-4">
-        <label className="text-[11px] uppercase text-muted font-semibold">{NHAN_EMAIL_LABEL[k] || k}</label>
+        <label className="text-[12px] uppercase text-muted font-semibold">{NHAN_EMAIL_LABEL[k] || k}</label>
         <input type="email" value={emailCfg[k] || ""} disabled={!canManage} placeholder="email@cpc1hn.vn"
           onChange={(e) => setEmailCfg((m) => ({ ...m, [k]: e.target.value }))}
           onBlur={(e) => { if ((e.target.value || "").trim() !== (goc.current[k] || "")) luuEmail(k, e.target.value); }}
           className="w-full mt-2 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm disabled:bg-subtle" />
-        <p className="text-[10px] text-muted mt-1 font-mono">{k}</p>
+        <p className="text-[12px] text-muted mt-1 font-mono">{k}</p>
       </div>))}</div>
   );
   if (!isLive) return <Card className="p-6"><p className="text-sm text-warning">Cần chế độ LIVE (kết nối Supabase) để cấu hình người nhận.</p></Card>;
@@ -178,7 +178,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
       <Card className="p-6">
         <SectionTitle icon={AlertOctagon} hint="định tuyến cảnh báo theo vai trò × khu — sự cố khu nào gửi người tích khu đó">Danh bạ email CẢNH BÁO (vai trò × khu)</SectionTitle>
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> :
-          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[11px] uppercase tracking-wider">{["Email", "Họ tên", "Vai trò", "C1", "C4", "Q2", "AHU phụ trách", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Email", "Họ tên", "Vai trò", "C1", "C4", "Q2", "AHU phụ trách", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
             <tbody>
               {danhBa.length === 0 && !canManage && <tr><td colSpan={9} className="py-4 text-muted italic">Chưa có địa chỉ nào trong danh bạ.</td></tr>}
               {danhBa.map((n) => (
@@ -188,7 +188,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
                   <td className="py-2 pr-4"><select value={n.vai_tro} disabled={!canManage} onChange={(e) => luuDB({ ...n, vai_tro: e.target.value })} className="rounded-xl bg-surface ring-1 ring-line px-2 py-1.5 text-sm disabled:bg-subtle">{DS_VAI_TRO_CB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
                   {DS_KHU.map((k) => <td key={k} className="py-2 pr-4"><button disabled={!canManage} onClick={() => toggleKhuDB(n, k)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${(n.khu_vuc || []).includes(k) ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{(n.khu_vuc || []).includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
                   <td className="py-2 pr-4"><ChonAhu nn={n} dsAhu={dsAhu} canManage={canManage} onLuu={(x) => luuDB(x, "Đã lưu phân công AHU")} /></td>
-                  <td className="py-2 pr-4"><button disabled={!canManage} onClick={() => luuDB({ ...n, kich_hoat: !n.kich_hoat })} className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
+                  <td className="py-2 pr-4"><button disabled={!canManage} onClick={() => luuDB({ ...n, kich_hoat: !n.kich_hoat })} className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
                   <td className="py-2 pr-4">{canManage && <button onClick={() => xoaDB(n.id)} className="text-danger hover:text-danger"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button>}</td>
                 </tr>))}
               {canManage && (  /* hàng THÊM MỚI cuối bảng */
@@ -197,27 +197,27 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
                   <td className="py-2.5 pr-4"><input value={dbMoi.ho_ten} placeholder="Họ tên (tuỳ chọn)" onChange={(e) => setDbMoi({ ...dbMoi, ho_ten: e.target.value })} className="w-full min-w-[110px] rounded-xl bg-surface ring-1 ring-info-line px-3 py-1.5 text-sm" /></td>
                   <td className="py-2.5 pr-4"><select value={dbMoi.vai_tro} onChange={(e) => setDbMoi({ ...dbMoi, vai_tro: e.target.value })} className="rounded-xl bg-surface ring-1 ring-info-line px-2 py-1.5 text-sm">{DS_VAI_TRO_CB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
                   {DS_KHU.map((k) => <td key={k} className="py-2.5 pr-4"><button onClick={() => setDbMoi({ ...dbMoi, khu_vuc: dbMoi.khu_vuc.includes(k) ? dbMoi.khu_vuc.filter((x) => x !== k) : [...dbMoi.khu_vuc, k] })} className={`w-6 h-6 rounded-lg flex items-center justify-center ${dbMoi.khu_vuc.includes(k) ? "bg-success-soft text-success" : "bg-surface ring-1 ring-line text-muted"}`}>{dbMoi.khu_vuc.includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
-                  <td className="py-2.5 pr-4 text-[11px] text-muted">{dbMoi.vai_tro === "MEP" ? "Phân công sau khi thêm" : "—"}</td>
-                  <td className="py-2.5 pr-4 text-[11px] text-muted">Kích hoạt</td>
+                  <td className="py-2.5 pr-4 text-[12px] text-muted">{dbMoi.vai_tro === "MEP" ? "Phân công sau khi thêm" : "—"}</td>
+                  <td className="py-2.5 pr-4 text-[12px] text-muted">Kích hoạt</td>
                   <td className="py-2.5 pr-4"><button onClick={themDB} className="text-xs font-medium text-white rounded-xl px-3 py-1.5 flex items-center gap-1" style={{ backgroundColor: "var(--danger-solid)" }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm</button></td>
                 </tr>)}
             </tbody></table></div>}
-        <p className="text-[11px] text-muted mt-3">Sự cố ở khu nào chỉ gửi người có tích khu đó, và <b>chỉ khi tài khoản của họ được xem khu đó</b>. Khu chưa ai tích → gửi toàn bộ người hợp lệ của vai trò (không bỏ sót). <b>Phải chọn ít nhất một khu</b> — bỏ tích cả ba sẽ không lưu được.</p>
-        <p className="text-[11px] text-muted mt-1"><b>AHU phụ trách</b> chỉ áp dụng cho Cơ điện: mỗi AHU sẽ gửi một email riêng cho đúng người phụ trách. Bỏ trống = nhận mọi AHU trong các khu đã tích. Tên AHU trùng nhau giữa các khu nên ghi dạng <span className="font-mono">KHU/AHU</span>. AHU hiển thị mờ là AHU chỉ có phòng P3 — không bao giờ sinh sự cố.</p>
+        <p className="text-[12px] text-muted mt-3">Sự cố ở khu nào chỉ gửi người có tích khu đó, và <b>chỉ khi tài khoản của họ được xem khu đó</b>. Khu chưa ai tích → gửi toàn bộ người hợp lệ của vai trò (không bỏ sót). <b>Phải chọn ít nhất một khu</b> — bỏ tích cả ba sẽ không lưu được.</p>
+        <p className="text-[12px] text-muted mt-1"><b>AHU phụ trách</b> chỉ áp dụng cho Cơ điện: mỗi AHU sẽ gửi một email riêng cho đúng người phụ trách. Bỏ trống = nhận mọi AHU trong các khu đã tích. Tên AHU trùng nhau giữa các khu nên ghi dạng <span className="font-mono">KHU/AHU</span>. AHU hiển thị mờ là AHU chỉ có phòng P3 — không bao giờ sinh sự cố.</p>
       </Card>
 
       <Card className="p-6">
         <SectionTitle icon={Clock} hint="chỉ gửi email cảnh báo trong khung giờ của từng bộ phận — chỉ Quản trị chỉnh được">Đồng hồ cảnh báo theo bộ phận</SectionTitle>
         {!laAdmin && <p className="text-[12px] text-warning mt-2">Chỉ <b>Quản trị</b> được sửa đồng hồ. Bạn đang xem chỉ-đọc.</p>}
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> :
-          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[11px] uppercase tracking-wider">{["Bộ phận", "Chế độ", "Từ", "Đến", "Ngày trong tuần", "Hiện tại", "Cập nhật"].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Bộ phận", "Chế độ", "Từ", "Đến", "Ngày trong tuần", "Hiện tại", "Cập nhật"].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
             <tbody>
               {dongHo.map((k) => (
                 <tr key={k.vai_tro} className="border-t border-line">
                   <td className="py-2.5 pr-4 font-semibold" style={{ color: "var(--text-strong)" }}>{ROLE_VI[k.vai_tro] || k.vai_tro}</td>
                   <td className="py-2.5 pr-4">
                     <button disabled={!laAdmin} onClick={() => suaDongHo(k.vai_tro, { kich_hoat: !k.kich_hoat })}
-                      className={`text-[11px] px-2.5 py-1 rounded-full font-semibold ${k.kich_hoat ? "bg-warning-soft text-warning" : "bg-success-soft text-success"} disabled:opacity-60`}>
+                      className={`text-[12px] px-2.5 py-1 rounded-full font-semibold ${k.kich_hoat ? "bg-warning-soft text-warning" : "bg-success-soft text-success"} disabled:opacity-60`}>
                       {k.kich_hoat ? "Theo khung giờ" : "24/7"}
                     </button>
                   </td>
@@ -232,15 +232,15 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
                       const d = i + 1; const on = (k.ngay || []).includes(d);
                       return <button key={d} disabled={!laAdmin || !k.kich_hoat}
                         onClick={() => suaDongHo(k.vai_tro, { ngay: on ? (k.ngay || []).filter((x) => x !== d) : [...(k.ngay || []), d].sort((a, b) => a - b) })}
-                        className={`w-8 h-7 rounded-lg text-[11px] font-semibold ${on ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{nhan}</button>;
+                        className={`w-8 h-7 rounded-lg text-[12px] font-semibold ${on ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{nhan}</button>;
                     })}</div>
                   </td>
                   <td className="py-2.5 pr-4">
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${k.dang_trong_gio ? "bg-success-soft text-success ring-1 ring-success-line" : "bg-subtle text-muted ring-1 ring-line"}`}>
+                    <span className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${k.dang_trong_gio ? "bg-success-soft text-success ring-1 ring-success-line" : "bg-subtle text-muted ring-1 ring-line"}`}>
                       {k.dang_trong_gio ? "đang gửi cảnh báo" : "ngoài giờ — im lặng"}
                     </span>
                   </td>
-                  <td className="py-2.5 pr-4 text-[11px] text-muted whitespace-nowrap">{k.cap_nhat_boi ? `${k.cap_nhat_luc} · ${k.cap_nhat_boi}` : "—"}</td>
+                  <td className="py-2.5 pr-4 text-[12px] text-muted whitespace-nowrap">{k.cap_nhat_boi ? `${k.cap_nhat_luc} · ${k.cap_nhat_boi}` : "—"}</td>
                 </tr>))}
             </tbody></table></div>}
         {laAdmin && (
@@ -254,16 +254,16 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
             {dongHoDoi.length > 0 && !dangLuuDH && (
               <button onClick={huyDongHo} className="text-xs font-medium text-muted rounded-xl px-3.5 py-2 ring-1 ring-line bg-surface hover:bg-subtle">Hủy — về bản đã lưu</button>
             )}
-            {dongHoDoi.length > 0 && <span className="text-[11px] text-warning">Thay đổi CHƯA có hiệu lực cho tới khi bấm Lưu.</span>}
+            {dongHoDoi.length > 0 && <span className="text-[12px] text-warning">Thay đổi CHƯA có hiệu lực cho tới khi bấm Lưu.</span>}
           </div>
         )}
-        <p className="text-[11px] text-muted mt-3"><b>Ngoài khung giờ</b> bộ phận đó KHÔNG nhận email (cả nhắc định kỳ lẫn email tức thời); vé vẫn mở, web vẫn hiện, hệ vẫn tự đóng khi đủ 2 giờ sạch. Vào lại khung giờ, lượt kiểm 5′ đầu tiên gửi ngay các vé còn mở — không mất tin. Muốn một bộ phận nhận 24/7 (ví dụ Trực HSL) thì để chế độ <b>24/7</b>.</p>
-        <p className="text-[11px] text-muted mt-1">Lưu ý: đồng hồ leo thang (IPC 20′ · Cơ điện chưa nhận việc 15′ · đang/chờ xử lý 1 giờ) vẫn chạy ngoài giờ — sáng vào khung giờ, vé tồn qua đêm sẽ hiện đã leo thang lên Trực.</p>
+        <p className="text-[12px] text-muted mt-3"><b>Ngoài khung giờ</b> bộ phận đó KHÔNG nhận email (cả nhắc định kỳ lẫn email tức thời); vé vẫn mở, web vẫn hiện, hệ vẫn tự đóng khi đủ 2 giờ sạch. Vào lại khung giờ, lượt kiểm 5′ đầu tiên gửi ngay các vé còn mở — không mất tin. Muốn một bộ phận nhận 24/7 (ví dụ Trực HSL) thì để chế độ <b>24/7</b>.</p>
+        <p className="text-[12px] text-muted mt-1">Lưu ý: đồng hồ leo thang (IPC 20′ · Cơ điện chưa nhận việc 15′ · đang/chờ xử lý 1 giờ) vẫn chạy ngoài giờ — sáng vào khung giờ, vé tồn qua đêm sẽ hiện đã leo thang lên Trực.</p>
       </Card>
 
       <Card className="p-6"><SectionTitle icon={Cog} hint="địa chỉ gửi đi + nhận khi ở chế độ thử + fallback báo cáo">Địa chỉ hệ thống & fallback</SectionTitle>
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> : emailFields([...EMAIL_KEYS_HE_THONG, ...EMAIL_KEYS_BAO_CAO])}
-        <p className="text-[11px] text-muted mt-3">Các key cảnh báo cũ (email_ipc, email_co_dien, email_qa, email_truc_hsl, email_it_gmp) trong Cài đặt chỉ còn là <b>dự phòng tầng 3</b> — hệ thống chỉ dùng khi danh bạ cảnh báo phía trên trống hoàn toàn.</p>
+        <p className="text-[12px] text-muted mt-3">Các key cảnh báo cũ (email_ipc, email_co_dien, email_qa, email_truc_hsl, email_it_gmp) trong Cài đặt chỉ còn là <b>dự phòng tầng 3</b> — hệ thống chỉ dùng khi danh bạ cảnh báo phía trên trống hoàn toàn.</p>
       </Card>
 
       <Card className="p-6">
@@ -286,7 +286,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
           </div>
         )}
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> :
-          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[11px] uppercase tracking-wider">{["Họ tên", "Email", "Vai trò", "Tuần", "Tháng", "Quý", "C1", "C4", "Q2", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Họ tên", "Email", "Vai trò", "Tuần", "Tháng", "Quý", "C1", "C4", "Q2", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
             <tbody>{nguoiNhan.length === 0 ? <tr><td colSpan={11} className="py-4 text-muted italic">Chưa có người nhận. Bấm “Thêm người”.</td></tr> : nguoiNhan.map((n) => (
               <tr key={n.id} className={`border-t border-line ${n.kich_hoat ? "" : "opacity-50"}`}>
                 <td className="py-2.5 pr-4 font-semibold" style={{ color: "var(--text-strong)" }}>{n.ho_ten}</td>
@@ -294,10 +294,10 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
                 <td className="py-2.5 pr-4 text-muted">{n.vai_tro || "—"}</td>
                 {["nhan_tuan", "nhan_thang", "nhan_quy"].map((f) => <td key={f} className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleNN(n, f)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${n[f] ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n[f] ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
                 {DS_KHU.map((k) => <td key={k} className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleKhuNN(n, k)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${(n.khu_vuc || []).includes(k) ? "bg-info-soft text-info" : "bg-subtle text-muted"} disabled:opacity-60`}>{(n.khu_vuc || []).includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
-                <td className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleNN(n, "kich_hoat")} className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
+                <td className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleNN(n, "kich_hoat")} className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
                 <td className="py-2.5 pr-4">{canManage && <div className="flex gap-1.5"><button onClick={() => setForm({ ...n })} className="text-info hover:text-info"><Pencil className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => xoaNN(n.id)} className="text-danger hover:text-danger"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button></div>}</td>
               </tr>))}</tbody></table></div>}
-        <p className="text-[11px] text-muted mt-3">Tích 1 khu = nhận báo cáo riêng khu đó · tích ≥2 khu = nhận bản Tổng (áp dụng khi bật báo cáo theo khu). Chỉ người <b>Kích hoạt</b> mới nhận báo cáo; chưa kích hoạt ai thì WF5 gửi về địa chỉ fallback (mục Địa chỉ hệ thống · Fallback). Mỗi thao tác được ghi nhật ký cấu hình.</p>
+        <p className="text-[12px] text-muted mt-3">Tích 1 khu = nhận báo cáo riêng khu đó · tích ≥2 khu = nhận bản Tổng (áp dụng khi bật báo cáo theo khu). Chỉ người <b>Kích hoạt</b> mới nhận báo cáo; chưa kích hoạt ai thì WF5 gửi về địa chỉ fallback (mục Địa chỉ hệ thống · Fallback). Mỗi thao tác được ghi nhật ký cấu hình.</p>
       </Card>
     </div>
   );
@@ -359,7 +359,7 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
       {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-[12.5px] border-collapse min-w-[640px]">
-            <thead><tr className="text-left text-muted text-[10px] uppercase tracking-wide">
+            <thead><tr className="text-left text-muted text-[12px] uppercase tracking-wide">
               <th className="py-2 px-2">Loại cảm biến</th><th className="py-2 px-2">Mức</th><th className="py-2 px-2 text-right">Chờ trước (phút)</th><th className="py-2 px-2">Diễn giải</th><th className="py-2 px-2 text-center">Bật</th><th className="py-2 px-2"></th>
             </tr></thead>
             <tbody>
@@ -368,8 +368,8 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
                   <td className="py-2 px-2 font-semibold" style={{ color: "var(--text-strong)" }}>{SENSOR_VI[l.loai_cam_bien] || l.loai_cam_bien}</td>
                   <td className="py-2 px-2">{MUC_VI[l.muc_canh_bao] || l.muc_canh_bao}</td>
                   <td className="py-2 px-2 text-right tabular-nums">{l.cho_it_nhat_phut}′</td>
-                  <td className="py-2 px-2 text-muted text-[11px] max-w-[280px]">{l.ly_do_mau}</td>
-                  <td className="py-2 px-2 text-center"><button onClick={() => doiKichHoat(l)} disabled={!canManage} className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${l.kich_hoat ? "text-success bg-success-soft" : "text-muted bg-subtle"} ${canManage ? "" : "opacity-60"}`}>{l.kich_hoat ? "bật" : "tắt"}</button></td>
+                  <td className="py-2 px-2 text-muted text-[12px] max-w-[280px]">{l.ly_do_mau}</td>
+                  <td className="py-2 px-2 text-center"><button onClick={() => doiKichHoat(l)} disabled={!canManage} className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${l.kich_hoat ? "text-success bg-success-soft" : "text-muted bg-subtle"} ${canManage ? "" : "opacity-60"}`}>{l.kich_hoat ? "bật" : "tắt"}</button></td>
                   <td className="py-2 px-2 text-right">{canManage && <button onClick={() => xoa(l.id)} className="text-muted hover:text-danger p-1" title="Xoá luật"><Trash2 className="w-3.5 h-3.5" strokeWidth={1.8} /></button>}</td>
                 </tr>
               ))}
@@ -379,15 +379,15 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
 
           {canManage && (
             <div className="mt-4 rounded-2xl bg-subtle ring-1 ring-line p-4">
-              <p className="text-[11px] uppercase text-muted font-semibold mb-3">Thêm luật mới</p>
+              <p className="text-[12px] uppercase text-muted font-semibold mb-3">Thêm luật mới</p>
               <div className="flex items-end gap-3 flex-wrap">
-                <label className="flex flex-col gap-1"><span className="text-[10px] text-muted font-medium">Loại cảm biến</span>
+                <label className="flex flex-col gap-1"><span className="text-[12px] text-muted font-medium">Loại cảm biến</span>
                   <select value={moi.loai_cam_bien} onChange={(e) => setMoi({ ...moi, loai_cam_bien: e.target.value })} className="rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[12px]">{["DP", "RH", "T", "*"].map((k) => <option key={k} value={k}>{SENSOR_VI[k]}</option>)}</select></label>
-                <label className="flex flex-col gap-1"><span className="text-[10px] text-muted font-medium">Mức</span>
+                <label className="flex flex-col gap-1"><span className="text-[12px] text-muted font-medium">Mức</span>
                   <select value={moi.muc_canh_bao} onChange={(e) => setMoi({ ...moi, muc_canh_bao: e.target.value })} className="rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[12px]">{["CRITICAL", "WARNING", "*"].map((k) => <option key={k} value={k}>{MUC_VI[k]}</option>)}</select></label>
-                <label className="flex flex-col gap-1"><span className="text-[10px] text-muted font-medium">Chờ trước (phút)</span>
+                <label className="flex flex-col gap-1"><span className="text-[12px] text-muted font-medium">Chờ trước (phút)</span>
                   <input type="number" min="0" max="1440" value={moi.cho_it_nhat_phut} onChange={(e) => setMoi({ ...moi, cho_it_nhat_phut: Number(e.target.value) })} className="w-24 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[12px]" /></label>
-                <label className="flex flex-col gap-1 flex-1 min-w-[180px]"><span className="text-[10px] text-muted font-medium">Diễn giải (tuỳ chọn)</span>
+                <label className="flex flex-col gap-1 flex-1 min-w-[180px]"><span className="text-[12px] text-muted font-medium">Diễn giải (tuỳ chọn)</span>
                   <input value={moi.ly_do_mau} onChange={(e) => setMoi({ ...moi, ly_do_mau: e.target.value })} placeholder="vd: chênh áp nghiêm trọng — nghi lỗi AHU" className="rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[12px]" /></label>
                 <button onClick={themLuat} disabled={luu} className={`flex items-center gap-1.5 text-[12px] font-medium text-white rounded-xl px-4 py-2 ${luu ? "opacity-60" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm</button>
               </div>
@@ -395,8 +395,8 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
           )}
         </div>
       )}
-      {!canManage && <p className="text-[11px] text-warning mt-3">Cần quyền QA/Quản trị để chỉnh luật.</p>}
-      <p className="text-[10.5px] text-muted mt-3">Tuyến hiện hỗ trợ: sự cố → <b>Cơ điện</b> (qua đúng máy trạng thái duyệt sự cố, có nhật ký người thao tác “hệ thống”). Sự cố hạ tầng cảm biến (đứng hình, mất FMS) đã có nhánh cảnh báo Cơ điện riêng.</p>
+      {!canManage && <p className="text-[12px] text-warning mt-3">Cần quyền QA/Quản trị để chỉnh luật.</p>}
+      <p className="text-[12px] text-muted mt-3">Tuyến hiện hỗ trợ: sự cố → <b>Cơ điện</b> (qua đúng máy trạng thái duyệt sự cố, có nhật ký người thao tác “hệ thống”). Sự cố hạ tầng cảm biến (đứng hình, mất FMS) đã có nhánh cảnh báo Cơ điện riêng.</p>
     </Card>
   );
 }

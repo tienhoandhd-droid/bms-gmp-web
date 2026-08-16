@@ -150,7 +150,7 @@ export function MiniArea({ data }) {
 
 // ====== Sparkline (bảng xếp hạng rủi ro) — màu theo chiều tăng/giảm ======
 export function Sparkline({ chuoi }) {
-  if (!chuoi || chuoi.length < 2) return <span className="text-[11px] text-muted">—</span>;
+  if (!chuoi || chuoi.length < 2) return <span className="text-[12px] text-muted">—</span>;
   const last = chuoi[chuoi.length - 1]?.comp, first = chuoi[0]?.comp;
   const stroke = (last != null && first != null) ? (last >= first ? CHEX.teal : CHEX.coral) : CHEX.teal;
   const option = {
@@ -310,9 +310,9 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h4 className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>{SENSOR_META[sensorKey]?.label} ({sensorKey})</h4></div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Nền 30n", bTb == null ? "—" : `${bTb}${bSig != null ? `±${bSig}` : ""}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-subtle ring-1 ring-line py-1.5"><p className="text-[10px] uppercase text-muted font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{v}</p></div>)}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Nền 30n", bTb == null ? "—" : `${bTb}${bSig != null ? `±${bSig}` : ""}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-subtle ring-1 ring-line py-1.5"><p className="text-[12px] uppercase text-muted font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{v}</p></div>)}</div>
       <EChart option={option} height={210} group={group} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-muted">{hasPct && <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.28 }} /> Dải P5–P95</span>}<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--danger-solid)" }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dotted" style={{ borderColor: "var(--info-line)" }} /> Nền 30 ngày ±σ</span></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted">{hasPct && <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.28 }} /> Dải P5–P95</span>}<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--danger-solid)" }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dotted" style={{ borderColor: "var(--info-line)" }} /> Nền 30 ngày ±σ</span></div>
     </div>
   );
 }
@@ -452,7 +452,7 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
   return (
     <div>
       <EChart option={option} height={height} group={group} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-muted">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted">
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> Trong kiểm soát</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--warning-solid)" }} /> Tín hiệu Nelson R2/R3</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--danger-solid)" }} /> Vượt 3σ (R1)</span>

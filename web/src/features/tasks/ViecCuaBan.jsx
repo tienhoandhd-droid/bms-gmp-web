@@ -34,8 +34,8 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
         </button>
         <div className="shrink-0 flex items-center gap-1">
           <button onClick={() => setAn(true)} title="Ẩn cho gọn — còn viên nhỏ để hiện lại"
-            className="rounded-lg px-2 py-1 text-[11px] text-muted hover:bg-subtle hover:text-body">Ẩn ✕</button>
-          <button onClick={() => setMo(!mo)} className="rounded-lg px-2 py-1 text-[11px] text-muted hover:bg-subtle">{mo ? "Thu gọn ▲" : "Mở ra ▼"}</button>
+            className="rounded-lg px-2 py-1 text-[12px] text-muted hover:bg-subtle hover:text-body">Ẩn ✕</button>
+          <button onClick={() => setMo(!mo)} className="rounded-lg px-2 py-1 text-[12px] text-muted hover:bg-subtle">{mo ? "Thu gọn ▲" : "Mở ra ▼"}</button>
         </div>
       </div>
       {mo && (
@@ -46,7 +46,7 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
                 <b style={{ color: "var(--text-strong)" }}>{inc.id}</b> · {inc.room} · {inc.sensor}
                 {q.gio_mo != null && <span className="ml-2 text-muted tabular-nums">mở {q.gio_mo}h</span>}
               </span>
-              <button onClick={() => onXuLy(inc)} className="shrink-0 rounded-lg bg-surface px-2.5 py-1 text-[11.5px] font-semibold text-success ring-1 ring-success-line hover:bg-success-soft">Xử lý</button>
+              <button onClick={() => onXuLy(inc)} className="shrink-0 rounded-lg bg-surface px-2.5 py-1 text-[12px] font-semibold text-success ring-1 ring-success-line hover:bg-success-soft">Xử lý</button>
             </div>
           ))}
           {dsCum.map((c) => (
@@ -55,7 +55,7 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
                 <b style={{ color: "var(--text-strong)" }}>{c.ma_hien_thi}</b> · {c.ahu || "?"} · {c.loai_cam_bien}
                 <span className="ml-2 text-warning">chưa có kết luận điều tra</span>
               </span>
-              <button onClick={() => onGhiKetLuan(c)} className="shrink-0 rounded-lg bg-surface px-2.5 py-1 text-[11.5px] font-semibold text-body ring-1 ring-line hover:bg-subtle">Ghi kết luận</button>
+              <button onClick={() => onGhiKetLuan(c)} className="shrink-0 rounded-lg bg-surface px-2.5 py-1 text-[12px] font-semibold text-body ring-1 ring-line hover:bg-subtle">Ghi kết luận</button>
             </div>
           ))}
         </div>

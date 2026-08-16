@@ -63,7 +63,7 @@ function DauTrang({ type = 'lock', tieuDe, phu }) {
       <HuyHieu type={type} />
       <div className="flex items-center gap-1.5 mt-4">
         <img src={logoCpc1hn} onError={(e) => { e.currentTarget.style.display = 'none' }} alt="" className="h-4 w-4 object-contain opacity-70" />
-        <span className="text-[10.5px] font-bold tracking-[0.14em] uppercase text-muted">BMS · CPC1HN</span>
+        <span className="text-[12px] font-bold tracking-[0.14em] uppercase text-muted">BMS · CPC1HN</span>
       </div>
       <h1 className="mt-2 text-[22px] font-bold leading-tight" style={{ color: NAVY }}>{tieuDe}</h1>
       <p className="mt-1.5 text-[13px] text-muted leading-relaxed max-w-[300px]">{phu}</p>
@@ -168,16 +168,16 @@ function FormDatLai() {
       <DauTrang type="lock" tieuDe="Tạo mật khẩu mới" phu="Chọn mật khẩu mới cho tài khoản của bạn. Chỉ bạn biết mật khẩu này." />
       <form onSubmit={dat} className="mt-5 space-y-3">
         <OMatKhau value={mk1} onChange={(e) => setMk1(e.target.value)} placeholder="Mật khẩu mới" autoFocus />
-        <p className="text-[11.5px] text-muted -mt-1 pl-1">{mk1.length >= 8 ? <span className="text-success">✓ Đủ độ dài</span> : 'Tối thiểu 8 ký tự'}</p>
+        <p className="text-[12px] text-muted -mt-1 pl-1">{mk1.length >= 8 ? <span className="text-success">✓ Đủ độ dài</span> : 'Tối thiểu 8 ký tự'}</p>
         <OMatKhau value={mk2} onChange={(e) => setMk2(e.target.value)} placeholder="Nhập lại mật khẩu mới" />
-        {mk2.length > 0 && <p className={`text-[11.5px] -mt-1 pl-1 ${khop ? 'text-success' : 'text-danger'}`}>{khop ? '✓ Hai mật khẩu khớp' : 'Hai lần nhập chưa khớp'}</p>}
+        {mk2.length > 0 && <p className={`text-[12px] -mt-1 pl-1 ${khop ? 'text-success' : 'text-danger'}`}>{khop ? '✓ Hai mật khẩu khớp' : 'Hai lần nhập chưa khớp'}</p>}
         {loi && <p className="text-[13px] text-danger text-center">{loi}</p>}
         <button type="submit" disabled={dang}
           className="w-full rounded-xl py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:opacity-40" style={{ backgroundColor: TEAL }}>
           {dang ? 'Đang lưu…' : 'Đặt mật khẩu mới'}
         </button>
       </form>
-      <p className="mt-4 text-[11px] text-muted leading-relaxed text-center">
+      <p className="mt-4 text-[12px] text-muted leading-relaxed text-center">
         🔒 Chỉ bạn biết mật khẩu này — quản trị hệ thống không xem được (hồ sơ GMP/Part 11).
       </p>
     </Khung>

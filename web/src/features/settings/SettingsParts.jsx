@@ -24,13 +24,13 @@ function LoginModal({ onClose, isLive }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <div className="w-full max-w-md rounded-3xl bg-surface ring-1 ring-line overflow-hidden" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 pt-6 pb-4 flex items-center gap-3" style={{ background: "var(--bg-subtle)" }}><div className="rounded-2xl bg-surface p-2.5 ring-1 ring-success-line"><LogIn className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>Đăng nhập</h2><p className="text-[11px] text-muted">Email + mật khẩu — phân quyền theo vai trò</p></div></div>
+        <div className="px-6 pt-6 pb-4 flex items-center gap-3" style={{ background: "var(--bg-subtle)" }}><div className="rounded-2xl bg-surface p-2.5 ring-1 ring-success-line"><LogIn className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>Đăng nhập</h2><p className="text-[12px] text-muted">Email + mật khẩu — phân quyền theo vai trò</p></div></div>
         <div className="px-6 py-5 space-y-4">
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && dangNhap()} placeholder="email@cpc1hn.vn" autoComplete="username" className="w-full rounded-2xl bg-subtle ring-1 ring-line px-4 py-3 text-sm text-body outline-none focus:ring-2 focus:ring-success-line" />
           <input type="password" value={matKhau} onChange={(e) => setMatKhau(e.target.value)} onKeyDown={(e) => e.key === "Enter" && dangNhap()} placeholder="Mật khẩu" autoComplete="current-password" className="w-full rounded-2xl bg-subtle ring-1 ring-line px-4 py-3 text-sm text-body outline-none focus:ring-2 focus:ring-success-line" />
           {loi && <p className="text-[12px] text-danger">{loi}</p>}
           <button disabled={dangXuLy} onClick={dangNhap} className="w-full text-sm font-semibold text-white rounded-2xl py-3 disabled:opacity-60" style={{ backgroundColor: "var(--primary-solid)" }}>{dangXuLy ? "Đang đăng nhập…" : "Đăng nhập"}</button>
-          <p className="text-[11px] text-muted leading-relaxed">Tài khoản do quản trị (IT) cấp trong bảng người dùng. Vai trò xác định theo email.</p>
+          <p className="text-[12px] text-muted leading-relaxed">Tài khoản do quản trị (IT) cấp trong bảng người dùng. Vai trò xác định theo email.</p>
         </div>
       </div>
     </div>
@@ -46,7 +46,7 @@ function SucKhoeWidget({ sk, dangTai }) {
     return (
       <HeaderChip>
         <Activity className="w-4 h-4 text-muted" strokeWidth={1.8} />
-        <div className="leading-tight"><p className="text-[10px] uppercase tracking-wider text-muted font-semibold">Trạng thái</p><p className="text-xs font-semibold text-muted">{dangTai ? "đang kiểm tra…" : "—"}</p></div>
+        <div className="leading-tight"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold">Trạng thái</p><p className="text-xs font-semibold text-muted">{dangTai ? "đang kiểm tra…" : "—"}</p></div>
       </HeaderChip>
     );
   }
@@ -84,7 +84,7 @@ function SucKhoeWidget({ sk, dangTai }) {
       <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />
       <Icon className={`w-4 h-4 ${txt}`} strokeWidth={1.8} />
       <div className="leading-tight">
-        <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">Trạng thái</p>
+        <p className="text-[12px] uppercase tracking-wider text-muted font-semibold">Trạng thái</p>
         <p className={`text-xs font-semibold ${txt}`}>{mat ? (machChet ? `MẤT NGUỒN · ${sk.machPhutPhut}′` : "MẤT DỮ LIỆU") : `Dữ liệu mới · trễ ${treTxt}`}</p>
       </div>
     </div>
@@ -136,7 +136,7 @@ function DoiMatKhauCard({ user, isLive }) {
             style={{ background: "var(--primary-solid)" }}>
             {dang ? "Đang đổi…" : "Đổi mật khẩu"}
           </button>
-          <p className="text-[11px] text-muted leading-relaxed">Cần xác thực mật khẩu hiện tại. Mật khẩu mới tối thiểu 6 ký tự; lần đăng nhập sau dùng mật khẩu mới.</p>
+          <p className="text-[12px] text-muted leading-relaxed">Cần xác thực mật khẩu hiện tại. Mật khẩu mới tối thiểu 6 ký tự; lần đăng nhập sau dùng mật khẩu mới.</p>
         </div>
       )}
     </Card>
@@ -169,7 +169,7 @@ function DoiMatKhauModal({ user, isLive, onClose }) {
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <div className="w-full max-w-sm rounded-3xl bg-surface ring-1 ring-line overflow-hidden" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-5 pb-4 flex items-start justify-between" style={{ background: "var(--bg-subtle)" }}>
-          <div className="flex items-center gap-2"><div className="rounded-2xl bg-surface p-2 ring-1 ring-success-line"><KeyRound className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 className="text-sm font-semibold" style={{ color: "var(--text-strong)" }}>Đổi mật khẩu</h2><p className="text-[11px] text-muted">{user ? `${user.name} · ${user.email}` : "chưa đăng nhập"}</p></div></div>
+          <div className="flex items-center gap-2"><div className="rounded-2xl bg-surface p-2 ring-1 ring-success-line"><KeyRound className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 className="text-sm font-semibold" style={{ color: "var(--text-strong)" }}>Đổi mật khẩu</h2><p className="text-[12px] text-muted">{user ? `${user.name} · ${user.email}` : "chưa đăng nhập"}</p></div></div>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-subtle text-muted"><X className="w-4 h-4" strokeWidth={1.8} /></button>
         </div>
         <div className="px-6 py-5 space-y-3">
@@ -180,7 +180,7 @@ function DoiMatKhauModal({ user, isLive, onClose }) {
           {loi && <p className="text-[12px] text-danger">{loi}</p>}
           {ok && <p className="text-[12px] text-success">Đã đổi mật khẩu thành công.</p>}
           <button disabled={dang} onClick={doi} className="w-full text-sm font-semibold text-white rounded-2xl py-2.5 disabled:opacity-60" style={{ background: "var(--primary-solid)" }}>{dang ? "Đang đổi…" : "Đổi mật khẩu"}</button>
-          <p className="text-[11px] text-muted leading-relaxed">Cần xác thực mật khẩu hiện tại. Mật khẩu mới tối thiểu 6 ký tự; lần đăng nhập sau dùng mật khẩu mới.</p>
+          <p className="text-[12px] text-muted leading-relaxed">Cần xác thực mật khẩu hiện tại. Mật khẩu mới tối thiểu 6 ký tự; lần đăng nhập sau dùng mật khẩu mới.</p>
         </div>
       </div>
     </div>
@@ -199,18 +199,18 @@ function PhanTichGmpCard({ mkt, spc, isLive }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card className="p-6"><SectionTitle icon={Thermometer} hint="Nhiệt độ động học TB · 30 ngày · ICH Q1A">MKT theo phòng</SectionTitle>
-        <p className="text-[11px] text-muted mt-1">MKT phạt các đợt nhiệt cao (Arrhenius), luôn ≥ nhiệt độ TB. Phòng MKT cao → chú ý phơi nhiễm nhiệt.</p>
+        <p className="text-[12px] text-muted mt-1">MKT phạt các đợt nhiệt cao (Arrhenius), luôn ≥ nhiệt độ TB. Phòng MKT cao → chú ý phơi nhiễm nhiệt.</p>
         {mk.length ? (
-          <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[11px] uppercase tracking-wider">{["Phòng", "Khu", "Ưu tiên", "MKT °C", "T TB", "T max"].map((hh) => <th key={hh} className="py-2 pr-3 font-semibold whitespace-nowrap">{hh}</th>)}</tr></thead><tbody>
-            {mk.slice(0, 12).map((r) => <tr key={r.ma_phong} className="border-t border-line hover:bg-info-soft/40"><td className="py-2 pr-3"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.ma_phong}</span> <span className="text-muted text-[11px]">{r.ten_phong}</span></td><td className="py-2 pr-3 text-muted">{r.khu_vuc}</td><td className="py-2 pr-3">{r.muc_uu_tien && <MucBadge p={r.muc_uu_tien} />}</td><td className="py-2 pr-3 tabular-nums font-semibold" style={{ color: "var(--text-strong)" }}>{r.mkt == null ? "—" : r.mkt.toFixed(2)}</td><td className="py-2 pr-3 tabular-nums text-body">{r.tTb == null ? "—" : r.tTb.toFixed(2)}</td><td className="py-2 pr-3 tabular-nums text-body">{r.tMax == null ? "—" : r.tMax.toFixed(2)}</td></tr>)}
+          <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Phòng", "Khu", "Ưu tiên", "MKT °C", "T TB", "T max"].map((hh) => <th key={hh} className="py-2 pr-3 font-semibold whitespace-nowrap">{hh}</th>)}</tr></thead><tbody>
+            {mk.slice(0, 12).map((r) => <tr key={r.ma_phong} className="border-t border-line hover:bg-info-soft/40"><td className="py-2 pr-3"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.ma_phong}</span> <span className="text-muted text-[12px]">{r.ten_phong}</span></td><td className="py-2 pr-3 text-muted">{r.khu_vuc}</td><td className="py-2 pr-3">{r.muc_uu_tien && <MucBadge p={r.muc_uu_tien} />}</td><td className="py-2 pr-3 tabular-nums font-semibold" style={{ color: "var(--text-strong)" }}>{r.mkt == null ? "—" : r.mkt.toFixed(2)}</td><td className="py-2 pr-3 tabular-nums text-body">{r.tTb == null ? "—" : r.tTb.toFixed(2)}</td><td className="py-2 pr-3 tabular-nums text-body">{r.tMax == null ? "—" : r.tMax.toFixed(2)}</td></tr>)}
           </tbody></table></div>
         ) : <p className="mt-3 text-[13px] text-muted">Chưa có dữ liệu MKT (cần sensor nhiệt + job đêm đã chạy).</p>}
       </Card>
       <Card className="p-6"><SectionTitle icon={Activity} hint="EWMA · CUSUM · Nelson rules">SPC — cảnh báo dịch chuyển</SectionTitle>
-        <p className="text-[11px] text-muted mt-1">"Ngoài kiểm soát" = có tín hiệu dịch chuyển/xu hướng trước khi vượt ngưỡng OOS. Nelson1=vượt 3σ, 2=9 điểm cùng phía, 3=6 điểm tăng/giảm.</p>
+        <p className="text-[12px] text-muted mt-1">"Ngoài kiểm soát" = có tín hiệu dịch chuyển/xu hướng trước khi vượt ngưỡng OOS. Nelson1=vượt 3σ, 2=9 điểm cùng phía, 3=6 điểm tăng/giảm.</p>
         {sp.length ? (
-          <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[11px] uppercase tracking-wider">{["Phạm vi", "Sensor", "Mục tiêu", "σ", "Tín hiệu", "Loại"].map((hh) => <th key={hh} className="py-2 pr-3 font-semibold whitespace-nowrap">{hh}</th>)}</tr></thead><tbody>
-            {sp.slice(0, 12).map((r, i) => <tr key={i} className="border-t border-line hover:bg-info-soft/40"><td className="py-2 pr-3"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.scope_id}</span> <span className="text-muted text-[11px]">{r.ten_scope}</span></td><td className="py-2 pr-3 text-muted">{r.sensor_type}</td><td className="py-2 pr-3 tabular-nums text-body">{r.mucTieu == null ? "—" : fmtPct(r.mucTieu)}</td><td className="py-2 pr-3 tabular-nums text-body">{r.sigma == null ? "—" : r.sigma.toFixed(2)}</td><td className="py-2 pr-3"><span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: "var(--danger)" }}>{r.soTinHieu}</span></td><td className="py-2 pr-3 text-[11px] text-muted">{r.cacLoai || "—"}</td></tr>)}
+          <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Phạm vi", "Sensor", "Mục tiêu", "σ", "Tín hiệu", "Loại"].map((hh) => <th key={hh} className="py-2 pr-3 font-semibold whitespace-nowrap">{hh}</th>)}</tr></thead><tbody>
+            {sp.slice(0, 12).map((r, i) => <tr key={i} className="border-t border-line hover:bg-info-soft/40"><td className="py-2 pr-3"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.scope_id}</span> <span className="text-muted text-[12px]">{r.ten_scope}</span></td><td className="py-2 pr-3 text-muted">{r.sensor_type}</td><td className="py-2 pr-3 tabular-nums text-body">{r.mucTieu == null ? "—" : fmtPct(r.mucTieu)}</td><td className="py-2 pr-3 tabular-nums text-body">{r.sigma == null ? "—" : r.sigma.toFixed(2)}</td><td className="py-2 pr-3"><span className="inline-block px-2 py-0.5 rounded-full text-[12px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: "var(--danger)" }}>{r.soTinHieu}</span></td><td className="py-2 pr-3 text-[12px] text-muted">{r.cacLoai || "—"}</td></tr>)}
           </tbody></table></div>
         ) : <p className="mt-3 text-[13px] text-success">Tất cả phạm vi đang trong kiểm soát — không có tín hiệu SPC.</p>}
       </Card>
@@ -275,14 +275,14 @@ function TaiKhoanCard({ isLive, actor }) {
         : (
         <div className="overflow-x-auto mt-4">
           <table className="w-full text-[13px]">
-            <thead><tr className="text-muted text-left text-[11px] uppercase tracking-wider">{["Tài khoản", "Vai trò", "Khu được xem", "Hoạt động", ""].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+            <thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Tài khoản", "Vai trò", "Khu được xem", "Hoạt động", ""].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
             <tbody>{rows.map((r) => (
               <tr key={r.email} className="border-t border-line align-middle">
-                <td className="py-2.5 pr-4"><p className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.ho_ten}</p><p className="text-[11px] text-muted">{r.email}</p></td>
+                <td className="py-2.5 pr-4"><p className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.ho_ten}</p><p className="text-[12px] text-muted">{r.email}</p></td>
                 <td className="py-2.5 pr-4"><select value={r.vai_tro} onChange={(e) => doi(r.email, { vai_tro: e.target.value })} className="rounded-lg bg-surface ring-1 ring-line px-2 py-1 text-[12px]">{VAI_TRO_CHON.map((v) => <option key={v.k} value={v.k}>{v.label}</option>)}</select></td>
-                <td className="py-2.5 pr-4">{r.vai_tro === "ADMIN" ? <span className="text-[11px] text-muted italic">tất cả (Quản trị)</span> : <div className="flex gap-1.5">{DS_KHU.map((k) => { const on = r.khu_vuc.includes(k); return <button key={k} onClick={() => toggleKhu(r.email, k)} className={`px-2.5 py-1 rounded-lg text-[12px] font-medium ring-1 transition ${on ? "text-white ring-transparent" : "text-muted bg-surface ring-line hover:ring-success-line"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}>{k}</button>; })}</div>}</td>
-                <td className="py-2.5 pr-4"><button onClick={() => doi(r.email, { kich_hoat: !r.kich_hoat })} className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 ring-1 ${r.kich_hoat ? "text-success bg-success-soft ring-success-line" : "text-muted bg-subtle ring-line"}`}>{r.kich_hoat ? "Bật" : "Tắt"}</button></td>
-                <td className="py-2.5 pr-4"><button onClick={() => luuMot(r)} className="text-[11px] font-medium text-white rounded-lg px-3 py-1.5 flex items-center gap-1" style={{ backgroundColor: "var(--primary-solid)" }}><Save className="w-3.5 h-3.5" strokeWidth={1.8} /> {luu[r.email] === "dang" ? "Đang lưu…" : luu[r.email] === "ok" ? "Đã lưu ✓" : luu[r.email] === "loi" ? "Lỗi" : "Lưu"}</button></td>
+                <td className="py-2.5 pr-4">{r.vai_tro === "ADMIN" ? <span className="text-[12px] text-muted italic">tất cả (Quản trị)</span> : <div className="flex gap-1.5">{DS_KHU.map((k) => { const on = r.khu_vuc.includes(k); return <button key={k} onClick={() => toggleKhu(r.email, k)} className={`px-2.5 py-1 rounded-lg text-[12px] font-medium ring-1 transition ${on ? "text-white ring-transparent" : "text-muted bg-surface ring-line hover:ring-success-line"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}>{k}</button>; })}</div>}</td>
+                <td className="py-2.5 pr-4"><button onClick={() => doi(r.email, { kich_hoat: !r.kich_hoat })} className={`text-[12px] font-medium rounded-lg px-2.5 py-1.5 ring-1 ${r.kich_hoat ? "text-success bg-success-soft ring-success-line" : "text-muted bg-subtle ring-line"}`}>{r.kich_hoat ? "Bật" : "Tắt"}</button></td>
+                <td className="py-2.5 pr-4"><button onClick={() => luuMot(r)} className="text-[12px] font-medium text-white rounded-lg px-3 py-1.5 flex items-center gap-1" style={{ backgroundColor: "var(--primary-solid)" }}><Save className="w-3.5 h-3.5" strokeWidth={1.8} /> {luu[r.email] === "dang" ? "Đang lưu…" : luu[r.email] === "ok" ? "Đã lưu ✓" : luu[r.email] === "loi" ? "Lỗi" : "Lưu"}</button></td>
               </tr>
             ))}
             {chuaPhanQuyen.length > 0 && (
@@ -297,14 +297,14 @@ function TaiKhoanCard({ isLive, actor }) {
                     className="w-full mt-1.5 rounded-lg bg-surface ring-1 ring-info-line px-2 py-1.5 text-[12px]" />
                 </td>
                 <td className="py-2.5 pr-4"><select value={nguoiMoi.vai_tro} onChange={(e) => setNguoiMoi({ ...nguoiMoi, vai_tro: e.target.value })} className="rounded-lg bg-surface ring-1 ring-info-line px-2 py-1 text-[12px]">{VAI_TRO_CHON.map((v) => <option key={v.k} value={v.k}>{v.label}</option>)}</select></td>
-                <td className="py-2.5 pr-4">{nguoiMoi.vai_tro === "ADMIN" ? <span className="text-[11px] text-muted italic">tất cả (Quản trị)</span> : <div className="flex gap-1.5">{DS_KHU.map((k) => { const on = nguoiMoi.khu_vuc.includes(k); return <button key={k} onClick={() => setNguoiMoi({ ...nguoiMoi, khu_vuc: on ? nguoiMoi.khu_vuc.filter((x) => x !== k) : [...nguoiMoi.khu_vuc, k] })} className={`px-2.5 py-1 rounded-lg text-[12px] font-medium ring-1 ${on ? "text-white ring-transparent" : "text-muted bg-surface ring-line"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}>{k}</button>; })}</div>}</td>
-                <td className="py-2.5 pr-4 text-[11px] text-muted">Bật</td>
-                <td className="py-2.5 pr-4"><button onClick={themNguoi} disabled={!nguoiMoi.email || luuMoi === "dang"} className="text-[11px] font-medium text-white rounded-lg px-3 py-1.5 flex items-center gap-1 disabled:opacity-40" style={{ backgroundColor: "var(--danger-solid)" }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> {luuMoi === "dang" ? "Đang lưu…" : luuMoi === "ok" ? "Đã thêm ✓" : "Phân quyền"}</button></td>
+                <td className="py-2.5 pr-4">{nguoiMoi.vai_tro === "ADMIN" ? <span className="text-[12px] text-muted italic">tất cả (Quản trị)</span> : <div className="flex gap-1.5">{DS_KHU.map((k) => { const on = nguoiMoi.khu_vuc.includes(k); return <button key={k} onClick={() => setNguoiMoi({ ...nguoiMoi, khu_vuc: on ? nguoiMoi.khu_vuc.filter((x) => x !== k) : [...nguoiMoi.khu_vuc, k] })} className={`px-2.5 py-1 rounded-lg text-[12px] font-medium ring-1 ${on ? "text-white ring-transparent" : "text-muted bg-surface ring-line"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}>{k}</button>; })}</div>}</td>
+                <td className="py-2.5 pr-4 text-[12px] text-muted">Bật</td>
+                <td className="py-2.5 pr-4"><button onClick={themNguoi} disabled={!nguoiMoi.email || luuMoi === "dang"} className="text-[12px] font-medium text-white rounded-lg px-3 py-1.5 flex items-center gap-1 disabled:opacity-40" style={{ backgroundColor: "var(--danger-solid)" }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> {luuMoi === "dang" ? "Đang lưu…" : luuMoi === "ok" ? "Đã thêm ✓" : "Phân quyền"}</button></td>
               </tr>)}
             </tbody>
           </table>
           {luuMoi && luuMoi !== "dang" && luuMoi !== "ok" && <p className="text-[12px] text-danger mt-2">{luuMoi}</p>}
-          {chuaPhanQuyen.length === 0 && <p className="text-[11px] text-muted mt-3">Mọi tài khoản đăng nhập đều đã được phân quyền. Tài khoản mới tạo ở <b>Supabase → Authentication → Users</b> sẽ tự hiện ở đây.</p>}
+          {chuaPhanQuyen.length === 0 && <p className="text-[12px] text-muted mt-3">Mọi tài khoản đăng nhập đều đã được phân quyền. Tài khoản mới tạo ở <b>Supabase → Authentication → Users</b> sẽ tự hiện ở đây.</p>}
         </div>
       )}
     </Card>

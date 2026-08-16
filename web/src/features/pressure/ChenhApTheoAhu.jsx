@@ -111,9 +111,9 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   const ordUu = (p) => p === "P1" ? 1 : p === "P2" ? 2 : p === "P3" ? 3 : 4;
   return (
     <Card className="p-5">
-      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = dưới sàn cần chỉnh (P1/P2) · VIỀN VÀNG XÁM = cảm biến đứng hình · XÁM PHỚT HỒNG = P3 chưa gấp · VÀNG = trên dải · XANH = đạt">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-danger">{soKhongDat}</b> cần chỉnh{soDh > 0 && <> · <b className="text-warning">{soDh}</b> đứng hình</>}{soP3 > 0 && <> · <b className="text-muted">{soP3}</b> P3 chưa gấp</>}{soNgoaiKhoang > 0 && <> · <b className="text-warning">{soNgoaiKhoang}</b> trên dải</>}{soMatDuLieu > 0 && <> · <b className="text-muted">{soMatDuLieu}</b> mất dữ liệu</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[10px] font-normal text-success"> · đang lấy realtime…</span>}</SectionTitle>
+      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = dưới sàn cần chỉnh (P1/P2) · VIỀN VÀNG XÁM = cảm biến đứng hình · XÁM PHỚT HỒNG = P3 chưa gấp · VÀNG = trên dải · XANH = đạt">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-danger">{soKhongDat}</b> cần chỉnh{soDh > 0 && <> · <b className="text-warning">{soDh}</b> đứng hình</>}{soP3 > 0 && <> · <b className="text-muted">{soP3}</b> P3 chưa gấp</>}{soNgoaiKhoang > 0 && <> · <b className="text-warning">{soNgoaiKhoang}</b> trên dải</>}{soMatDuLieu > 0 && <> · <b className="text-muted">{soMatDuLieu}</b> mất dữ liệu</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[12px] font-normal text-success"> · đang lấy realtime…</span>}</SectionTitle>
       <div className="flex flex-wrap items-center gap-2 mt-3">
-        <span className="text-[11px] font-semibold text-muted uppercase tracking-wider mr-1">Lọc khu</span>
+        <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Lọc khu</span>
         {chip("ALL", "Tất cả", khu === "ALL", () => { setKhu("ALL"); setAhuLoc("ALL"); })}
         {dsKhu.map((k) => chip(k, `Khu ${k}`, khu === k, () => { setKhu(k); setAhuLoc("ALL"); }))}
         {ahuPairs.length > 0 && (
@@ -131,7 +131,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
           <p className="text-[12.5px] font-bold text-danger">
             ⚠ MẤT NGUỒN SỐ LIỆU — {soMatDuLieu}/{filt.length} phòng không có số đo đủ mới
           </p>
-          <p className="mt-0.5 text-[11.5px] leading-snug text-danger">
+          <p className="mt-0.5 text-[12px] leading-snug text-danger">
             Số cuối cùng đo được vẫn hiện để tham khảo, nhưng hệ <b>KHÔNG kết luận đạt/không đạt</b> trên số đã cũ
             {nguongTuoi != null && <> (quá {nguongTuoi} phút)</>} — các phòng này không được tính vào số "đạt" lẫn số "cần chỉnh".
             Kiểm FMS ngay: nguồn treo thì phải có người khởi động lại, hệ không tự khỏi.
@@ -168,7 +168,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
               <div key={k}>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-[12px] font-bold uppercase tracking-wide text-muted">{k}</span>
-                  <span className="text-[11px] tabular-nums">
+                  <span className="text-[12px] tabular-nums">
                     {dsCo.length === 0
                       ? <span className="font-semibold text-muted">không có số đo — không kết luận</span>
                       : <><span className="text-muted">{soDat}/{dsCo.length} đạt</span>
@@ -181,17 +181,17 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                       <div className="w-[168px] shrink-0">
                         <div className="flex items-center gap-1.5">
                           <span className="text-[13.5px] font-semibold text-strong">{r.maPhong}</span>
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-surface/80 text-muted">{r.uuTien}</span>
+                          <span className="text-[12px] font-bold px-1.5 py-0.5 rounded-full bg-surface/80 text-muted">{r.uuTien}</span>
                         </div>
-                        <div className="text-[10.5px] text-muted truncate" title={r.tenPhong}>{r.tenPhong}</div>
+                        <div className="text-[12px] text-muted truncate" title={r.tenPhong}>{r.tenPhong}</div>
                         {laDungHinh(r) && (
-                          <div className="mt-1 inline-block rounded-md bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold leading-tight text-warning ring-1 ring-warning-line">
+                          <div className="mt-1 inline-block rounded-md bg-warning-soft px-1.5 py-0.5 text-[12px] font-semibold leading-tight text-warning ring-1 ring-warning-line">
                             ⚠ Cảm biến đứng hình {dhMap[r.maPhong]} giờ — vui lòng kiểm tra lại trước khi chỉnh
                           </div>
                         )}
                       </div>
                       <div className="w-[96px] shrink-0 rounded-lg bg-surface/80 px-2 py-1 text-center ring-1 ring-line/60">
-                        <div className="text-[9px] font-semibold uppercase tracking-wider text-muted">Yêu cầu ({r.donVi})</div>
+                        <div className="text-[12px] font-semibold uppercase tracking-wider text-muted">Yêu cầu ({r.donVi})</div>
                         <div className="text-[15px] font-bold text-strong tabular-nums leading-tight">{r.ghDuoi}–{r.ghTren}</div>
                       </div>
                       {/* 16/07 (user): chuỗi 5′ kẻ BẢNG 2 hàng — giờ trên, chênh áp dưới — dễ dò cột hơn dãy chữ liền */}
@@ -201,7 +201,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                           <tbody>
                             <tr>
                               {r.chuoi.map((p) => (
-                                <td key={`t${p.t}`} className="border border-line bg-subtle px-2 py-0.5 text-center text-[10.5px] text-body tabular-nums">{p.t}</td>
+                                <td key={`t${p.t}`} className="border border-line bg-subtle px-2 py-0.5 text-center text-[12px] text-body tabular-nums">{p.t}</td>
                               ))}
                             </tr>
                             <tr>
@@ -218,8 +218,8 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
                         </div></div>
                       )}
                       <div className="ml-auto w-[132px] text-right shrink-0">
-                        <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[10px] font-medium"> {r.donVi}</span></>}</div>
-                        <div className="text-[9.5px] text-muted mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-success font-semibold">● realtime</span> : <span className="text-warning">giờ gần nhất</span>} {r.thoiDiem}{nhanTuoi(r)}{r.dat === false && (r.uuTien === "P3"
+                        <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[12px] font-medium"> {r.donVi}</span></>}</div>
+                        <div className="text-[12px] text-muted mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-success font-semibold">● realtime</span> : <span className="text-warning">giờ gần nhất</span>} {r.thoiDiem}{nhanTuoi(r)}{r.dat === false && (r.uuTien === "P3"
                           ? <span className="font-medium text-muted"> · P3 — chưa cần xử lý ngay</span>
                           : <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>)}</>}</div>
                       </div>

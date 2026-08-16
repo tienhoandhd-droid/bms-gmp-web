@@ -260,7 +260,7 @@ export default function SoDoVongDoi() {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-[11px] text-muted">Sơ đồ tự co theo màn hình — bấm phóng to nếu muốn xem chữ lớn.</span>
+        <span className="text-[12px] text-muted">Sơ đồ tự co theo màn hình — bấm phóng to nếu muốn xem chữ lớn.</span>
         <button onClick={() => setFull(true)}
           className="shrink-0 rounded-xl bg-subtle px-3 py-1.5 text-[12px] font-semibold text-body ring-1 ring-line hover:bg-subtle">
           ⛶ Phóng to toàn màn hình

@@ -25,11 +25,12 @@
 
   /* Borders */
   --border: #C4D4DC;
-  --border-strong: #9FB7C3;
+  --border-strong: #72909F;
 
   /* Brand / navigation */
   --anchor: #102A3E;
   --anchor-soft: #143C50;
+  --anchor-fg: #FFFFFF;
 
   --primary: #0A6E68;
   --primary-hover: #085A55;
@@ -81,10 +82,11 @@
   --text-inverse: #07131B;
 
   --border: #2B4A57;
-  --border-strong: #456473;
+  --border-strong: #527687;
 
   --anchor: #071018;
   --anchor-soft: #0D2933;
+  --anchor-fg: #F3F8FA;
 
   --primary: #4FC1B5;
   --primary-hover: #6CCEC4;
@@ -139,8 +141,9 @@
   --rgb-bg-subtle: 225 237 241;
   --rgb-bg-canvas: 234 242 245;
   --rgb-anchor: 16 42 62;
+  --rgb-anchor-fg: 255 255 255;
   --rgb-border: 196 212 220;
-  --rgb-border-strong: 159 183 195;
+  --rgb-border-strong: 114 144 159;
   --rgb-text-strong: 11 31 46;
   --rgb-text-default: 36 59 77;
   --rgb-text-muted: 82 104 120;
@@ -171,8 +174,9 @@
   --rgb-bg-subtle: 21 48 60;
   --rgb-bg-canvas: 8 20 29;
   --rgb-anchor: 7 16 24;
+  --rgb-anchor-fg: 243 248 250;
   --rgb-border: 43 74 87;
-  --rgb-border-strong: 69 100 115;
+  --rgb-border-strong: 82 118 135;
   --rgb-text-strong: 243 248 250;
   --rgb-text-default: 216 228 233;
   --rgb-text-muted: 175 193 201;

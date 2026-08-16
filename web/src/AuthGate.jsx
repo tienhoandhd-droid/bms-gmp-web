@@ -79,7 +79,7 @@ export default function AuthGate() {
             className="w-full text-[12px] font-medium text-muted hover:text-success disabled:opacity-50">
             {kp === "dang_gui" ? "Đang gửi email khôi phục…" : "Quên mật khẩu? Gửi email đặt lại"}
           </button>
-          <p className="text-[11px] text-muted leading-relaxed">
+          <p className="text-[12px] text-muted leading-relaxed">
             Tài khoản do Quản trị hệ thống cấp. Vai trò (Kiểm soát hiện trường / Cơ điện / Trực hồ sơ lô / Đảm bảo chất lượng / Quản trị) xác định theo email.
           </p>
         </div>

@@ -80,7 +80,7 @@ const CANONICAL = new Set(GIAI_DOAN.flatMap((g) => g.states));
 function VaiTroBadge({ vaiTro, small = false }) {
   const m = mv(vaiTro);
   return (
-    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full font-bold ${small ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-[11px]"}`}
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full font-bold ${small ? "px-2 py-0.5 text-[12px]" : "px-2.5 py-1 text-[12px]"}`}
       style={{ background: m.nen, color: m.chu }}>
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.net }} />
       {VAI_TRO_TEN[vaiTro] || m.ten || vaiTro}
@@ -99,7 +99,7 @@ function DieuKien({ rule, compact = false }) {
   if (!tags.length) return null;
   return (
     <div className={`flex flex-wrap ${compact ? "gap-1" : "gap-1.5"}`}>
-      {tags.map((x) => <span key={x.t} className={`rounded-md font-semibold ${compact ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-0.5 text-[10px]"} ${x.c}`}>{x.t}</span>)}
+      {tags.map((x) => <span key={x.t} className={`rounded-md font-semibold ${compact ? "px-1.5 py-0.5 text-[12px]" : "px-2 py-0.5 text-[12px]"} ${x.c}`}>{x.t}</span>)}
     </div>
   );
 }
@@ -111,8 +111,8 @@ function DongLuat({ rule, compact = false }) {
       <div className="flex items-start gap-2">
         <VaiTroBadge vaiTro={rule.vai_tro} small />
         <div className="min-w-0 flex-1">
-          <p className={`${compact ? "text-[11.5px]" : "text-[12px]"} font-semibold leading-snug text-strong`}>{rule.nhan}</p>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[10.5px] leading-tight" style={{ color: m.chu }}>
+          <p className={`${compact ? "text-[12px]" : "text-[12px]"} font-semibold leading-snug text-strong`}>{rule.nhan}</p>
+          <div className="mt-1.5 flex items-center gap-1.5 text-[12px] leading-tight" style={{ color: m.chu }}>
             <ArrowRight className="h-3 w-3 shrink-0" />
             <span className="font-semibold">{rule.giu ? "Không đổi trạng thái" : tenTT(rule.den)}</span>
           </div>
@@ -140,20 +140,20 @@ function TheTrangThai({ ma, canh, taiCho, vai }) {
           </div>
           <div className="min-w-0">
             <h4 className="text-[13px] font-bold leading-tight text-strong">{tenTT(ma)}</h4>
-            <code className="mt-1 block break-all text-[9px] font-semibold tracking-wide text-muted">{ma}</code>
+            <code className="mt-1 block break-all text-[12px] font-semibold tracking-wide text-muted">{ma}</code>
           </div>
         </div>
-        <p className="mt-2 text-[10.5px] leading-relaxed text-muted">{meta.moTa}</p>
+        <p className="mt-2 text-[12px] leading-relaxed text-muted">{meta.moTa}</p>
       </div>
 
       <div className="space-y-2 p-3">
         {canhLoc.map((r) => <DongLuat key={r.id} rule={r} compact />)}
         {taiChoLoc.length > 0 && (
           <div className="rounded-xl border border-dashed border-line bg-subtle/70 p-2.5">
-            <p className="mb-1.5 text-[9.5px] font-bold uppercase tracking-[0.12em] text-muted">Thao tác không đổi trạng thái</p>
+            <p className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Thao tác không đổi trạng thái</p>
             <div className="space-y-1.5">
               {taiChoLoc.map((r) => (
-                <div key={r.id} className="flex items-start gap-2 text-[10.5px] leading-snug text-body">
+                <div key={r.id} className="flex items-start gap-2 text-[12px] leading-snug text-body">
                   <VaiTroBadge vaiTro={r.vai_tro} small />
                   <span className="pt-0.5">{r.nhan}{r.batBuocLyDo ? " · bắt buộc lý do" : ""}</span>
                 </div>
@@ -162,7 +162,7 @@ function TheTrangThai({ ma, canh, taiCho, vai }) {
           </div>
         )}
         {!canhLoc.length && !taiChoLoc.length && (
-          <p className="py-1 text-[10.5px] leading-relaxed text-muted">
+          <p className="py-1 text-[12px] leading-relaxed text-muted">
             {meta.ketThuc ? "Điểm kết thúc. QA hoặc Quản trị có thể mở lại theo luật ở phần bên dưới." : (vai === "ALL" ? "Không có hành động trực tiếp tại trạng thái này." : "Vai trò đang lọc không thao tác tại trạng thái này.")}
           </p>
         )}
@@ -182,7 +182,7 @@ function NhomLuatToanCuc({ title, icon: Icon, description, rules }) {
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white"><Icon className="h-4 w-4" /></div>
         <div>
           <h3 className="text-[13px] font-bold text-strong">{title}</h3>
-          <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">{description}</p>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-muted">{description}</p>
         </div>
       </div>
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
@@ -201,7 +201,7 @@ function DieuKienBang({ rule }) {
   const apDung = rule.apDungKhi === "DONG" ? "Sự cố đã đóng" : rule.apDungKhi === "CA_HAI" ? "Mở hoặc đã đóng" : "Sự cố đang mở";
   return (
     <div className="min-w-[150px]">
-      <p className="text-[10.5px] font-medium text-body">{apDung}</p>
+      <p className="text-[12px] font-medium text-body">{apDung}</p>
       <div className="mt-1"><DieuKien rule={rule} compact /></div>
     </div>
   );
@@ -244,7 +244,7 @@ export default function SoDoLuatCard({ dsNut }) {
       <div className="rounded-2xl border border-dashed border-line-strong bg-subtle px-5 py-10 text-center">
         <Database className="mx-auto h-7 w-7 text-muted" />
         <p className="mt-3 text-[13px] font-semibold text-body">Chưa nạp được bảng luật xử lý</p>
-        <p className="mt-1 text-[11px] text-muted">Cần đăng nhập ở chế độ LIVE để đọc nguồn <code>xem_nut_thao_tac</code>.</p>
+        <p className="mt-1 text-[12px] text-muted">Cần đăng nhập ở chế độ LIVE để đọc nguồn <code>xem_nut_thao_tac</code>.</p>
       </div>
     );
   }
@@ -267,15 +267,15 @@ export default function SoDoLuatCard({ dsNut }) {
           <div className="absolute -bottom-20 right-28 h-44 w-44 rounded-full bg-success/10" />
           <div className="relative flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200">
+              <div className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.18em] text-sky-200">
                 <GitBranch className="h-3.5 w-3.5" /> Bản đồ vận hành sự cố
               </div>
               <h2 className="mt-2 text-lg font-bold tracking-tight sm:text-xl">Một luồng chính, các nhánh ngoại lệ tách riêng</h2>
-              <p className="mt-2 text-[11.5px] leading-relaxed text-muted">
+              <p className="mt-2 text-[12px] leading-relaxed text-muted">
                 Đọc theo số thứ tự 01 → 04. Mỗi hành động giữ nguyên vai trò, trạng thái đích và điều kiện đúng như bảng luật đang chạy; không còn gộp thành “+N” hoặc thu nhỏ chữ để vừa khung.
               </p>
             </div>
-            <button onClick={copyMermaid} className="relative inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-[11px] font-semibold text-white ring-1 ring-white/15 transition hover:bg-white/15">
+            <button onClick={copyMermaid} className="relative inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-[12px] font-semibold text-white ring-1 ring-white/15 transition hover:bg-white/15">
               <Copy className="h-3.5 w-3.5" /> {daCopy ? "Đã sao chép" : "Sao chép Mermaid"}
             </button>
           </div>
@@ -288,7 +288,7 @@ export default function SoDoLuatCard({ dsNut }) {
             ].map(([n, label]) => (
               <div key={label} className="rounded-xl bg-surface/[0.07] px-3 py-2 ring-1 ring-white/10">
                 <div className="text-lg font-bold tabular-nums">{n}</div>
-                <div className="text-[9.5px] uppercase tracking-wider text-muted">{label}</div>
+                <div className="text-[12px] uppercase tracking-wider text-muted">{label}</div>
               </div>
             ))}
           </div>
@@ -300,22 +300,22 @@ export default function SoDoLuatCard({ dsNut }) {
           <Activity className="mt-0.5 h-4 w-4 shrink-0 text-info" />
           <div>
             <h3 className="text-[13px] font-bold text-strong">Từ dữ liệu cảm biến đến một sự cố</h3>
-            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">Đây là phần tự động của hệ thống; các bước này không xuất hiện trong bảng nút của người dùng.</p>
+            <p className="mt-0.5 text-[12px] leading-relaxed text-muted">Đây là phần tự động của hệ thống; các bước này không xuất hiện trong bảng nút của người dùng.</p>
           </div>
         </div>
         <div className="mt-3 grid gap-2.5 lg:grid-cols-4">
           <div className="relative rounded-xl border border-line bg-surface p-3">
-            <div className="flex items-center gap-2"><Database className="h-4 w-4 text-info" /><b className="text-[11.5px] text-body">1. Dữ liệu FMS</b></div>
-            <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted">DP · RH · Nhiệt độ được lấy theo phút cho từng phòng và cảm biến đang kích hoạt.</p>
+            <div className="flex items-center gap-2"><Database className="h-4 w-4 text-info" /><b className="text-[12px] text-body">1. Dữ liệu FMS</b></div>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-muted">DP · RH · Nhiệt độ được lấy theo phút cho từng phòng và cảm biến đang kích hoạt.</p>
             <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-subtle text-muted lg:block" />
           </div>
           <div className="relative rounded-xl border border-line bg-surface p-3">
-            <div className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4 text-violet-600" /><b className="text-[11.5px] text-body">2. WF1 đánh giá</b></div>
-            <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted">Chuẩn hoá cửa sổ giờ, tính số điểm ngoài ngưỡng và 10 phút cuối theo cấu hình hiện hành.</p>
+            <div className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4 text-violet-600" /><b className="text-[12px] text-body">2. WF1 đánh giá</b></div>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-muted">Chuẩn hoá cửa sổ giờ, tính số điểm ngoài ngưỡng và 10 phút cuối theo cấu hình hiện hành.</p>
             <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-subtle text-muted lg:block" />
           </div>
           <div className="relative rounded-xl border border-line bg-surface p-3">
-            <div className="flex items-center gap-2"><CircleDot className="h-4 w-4 text-danger" /><b className="text-[11.5px] text-body">3. Phân mức</b></div>
+            <div className="flex items-center gap-2"><CircleDot className="h-4 w-4 text-danger" /><b className="text-[12px] text-body">3. Phân mức</b></div>
             <div className="mt-2 space-y-1 text-[9.8px] leading-snug">
               <p><b className="text-success">Bình thường:</b> OOS ngắn, hoặc 10′ cuối đã về dải — không mở vé; sự cố mở đủ 2 giờ sạch thì tự đóng.</p>
               <p><b className="text-danger">Nghiêm trọng:</b> OOS cả giờ &amp; 10′ cuối vẫn vượt ngưỡng — mở vé + đưa vào nhịp email WF8.</p>
@@ -323,11 +323,11 @@ export default function SoDoLuatCard({ dsNut }) {
             <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-subtle text-muted lg:block" />
           </div>
           <div className="rounded-xl border border-line bg-surface p-3">
-            <div className="flex items-center gap-2"><BellRing className="h-4 w-4 text-danger" /><b className="text-[11.5px] text-body">4. Mở và điều phối</b></div>
-            <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted">Sự cố mới vào <b>Chưa xử lý</b>. WF8 nhắc đúng vai trò; WF6 giám sát nếu dữ liệu hoặc nhịp nhắc bị đình trệ.</p>
+            <div className="flex items-center gap-2"><BellRing className="h-4 w-4 text-danger" /><b className="text-[12px] text-body">4. Mở và điều phối</b></div>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-muted">Sự cố mới vào <b>Chưa xử lý</b>. WF8 nhắc đúng vai trò; WF6 giám sát nếu dữ liệu hoặc nhịp nhắc bị đình trệ.</p>
           </div>
         </div>
-        <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-info-soft px-3 py-2 text-[10.5px] leading-relaxed text-info">
+        <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-info-soft px-3 py-2 text-[12px] leading-relaxed text-info">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>Khi công tắc <b>Tự phân tuyến</b> bật và điều kiện khớp, hệ thống có thể chuyển <b>Chưa xử lý → Đã báo Cơ điện</b>; nếu không, IPC thực hiện bước bàn giao.</span>
         </div>
@@ -337,7 +337,7 @@ export default function SoDoLuatCard({ dsNut }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-[13px] font-bold text-strong">Lọc hành động theo vai trò</h3>
-            <p className="mt-0.5 text-[10.5px] text-muted">Các trạng thái vẫn giữ nguyên vị trí để không mất bối cảnh luồng.</p>
+            <p className="mt-0.5 text-[12px] text-muted">Các trạng thái vẫn giữ nguyên vị trí để không mất bối cảnh luồng.</p>
           </div>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Lọc sơ đồ theo vai trò">
             {["ALL", ...vaiCo].map((v) => {
@@ -346,7 +346,7 @@ export default function SoDoLuatCard({ dsNut }) {
               const count = v === "ALL" ? tatCa.length : tatCa.filter((r) => r.vai_tro === v).length;
               return (
                 <button key={v} type="button" aria-pressed={on} onClick={() => setVai(v)}
-                  className="rounded-full px-3 py-1.5 text-[10.5px] font-bold transition ring-1 ring-inset"
+                  className="rounded-full px-3 py-1.5 text-[12px] font-bold transition ring-1 ring-inset"
                   style={on ? { background: m.net, color: "#fff", boxShadow: `inset 0 0 0 1px ${m.net}` } : { background: m.nen, color: m.chu, boxShadow: "inset 0 0 0 1px #e2e8f0" }}>
                   {v === "ALL" ? "Tất cả" : (VAI_TRO_TEN[v] || v)} · {count}
                 </button>
@@ -362,7 +362,7 @@ export default function SoDoLuatCard({ dsNut }) {
             <div className="relative mb-3 rounded-2xl px-3.5 py-3 text-white" style={{ background: g.mau }}>
               <div className="flex items-center gap-2.5">
                 <span className="text-xl font-black tabular-nums opacity-55">{g.so}</span>
-                <div><h3 className="text-[12.5px] font-bold">{g.ten}</h3><p className="text-[9.5px] text-white/75">{g.moTa}</p></div>
+                <div><h3 className="text-[12.5px] font-bold">{g.ten}</h3><p className="text-[12px] text-white/75">{g.moTa}</p></div>
               </div>
               {index < GIAI_DOAN.length - 1 && <ChevronRight className="absolute -right-3 top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 rounded-full bg-surface p-0.5 text-muted shadow ring-1 ring-line xl:block" />}
             </div>
@@ -376,7 +376,7 @@ export default function SoDoLuatCard({ dsNut }) {
       {trangThaiKhac.length > 0 && (
         <section className="rounded-2xl border border-warning-line bg-warning-soft/50 p-4">
           <h3 className="text-[12px] font-bold text-warning">Trạng thái khác vừa xuất hiện trong bảng luật</h3>
-          <p className="mt-1 text-[10.5px] text-warning/80">Sơ đồ vẫn hiển thị để không bỏ mất luồng mới; cần cập nhật mô tả nghiệp vụ nếu đây là thay đổi có chủ đích.</p>
+          <p className="mt-1 text-[12px] text-warning/80">Sơ đồ vẫn hiển thị để không bỏ mất luồng mới; cần cập nhật mô tả nghiệp vụ nếu đây là thay đổi có chủ đích.</p>
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {trangThaiKhac.map((ma) => <TheTrangThai key={ma} ma={ma} canh={canhTheoTu[ma] || []} taiCho={taiChoTheoTu[ma] || []} vai={vai} />)}
           </div>
@@ -397,16 +397,16 @@ export default function SoDoLuatCard({ dsNut }) {
 
       <section className="grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-danger-line bg-danger-soft/60 p-4">
-          <div className="flex items-center gap-2 text-danger"><BellRing className="h-4 w-4" /><b className="text-[11.5px]">Trực HSL và nhịp nhắc</b></div>
-          <p className="mt-2 text-[10.5px] leading-relaxed text-danger/70">Chỉ nhắc IPC/Cơ điện ở trạng thái họ thực sự nhận mail. Tạm hoãn 4 giờ phải có lý do; sự cố CRITICAL hoặc phòng P1 chỉ QA/Quản trị được hoãn.</p>
+          <div className="flex items-center gap-2 text-danger"><BellRing className="h-4 w-4" /><b className="text-[12px]">Trực HSL và nhịp nhắc</b></div>
+          <p className="mt-2 text-[12px] leading-relaxed text-danger/70">Chỉ nhắc IPC/Cơ điện ở trạng thái họ thực sự nhận mail. Tạm hoãn 4 giờ phải có lý do; sự cố CRITICAL hoặc phòng P1 chỉ QA/Quản trị được hoãn.</p>
         </div>
         <div className="rounded-2xl border border-success-line bg-success-soft/60 p-4">
-          <div className="flex items-center gap-2 text-success"><ShieldCheck className="h-4 w-4" /><b className="text-[11.5px]">QA kiểm soát hồ sơ</b></div>
-          <p className="mt-2 text-[10.5px] leading-relaxed text-success/70">Khi Cơ điện báo không thể xử lý, QA được CC. QA đóng hoặc mở lại trên web theo bảng luật và phải ghi lý do khi xác nhận khắc phục.</p>
+          <div className="flex items-center gap-2 text-success"><ShieldCheck className="h-4 w-4" /><b className="text-[12px]">QA kiểm soát hồ sơ</b></div>
+          <p className="mt-2 text-[12px] leading-relaxed text-success/70">Khi Cơ điện báo không thể xử lý, QA được CC. QA đóng hoặc mở lại trên web theo bảng luật và phải ghi lý do khi xác nhận khắc phục.</p>
         </div>
         <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
-          <div className="flex items-center gap-2 text-violet-800"><Wrench className="h-4 w-4" /><b className="text-[11.5px]">Cơ chế tự bảo vệ</b></div>
-          <p className="mt-2 text-[10.5px] leading-relaxed text-violet-900/70">Sensor về bình thường đủ 2 giờ liên tiếp thì hệ thống tự đóng ở mọi pha. WF6 theo dõi nếu dữ liệu hoặc cảnh báo bị đứng để báo IT/QA.</p>
+          <div className="flex items-center gap-2 text-violet-800"><Wrench className="h-4 w-4" /><b className="text-[12px]">Cơ chế tự bảo vệ</b></div>
+          <p className="mt-2 text-[12px] leading-relaxed text-violet-900/70">Sensor về bình thường đủ 2 giờ liên tiếp thì hệ thống tự đóng ở mọi pha. WF6 theo dõi nếu dữ liệu hoặc cảnh báo bị đứng để báo IT/QA.</p>
         </div>
       </section>
 
@@ -414,25 +414,25 @@ export default function SoDoLuatCard({ dsNut }) {
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 hover:bg-subtle">
           <div className="flex items-center gap-2.5">
             <ClipboardList className="h-4 w-4 text-muted" />
-            <div><p className="text-[12px] font-bold text-body">Bảng luật đầy đủ · {tatCaLoc.length} dòng</p><p className="text-[10px] text-muted">Dùng để đối chiếu từng hành động với nguồn dữ liệu đang chạy</p></div>
+            <div><p className="text-[12px] font-bold text-body">Bảng luật đầy đủ · {tatCaLoc.length} dòng</p><p className="text-[12px] text-muted">Dùng để đối chiếu từng hành động với nguồn dữ liệu đang chạy</p></div>
           </div>
-          <span className="rounded-lg bg-subtle px-2 py-1 text-[10px] font-semibold text-muted group-open:bg-anchorink group-open:text-white">Mở bảng</span>
+          <span className="rounded-lg bg-subtle px-2 py-1 text-[12px] font-semibold text-muted group-open:bg-anchorink group-open:text-white">Mở bảng</span>
         </summary>
         <div className="overflow-x-auto border-t border-line">
           <table className="w-full min-w-[900px] text-left">
-            <thead className="bg-subtle text-[9.5px] uppercase tracking-wider text-muted">
+            <thead className="bg-subtle text-[12px] uppercase tracking-wider text-muted">
               <tr>{["Vai trò", "Áp dụng từ", "Hành động", "Kết quả", "Điều kiện", "Thứ tự", "Nhóm nút"].map((h) => <th key={h} className="px-3 py-2.5 font-bold">{h}</th>)}</tr>
             </thead>
             <tbody>
               {tatCaLoc.map((r) => (
                 <tr key={r.id} className="border-t border-line align-top">
                   <td className="px-3 py-3"><VaiTroBadge vaiTro={r.vai_tro} small /></td>
-                  <td className="px-3 py-3"><p className="text-[11px] font-semibold text-body">{r.tu === "*" ? "Mọi trạng thái" : tenTT(r.tu)}</p><code className="text-[9px] text-muted">{r.tu}</code></td>
-                  <td className="px-3 py-3"><p className="text-[11px] font-semibold text-body">{r.nhan}</p><code className="text-[9px] text-muted">{r.hanh_dong}</code></td>
-                  <td className="px-3 py-3"><div className="flex items-center gap-1.5 text-[11px] font-semibold text-body"><ArrowRight className="h-3 w-3 text-muted" />{r.giu ? "Giữ nguyên" : tenTT(r.den)}</div><code className="text-[9px] text-muted">{r.den}</code></td>
+                  <td className="px-3 py-3"><p className="text-[12px] font-semibold text-body">{r.tu === "*" ? "Mọi trạng thái" : tenTT(r.tu)}</p><code className="text-[12px] text-muted">{r.tu}</code></td>
+                  <td className="px-3 py-3"><p className="text-[12px] font-semibold text-body">{r.nhan}</p><code className="text-[12px] text-muted">{r.hanh_dong}</code></td>
+                  <td className="px-3 py-3"><div className="flex items-center gap-1.5 text-[12px] font-semibold text-body"><ArrowRight className="h-3 w-3 text-muted" />{r.giu ? "Giữ nguyên" : tenTT(r.den)}</div><code className="text-[12px] text-muted">{r.den}</code></td>
                   <td className="px-3 py-3"><DieuKienBang rule={r} /></td>
-                  <td className="px-3 py-3 text-[11px] font-semibold tabular-nums text-muted">{r.thuTu}</td>
-                  <td className="px-3 py-3"><code className="rounded bg-subtle px-1.5 py-1 text-[9.5px] text-muted">{r.bo_nut || "—"}</code></td>
+                  <td className="px-3 py-3 text-[12px] font-semibold tabular-nums text-muted">{r.thuTu}</td>
+                  <td className="px-3 py-3"><code className="rounded bg-subtle px-1.5 py-1 text-[12px] text-muted">{r.bo_nut || "—"}</code></td>
                 </tr>
               ))}
             </tbody>
