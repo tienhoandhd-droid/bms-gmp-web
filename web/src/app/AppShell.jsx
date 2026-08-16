@@ -907,8 +907,10 @@ export default function AppShell() {
             const nhanSoCu = (inc) => {
               const t = inc.tuoiDuLieuPhut;
               if (t == null || (!matNguon && t <= 75)) return null;
-              const txt = t < 60 ? `${t}′` : `${(t / 60).toFixed(1)}h`;
-              return <span title="Số đo cuối cùng lấy được. Nguồn đang mất nên KHÔNG khẳng định được tình trạng hiện tại của phòng." className="ml-1.5 align-middle inline-block rounded-md bg-warning-soft px-1.5 py-0.5 text-[12px] font-bold text-warning ring-1 ring-warning-line whitespace-nowrap">số liệu {txt} trước</span>;
+              const txt = t < 60 ? `${t} PHÚT` : `${(t / 60).toFixed(1)} GIỜ`;
+              // G3: độ tươi là TRỤC RIÊNG, tách khỏi mức nghiêm trọng — badge màu "thiếu
+              // dữ liệu" (không phải warning) + nói thẳng: hiện trạng chưa thể xác nhận.
+              return <span title="Số đo cuối cùng lấy được. Nguồn đang mất nên KHÔNG khẳng định được tình trạng hiện tại của phòng — có thể đã nặng hơn, có thể đã về đạt." className="ml-1.5 align-middle inline-block rounded-md bg-missing-soft px-1.5 py-0.5 text-[12px] font-bold text-missing ring-1 ring-[var(--missing)] whitespace-nowrap">DỮ LIỆU CŨ · {txt}</span>;
             };
             return (
             <div className="space-y-5">
@@ -975,6 +977,7 @@ export default function AppShell() {
                           {nhanSoCu(inc)}
                         </p>
                         {inc.giaTriGanNhat != null && <p className="text-[12px] text-muted mt-0.5">TB 5′ cuối <b className="text-body tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") && <span className="text-success"> · đã về ngưỡng</span>}</p>}
+                        {nhanSoCu(inc) && <p className="text-[12px] text-missing mt-0.5">Hiện trạng thực tế: <b>chưa thể xác nhận</b> — phiếu sự cố vẫn đang mở.</p>}
                         <p className="mt-1.5 text-[12px] flex items-center gap-1.5 flex-wrap">
                           <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} /><span className="text-body font-medium">{inc.status}</span>
                           {q && <span className={`text-[12px] ${q.dang_cham ? "text-danger font-medium" : "text-muted"}`}>· {tenVaiTro(q.vai_tro_phu_trach, inc.room)}{q.dang_cham ? ` im lặng ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}${q.da_bao_truc ? " · đã báo Trực" : ""}` : " phụ trách"}</span>}

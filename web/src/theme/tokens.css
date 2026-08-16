@@ -167,6 +167,8 @@
   --rgb-info-soft: 224 238 248;
   --rgb-info-line: 156 196 226;
   --rgb-info-solid: 30 114 184;
+  --rgb-missing: 129 80 31;
+  --rgb-missing-soft: 241 226 211;
   --rgb-focus: 11 103 178;
 }
 :root[data-theme="dark"] {
@@ -200,6 +202,8 @@
   --rgb-info-soft: 21 52 74;
   --rgb-info-line: 46 90 122;
   --rgb-info-solid: 43 123 185;
+  --rgb-missing: 217 162 108;
+  --rgb-missing-soft: 57 41 29;
   --rgb-focus: 119 199 255;
 }
 /* ===== hết khối sinh ===== */

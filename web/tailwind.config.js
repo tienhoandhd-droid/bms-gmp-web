@@ -29,6 +29,7 @@ export default {
         danger: { DEFAULT: tk('danger'), soft: tk('danger-soft'), line: tk('danger-line'), solid: tk('danger-solid') },
         warning: { DEFAULT: tk('warning'), soft: tk('warning-soft'), line: tk('warning-line'), solid: tk('warning-solid') },
         info: { DEFAULT: tk('info'), soft: tk('info-soft'), line: tk('info-line'), solid: tk('info-solid') },
+        missing: { DEFAULT: 'rgb(var(--rgb-missing) / <alpha-value>)', soft: 'rgb(var(--rgb-missing-soft) / <alpha-value>)' },
       },
     },
   },
