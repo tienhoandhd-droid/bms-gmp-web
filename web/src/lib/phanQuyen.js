@@ -33,3 +33,8 @@ export const TAB_ROLES = {
 };
 // role rỗng = chế độ xem trước cục bộ (demo, chưa Supabase) → hiện mọi tab cho tiện thử.
 export const roleCanSeeTab = (role, key) => (!role ? true : (TAB_ROLES[key] || FULL_ACCESS).includes(role));
+
+// Danh mục khu / vai trò dùng chung (chuyển từ App.jsx 17/08/2026):
+export const DS_KHU = ["C1", "C4", "Q2"];                 // 3 khu của nhà máy — khớp check trong RPC
+export const DB_MOI_MAC_DINH = () => ({ email: "", ho_ten: "", vai_tro: "IPC", khu_vuc: [...DS_KHU], ahu: [], kich_hoat: true });
+export const VAI_TRO_CHON = [{ k: "IPC", label: "IPC Hiện trường" }, { k: "MEP", label: "Cơ điện" }, { k: "LOT", label: "Trực HSL" }, { k: "QA", label: "QA Kiểm soát" }, { k: "ADMIN", label: "Quản trị" }];
