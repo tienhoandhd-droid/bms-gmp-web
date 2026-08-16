@@ -27,12 +27,14 @@ function timChrome() {
 let server = null, base = process.argv[2];
 async function moServer() {
   if (base) return;
+  // Build vào dist/ MẶC ĐỊNH: plugin sinh sw.js trong vite.config đọc cứng thư mục dist.
+  // An toàn: trong CI, bản production được build lại SAU bước kiểm này nên không lẫn demo.
   console.log("· build bản demo (env rỗng) để kiểm không cần đăng nhập…");
-  execSync("npx vite build --outDir dist-kiemtra", {
+  execSync("npx vite build", {
     cwd: GOC, stdio: "inherit",
     env: { ...process.env, VITE_SUPABASE_URL: "", VITE_SUPABASE_ANON_KEY: "" },
   });
-  server = spawn("npx", ["vite", "preview", "--outDir", "dist-kiemtra", "--port", "4189", "--strictPort"], { cwd: GOC, stdio: "ignore" });
+  server = spawn("npx", ["vite", "preview", "--port", "4189", "--strictPort"], { cwd: GOC, stdio: "ignore" });
   base = "http://localhost:4189";
   await new Promise((r) => setTimeout(r, 2500));
 }
