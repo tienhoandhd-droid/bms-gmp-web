@@ -3,28 +3,29 @@
 // Nhãn tiếng Việt theo bảng thay từ báo cáo (9): Xu hướng, Hồ sơ & SOP, Người nhận.
 // Phân quyền vẫn qua roleCanSeeTab(role, k) — file này chỉ mô tả cấu trúc.
 import { LayoutDashboard, AlertOctagon, Gauge, Radio, ClipboardList, LineChart, FileBarChart, ScrollText, Mail, Settings } from "lucide-react";
+import { VI } from "../content/vi";
 
 export const NAV_GROUPS = [
   { label: "Vận hành", items: [
-    { k: "home", label: "Tổng quan", icon: LayoutDashboard },
-    { k: "events", label: "Sự cố", icon: AlertOctagon },
-    { k: "recent", label: "Chênh áp", icon: Gauge },
-    { k: "sensors", label: "Cảm biến", icon: Radio },
-    { k: "tasks", label: "Công việc", icon: ClipboardList },
+    { k: "home", label: VI.nav.home, icon: LayoutDashboard },
+    { k: "events", label: VI.nav.events, icon: AlertOctagon },
+    { k: "recent", label: VI.nav.recent, icon: Gauge },
+    { k: "sensors", label: VI.nav.sensors, icon: Radio },
+    { k: "tasks", label: VI.nav.tasks, icon: ClipboardList },
   ] },
   { label: "Phân tích", items: [
-    { k: "trend", label: "Xu hướng", icon: LineChart },
-    { k: "reports", label: "Báo cáo", icon: FileBarChart },
+    { k: "trend", label: VI.nav.trend, icon: LineChart },
+    { k: "reports", label: VI.nav.reports, icon: FileBarChart },
   ] },
   { label: "Hồ sơ", items: [
-    { k: "audit", label: "Hồ sơ & SOP", icon: ScrollText },
+    { k: "audit", label: VI.nav.audit, icon: ScrollText },
   ] },
   { label: "Quản trị", items: [
-    { k: "recipients", label: "Người nhận", icon: Mail },
-    { k: "settings", label: "Cài đặt", icon: Settings },
+    { k: "recipients", label: VI.nav.recipients, icon: Mail },
+    { k: "settings", label: VI.nav.settings, icon: Settings },
   ] },
 ];
 
 export const NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 // 4 mục cố định của bottom-nav mobile; mục thứ 5 là "Thêm" (mở sheet các mục còn lại).
-export const BOTTOM_NAV_KEYS = ["home", "events", "recent", "tasks"];
+export const BOTTOM_NAV_KEYS = ["home", "events", "recent"];

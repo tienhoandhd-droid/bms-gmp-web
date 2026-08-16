@@ -16,7 +16,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   const [ahuLoc, setAhuLoc] = React.useState("ALL");
   const [dangTuoi, setDangTuoi] = React.useState(false);   // đang gọi FMS lấy realtime
   const [chiTiet, setChiTiet] = React.useState(null);      // phòng đang mở drawer chi tiết (Phase C)
-  const [dhMap, setDhMap] = React.useState({});            // ma_phong → số giờ đứng hình (cảm biến DP)
+  const [dhMap, setDhMap] = React.useState({});            // ma_phong → số giờ đứng tín hiệu (cảm biến DP)
   const [napLuc, setNapLuc] = React.useState(Date.now());  // mốc client nhận lô số hiện hành
   const [dongHo, setDongHo] = React.useState(Date.now());  // nhịp 10s để nhãn tuổi TỰ ĐẾM LÊN
   // 03/08: TÁCH ĐÔI NHỊP. Trước đây một hàm `nap()` vừa đọc số vừa gọi Edge (~6s)
@@ -73,8 +73,8 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   const ngoaiKhoang = (r) => r.coDuLieu !== false && r.giaTri != null
     && ((r.ghDuoi != null && r.giaTri < r.ghDuoi) || (r.ghTren != null && r.giaTri > r.ghTren));
   // 16/07 (user): P3 không mở phiếu → P3 không đạt hiển thị DỊU (đỏ nhạt + nhãn
-  // "chưa cần xử lý ngay"), tách khỏi số "cần chỉnh" của P1/P2.
-  // 16/07 (user): cảm biến ĐỨNG HÌNH → số đang xem là số CHẾT — nhãn cảnh báo riêng,
+  // "theo dõi"), tách khỏi số "cần chỉnh" của P1/P2.
+  // 16/07 (user): cảm biến ĐỨNG TÍN HIỆU → số đang xem là số CHẾT — nhãn cảnh báo riêng,
   // không tô đỏ/xanh (đỏ giả hoặc đạt giả), không tính vào "cần chỉnh".
   const laDungHinh = (r) => dhMap[r.maPhong] != null;
   const canGap = (r) => r.dat === false && r.uuTien !== "P3" && !laDungHinh(r);

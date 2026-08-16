@@ -46,7 +46,7 @@ const complyPieces = () => COMPLY_SCALE.map((b) => ({ ...(b.gte != null ? { gte:
 echarts.use([LineChart, BarChart, CustomChart, HeatmapChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, MarkPointComponent, LegendComponent, DataZoomComponent, ToolboxComponent, CalendarComponent, VisualMapComponent, AriaComponent, CanvasRenderer]);
 
 // Toolbox (xuất PNG) + dataZoom (kéo–thu phóng) dùng chung cho biểu đồ xu hướng lớn.
-const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Lưu ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: "#fff" /* chart-color-exception: print-export */ } }, iconStyle: { borderColor: T().textMuted }, emphasis: { iconStyle: { borderColor: CHEX.tealLine } } });
+const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Tải ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: "#fff" /* chart-color-exception: print-export */ } }, iconStyle: { borderColor: T().textMuted }, emphasis: { iconStyle: { borderColor: CHEX.tealLine } } });
 const dataZoomTruot = (bottom = 6) => ([
   { type: "inside", filterMode: "none" },
   { type: "slider", height: 15, bottom, filterMode: "none", brushSelect: false, borderColor: "transparent", fillerColor: echarts.color.modifyAlpha(CHEX.teal, 0.10), handleSize: "80%", moveHandleSize: 4, dataBackground: { lineStyle: { color: T().chartGrid }, areaStyle: { color: T().chartGrid } }, textStyle: { fontSize: 8, color: T().textMuted } },
@@ -377,7 +377,7 @@ export function RoomDetailMiniChart({ pts, smin, smax, mean, unit, group = null 
   return <EChart option={option} height={182} group={group} />;
 }
 
-// ====== TrendMainChart (dự phòng): cột warning/critical + đường tuân thủ ======
+// ====== TrendMainChart (dự phòng): cột warning/critical + đường tỷ lệ đạt ======
 export function TrendMainChart({ data, range }) {
   const interval = range === "90n" ? Math.floor(data.length / 9) : range === "30n" ? Math.floor(data.length / 10) : 0;
   const option = {
@@ -393,7 +393,7 @@ export function TrendMainChart({ data, range }) {
     series: [
       { name: "Warning", type: "bar", stack: "h", data: data.map((d) => d.warnH), barMaxWidth: 26, itemStyle: { color: CHEX.sand } },
       { name: "Critical", type: "bar", stack: "h", data: data.map((d) => d.critH), barMaxWidth: 26, itemStyle: { color: CHEX.softCoral, borderRadius: [4, 4, 0, 0] } },
-      { name: "Tuân thủ", type: "line", yAxisIndex: 1, smooth: true, showSymbol: false, data: data.map((d) => d.comp), lineStyle: { color: CHEX.teal, width: 2.6 }, itemStyle: { color: CHEX.teal }, markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1.5 } } },
+      { name: "Tỷ lệ đạt", type: "line", yAxisIndex: 1, smooth: true, showSymbol: false, data: data.map((d) => d.comp), lineStyle: { color: CHEX.teal, width: 2.6 }, itemStyle: { color: CHEX.teal }, markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1.5 } } },
     ],
   };
   return <EChart option={option} height={300} />;
@@ -484,7 +484,7 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
 // days: [{date:'YYYY-MM-DD', value:comp|null}]
 export function CalendarHeat({ days, height = 190 }) {
   const valid = (days || []).filter((d) => d.value != null && d.date);
-  if (!valid.length) return <p className="text-[12px] text-muted italic">Chưa có dữ liệu ngày để dựng lịch tuân thủ.</p>;
+  if (!valid.length) return <p className="text-[12px] text-muted italic">Chưa có dữ liệu ngày để dựng lịch tỷ lệ đạt.</p>;
   const dates = valid.map((d) => d.date).sort();
   const option = {
     animation: false,
@@ -511,12 +511,12 @@ export function CalendarHeat({ days, height = 190 }) {
 // ====== Heatmap PHÒNG × NGÀY (cartesian2d) — "phòng NÀO xấu, ngày nào xấu" ======
 // Mảng 3: bổ sung trục PHÒNG (CalendarHeat cũ chỉ 1 chiều nhà máy×ngày). Dùng
 // ECharts heatmap trên cartesian2d: X=ngày, Y=phòng, visualMap piecewise theo
-// thang màu tuân thủ chuẩn. Nhận:
+// thang màu tỷ lệ đạt chuẩn. Nhận:
 //   rooms  : ['C1.R19', …]           (nhãn trục Y — thứ tự do caller sắp, vd theo Khu/AHU, xấu lên trên)
 //   days   : ['01/07', …]            (nhãn trục X)
 //   values : number[rooms][days]     (%-đạt hoặc null nếu thiếu dữ liệu)
 export function RoomDayHeatmap({ rooms, days, values, height, cellH = 18 }) {
-  if (!rooms?.length || !days?.length) return <p className="text-[12px] text-muted italic">Chưa đủ dữ liệu phòng×ngày để dựng bản đồ tuân thủ.</p>;
+  if (!rooms?.length || !days?.length) return <p className="text-[12px] text-muted italic">Chưa đủ dữ liệu phòng×ngày để dựng bản đồ tỷ lệ đạt.</p>;
   const data = [];
   for (let y = 0; y < rooms.length; y++) {
     const row = values[y] || [];
@@ -630,7 +630,7 @@ export function PhanHoiTheoNgayChart({ ngay, series, height = 260 }) {
 }
 
 export default function LazyChart({ type, ...p }) {
-  useThemeVersion();   // đổi theme → dựng lại option với token mới (chart không kẹt light)
+  useThemeVersion();   // đổi theme → dựng lại option với token mới (chart không giữ nguyên ở light)
   switch (type) {
     case "oosMini": return <OOSMini data={p.data} />;
     case "roomBand": return <RoomBandChart sensorKey={p.sensorKey} series={p.series} baseline={p.baseline} isHourly={p.isHourly} group={p.group} />;

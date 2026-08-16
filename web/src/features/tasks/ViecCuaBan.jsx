@@ -16,8 +16,8 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
   if (an) return (
     <button onClick={() => setAn(false)}
       className="mb-4 inline-flex items-center gap-2 rounded-full bg-surface ring-1 ring-warning-line px-3.5 py-1.5 text-[12px] font-semibold hover:bg-warning-soft"
-      style={{ color: "var(--text-strong)", ...cardShadow }} title="Hiện lại danh sách Việc của bạn">
-      Việc của bạn · {tong}
+      style={{ color: "var(--text-strong)", ...cardShadow }} title="Hiện lại danh sách Việc cần xử lý">
+      Việc cần xử lý · {tong}
       <span className="text-muted font-normal">Hiện ▾</span>
     </button>
   );
@@ -29,7 +29,7 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
       <div className="flex items-center justify-between gap-3">
         <button onClick={() => setMo(!mo)} className="min-w-0 flex-1 text-left">
           <span className="text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>
-            Việc của bạn · {tong}
+            Việc cần xử lý · {tong}
           </span>
         </button>
         <div className="shrink-0 flex items-center gap-1">
@@ -53,9 +53,9 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
             <div key={c.ma_cum} className="flex items-center justify-between gap-3 rounded-xl bg-subtle px-3 py-2">
               <span className="min-w-0 text-[12px] text-body truncate">
                 <b style={{ color: "var(--text-strong)" }}>{c.ma_hien_thi}</b> · {c.ahu || "?"} · {c.loai_cam_bien}
-                <span className="ml-2 text-warning">chưa có kết luận điều tra</span>
+                <span className="ml-2 text-warning">chờ kết luận</span>
               </span>
-              <button onClick={() => onGhiKetLuan(c)} className="shrink-0 rounded-lg bg-surface px-2.5 py-1 text-[12px] font-semibold text-body ring-1 ring-line hover:bg-subtle">Ghi kết luận</button>
+              <button onClick={() => onGhiKetLuan(c)} className="shrink-0 rounded-lg bg-surface px-2.5 py-1 text-[12px] font-semibold text-body ring-1 ring-line hover:bg-subtle">Lưu kết luận</button>
             </div>
           ))}
         </div>

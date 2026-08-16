@@ -156,7 +156,7 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
         <button onClick={onDong} className="flex-1 rounded-xl bg-subtle py-2.5 text-sm font-medium text-body">Huỷ</button>
         <button onClick={xacNhan} disabled={thieuNote || dangChay}
           className="flex-1 rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-40"
-          style={{ backgroundColor: "var(--primary-solid)" }}>{dangChay ? "Đang ghi…" : "Xác nhận"}</button>
+          style={{ backgroundColor: "var(--primary-solid)" }}>{dangChay ? "Đang lưu…" : "Xác nhận"}</button>
       </div>
     </Khung>);
 }

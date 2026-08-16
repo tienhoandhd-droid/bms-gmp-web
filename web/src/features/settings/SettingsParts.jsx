@@ -70,7 +70,7 @@ function SucKhoeWidget({ sk, dangTai }) {
     sk.tomTat ? `Chẩn đoán: ${sk.tomTat}` : null,
     cuaSo ? `Cửa sổ dữ liệu mới nhất: ${cuaSo}` : "Chưa có bản ghi dữ liệu",
     `Trễ ${treTxt} tính từ mốc đóng cửa sổ giờ (ngưỡng mất dữ liệu ${sk.nguongGio ?? 2}h; thu mỗi giờ nên trễ ≤ ~1.1h là bình thường)`,
-    lc ? `WF1 lần cuối: ${lc.trangThai || "?"}${lc.ketThuc ? " · " + new Date(lc.ketThuc).toLocaleString("vi-VN") : ""}` : "Chưa ghi nhận WF1 chạy",
+    lc ? `Chấm điểm dữ liệu lần cuối: ${lc.trangThai || "?"}${lc.ketThuc ? " · " + new Date(lc.ketThuc).toLocaleString("vi-VN") : ""}` : "Chưa ghi nhận lượt chấm điểm dữ liệu",
     `Sự cố đang mở: ${sk.suCoDangMo} (Mức 1: ${sk.soCritical} · Cảnh báo: ${sk.soWarning})`,
   ].filter(Boolean).join("\n");
   // Mạch phút chết = FMS/Edge đang câm NGAY LÚC NÀY — nặng hơn "rollup giờ trễ".
@@ -192,7 +192,7 @@ function DoiMatKhauModal({ user, isLive, onClose }) {
 function PhanTichGmpCard({ mkt, spc, isLive }) {
   if (!isLive) return (
     <Card className="p-6"><SectionTitle icon={Activity} hint="MKT (ICH Q1A) + SPC (EWMA/CUSUM/Nelson)">Phân tích GMP chuyên sâu</SectionTitle>
-      <p className="mt-3 text-[13px] text-muted">Hiển thị ở chế độ <b>LIVE</b> (đọc dữ liệu thật). MKT/SPC được job đêm tính tất định từ Supabase.</p>
+      <p className="mt-3 text-[13px] text-muted">Hiển thị ở chế độ <b>LIVE</b> (đọc dữ liệu thật). MKT/SPC được hệ thống tính tất định mỗi đêm.</p>
     </Card>
   );
   const mk = mkt || [], sp = spc || [];
@@ -268,7 +268,7 @@ function TaiKhoanCard({ isLive, actor }) {
   return (
     <Card className="p-6">
       <SectionTitle icon={KeyRound} hint="chỉ Quản trị · gán vai trò + khu được xem cho từng tài khoản">Tài khoản & phân quyền xem</SectionTitle>
-      <p className="text-[12px] text-muted mt-2">Mỗi tài khoản chỉ <b>xem</b> dữ liệu của các khu được tích — <b>chặn ngay tại máy chủ</b> (mọi tab: Tổng quan · Sự cố · Chênh áp · Xu hướng & tuân thủ; kể cả gọi API trực tiếp cũng không lấy được khu khác). Tổng/toàn hệ với tài khoản giới hạn = gộp đúng các khu được xem. <b>Quản trị</b> luôn xem tất cả. Tạo tài khoản đăng nhập mới thực hiện ở Supabase; tại đây gán vai trò & khu — có hiệu lực ngay lần tải dữ liệu kế tiếp.</p>
+      <p className="text-[12px] text-muted mt-2">Mỗi tài khoản chỉ <b>xem</b> dữ liệu của các khu được tích — <b>chặn ngay tại máy chủ</b> (mọi tab: Tổng quan · Sự cố · Chênh áp · Xu hướng; kể cả gọi API trực tiếp cũng không lấy được khu khác). Tổng/toàn hệ với tài khoản giới hạn = gộp đúng các khu được xem. <b>Quản trị</b> luôn xem tất cả. Tạo tài khoản đăng nhập mới thực hiện ở Supabase; tại đây gán vai trò & khu — có hiệu lực ngay lần tải dữ liệu kế tiếp.</p>
       {loi ? <p className="text-[13px] text-danger mt-4">Không tải được danh sách (cần quyền Quản trị): {loi.thong_bao || loi.message}</p>
         : loading ? <p className="text-[13px] text-muted mt-4">Đang tải…</p>
         : rows.length === 0 ? <p className="text-[13px] text-muted mt-4">Chưa có tài khoản, hoặc bạn không có quyền Quản trị.</p>

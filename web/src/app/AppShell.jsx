@@ -8,12 +8,11 @@ import { moTaLoi } from "../lib/bmsClient";
 import { dangNhapMatKhau, dangXuat as authDangXuat, layPhienHienTai, theoDoiPhien, doiMatKhau, thuKhoiPhucPhien } from "../lib/auth";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE, COMPLY_OK, COMPLY_BAD, fmtPct } from "../lib/designTokens";
 import AuthGate from "../AuthGate";
-// Nạp TRỄ 2 trang nặng KHÔNG thuộc màn hình đầu: Nhật ký kiểm toán (tab Nhật ký) và
+// Nạp TRỄ 2 trang nặng KHÔNG thuộc màn hình đầu: Nhật ký thao tác (tab Nhật ký) và
 // Sơ đồ luật (tab Cài đặt) — ~880 dòng. Cắt khỏi bundle "main" eager, chỉ tải khi mở
 // đúng tab → màn hình đầu tải & dựng nhanh hơn.
 const AuditLogPage = React.lazy(() => import("../components/AuditLogPage"));
 const SoDoLuatCard = React.lazy(() => import("../components/SoDoLuatCard"));
-const SoDoVongDoi = React.lazy(() => import("../components/SoDoVongDoi"));
 // Nạp trễ các trang feature lớn (17/08) — chỉ tải khi mở đúng tab:
 const TrendPage = React.lazy(() => import("../features/trends/TrendPage"));
 const ReportsPage = React.lazy(() => import("../features/reports/ReportsPage"));
@@ -73,6 +72,7 @@ import { RoomSummaryCard, laBatThuong } from "../components/room/RoomSummaryCard
 import GiaoDienCard from "../features/settings/GiaoDienCard";
 import StatusAnchor from "../components/layout/StatusAnchor";
 import DesktopSidebar from "../components/navigation/DesktopSidebar";
+import { NAV_ITEMS } from "./navigationConfig";
 import MobileBottomNav from "../components/navigation/MobileBottomNav";
 import MoreNavigationSheet from "../components/navigation/MoreNavigationSheet";
 import SystemHealthStrip from "../components/status/SystemHealthStrip";
@@ -95,15 +95,15 @@ import { fmtPhut } from "../lib/dinhDang";
 /* ===== SỰ CỐ GẦN ĐÂY — bản đồ phút cửa sổ 8h (chỉ phòng có sự cố) ===== */
 const RECENT_RANGES = [{ k: 1, label: "1 giờ" }, { k: 4, label: "4 giờ" }, { k: 8, label: "8 giờ" }];
 
-/* ═══ TỔNG QUAN — thẻ CẢM BIẾN ĐỨNG HÌNH (chính sách 13/07: tách riêng) ═══
-   Phòng có cảm biến đứng hình = tương đương THIẾU DỮ LIỆU: không chấm mức,
+/* ═══ TỔNG QUAN — thẻ CẢM BIẾN ĐỨNG TÍN HIỆU (chính sách 13/07: tách riêng) ═══
+   Phòng có cảm biến đứng tín hiệu = tương đương THIẾU DỮ LIỆU: không chấm mức,
    không mở sự cố, không vào báo cáo chung. Thẻ này là lối vào nhanh từ Tổng
    quan; chi tiết + nút làm mới nằm ở tab Cảm biến. Ẩn khi không có cái nào. */
 
 
 
 
-const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "tasks", label: "Công việc", icon: ClipboardList }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Chênh áp", icon: Gauge }, { k: "sensors", label: "Cảm biến", icon: Gauge }, { k: "trend", label: "Xu hướng & tuân thủ", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận thông báo", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
+// (Phase F báo cáo 10: TABS trùng đã xoá — một nguồn duy nhất là navigationConfig)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CỤM ĐIỀU TRA & MỞ LẠI SỰ CỐ — modal/ngăn kéo (10/07/2026)
@@ -120,9 +120,9 @@ const HIEN_VIEC_CUA_BAN = false;   // 16/07: user tạm ẩn — chưa cần thi
 
 
 export default function AppShell() {
-  const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return TABS.some((x) => x.k === t) ? t : "home"; } catch { return "home"; } });
+  const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return NAV_ITEMS.some((x) => x.k === t) || t === "tasks" ? t : "home"; } catch { return "home"; } });
   const [sheetThem, setSheetThem] = useState(false);   // sheet "Thêm" của bottom-nav mobile
-  // KEEP-ALIVE tab nặng (Xu hướng & tuân thủ, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
+  // KEEP-ALIVE tab nặng (Xu hướng, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
   // bằng display:none — đổi tab rồi quay lại KHÔNG tải lại từ đầu (giữ cache chuỗi, kết quả AI,
   // bộ lọc, vị trí cuộn trong tab). Kèm cú "resize" khi quay lại để ECharts tự căn lại khung.
   const [daMo, setDaMo] = useState({});
@@ -208,7 +208,7 @@ export default function AppShell() {
   // Có token email + đã đăng nhập → soi phiếu (CHỈ ĐỌC). DB kiểm vai trò, khu, hạn
   // token, và cả việc sự cố đã đổi trạng thái từ lúc gửi mail.
   //
-  // ⚠ BUG ĐÃ SỬA (10/07/2026) — effect tự huỷ chính nó, modal kẹt ở "Đang kiểm tra liên kết…":
+  // ⚠ BUG ĐÃ SỬA (10/07/2026) — effect tự huỷ chính nó, modal giữ nguyên ở ở "Đang kiểm tra liên kết…":
   //   Bản cũ để `veEmail` trong mảng phụ thuộc VÀ gọi setVeEmail({dangTai:true}) ngay trong
   //   effect. Chuỗi sự kiện: set state → veEmail đổi → React chạy hàm dọn dẹp (huy = true)
   //   → effect chạy lại nhưng thoát sớm vì `veEmail` đã có → promise cũ về đích, thấy
@@ -246,7 +246,7 @@ export default function AppShell() {
   // Tab hiển thị theo vai trò; LIVE mà vai trò CHƯA xác định → chỉ tab xem cơ bản
   // (khai báo SAU isLive để tránh dùng biến trước khi khởi tạo — TDZ).
   const visibleTabs = useMemo(() => {
-    const base = TABS.filter((t) => roleCanSeeTab(role, t.k));
+    const base = NAV_ITEMS.filter((t) => roleCanSeeTab(role, t.k));
     if (isLive && user && !role) return base.filter((t) => ["home", "tasks", "events", "recent"].includes(t.k));
     return base;
   }, [role, isLive, user]);
@@ -368,7 +368,7 @@ export default function AppShell() {
   const suCoP12ds = incidentsXem.filter((i) => (i.priority === "P1" || i.priority === "P2") && i.status !== "Đã khắc phục");
   const p12Open = suCoP12ds.length;
   // #3 — Phân loại phòng để bấm vào ô KPI biết "phòng nào". Quy tắc khớp với view xem_tong_quan:
-  //   thiếu DL = mất dữ liệu / chưa có % / dữ liệu quá cũ (trễ > ngưỡng giờ); còn lại đạt khi ≥80%.
+  //   thiếu dữ liệu = mất dữ liệu / chưa có % / dữ liệu quá cũ (trễ > ngưỡng giờ); còn lại đạt khi ≥80%.
   const FRESH_MIN = (isLive && live.sucKhoe?.nguongGio != null ? live.sucKhoe.nguongGio : 2) * 60;
   // 12/08 — MẤT NGUỒN: server (rpc_tinh_trang_nguon qua rpc_kiem_tra_suc_khoe_he_thong)
   // là nơi DUY NHẤT kết luận. Khi đỏ, các ô "Phòng đạt / không đạt" KHÔNG được hiện số:
@@ -391,7 +391,7 @@ export default function AppShell() {
   // Sự cố Mức 1 & 2 đang mở — để link từ ô KPI (P1 xếp trước P2, rồi theo lúc mở)
   const suCoP12 = [...suCoP12ds].sort((a, b) => (a.priority === b.priority ? String(a.start).localeCompare(String(b.start)) : a.priority === "P1" ? -1 : 1));
   // #9 — "Phòng trọng điểm" xếp theo NGUY CƠ để tập trung theo dõi:
-  //   Hành động (3) → Cảnh báo (2) → Cần chú ý (1) → Kiểm soát tốt (0) → thiếu DL (cuối).
+  //   Hành động (3) → Cảnh báo (2) → Cần chú ý (1) → Kiểm soát tốt (0) → thiếu dữ liệu (cuối).
   //   Cùng mức cảnh báo thì phòng có % đạt thấp hơn lên trước.
   const sapTheoNguyCo = (a, b) => {
     const la = LEVEL_PRIORITY(roomLevel(a, cfg)), lb = LEVEL_PRIORITY(roomLevel(b, cfg));
@@ -599,7 +599,7 @@ export default function AppShell() {
       .filter((x) => x.inc);
   }, [isLive, role, live.suCoPhuTrach, incidentsXem]);
   // 17/07: TẠM TẮT hàng chờ "kết luận điều tra cụm" (user: quá nhiều cụm tồn cũ làm
-  // ngập Việc của bạn — sẽ xử lý riêng sau). Bật lại: bỏ `false &&`.
+  // ngập Việc cần xử lý — sẽ xử lý riêng sau). Bật lại: bỏ `false &&`.
   const cumChoToi = useMemo(() => (false && (role === "QA" || role === "ADMIN") && isLive)
     ? cumRows.filter((c) => !c.da_co_ket_luan_qa && (!khuChoPhep || loKhu(c.khu_vuc)))
     : [], [role, isLive, cumRows, khuChoPhep]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -749,7 +749,7 @@ export default function AppShell() {
         <MoreNavigationSheet open={sheetThem} onClose={() => setSheetThem(false)} tab={tab} setTab={setTab} role={role} />
 
         <main className="mt-6">
-          {/* 16/07 (user): TẠM ẨN banner "Việc của bạn" — chưa cần trong giai đoạn triển khai.
+          {/* 16/07 (user): TẠM ẨN banner "Việc cần xử lý" — chưa cần trong giai đoạn triển khai.
               Bật lại: đổi HIEN_VIEC_CUA_BAN = true (component + dữ liệu giữ nguyên). */}
           {HIEN_VIEC_CUA_BAN && isLive && user && role && <ViecCuaBan viecCuaToi={viecCuaToi} cumChoToi={cumChoToi} onXuLy={openApproval} onGhiKetLuan={ghiKetLuanCum} />}
           {tab === "home" && (
@@ -763,7 +763,7 @@ export default function AppShell() {
               {matNguon && (
                 <div className="rounded-2xl bg-danger-soft px-4 sm:px-5 py-3.5 ring-1 ring-danger-line">
                   <p className="text-[13px] font-bold text-danger flex items-center gap-2">
-                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> MẤT NGUỒN SỐ LIỆU — các con số bên dưới KHÔNG phản ánh hiện tại
+                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> Mất kết nối dữ liệu — số bên dưới không phản ánh hiện tại
                   </p>
                   <p className="mt-1 text-[12px] leading-snug text-danger">
                     {skTomTat || "Nguồn dữ liệu không cập nhật."} Hệ <b>không kết luận đạt/không đạt</b> trên số đã cũ — mọi phòng chuyển sang ô “Thiếu dữ liệu”.
@@ -773,14 +773,14 @@ export default function AppShell() {
               )}
               <div className="flex items-center justify-between px-1"><SectionTitle icon={Clock} hint="khung giờ chốt gần nhất · cập nhật theo giờ">Tổng quan trạng thái — 1 giờ gần nhất</SectionTitle></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard icon={CheckCircle2} label="Phòng đạt" value={matNguon ? "—" : kpis.dat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tuân thủ ≥ 80% (1h)"} accent={{ txt: "text-success", bg: "bg-success-soft", glow: "bg-success-soft" }} onClick={() => setKpiModal("dat")} loading={kpiLoading} />
-                <KpiCard icon={AlertTriangle} label="Phòng không đạt" value={matNguon ? "—" : kpis.khongDat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tuân thủ < 80%"} accent={{ txt: "text-danger", bg: "bg-danger-soft", glow: "bg-danger-soft" }} onClick={() => setKpiModal("khong")} loading={kpiLoading} />
+                <KpiCard icon={CheckCircle2} label="Phòng đạt" value={matNguon ? "—" : kpis.dat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tỷ lệ đạt ≥ 80% (1h)"} accent={{ txt: "text-success", bg: "bg-success-soft", glow: "bg-success-soft" }} onClick={() => setKpiModal("dat")} loading={kpiLoading} />
+                <KpiCard icon={AlertTriangle} label="Phòng không đạt" value={matNguon ? "—" : kpis.khongDat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tỷ lệ đạt < 80%"} accent={{ txt: "text-danger", bg: "bg-danger-soft", glow: "bg-danger-soft" }} onClick={() => setKpiModal("khong")} loading={kpiLoading} />
                 <KpiCard icon={HelpCircle} label="Thiếu dữ liệu" value={kpis.thieuDL} total={kpis.tong} sub="không coi là đạt" accent={{ txt: "text-warning", bg: "bg-warning-soft", glow: "bg-warning-soft" }} onClick={() => setKpiModal("thieu")} loading={kpiLoading} />
                 <KpiCard icon={Activity} label="Sự cố Nghiêm trọng mở" value={p12Open} sub="phòng trọng yếu & quan trọng" accent={{ txt: "text-info", bg: "bg-info-soft", glow: "bg-info-soft" }} onClick={() => setKpiModal("p1")} loading={kpiLoading} />
               </div>
               {/* Chú thích cách tính — tránh hiểu nhầm "phòng nhìn đẹp mà vẫn không đạt" */}
               <p className="text-[12px] text-muted px-1 leading-relaxed -mt-2">
-                <b className="text-muted">Cách tính:</b> tuân thủ của phòng = 100% − %thời gian ngoài khoảng (OOS) của <b className="text-muted">cảm biến kém nhất</b> (DP/RH/T) trong <b className="text-muted">khung giờ chốt gần nhất</b> — chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt, dù các chỉ tiêu khác vẫn đẹp. Phòng <b className="text-muted">đạt</b> khi tuân thủ ≥ 80% <b className="text-muted">và</b> dữ liệu còn tươi (chốt giờ cách hiện tại ≤ {Math.round(FRESH_MIN / 60)}h); phòng thiếu dữ liệu/dữ liệu quá cũ không được tính là đạt.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-muted">khu {khuChoPhep.join(", ")}</b>.</> : null}
+                <b className="text-muted">Cách tính:</b> tỷ lệ đạt của phòng = 100% − %thời gian ngoài khoảng (OOS) của <b className="text-muted">cảm biến kém nhất</b> (DP/RH/T) trong <b className="text-muted">khung giờ chốt gần nhất</b> — chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt, dù các chỉ tiêu khác vẫn đẹp. Phòng <b className="text-muted">đạt</b> khi tỷ lệ đạt ≥ 80% <b className="text-muted">và</b> dữ liệu còn tươi (chốt giờ cách hiện tại ≤ {Math.round(FRESH_MIN / 60)}h); phòng thiếu dữ liệu/dữ liệu quá cũ không được tính là đạt.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-muted">khu {khuChoPhep.join(", ")}</b>.</> : null}
               </p>
               <TheDungHinhTongQuan isLive={isLive} khuChoPhep={khuChoPhep} onXemChiTiet={roleCanSeeTab(role, "sensors") ? () => setTab("sensors") : null} />
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
@@ -797,11 +797,11 @@ export default function AppShell() {
                 })()}</div>
                 <aside className="space-y-5">
                   {isLive ? (
-                  <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Tóm tắt hệ thống</SectionTitle>{live.capNhatLuc && !live.loi && <span className="text-[12px] text-muted">Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</div><p className="mt-3 text-[13px] leading-relaxed text-body">{matNguon ? <><b className="text-danger">MẤT NGUỒN SỐ LIỆU.</b> {skTomTat || ""} Không kết luận đạt/không đạt cho {kpis.tong} phòng cho tới khi nguồn trở lại.{p12Open > 0 && <> Còn <b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở.</>}</> : live.kpis ? <>Đang giám sát <b style={{ color: "var(--text-strong)" }}>{kpis.tong}</b> phòng: <span className="text-success font-semibold">{kpis.dat} đạt</span> · <span className="text-danger font-semibold">{kpis.khongDat} không đạt</span> · <span className="text-warning font-semibold">{kpis.thieuDL} thiếu DL</span>. {p12Open > 0 ? <><b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở — ưu tiên xử lý.</> : "Không có sự cố Nghiêm trọng đang mở."}</> : (live.loi ? "Không tải được dữ liệu — kiểm tra kết nối/đăng nhập." : "Đang tải dữ liệu…")}</p><p className="mt-2 text-[12px] text-muted">Nhận định hỗ trợ chi tiết ở tab Báo cáo · Xu hướng & tuân thủ.</p></Card>
+                  <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Tóm tắt hệ thống</SectionTitle>{live.capNhatLuc && !live.loi && <span className="text-[12px] text-muted">Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</div><p className="mt-3 text-[13px] leading-relaxed text-body">{matNguon ? <><b className="text-danger">Mất kết nối dữ liệu.</b> {skTomTat || ""} Không kết luận đạt/không đạt cho {kpis.tong} phòng cho tới khi nguồn trở lại.{p12Open > 0 && <> Còn <b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở.</>}</> : live.kpis ? <>Đang giám sát <b style={{ color: "var(--text-strong)" }}>{kpis.tong}</b> phòng: <span className="text-success font-semibold">{kpis.dat} đạt</span> · <span className="text-danger font-semibold">{kpis.khongDat} không đạt</span> · <span className="text-warning font-semibold">{kpis.thieuDL} thiếu dữ liệu</span>. {p12Open > 0 ? <><b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở — ưu tiên xử lý.</> : "Không có sự cố Nghiêm trọng đang mở."}</> : (live.loi ? "Không tải được dữ liệu — kiểm tra kết nối/đăng nhập." : "Đang tải dữ liệu…")}</p><p className="mt-2 text-[12px] text-muted">Nhận định xu hướng chi tiết ở tab Báo cáo · Xu hướng.</p></Card>
                   ) : (
-                  <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Nhận định hỗ trợ</SectionTitle><span className="inline-flex items-center gap-1 text-[12px] font-semibold text-danger bg-danger-soft px-2 py-1 rounded-full"><TrendingDown className="w-3 h-3" strokeWidth={2} /> Δ 7 ngày −6%</span></div><p className="mt-3 text-[13px] leading-relaxed text-body"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>AHU-K01</span> cần kiểm tra ưu tiên — C4.R7, C4.R1 đều kém, nghi lỗi quạt/filter.</p></Card>
+                  <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Nhận định xu hướng</SectionTitle><span className="inline-flex items-center gap-1 text-[12px] font-semibold text-danger bg-danger-soft px-2 py-1 rounded-full"><TrendingDown className="w-3 h-3" strokeWidth={2} /> Δ 7 ngày −6%</span></div><p className="mt-3 text-[13px] leading-relaxed text-body"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>AHU-K01</span> cần kiểm tra ưu tiên — C4.R7, C4.R1 đều kém, nghi lỗi quạt/filter.</p></Card>
                   )}
-                  <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{duLieuLoi ? <div className="rounded-2xl bg-danger-soft ring-1 ring-danger-line px-3 py-3 text-[12px] text-danger"><b>Không xác minh được trạng thái hệ thống.</b><p className="text-[12px] text-danger/80 mt-1">Máy chủ không trả lời. Đây KHÔNG có nghĩa là hệ thống đang bình thường — hãy kiểm tra n8n và Supabase.</p></div> : systemAlerts === null ? <div className="h-20 rounded-2xl bg-subtle animate-pulse" />  : systemAlerts.length === 0 ? <p className="text-[12px] text-muted py-2">Không có cảnh báo hệ thống nào.</p>  : systemAlerts.map((a, i) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={i} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-line/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-body font-medium">{a.text}</p><p className="text-[12px] text-muted mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
+                  <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{duLieuLoi ? <div className="rounded-2xl bg-danger-soft ring-1 ring-danger-line px-3 py-3 text-[12px] text-danger"><b>Không xác minh được trạng thái hệ thống.</b><p className="text-[12px] text-danger/80 mt-1">Máy chủ không trả lời. Đây KHÔNG có nghĩa là hệ thống đang bình thường — hãy kiểm tra nguồn dữ liệu và máy chủ (chi tiết ở Cài đặt → Hệ thống).</p></div> : systemAlerts === null ? <div className="h-20 rounded-2xl bg-subtle animate-pulse" />  : systemAlerts.length === 0 ? <p className="text-[12px] text-muted py-2">Không có cảnh báo hệ thống nào.</p>  : systemAlerts.map((a, i) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={i} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-line/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-body font-medium">{a.text}</p><p className="text-[12px] text-muted mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
                 </aside>
               </div>
             </div>
@@ -812,14 +812,14 @@ export default function AppShell() {
               được) + danh sách việc đang chờ đúng vai trò của mình, bấm xử lý ngay. */}
           {tab === "tasks" && (
             <div className="space-y-5">
-              <SectionTitle icon={ClipboardList} hint={user ? `vai trò: ${ROLE_VI[role] || "chưa phân quyền"}` : "đăng nhập để thao tác"}>Công việc cần xử lý</SectionTitle>
+              <SectionTitle icon={ClipboardList} hint={user ? `vai trò: ${ROLE_VI[role] || "chưa phân quyền"}` : "đăng nhập để thao tác"}>Việc cần làm</SectionTitle>
               {isLive && Array.isArray(live.suCoPhuTrach) && live.suCoPhuTrach.length === 0 && (
                 <Card className="p-6 text-center"><CheckCircle2 className="mx-auto w-7 h-7" style={{ color: "var(--primary)" }} strokeWidth={1.8} /><p className="mt-2 text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>Không có phiếu nào đang mở</p><p className="mt-1 text-[12px] text-muted">Tất cả sự cố đã được xử lý hoặc hệ đã tự đóng.</p></Card>
               )}
               <KiemSoatXuLy rows={isLive ? (live.suCoPhuTrach || []) : []} />
               {isLive && user && role && (
                 <Card className="p-4 sm:p-5">
-                  <SectionTitle icon={User} hint="các phiếu đang chờ đúng vai trò của bạn bấm nút — bấm Xử lý để thao tác ngay">Việc của bạn — {ROLE_VI[role] || role}</SectionTitle>
+                  <SectionTitle icon={User} hint="các phiếu đang chờ đúng vai trò của bạn bấm nút — bấm Xử lý để thao tác ngay">Việc cần xử lý — {ROLE_VI[role] || role}</SectionTitle>
                   {viecCuaToi.length === 0 && cumChoToi.length === 0 ? (
                     <p className="mt-3 text-[13px] text-muted">Không có phiếu nào đang chờ vai trò của bạn. 👍</p>
                   ) : (
@@ -837,30 +837,15 @@ export default function AppShell() {
                         <div key={c.ma_cum} className="flex items-center justify-between gap-3 rounded-xl bg-subtle px-3 py-2">
                           <span className="min-w-0 text-[12.5px] text-body truncate">
                             <b style={{ color: "var(--text-strong)" }}>{c.ma_hien_thi}</b> · {c.ahu || "?"} · {c.loai_cam_bien}
-                            <span className="ml-2 text-warning">chưa có kết luận điều tra</span>
+                            <span className="ml-2 text-warning">chờ kết luận</span>
                           </span>
-                          <button onClick={() => ghiKetLuanCum(c)} className="shrink-0 rounded-lg bg-surface px-3 py-1.5 text-[12px] font-semibold text-warning ring-1 ring-warning-line hover:bg-warning-soft">Ghi kết luận</button>
+                          <button onClick={() => ghiKetLuanCum(c)} className="shrink-0 rounded-lg bg-surface px-3 py-1.5 text-[12px] font-semibold text-warning ring-1 ring-warning-line hover:bg-warning-soft">Lưu kết luận</button>
                         </div>
                       ))}
                     </div>
                   )}
                 </Card>
               )}
-              <DanhGiaHieuQuaCanhBao isLive={isLive} />
-              <HuongDanEmailNut />
-              <Card className="p-4 sm:p-5">
-                <SectionTitle icon={GitBranch} hint="bấm từng bước để xem chi tiết">Quy trình xử lý sự cố</SectionTitle>
-                <div className="mt-3"><IncidentProcessOverview dsNut={isLive ? live.nutThaoTac : null} role={role} /></div>
-                {/* Phase D (báo cáo 9): sơ đồ SVG đầy đủ rút khỏi luồng mặc định — chỉ mở khi cần đào tạo/thanh tra. */}
-                <details className="mt-4 rounded-2xl ring-1 ring-line px-4 py-3">
-                  <summary className="cursor-pointer text-[13px] font-medium text-muted select-none">Sơ đồ kỹ thuật đầy đủ (đào tạo / thanh tra) ▾</summary>
-                  <div className="mt-3">
-                    <React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 420 }} />}>
-                      <SoDoVongDoi />
-                    </React.Suspense>
-                  </div>
-                </details>
-              </Card>
               {!isLive && <Card className="p-6 text-center text-[13px] text-muted">Tab Nhiệm vụ chỉ hoạt động ở chế độ LIVE (đọc dữ liệu thật).</Card>}
             </div>
           )}
@@ -918,7 +903,7 @@ export default function AppShell() {
               const txt = t < 60 ? `${t} PHÚT` : `${(t / 60).toFixed(1)} GIỜ`;
               // G3: độ tươi là TRỤC RIÊNG, tách khỏi mức nghiêm trọng — badge màu "thiếu
               // dữ liệu" (không phải warning) + nói thẳng: hiện trạng chưa thể xác nhận.
-              return <span title="Số đo cuối cùng lấy được. Nguồn đang mất nên KHÔNG khẳng định được tình trạng hiện tại của phòng — có thể đã nặng hơn, có thể đã về đạt." className="ml-1.5 align-middle inline-block rounded-md bg-missing-soft px-1.5 py-0.5 text-[12px] font-bold text-missing ring-1 ring-[var(--missing)] whitespace-nowrap">DỮ LIỆU CŨ · {txt}</span>;
+              return <span title="Số đo cuối cùng lấy được. Nguồn đang mất nên KHÔNG khẳng định được tình trạng hiện tại của phòng — có thể đã nặng hơn, có thể đã về đạt." className="ml-1.5 align-middle inline-block rounded-md bg-missing-soft px-1.5 py-0.5 text-[12px] font-bold text-missing ring-1 ring-[var(--missing)] whitespace-nowrap">Chưa cập nhật · {txt}</span>;
             };
             return (
             <div className="space-y-5">
@@ -930,7 +915,7 @@ export default function AppShell() {
               {matNguon && (
                 <div className="rounded-2xl bg-danger-soft px-4 sm:px-5 py-3.5 ring-1 ring-danger-line">
                   <p className="text-[13px] font-bold text-danger flex items-center gap-2">
-                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> MẤT NGUỒN SỐ LIỆU — mức cảnh báo bên dưới dựa trên số đo CŨ
+                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> Mất kết nối dữ liệu — mức hiển thị dựa trên số liệu trước khi mất kết nối
                   </p>
                   <p className="mt-1 text-[12px] leading-snug text-danger">
                     {skTomTat || "Nguồn dữ liệu không cập nhật."} Phiếu đang mở <b>vẫn giữ nguyên</b> (sự cố đã xảy ra là có thật, hệ không tự đóng khi thiếu dữ liệu),
@@ -940,7 +925,7 @@ export default function AppShell() {
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Lọc khu</span>
+                <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Khu vực</span>
                 {locChip("ALL", "Tất cả", evtKhu === "ALL", () => { setEvtKhu("ALL"); setEvtAhu("ALL"); })}
                 {(khuChoPhep || DS_KHU).map((k) => locChip(k, `Khu ${k}`, evtKhu === k, () => { setEvtKhu(k); setEvtAhu("ALL"); }))}
                 {ahuPairs.length > 0 && (
@@ -959,8 +944,8 @@ export default function AppShell() {
                 <div className="px-5 py-10 text-center">
                   <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div>
                   <p className="mt-3 text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>Chưa có sự cố nào đang mở</p>
-                  <p className="mt-1.5 text-[12px] text-muted max-w-md mx-auto leading-relaxed">Sự cố được <b>tự động tạo</b> khi luồng n8n (WF1) phát hiện mức <b className="text-warning">Cảnh báo</b> hoặc <b className="text-danger">Hành động</b> từ dữ liệu theo giờ và ghi vào Supabase. Danh sách trống nghĩa là tất cả phòng đang trong ngưỡng — hoặc chưa có dữ liệu kích hoạt.</p>
-                  {isLive && <p className="mt-3 text-[12px] text-muted max-w-md mx-auto">Nếu bạn chắc chắn đang có cảnh báo mà vẫn trống, kiểm tra: WF1 có đang chạy theo lịch · ngưỡng trong <b>Cài đặt</b> · và bạn đã <b>đăng nhập</b> đúng vai trò để xem.</p>}
+                  <p className="mt-1.5 text-[12px] text-muted max-w-md mx-auto leading-relaxed">Sự cố được <b>tự động tạo</b> khi hệ thống phát hiện mức <b className="text-warning">Cảnh báo</b> hoặc <b className="text-danger">Hành động</b> từ dữ liệu theo giờ. Danh sách trống nghĩa là tất cả phòng đang trong ngưỡng — hoặc chưa có dữ liệu kích hoạt.</p>
+                  {isLive && <p className="mt-3 text-[12px] text-muted max-w-md mx-auto">Nếu bạn chắc chắn đang có cảnh báo mà vẫn trống, kiểm tra: lịch chấm điểm dữ liệu có đang chạy (Cài đặt → Hệ thống) · ngưỡng trong <b>Cài đặt</b> · và bạn đã <b>đăng nhập</b> đúng vai trò để xem.</p>}
                 </div>
               ) : (
                 <div className="px-5 py-8 text-center text-[13px] text-muted">Không có sự cố khớp bộ lọc{evtKhu !== "ALL" ? ` · Khu ${evtKhu}` : ""}{evtAhu !== "ALL" ? ` · ${evtAhu}` : ""}. <button onClick={() => { setEvtKhu("ALL"); setEvtAhu("ALL"); }} className="text-success font-semibold underline">Bỏ lọc</button></div>
@@ -981,11 +966,11 @@ export default function AppShell() {
                         </div>
                         <p className="mt-1 text-[12px] text-body">
                           {inc.sensor}{inc.huong && <span className={`ml-1 text-[12px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-danger-soft text-danger" : inc.huong === "THAP" ? "bg-info-soft text-info" : "bg-warning-soft text-warning"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
-                          {inc.mucCanhBao === "SUPPRESSED" && <span className="ml-1.5 rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] font-medium text-muted">cảm biến đứng hình</span>}
+                          {inc.mucCanhBao === "SUPPRESSED" && <span className="ml-1.5 rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] font-medium text-muted">cảm biến đứng tín hiệu</span>}
                           {nhanSoCu(inc)}
                         </p>
                         {inc.giaTriGanNhat != null && <p className="text-[12px] text-muted mt-0.5">TB 5′ cuối <b className="text-body tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") && <span className="text-success"> · đã về ngưỡng</span>}</p>}
-                        {nhanSoCu(inc) && <p className="text-[12px] text-missing mt-0.5">Hiện trạng thực tế: <b>chưa thể xác nhận</b> — phiếu sự cố vẫn đang mở.</p>}
+                        {nhanSoCu(inc) && <p className="text-[12px] text-missing mt-0.5"><b>Chưa xác định được tình trạng hiện tại</b> — phiếu sự cố vẫn đang mở.</p>}
                         <p className="mt-1.5 text-[12px] flex items-center gap-1.5 flex-wrap">
                           <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} /><span className="text-body font-medium">{inc.status}</span>
                           {q && <span className={`text-[12px] ${q.dang_cham ? "text-danger font-medium" : "text-muted"}`}>· {tenVaiTro(q.vai_tro_phu_trach, inc.room)}{q.dang_cham ? ` im lặng ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}${q.da_bao_truc ? " · đã báo Trực" : ""}` : " phụ trách"}</span>}
@@ -1003,7 +988,7 @@ export default function AppShell() {
                 })}
               </div>
               {/* ═══ DESKTOP (md+): bảng đầy đủ như cũ ═══ */}
-              <div className="hidden md:block overflow-x-auto"><table className="w-full min-w-[1024px] text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Mức", "Chỉ tiêu", "Bắt đầu", "Kéo dài", "Trạng thái", "Phụ trách", "Cảnh báo", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
+              <div className="hidden md:block overflow-x-auto"><table className="w-full min-w-[1024px] text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Mức độ", "Chỉ tiêu", "Bắt đầu", "Thời gian", "Trạng thái", "Phụ trách", "Tình trạng dữ liệu", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
                 <tbody>{incSorted.map((inc, idx) => {
                   // P0-2: ở LIVE, nếu chưa biết bộ luật thì KHOÁ nút — logic chung trong tinhNut.
                   const { terminal, myActs, choAi } = tinhNut(inc);
@@ -1022,7 +1007,7 @@ export default function AppShell() {
                     <td className="py-3 px-3">{inc.cumHienThi
                       ? <span className="rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] font-medium text-body tabular-nums">{inc.cumHienThi}</span>
                       : <span className="text-[12px] text-muted">—</span>}</td>
-                    <td className="py-3 px-3">{inc.room}{inc.mucCanhBao === "SUPPRESSED" && <span title="Cảm biến không đo được — hệ ngừng chấm mức, chờ Thiết bị đo. Không gửi email." className="ml-1.5 align-middle inline-block rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] font-medium text-muted">cảm biến đứng hình</span>}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[12px] text-muted">{kh}</span> : null; })()}</td>
+                    <td className="py-3 px-3">{inc.room}{inc.mucCanhBao === "SUPPRESSED" && <span title="Cảm biến không đo được — hệ ngừng chấm mức, chờ Thiết bị đo. Không gửi email." className="ml-1.5 align-middle inline-block rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] font-medium text-muted">cảm biến đứng tín hiệu</span>}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[12px] text-muted">{kh}</span> : null; })()}</td>
                     <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
                     <td className="py-3 px-3 text-body">{inc.sensor}{inc.huong && <span className={`ml-1.5 text-[12px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-danger-soft text-danger" : inc.huong === "THAP" ? "bg-info-soft text-info" : "bg-warning-soft text-warning"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
                       {nhanSoCu(inc)}
@@ -1073,7 +1058,7 @@ export default function AppShell() {
                           <p className="mt-1.5"><span className={`inline-block rounded-lg px-2 py-1 text-[12px] leading-tight ${mauChanDoan}`}>{docTenVaiTro(c.chan_doan, c.khu_vuc)}</span></p>
                           <div className="mt-1.5 flex items-center justify-between gap-2 text-[12px]">
                             {c.da_co_ket_luan_qa ? <span className="text-success">✓ Kết luận: {c.qa_boi}</span> : <span className="text-muted">chưa có kết luận</span>}
-                            {(role === "QA" || role === "ADMIN") && <button onClick={(e) => { e.stopPropagation(); ghiKetLuanCum(c); }} className="rounded-lg bg-surface px-2.5 py-1 font-medium text-body ring-1 ring-line">{c.da_co_ket_luan_qa ? "Sửa" : "Ghi kết luận"}</button>}
+                            {(role === "QA" || role === "ADMIN") && <button onClick={(e) => { e.stopPropagation(); ghiKetLuanCum(c); }} className="rounded-lg bg-surface px-2.5 py-1 font-medium text-body ring-1 ring-line">{c.da_co_ket_luan_qa ? "Sửa" : "Lưu kết luận"}</button>}
                           </div>
                         </div>
                       );
@@ -1103,7 +1088,7 @@ export default function AppShell() {
                                 ? <span className="text-[12px] text-success" title={`${c.nguyen_nhan_goc}\n\nKhắc phục: ${c.hanh_dong_khac_phuc}`}>✓ {c.qa_boi}</span>
                                 : <span className="text-[12px] text-muted">chưa có</span>}
                               {(role === "QA" || role === "ADMIN") && (
-                                <button onClick={(e) => { e.stopPropagation(); ghiKetLuanCum(c); }} className="ml-2 rounded-lg bg-surface px-2 py-1 text-[12px] font-medium text-body ring-1 ring-line hover:bg-subtle">{c.da_co_ket_luan_qa ? "Sửa" : "Ghi kết luận"}</button>
+                                <button onClick={(e) => { e.stopPropagation(); ghiKetLuanCum(c); }} className="ml-2 rounded-lg bg-surface px-2 py-1 text-[12px] font-medium text-body ring-1 ring-line hover:bg-subtle">{c.da_co_ket_luan_qa ? "Sửa" : "Lưu kết luận"}</button>
                               )}
                             </td>
                           </tr>
@@ -1154,15 +1139,24 @@ export default function AppShell() {
           })()}
 
           {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><ChenhApTheoAhu isLive={isLive} khuChoPhep={khuChoPhep} active={tab === "recent"} /></React.Suspense></div>}
+          {tab === "events" && (
+            <div className="mt-5 space-y-5">
+              <Card className="p-4 sm:p-5">
+                <SectionTitle icon={GitBranch} hint="bấm từng bước để xem chi tiết">Quy trình xử lý sự cố</SectionTitle>
+                <div className="mt-3"><IncidentProcessOverview dsNut={isLive ? live.nutThaoTac : null} role={role} /></div>
+              </Card>
+              <HuongDanEmailNut />
+            </div>
+          )}
           {tab === "sensors" && <CamBienPage isLive={isLive} />}
           {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /></React.Suspense><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
-          {tab === "reports" && <React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} /></React.Suspense>}
+          {tab === "reports" && <div className="space-y-5"><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} /></React.Suspense><DanhGiaHieuQuaCanhBao isLive={isLive} /></div>}
 
           {tab === "audit" && (() => {
             const subTabs = [
-              { k: "audit", label: "Nhật ký kiểm toán", icon: FileText },
-              { k: "config", label: "Thay đổi cấu hình", icon: History },
-              { k: "sop", label: "SOP & quy trình", icon: ShieldCheck },
+              { k: "audit", label: "Nhật ký thao tác", icon: FileText },
+              { k: "config", label: "Lịch sử cấu hình", icon: History },
+              { k: "sop", label: "SOP & CAPA", icon: ShieldCheck },
             ];
             return (
             <div className="space-y-5">
@@ -1180,7 +1174,7 @@ export default function AppShell() {
               </React.Suspense>
               )}
               {auditTab === "config" && (
-              <Card className="p-6"><SectionTitle icon={History} hint="cấu hình ngưỡng · phòng · cảm biến">Thay đổi cấu hình & dữ liệu gốc</SectionTitle><p className="text-[12px] text-muted mt-1.5">Các thay đổi cấu hình ghi tại Supabase (sửa ngưỡng cảnh báo, thêm/bớt phòng & cảm biến, chỉnh giới hạn) — kể cả khi sửa trực tiếp trên database, đều hiển thị tại đây.</p><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Thay đổi"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{configHistory.length === 0 ? <tr><td colSpan={3} className="py-6 text-center text-muted text-[12px]">Chưa có thay đổi cấu hình.</td></tr> : configHistory.map((c, i) => <tr key={i} className="border-t border-line"><td className="py-2.5 pr-4 text-muted tabular-nums">{c.t}</td><td className="py-2.5 pr-4 text-body">{c.who}</td><td className="py-2.5 pr-4 text-body">{c.change}</td></tr>)}</tbody></table></div></Card>
+              <Card className="p-6"><SectionTitle icon={History} hint="cấu hình ngưỡng · phòng · cảm biến">Thay đổi cấu hình & dữ liệu gốc</SectionTitle><p className="text-[12px] text-muted mt-1.5">Mọi thay đổi cấu hình (sửa ngưỡng cảnh báo, thêm/bớt phòng & cảm biến, chỉnh giới hạn) — kể cả khi sửa trực tiếp trên cơ sở dữ liệu — đều hiển thị tại đây.</p><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Thay đổi"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{configHistory.length === 0 ? <tr><td colSpan={3} className="py-6 text-center text-muted text-[12px]">Chưa có thay đổi cấu hình.</td></tr> : configHistory.map((c, i) => <tr key={i} className="border-t border-line"><td className="py-2.5 pr-4 text-muted tabular-nums">{c.t}</td><td className="py-2.5 pr-4 text-body">{c.who}</td><td className="py-2.5 pr-4 text-body">{c.change}</td></tr>)}</tbody></table></div></Card>
               )}
               {auditTab === "sop" && (
               <Card className="p-6"><SectionTitle icon={ShieldCheck} hint="phục vụ thanh tra">SOP & Deviation / CAPA</SectionTitle><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["SOP", "Áp dụng cho", "Deviation", "CAPA"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{(sopRows || []).map((s, i) => <tr key={i} className="border-t border-line"><td className="py-2.5 pr-4 font-semibold" style={{ color: "var(--text-strong)" }}>{s.sop}</td><td className="py-2.5 pr-4 text-body">{s.apply}</td><td className="py-2.5 pr-4 text-body">{s.dev}</td><td className="py-2.5 pr-4 text-body">{s.capa}</td></tr>)}</tbody></table>{isLive && sopRows === null && <div className="h-10 rounded-xl bg-subtle animate-pulse mt-2" />}{isLive && Array.isArray(sopRows) && sopRows.length === 0 && <p className="text-[12px] text-muted mt-2">Chưa có hồ sơ SOP/CAPA nào trong cơ sở dữ liệu.</p>}</div></Card>
@@ -1195,8 +1189,8 @@ export default function AppShell() {
             const cfgSubTabs = [
               { k: "canhbao", label: "Nguyên tắc cảnh báo", icon: SlidersHorizontal },
               { k: "phong", label: "Phòng & cảm biến", icon: Building2 },
-              { k: "phantuyen", label: "Tự phân tuyến", icon: ShieldCheck },
-              { k: "sodo", label: "Sơ đồ xử lý", icon: GitBranch },
+              { k: "phantuyen", label: "Phân công tự động", icon: ShieldCheck },
+              { k: "sodo", label: "Quy trình xử lý", icon: GitBranch },
               ...(role === "ADMIN" ? [{ k: "taikhoan", label: "Tài khoản & quyền", icon: KeyRound }] : []),
               { k: "hethong", label: "Hệ thống", icon: Wifi },
             ];
@@ -1283,7 +1277,7 @@ export default function AppShell() {
                 )}
                 <div className="rounded-2xl bg-subtle ring-1 ring-line p-4 mt-4">
                   <label className="text-[12px] font-semibold text-body">Cấp độ phòng được cảnh báo</label>
-                  <p className="text-[12px] text-muted mt-0.5">Chỉ mở sự cố + gửi cảnh báo cho phòng thuộc cấp đã chọn. Phòng ngoài cấp <b>vẫn ghi dữ liệu OOS</b> (KPI/tuân thủ đủ), chỉ không tạo sự cố/leo thang.</p>
+                  <p className="text-[12px] text-muted mt-0.5">Chỉ mở sự cố + gửi cảnh báo cho phòng thuộc cấp đã chọn. Phòng ngoài cấp <b>vẫn ghi dữ liệu OOS</b> (KPI/tỷ lệ đạt đủ), chỉ không tạo sự cố/leo thang.</p>
                   <div className="flex items-center gap-2 mt-3 flex-wrap">
                     {[["P1", "P1 · trọng yếu"], ["P2", "P2 · quan trọng"], ["P3", "P3 · thường"]].map(([p, lbl]) => { const on = alertUuTien.includes(p); return (
                       <button key={p} onClick={() => toggleUuTien(p)} disabled={!canManage} className={`px-3.5 py-2 rounded-xl text-[12px] font-medium ring-1 transition disabled:opacity-60 ${on ? "text-white ring-transparent" : "text-muted bg-surface ring-line hover:ring-success-line"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}>{on ? "✓ " : ""}{lbl}</button>
@@ -1331,7 +1325,7 @@ export default function AppShell() {
               {cfgTab === "hethong" && (
               <div className="space-y-5">
                 <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối dữ liệu</SectionTitle>
-                  {(() => { const conn = !HAS_SUPABASE ? ["Chế độ thử nghiệm — dữ liệu mẫu", "text-warning bg-warning-soft"] : live.loi ? ["Lỗi kết nối", "text-danger bg-danger-soft"] : live.dangTai ? ["Đang đồng bộ…", "text-info bg-info-soft"] : ["Đã kết nối", "text-success bg-success-soft"]; return (
+                  {(() => { const conn = !HAS_SUPABASE ? ["Dữ liệu thử nghiệm — dữ liệu mẫu", "text-warning bg-warning-soft"] : live.loi ? ["Lỗi kết nối", "text-danger bg-danger-soft"] : live.dangTai ? ["Đang đồng bộ…", "text-info bg-info-soft"] : ["Đã kết nối", "text-success bg-success-soft"]; return (
                     <div className="mt-4 space-y-3 text-sm">
                       <div className="flex items-center gap-3">
                         <span className={`text-[13px] px-2.5 py-1 rounded-full font-semibold ${conn[1]}`}>{conn[0]}</span>
@@ -1357,12 +1351,12 @@ export default function AppShell() {
           })()}
         </main>
 
-        <footer className="mt-8 text-center text-[12px] text-muted tracking-wide leading-relaxed"><span className="font-semibold" style={{ color: "var(--text-default)" }}>Hệ thống giám sát HVAC phòng sạch GMP</span> · V/Q team — QLCL</footer>
+        <footer className="mt-8 text-center text-[12px] text-muted tracking-wide leading-relaxed"><span className="font-semibold" style={{ color: "var(--text-default)" }}>Giám sát HVAC phòng sạch</span> · Phòng Quản lý chất lượng</footer>
       </div>
 
       {modal && <ApprovalModal incident={modal.inc} action={modal.action} user={user} onClose={() => setModal(null)} onCommit={handleCommit} />}
-      {/* Ghi kết luận cụm render ở GỐC (như ApprovalModal), KHÔNG trong tab Sự cố:
-          banner "Việc của bạn" hiện trên mọi tab — trước đây bấm "Ghi kết luận" từ
+      {/* Lưu kết luận cụm render ở GỐC (như ApprovalModal), KHÔNG trong tab Sự cố:
+          banner "Việc cần xử lý" hiện trên mọi tab — trước đây bấm "Lưu kết luận" từ
           tab khác thì state đặt xong mà modal không render (nút như chết). */}
       {cumKetLuan && <ModalKetLuanCum cum={cumKetLuan} dangChay={dangGhiCum} onDong={() => setCumKetLuan(null)} onLuu={luuKetLuanCum} />}
       {roomModal && <RoomDetailModal room={roomModal} cfg={cfg} onClose={() => setRoomModal(null)} />}

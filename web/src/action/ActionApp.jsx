@@ -227,7 +227,7 @@ function TheoVe({ email }) {
         <a href={URL_DASHBOARD} className="flex-1 rounded-xl bg-subtle py-2.5 text-sm font-medium text-body text-center">Để sau</a>
         <button onClick={xacNhan} disabled={thieuNote || dangChay}
           className="flex-1 rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-40" style={{ backgroundColor: TEAL }}>
-          {dangChay ? 'Đang ghi…' : 'Xác nhận'}
+          {dangChay ? 'Đang lưu…' : 'Xác nhận'}
         </button>
       </div>
     </Khung>

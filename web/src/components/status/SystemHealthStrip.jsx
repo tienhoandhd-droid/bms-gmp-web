@@ -9,7 +9,7 @@ export default function SystemHealthStrip({ isLive, matNguon, dangTai, capNhatLu
   if (!isLive) {
     return (
       <div className="flex items-center gap-2 px-1 py-1.5 text-[13px] text-muted">
-        <span className="w-2 h-2 rounded-full bg-muted/60 shrink-0" /> Dữ liệu thử nghiệm
+        <span className="w-2 h-2 rounded-full bg-muted/60 shrink-0" /> Dữ liệu mẫu
       </div>
     );
   }

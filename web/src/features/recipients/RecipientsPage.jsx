@@ -10,8 +10,8 @@ import { EMAIL_KEYS_BAO_CAO, EMAIL_KEYS_HE_THONG, datCauHinhEmail, datCongTacPha
 const NHAN_EMAIL_LABEL = {
   email_ipc: "IPC (Hiện trường)", email_co_dien: "Cơ điện", email_qa: "QA",
   email_truc_hsl: "Trực hồ sơ lô", email_it_gmp: "IT / Kỹ thuật",
-  email_gui_tu: "Địa chỉ GỬI ĐI (from)", email_test: "Địa chỉ TEST (chế độ thử)",
-  email_bao_cao_tuan: "Fallback báo cáo TUẦN", email_bao_cao_thang: "Fallback báo cáo THÁNG", email_bao_cao_ngay: "Fallback báo cáo NGÀY",
+  email_gui_tu: "Địa chỉ gửi", email_test: "Địa chỉ nhận thử",
+  email_bao_cao_tuan: "Dự phòng báo cáo tuần", email_bao_cao_thang: "Dự phòng báo cáo tháng", email_bao_cao_ngay: "Dự phòng báo cáo ngày",
 };
 const DS_VAI_TRO_CB = [["IPC", "IPC hiện trường"], ["MEP", "Cơ điện"], ["QA", "QA"], ["LOT", "Trực HSL"], ["IT", "IT"]];
 // Ô phân công AHU cho Cơ điện. Rỗng = nhận MỌI AHU trong các khu đã tích.
@@ -168,7 +168,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
         <p className="text-[12px] text-muted mt-1 font-mono">{k}</p>
       </div>))}</div>
   );
-  if (!isLive) return <Card className="p-6"><p className="text-sm text-warning">Cần chế độ LIVE (kết nối Supabase) để cấu hình người nhận.</p></Card>;
+  if (!isLive) return <Card className="p-6"><p className="text-sm text-warning">Cần chế độ dữ liệu thật để cấu hình người nhận.</p></Card>;
   return (
     <div className="space-y-5">
       <SectionTitle icon={Mail}>Người nhận email</SectionTitle>
@@ -268,7 +268,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
 
       <Card className="p-6">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <SectionTitle icon={FileBarChart} hint="ai nhận báo cáo quản trị tuần / tháng / quý (WF5)">Báo cáo định kỳ — người nhận (tuần / tháng / quý)</SectionTitle>
+          <SectionTitle icon={FileBarChart} hint="ai nhận báo cáo quản trị tuần / tháng / quý">Báo cáo định kỳ — người nhận (tuần / tháng / quý)</SectionTitle>
           {canManage && <button onClick={() => setForm({ ho_ten: "", email: "", vai_tro: "", nhan_tuan: true, nhan_thang: true, nhan_quy: true, kich_hoat: true })} className="text-xs font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: "var(--danger-solid)" }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm người</button>}
         </div>
         {form && (
@@ -297,7 +297,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
                 <td className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleNN(n, "kich_hoat")} className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
                 <td className="py-2.5 pr-4">{canManage && <div className="flex gap-1.5"><button onClick={() => setForm({ ...n })} className="text-info hover:text-info"><Pencil className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => xoaNN(n.id)} className="text-danger hover:text-danger"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button></div>}</td>
               </tr>))}</tbody></table></div>}
-        <p className="text-[12px] text-muted mt-3">Tích 1 khu = nhận báo cáo riêng khu đó · tích ≥2 khu = nhận bản Tổng (áp dụng khi bật báo cáo theo khu). Chỉ người <b>Kích hoạt</b> mới nhận báo cáo; chưa kích hoạt ai thì WF5 gửi về địa chỉ fallback (mục Địa chỉ hệ thống · Fallback). Mỗi thao tác được ghi nhật ký cấu hình.</p>
+        <p className="text-[12px] text-muted mt-3">Tích 1 khu = nhận báo cáo riêng khu đó · tích ≥2 khu = nhận bản Tổng (áp dụng khi bật báo cáo theo khu). Chỉ người <b>Kích hoạt</b> mới nhận báo cáo; chưa kích hoạt ai thì hệ thống gửi về địa chỉ dự phòng (mục Địa chỉ hệ thống · Fallback). Mỗi thao tác được ghi nhật ký cấu hình.</p>
       </Card>
     </div>
   );
@@ -396,7 +396,7 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
         </div>
       )}
       {!canManage && <p className="text-[12px] text-warning mt-3">Cần quyền QA/Quản trị để chỉnh luật.</p>}
-      <p className="text-[12px] text-muted mt-3">Tuyến hiện hỗ trợ: sự cố → <b>Cơ điện</b> (qua đúng máy trạng thái duyệt sự cố, có nhật ký người thao tác “hệ thống”). Sự cố hạ tầng cảm biến (đứng hình, mất FMS) đã có nhánh cảnh báo Cơ điện riêng.</p>
+      <p className="text-[12px] text-muted mt-3">Tuyến hiện hỗ trợ: sự cố → <b>Cơ điện</b> (qua đúng máy trạng thái duyệt sự cố, có nhật ký người thao tác “hệ thống”). Sự cố hạ tầng cảm biến (đứng tín hiệu, mất FMS) đã có nhánh cảnh báo Cơ điện riêng.</p>
     </Card>
   );
 }

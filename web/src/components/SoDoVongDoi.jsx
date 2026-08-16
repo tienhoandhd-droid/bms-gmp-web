@@ -44,7 +44,7 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <text x="90" y="156" font-size="13" fill="#5b6774">→ mở phiếu NGHIÊM TRỌNG (P1/P2)</text>
 <rect x="400" y="78" width="330" height="100" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
 <rect x="400" y="90" width="5" height="76" rx="2.5" fill="#4a3aa7"/>
-<text x="420" y="108" font-size="17" font-weight="800" fill="#1f2b38">Cảm biến đứng hình ≥ 3 giờ</text>
+<text x="420" y="108" font-size="17" font-weight="800" fill="#1f2b38">Cảm biến đứng tín hiệu ≥ 3 giờ</text>
 <text x="420" y="134" font-size="13" fill="#5b6774">= thiếu dữ liệu — KHÔNG mở phiếu</text>
 <text x="420" y="156" font-size="13" fill="#5b6774">theo dõi tab Cảm biến · WF11 07:00</text>
 <rect x="1405" y="78" width="245" height="100" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
@@ -56,7 +56,7 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M760,145 L1405,145" stroke="#008300" stroke-width="2.3" stroke-dasharray="7 5" marker-end="url(#mQA)"/>
 <text x="770" y="131" font-size="13.5" fill="#0c6b4d" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">KHÔNG cần bấm gì: số liệu đẹp 2 GIỜ liên tiếp → TỰ ĐÓNG (mọi phiếu đang mở)</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M560,78 L560,30 L1676,30 L1676,850 L1650,850" stroke="#4a3aa7" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mSYS)"/>
-<text x="750" y="25" font-size="13" fill="#98a3ad" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">phiếu đang mở của cảm biến đứng hình bị hệ ĐÓNG (ngoài phạm vi)</text>
+<text x="750" y="25" font-size="13" fill="#98a3ad" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">phiếu đang mở của cảm biến đứng tín hiệu bị hệ ĐÓNG (ngoài phạm vi)</text>
 <rect x="70" y="246" width="340" height="240" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
 <rect x="70" y="258" width="5" height="216" rx="2.5" fill="#2a78d6"/>
 <text x="90" y="276" font-size="17" font-weight="800" fill="#1f2b38">CHƯA XỬ LÝ</text>
@@ -135,7 +135,7 @@ const SVG = `<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:
 <rect x="1405" y="800" width="245" height="110" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
 <rect x="1405" y="812" width="5" height="86" rx="2.5" fill="#5b6774"/>
 <text x="1425" y="830" font-size="17" font-weight="800" fill="#1f2b38">ĐÓNG — NGOÀI PHẠM VI ⏹</text>
-<text x="1425" y="854" font-size="13" fill="#5b6774">cảm biến đứng hình ≥ 3h</text>
+<text x="1425" y="854" font-size="13" fill="#5b6774">cảm biến đứng tín hiệu ≥ 3h</text>
 <text x="1425" y="876" font-size="13" fill="#5b6774">hoặc Quản trị đóng ✍</text>
 <path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M780,630 L840,630" stroke="#c98500" stroke-width="3.6" marker-end="url(#mMEP)"/>
 <circle cx="806" cy="630" r="14" fill="#fff" stroke="#c98500" stroke-width="2.4"/>

@@ -46,7 +46,7 @@ const RoomCard = React.memo(function RoomCard({ room, cfg, onDetail, onIncident,
     <Card className="p-5 transition hover:-translate-y-0.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0"><div className="flex items-center gap-2"><h3 className="text-[15px] font-semibold truncate" style={{ color: "var(--text-strong)" }}>{room.name}</h3><MucBadge p={room.priority} /></div><p className="text-[12px] text-muted mt-0.5 tracking-wide truncate">{room.id} · Khu {room.area} · {room.ahu}</p>{room.lastSeen && (() => { const a = room.agePhut; const tone = a == null ? "text-muted bg-subtle" : a <= 75 ? "text-success bg-success-soft" : a <= 150 ? "text-warning bg-warning-soft" : "text-danger bg-danger-soft"; const txt = a == null ? "—" : a < 60 ? `${a}′ trước` : `${(a / 60).toFixed(1)}h trước`; return <p className="text-[12px] text-muted mt-0.5 flex items-center gap-1 flex-wrap"><Clock className="w-3 h-3 shrink-0" strokeWidth={1.8} /> Cập nhật lúc <span className="tabular-nums text-body font-medium">{room.lastSeen}</span>{room.window && <span className="text-muted">· khung {room.window}</span>} <span className={`px-1.5 py-0.5 rounded-full font-semibold ${tone}`}>{txt}</span></p>; })()}</div>
-        <div className="text-right shrink-0">{room.duLieuCu ? <span title={room.lastSeen ? `FMS chưa trả dữ liệu giờ này. Mốc cuối: ${room.lastSeen}` : "FMS chưa trả dữ liệu giờ gần nhất"} className="inline-flex items-center gap-1 text-warning text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Thiếu DL giờ này</span> : room.noData ? <span className="inline-flex items-center gap-1 text-warning text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Mất dữ liệu</span> : comp == null ? <span className="inline-flex items-center gap-1 text-muted text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Chưa có DL</span> : (<><p className={`text-2xl font-light tabular-nums ${failing ? "text-danger" : "text-success"}`}>{comp}%</p><p className="text-[12px] text-muted">tuân thủ 1h</p></>)}</div>
+        <div className="text-right shrink-0">{room.duLieuCu ? <span title={room.lastSeen ? `FMS chưa trả dữ liệu giờ này. Mốc cuối: ${room.lastSeen}` : "FMS chưa trả dữ liệu giờ gần nhất"} className="inline-flex items-center gap-1 text-warning text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Thiếu dữ liệu giờ này</span> : room.noData ? <span className="inline-flex items-center gap-1 text-warning text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Mất dữ liệu</span> : comp == null ? <span className="inline-flex items-center gap-1 text-muted text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Chưa có dữ liệu</span> : (<><p className={`text-2xl font-light tabular-nums ${failing ? "text-danger" : "text-success"}`}>{comp}%</p><p className="text-[12px] text-muted">tỷ lệ đạt 1h</p></>)}</div>
       </div>
 
       {lm && <div className={`mt-3 rounded-2xl px-3 py-2 ring-1 ${lm.bg} ${lm.ring} flex items-center justify-between`}><span className="flex items-center gap-2 text-[12px] font-semibold"><span className={`w-2 h-2 rounded-full ${lm.dot}`} /><span className={lm.txt}>Mức cảnh báo: {lm.label}</span></span><span className="text-[12px] text-muted">8h</span></div>}
@@ -55,7 +55,7 @@ const RoomCard = React.memo(function RoomCard({ room, cfg, onDetail, onIncident,
       <OosTheoGio8h room={room} />
       {room.note && <p className="mt-3 text-[12px] text-muted bg-info-soft/60 ring-1 ring-info-line rounded-xl px-3 py-2">📝 {room.note}</p>}
       <div className="mt-3 flex gap-2">
-        <button onClick={() => onDetail(room)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-info bg-info-soft hover:bg-info-soft rounded-xl py-2 ring-1 ring-info-line transition"><Eye className="w-3.5 h-3.5" strokeWidth={1.8} /> Chi tiết &amp; biểu đồ</button>
+        <button onClick={() => onDetail(room)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-info bg-info-soft hover:bg-info-soft rounded-xl py-2 ring-1 ring-info-line transition"><Eye className="w-3.5 h-3.5" strokeWidth={1.8} /> Xem chi tiết</button>
         {incident ? <button onClick={() => onIncident(room)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-danger bg-danger-soft hover:bg-danger-soft rounded-xl py-2 ring-1 ring-danger-line transition" title={`Sự cố ${incident.id} · ${incident.status}`}><AlertOctagon className="w-3.5 h-3.5" strokeWidth={1.8} /> Sự cố {incident.id} <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.8} /></button>
           : failing ? <span className="flex-1 flex items-center justify-center gap-1.5 text-[12px] text-warning bg-warning-soft rounded-xl py-2 ring-1 ring-warning-line"><AlertTriangle className="w-3.5 h-3.5" strokeWidth={1.8} /> Không đạt — chưa mở sự cố</span> : null}
       </div>
@@ -84,8 +84,8 @@ function RoomDetailModal({ room, cfg, onClose }) {
 
 function KpiListModal({ kind, groups, incidents, cfg, onClose, onPickRoom, onPickIncident, onGotoIncidents }) {
   const META = {
-    dat:   { title: "Phòng đạt", desc: "Tuân thủ ≥ 80% trong 1 giờ gần nhất", color: "var(--primary)", grad: "#E6F4F1", Icon: CheckCircle2 },
-    khong: { title: "Phòng không đạt", desc: "Tuân thủ < 80% — nên kiểm tra ngay", color: "var(--danger)", grad: "#FBE9E4", Icon: AlertTriangle },
+    dat:   { title: "Phòng đạt", desc: "Tỷ lệ đạt ≥ 80% trong 1 giờ gần nhất", color: "var(--primary)", grad: "#E6F4F1", Icon: CheckCircle2 },
+    khong: { title: "Phòng không đạt", desc: "Tỷ lệ đạt < 80% — nên kiểm tra ngay", color: "var(--danger)", grad: "#FBE9E4", Icon: AlertTriangle },
     thieu: { title: "Thiếu dữ liệu", desc: "Mất tín hiệu hoặc dữ liệu quá cũ — không coi là đạt", color: "var(--warning)", grad: "#FBF1DE", Icon: HelpCircle },
     p1:    { title: "Sự cố Nghiêm trọng đang mở", desc: "Phòng trọng yếu & quan trọng — ưu tiên xử lý", color: "var(--info)", grad: "#E6F1FA", Icon: Activity },
   }[kind];
@@ -220,7 +220,7 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onDelete, onSaveEdits }) {
       <div className="flex items-center gap-2 mt-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px]"><Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" strokeWidth={1.8} /><input value={qTim} onChange={(e) => setQTim(e.target.value)} placeholder="Tìm mã hoặc tên phòng…" className="w-full rounded-xl bg-surface ring-1 ring-line pl-9 pr-3 py-2 text-[12px] text-body outline-none focus:ring-2 focus:ring-success-line" />{qTim && <button onClick={() => setQTim("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-body"><X className="w-3.5 h-3.5" /></button>}</div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Lọc khu</span>
+          <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Khu vực</span>
           {locChip("ALL", "Tất cả", locKhu === "ALL", () => { setLocKhu("ALL"); setLocAhu("ALL"); })}
           {DS_KHU.map((k) => locChip(k, `Khu ${k}`, locKhu === k, () => { setLocKhu(k); setLocAhu("ALL"); }))}
           {ahusLoc.length > 0 && (

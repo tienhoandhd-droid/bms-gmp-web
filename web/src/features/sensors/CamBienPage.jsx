@@ -1,4 +1,4 @@
-// CamBienPage.jsx — tab Cảm biến + thẻ đứng hình + drawer cụm (tách move-only từ App.jsx 17/08/2026).
+// CamBienPage.jsx — tab Cảm biến + thẻ đứng tín hiệu + drawer cụm (tách move-only từ App.jsx 17/08/2026).
 import React, { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Gauge, RefreshCw } from "lucide-react";
@@ -25,7 +25,7 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
     <Card className="p-5" style={{ background: "var(--warning-soft)" }}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
-          <SectionTitle icon={Gauge} hint="theo dõi riêng · không tính vào chấm điểm">Cảm biến đứng hình — {ds.length} điểm đo</SectionTitle>
+          <SectionTitle icon={Gauge} hint="theo dõi riêng · không tính vào chấm điểm">Cảm biến đứng tín hiệu — {ds.length} điểm đo</SectionTitle>
           <p className="mt-1.5 text-[12px] text-muted leading-relaxed max-w-3xl">
             Các phòng dưới đây có cảm biến <b>mất tín hiệu (giá trị không đổi ≥ 3 giờ)</b> nên được tách riêng,
             <b> tương đương phòng thiếu dữ liệu</b>: không chấm mức, không mở sự cố, không vào báo cáo chung — chờ Cơ điện khôi phục đầu đo.
@@ -36,7 +36,7 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
       <div className="mt-3 flex flex-wrap gap-2">
         {ds.map((r) => (
           <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium ring-1 ${r.so_gio_dung >= 168 ? "text-danger bg-danger-soft ring-danger-line" : "text-warning bg-warning-soft ring-warning-line"}`}>
-            <b>{r.ma_phong}</b> · {r.loai_cam_bien} · đứng {fmtGio(r.so_gio_dung, r.tu_dau_lich_su)} (kẹt {r.gia_tri_dung})
+            <b>{r.ma_phong}</b> · {r.loai_cam_bien} · đứng {fmtGio(r.so_gio_dung, r.tu_dau_lich_su)} (giữ nguyên ở {r.gia_tri_dung})
           </span>
         ))}
       </div>
@@ -67,7 +67,7 @@ function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
         <div className="mt-5 flex items-center justify-end gap-2">
           <button onClick={onDong} className="rounded-xl bg-surface px-4 py-2 text-[13px] font-medium text-body ring-1 ring-line hover:bg-subtle">Huỷ</button>
           <button disabled={thieu || dangChay} onClick={() => onLuu({ nguyenNhan, khacPhuc, phongNgua, ketLuan })}
-            className="rounded-xl px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40" style={{ background: "var(--primary-solid)" }}>{dangChay ? "Đang ghi…" : "Ghi kết luận"}</button>
+            className="rounded-xl px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40" style={{ background: "var(--primary-solid)" }}>{dangChay ? "Đang lưu…" : "Lưu kết luận"}</button>
         </div>
         {thieu && <p className="mt-2 text-right text-[12px] text-muted">Nguyên nhân gốc và khắc phục cần ≥ 10 ký tự.</p>}
       </div>
@@ -75,7 +75,7 @@ function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
 }
 
 
-// ═══ TAB CẢM BIẾN — theo dõi cảm biến ĐỨNG HÌNH (im lặng/chết) ═══
+// ═══ TAB CẢM BIẾN — theo dõi cảm biến ĐỨNG TÍN HIỆU (im lặng/chết) ═══
 // Nguồn: view xem_cam_bien_dung_hinh (cờ của WF1: giá trị không đổi ≥3 giờ liên
 // tiếp). Tải KHI MỞ TAB (view quét lùi lịch sử tìm mốc giá trị đổi ~0,3–0,8s)
 // + nút Làm mới. Sự cố của các cảm biến này đã bị tách khỏi chấm điểm (SUPPRESSED)
@@ -96,7 +96,7 @@ function CamBienPage({ isLive }) {
   const fmtGio = (h, tuDau) => (h == null ? "—" : `${tuDau ? "≥ " : ""}${h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`}`);
   const fmtTu = (iso, tuDau) => (iso ? `${tuDau ? "trước " : ""}${new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}` : "—");
   const doDam = (h) => (h >= 168 ? "text-danger bg-danger-soft ring-danger-line" : h >= 24 ? "text-warning bg-warning-soft ring-warning-line" : "text-body bg-subtle ring-line");
-  if (!isLive) return <Card className="p-6"><SectionTitle icon={Gauge}>Cảm biến đứng hình</SectionTitle><p className="mt-3 text-sm text-muted">Chế độ xem trước — chưa kết nối dữ liệu thật.</p></Card>;
+  if (!isLive) return <Card className="p-6"><SectionTitle icon={Gauge}>Cảm biến đứng tín hiệu</SectionTitle><p className="mt-3 text-sm text-muted">Chế độ xem trước — chưa kết nối dữ liệu thật.</p></Card>;
   // 16/07 (user hỏi "sao ghi 1 giờ?"): cờ đứng-trong-giờ bật NGAY từ giờ đầu (60 điểm
   // y hệt), nhưng chỉ ≥3 giờ liên tiếp mới TÁCH khỏi chấm điểm. Tab tách 2 tầng cho khớp.
   const duNguong = (rows || []).filter((r) => (r.so_gio_dung ?? 99) >= 3);
@@ -105,10 +105,10 @@ function CamBienPage({ isLive }) {
     <Card className="p-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <SectionTitle icon={Gauge}>Cảm biến đứng hình (im lặng)</SectionTitle>
+          <SectionTitle icon={Gauge}>Cảm biến đứng tín hiệu (im lặng)</SectionTitle>
           <p className="mt-1.5 text-[12px] text-muted leading-relaxed max-w-3xl">
-            Bảng dưới là cảm biến <b>đứng hình ≥ 3 giờ liên tiếp</b> — thường do hỏng, mất kết nối
-            hoặc treo tín hiệu tại FMS. Từ 13/07, phòng có cảm biến đứng hình được <b>tách riêng như phòng thiếu dữ liệu</b>:
+            Bảng dưới là cảm biến <b>đứng tín hiệu ≥ 3 giờ liên tiếp</b> — thường do hỏng, mất kết nối
+            hoặc treo tín hiệu tại FMS. Từ 13/07, phòng có cảm biến đứng tín hiệu được <b>tách riêng như phòng thiếu dữ liệu</b>:
             không chấm mức, <b>không mở sự cố</b> và không tính vào báo cáo chung. Danh sách này là nơi theo dõi duy nhất;
             việc cần làm là Cơ điện kiểm tra / thay thế đầu đo — cảm biến sống lại sẽ tự trở lại chấm điểm bình thường.
             <br /><span className="text-muted">Dấu <b>≥</b> nghĩa là cảm biến chưa từng cho một giờ đo &ldquo;còn sống&rdquo; nào trong toàn bộ dữ liệu còn lưu — thời gian đứng thật có thể dài hơn con số hiển thị.</span>
@@ -126,7 +126,7 @@ function CamBienPage({ isLive }) {
         <div className="mt-4 space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-12 rounded-2xl bg-subtle animate-pulse" />)}</div>
       ) : duNguong.length === 0 && nghi.length === 0 && !loi ? (
         <div className="mt-4 rounded-2xl bg-success-soft ring-1 ring-success-line px-4 py-6 text-center">
-          <p className="text-sm font-semibold text-success">Không có cảm biến nào đang đứng hình</p>
+          <p className="text-sm font-semibold text-success">Không có cảm biến nào đang đứng tín hiệu</p>
           <p className="mt-1 text-[12px] text-muted">Mọi cảm biến đều đang gửi giá trị thay đổi bình thường.</p>
         </div>
       ) : duNguong.length > 0 && (
@@ -163,12 +163,12 @@ function CamBienPage({ isLive }) {
       )}
       {rows !== null && nghi.length > 0 && (
         <div className="mt-5 rounded-2xl bg-subtle ring-1 ring-line px-4 py-3">
-          <p className="text-[12px] font-semibold text-body">Nghi đứng hình — mới dưới 3 giờ ({nghi.length} điểm đo)</p>
+          <p className="text-[12px] font-semibold text-body">Nghi đứng tín hiệu — mới dưới 3 giờ ({nghi.length} điểm đo)</p>
           <p className="mt-0.5 text-[12px] text-muted leading-relaxed">Giá trị vừa lặp y hệt trong 1–2 giờ gần nhất. <b>Chưa đủ ngưỡng 3 giờ</b> nên vẫn chấm điểm và mở phiếu như thường; nếu tiếp tục đứng, đủ 3 giờ sẽ tự chuyển lên bảng trên và được tách khỏi cảnh báo.</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {nghi.map((r) => (
               <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium ring-1 text-body bg-surface ring-line">
-                <b>{r.ma_phong}</b> · {r.loai_cam_bien} · {r.so_gio_dung} giờ (kẹt {r.gia_tri_dung})
+                <b>{r.ma_phong}</b> · {r.loai_cam_bien} · {r.so_gio_dung} giờ (giữ nguyên ở {r.gia_tri_dung})
               </span>
             ))}
           </div>
@@ -220,7 +220,7 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo })
           <div className="rounded-2xl ring-1 ring-line p-3">
             <div className="flex items-center justify-between">
               <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Hồ sơ điều tra (CAPA)</p>
-              {coQuyenKetLuan && <button onClick={onKetLuan} className="rounded-lg bg-surface px-2 py-1 text-[12px] font-medium text-body ring-1 ring-line hover:bg-subtle">{cum.da_co_ket_luan_qa ? "Sửa kết luận" : "Ghi kết luận"}</button>}
+              {coQuyenKetLuan && <button onClick={onKetLuan} className="rounded-lg bg-surface px-2 py-1 text-[12px] font-medium text-body ring-1 ring-line hover:bg-subtle">{cum.da_co_ket_luan_qa ? "Sửa kết luận" : "Lưu kết luận"}</button>}
             </div>
             {cum.da_co_ket_luan_qa ? (
               <dl className="mt-2 space-y-2 text-[12px] leading-relaxed">
@@ -241,7 +241,7 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo })
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold" style={{ color: "var(--text-strong)" }}>{i.id} · {i.room}</span>
                     {i.mucCanhBao === "SUPPRESSED"
-                      ? <span className="rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] text-muted">cảm biến đứng hình</span>
+                      ? <span className="rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] text-muted">cảm biến đứng tín hiệu</span>
                       : <span className="rounded-lg bg-danger-soft px-1.5 py-0.5 text-[12px] text-danger">{i.sensor}</span>}
                   </div>
                   <p className="mt-0.5 text-muted">{i.status} · kéo dài {i.duration} giờ{i.giaTriGanNhat != null && <> · TB 5′ cuối <b className="tabular-nums text-body">{i.giaTriGanNhat}{i.donVi}</b>{i.cuaSo5p && <span className="tabular-nums"> ({i.cuaSo5p}{i.ngay5p ? ` · ${i.ngay5p}` : ""})</span>}</>}</p>

@@ -1,5 +1,5 @@
 // RoomSummaryCard.jsx — thẻ phòng tối giản cho Tổng quan (Phase B báo cáo 9).
-// Bất thường: card đủ để ra quyết định (chỉ tiêu xấu nhất + tuân thủ + độ tươi).
+// Bất thường: card đủ để ra quyết định (chỉ tiêu xấu nhất + tỷ lệ đạt + độ tươi).
 // Đạt: MỘT dòng gọn, visual weight thấp — màn hình không phải chứng minh 51 thứ
 // vẫn bình thường trong khi người trực đang tìm 3 thứ bất thường.
 // Bảng sensor 5 cột + cột OOS 8h nằm trong drawer "Xem chi tiết" (không ở card).
@@ -68,7 +68,7 @@ export const RoomSummaryCard = React.memo(function RoomSummaryCard({ room, cfg, 
           {room.duLieuCu ? <span className="inline-flex items-center gap-1 text-warning text-[12px] font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Thiếu dữ liệu giờ này</span>
             : room.noData ? <span className="inline-flex items-center gap-1 text-warning text-[12px] font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Thiếu dữ liệu</span>
             : comp == null ? <span className="inline-flex items-center gap-1 text-muted text-[12px] font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Chưa có dữ liệu</span>
-            : <><p className={`text-2xl font-light tabular-nums ${failing ? "text-danger" : "text-success"}`}>{comp}%</p><p className="text-[12px] text-muted">tuân thủ 1h</p></>}
+            : <><p className={`text-2xl font-light tabular-nums ${failing ? "text-danger" : "text-success"}`}>{comp}%</p><p className="text-[12px] text-muted">tỷ lệ đạt 1h</p></>}
         </div>
       </div>
 

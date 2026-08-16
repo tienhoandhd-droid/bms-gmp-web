@@ -707,7 +707,7 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           Số nhỏ bên dưới là <b>số giờ có dữ liệu</b> làm cơ sở tính — một tuần trọn vẹn là 168 giờ.
           Cột <b>Xu hướng</b> so tuần cuối với tuần đầu, và chỉ tính khi cả hai tuần đó đủ dữ liệu.
           Ô có dấu <b>†</b> nghĩa là dưới 84 giờ (chưa tới nửa tuần): số đó <b>không đủ tin cậy để so sánh</b>, nên không tô màu.
-          Giờ thiếu dữ liệu và giờ cảm biến đứng hình bị loại khỏi phép tính — không tính là đạt cũng không tính là hỏng.
+          Giờ thiếu dữ liệu và giờ cảm biến đứng tín hiệu bị loại khỏi phép tính — không tính là đạt cũng không tính là hỏng.
         </p>
 
         {/* ── Mục phụ: phòng ngoài danh sách ── */}

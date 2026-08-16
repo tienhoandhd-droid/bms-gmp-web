@@ -111,7 +111,7 @@ export default function TVMode() {
     ));
   } else if (MAN[man] === "SU_CO") {
     const ds = critical.slice(0, 9);
-    noiDung = khungManHinh(`Sự cố cần xử lý · ${critical.length}${dungHinh.length ? ` (+${dungHinh.length} cảm biến đứng hình)` : ""}`, "#f87171", (
+    noiDung = khungManHinh(`Sự cố cần xử lý · ${critical.length}${dungHinh.length ? ` (+${dungHinh.length} cảm biến đứng tín hiệu)` : ""}`, "#f87171", (
       ds.length === 0
         ? <p style={{ fontSize: "3vw", color: "#34d399", textAlign: "center", paddingTop: "12vh" }}>✓ Không có sự cố CRITICAL</p>
         : <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "1.7vw" }}>

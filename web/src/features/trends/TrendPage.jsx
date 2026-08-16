@@ -520,7 +520,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     });
     return marks.length ? marks : null;
   }, [isLive, liveIncidents, liveRooms, view, activeScope, activeId]);
-  // A2 — lịch tuân thủ 90 ngày (ô ngày, giờ LOCAL để không lệch múi giờ VN)
+  // A2 — lịch tỷ lệ đạt 90 ngày (ô ngày, giờ LOCAL để không lệch múi giờ VN)
   const calDays = useMemo(() => {
     if (!isLive) return [];
     return (liveSeries[activeId] || []).map((p) => {
@@ -569,7 +569,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const buildLocalAnalysis = () => {
     const donViLbl = isHourly ? "giờ" : "ngày";
     const perTxt2 = isHourly ? "%/giờ" : "%/ngày";
-    if (!tech.n) return { text: "Chưa có đủ dữ liệu trong khoảng đã chọn để phân tích. Hãy mở rộng khoảng thời gian hoặc kiểm tra kết nối FMS/WF1.", level: 0 };
+    if (!tech.n) return { text: "Chưa có đủ dữ liệu trong khoảng đã chọn để phân tích. Hãy mở rộng khoảng thời gian hoặc kiểm tra kết nối nguồn dữ liệu.", level: 0 };
     const avg = tech.mean;
     const level = avg < 70 ? 3 : avg < 80 ? 2 : avg < 88 ? 1 : 0;
     const win = (dtFrom || dtTo) ? ` (lọc ${view[0]?.label}→${view[view.length - 1]?.label})` : "";
@@ -649,7 +649,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const runAI = async (sau = false) => {
     if (aiBusy) return;
     setAiNote(null);
-    if (!tech.n) { finishAI("Chưa có đủ dữ liệu trong khoảng đã chọn để phân tích. Hãy mở rộng khoảng thời gian hoặc kiểm tra kết nối FMS/WF1.", 0, "cuc_bo"); return; }
+    if (!tech.n) { finishAI("Chưa có đủ dữ liệu trong khoảng đã chọn để phân tích. Hãy mở rộng khoảng thời gian hoặc kiểm tra kết nối nguồn dữ liệu.", 0, "cuc_bo"); return; }
     const aiUrl = sau ? aiWebhookSau : aiWebhook;   // chọn workflow: chuyên sâu hay thường
 
     // Nếu đã cấu hình workflow AI → gửi DỮ LIỆU BIỂU ĐỒ THẬT cho AI phân tích.
@@ -786,7 +786,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: "var(--text-strong)" }}><LineIcon className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /> Xu hướng & tuân thủ — biểu đồ theo thời gian</h2>
+        <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: "var(--text-strong)" }}><LineIcon className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /> Xu hướng — biểu đồ theo thời gian</h2>
       </div>
 
       <Card className="relative z-30 p-5">
@@ -829,7 +829,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         {level !== "TOTAL" && (
           <div className="mt-3 rounded-2xl bg-info-soft/60 ring-1 ring-info-line p-3.5 space-y-3">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              <div className="flex items-center gap-2 flex-wrap"><span className="text-[12px] uppercase tracking-wider text-muted font-semibold">Lọc khu</span>{["ALL", ...areaList].map((a) => <Chip key={a} active={optArea === a} onClick={() => { setOptArea(a); setOptAhu("ALL"); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
+              <div className="flex items-center gap-2 flex-wrap"><span className="text-[12px] uppercase tracking-wider text-muted font-semibold">Khu vực</span>{["ALL", ...areaList].map((a) => <Chip key={a} active={optArea === a} onClick={() => { setOptArea(a); setOptAhu("ALL"); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
               {(level === "ROOM" || level === "AHU") && ahuList.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap"><span className="text-[12px] uppercase tracking-wider text-muted font-semibold">Lọc AHU</span>{["ALL", ...ahuList].map((a) => <Chip key={a} active={optAhu === a} onClick={() => { setOptAhu(a); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
               )}
@@ -848,7 +848,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <span className="text-[12px] text-body">Đang chọn: <b style={{ color: "var(--text-strong)" }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {RANGES.find((r) => r.k === range).label}{(dtFrom || dtTo) ? ` · ${view[0]?.label}→${view[view.length - 1]?.label}` : ""}</span>
         <div className="flex gap-2">
           <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo (chờ AI)…" : "In báo cáo A4 (kèm nhận định hỗ trợ)"}</button>
-          <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "Tạo nhận định hỗ trợ"}</button>
+          <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "Tạo nhận định"}</button>
           {isLive && aiWebhookSau && <button onClick={() => runAI(true)} disabled={aiBusy} title="Phân tích sâu hơn: nguyên nhân gốc + CAPA đa tầng (IPC/Cơ điện/BMS) + đề xuất phòng ngừa — dùng model mạnh, chạy ~1–3 phút" className={`text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={2} /> {aiBusy ? "Đang phân tích chi tiết…" : "Phân tích chi tiết (CAPA)"}</button>}
         </div>
       </Card>
@@ -881,7 +881,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             return (
               <Card className="p-6"><SectionTitle icon={Minus} hint={`${activeScope.name} · trung bình mỗi ${isHourly ? "giờ" : "ngày"} · tất cả chỉ tiêu`}>① Giá trị trung bình &amp; dải giới hạn</SectionTitle>
                 {!isLive ? (
-                  <p className="mt-4 text-[13px] text-muted">Biểu đồ giá trị trung bình theo phòng hiển thị ở chế độ <b>LIVE</b> (đọc dữ liệu thật từ Supabase).</p>
+                  <p className="mt-4 text-[13px] text-muted">Biểu đồ giá trị trung bình theo phòng hiển thị ở chế độ <b>LIVE</b> (đọc dữ liệu thật).</p>
                 ) : !bands ? (
                   <p className="mt-4 text-[13px] text-warning">Đang tải dữ liệu giá trị phòng cho cả 3 chỉ tiêu…</p>
                 ) : ks.length === 0 ? (
@@ -941,9 +941,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           </Card>
         </>)}
 
-        {/* ============ CHUNG: lịch tuân thủ 90 ngày (A2 — heatmap) ============ */}
+        {/* ============ CHUNG: lịch tỷ lệ đạt 90 ngày (A2 — heatmap) ============ */}
         {isLive && (
-          {/* Phase E (báo cáo 9): bỏ Lịch tuân thủ 90 ngày — trùng vai với Bản đồ phòng × ngày */}
+          {/* Phase E (báo cáo 9): bỏ Lịch tỷ lệ đạt 90 ngày — trùng vai với Bản đồ phòng × ngày */}
         )}
 
         {/* ============ CHUNG: phân tích kỹ thuật phục vụ AI ============ */}
@@ -958,7 +958,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             ["Tổng điểm OOS", `${tech.totOos ?? 0}`, "text-danger"],
           ].map(([k, v, c]) => <div key={k} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold leading-tight">{k}</p><p className={`text-lg font-light mt-1 tabular-nums ${c}`}>{v}</p></div>)}</div>
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">{[["Đạt 1 ngày", fmtPct(activeScope.dat1n)], ["Đạt 3 ngày", fmtPct(activeScope.dat3n)], ["Đạt 7 ngày", fmtPct(activeScope.dat7n)], ["Min–Max kỳ", tech.n ? `${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%` : "—"]].map(([k, v]) => <div key={k} className="rounded-xl bg-surface ring-1 ring-line py-2"><p className="text-[12px] uppercase text-muted font-semibold">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{v}</p></div>)}</div>
-          <p className="text-[12px] text-muted mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Đây là <b>số liệu tất định</b> (hệ thống tính). Bấm <b>“Tạo nhận định hỗ trợ”</b> để AI diễn giải &amp; gợi ý (không thay thế kết luận GMP).</p>
+          <p className="text-[12px] text-muted mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Đây là <b>số liệu tất định</b> (hệ thống tính). Bấm <b>“Tạo nhận định”</b> để AI diễn giải &amp; gợi ý (không thay thế kết luận GMP).</p>
         </Card>
 
         {/* ====== BẢNG DỮ LIỆU THÔ + ĐÁNH GIÁ CƠ BẢN (tất định, TRƯỚC khi AI gợi ý / QA kết luận) ====== */}
@@ -1021,7 +1021,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
 
       <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="Tổng → Khu → AHU → Phòng · tỉ lệ đạt 1/3/7 ngày">Xếp hạng rủi ro</SectionTitle>
         <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", "Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày", "Xu hướng 14n", "Risk", "Đánh giá"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; const a = comp == null ? ["Chờ dữ liệu", "text-muted"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-danger"] : comp < 88 ? ["Cần chú ý", "text-warning"] : ["Tốt", "text-success"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-line hover:bg-info-soft/40 ${r.type === "TOTAL" ? "bg-success-soft/30" : ""}`}><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4"><button disabled={!canPick} onClick={() => { if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left ${canPick ? "hover:underline" : ""}`}><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.id}</span> <span className="text-muted">{r.name}</span></button></td><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td><td className="py-2.5 pr-4"><Chart type="sparkline" chuoi={r.chuoi} h={30} /></td><td className="py-2.5 pr-4"><span className="inline-block px-2 py-0.5 rounded-full text-[12px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: "var(--danger)" }}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
-        <p className="text-[12px] text-muted mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó. Tỉ lệ đạt = trung bình tuân thủ trong 1 / 3 / 7 ngày gần nhất.</p>
+        <p className="text-[12px] text-muted mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó. Tỉ lệ đạt = trung bình tỷ lệ đạt trong 1 / 3 / 7 ngày gần nhất.</p>
       </Card>
 
       {/* Mảng 3 — Dự báo xu hướng (RPC gate R²) */}
@@ -1053,7 +1053,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       </Card>
       )}
 
-      {/* Mảng 3 — Bản đồ tuân thủ phòng × ngày (chỉ cấp Tổng/Khu) */}
+      {/* Mảng 3 — Bản đồ tỷ lệ đạt phòng × ngày (chỉ cấp Tổng/Khu) */}
 
         {diemChon != null && view[diemChon] && (() => { const d = view[diemChon]; const sc = (incidentMarks || []).filter((m) => m.idx === diemChon); return (
           <InspectorDrawer onClose={() => setDiemChon(null)} eyebrow={`${activeScope.name} · ${SENSORS.find((x) => x.k === sensor).label}`} title={`Chi tiết ${d.label}`}>
@@ -1072,10 +1072,10 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             <p className="text-[12px] meta">Số liệu tất định do hệ thống tính — bấm điểm khác trên biểu đồ để so sánh.</p>
           </InspectorDrawer>
         ); })()}
-        {/* G3: Nhận định hỗ trợ đặt SAU toàn bộ dữ liệu tất định (thứ tự theo báo cáo nâng cấp) */}
+        {/* G3: Nhận định xu hướng đặt SAU toàn bộ dữ liệu tất định (thứ tự theo báo cáo nâng cấp) */}
         {!aiBusy && aiResult && (() => { const al = [{ l: "Kiểm soát tốt", c: "text-success", bg: "bg-success-soft", ring: "ring-success-line" }, { l: "Cần chú ý", c: "text-info", bg: "bg-info-soft", ring: "ring-info-line" }, { l: "Cảnh báo", c: "text-warning", bg: "bg-warning-soft", ring: "ring-warning-line" }, { l: "Hành động", c: "text-danger", bg: "bg-danger-soft", ring: "ring-danger-line" }][aiResult.level]; return (
           <Card className={`p-5 ring-1 ${al.ring}`}>
-            <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Gợi ý đọc biểu đồ (AI hỗ trợ)</SectionTitle><div className="flex items-center gap-2">{aiResult.nguon === "openai" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-success-soft text-success ring-1 ring-success-line">OpenAI</span>}{aiResult.nguon === "cuc_bo" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-subtle text-muted">Tự luận cục bộ</span>}<span className={`text-[12px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Gợi ý mức: {al.l}</span></div></div>
+            <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Nhận định xu hướng</SectionTitle><div className="flex items-center gap-2">{aiResult.nguon === "openai" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-success-soft text-success ring-1 ring-success-line">Nhận định tự động</span>}{aiResult.nguon === "cuc_bo" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-subtle text-muted">Tự luận cục bộ</span>}<span className={`text-[12px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Gợi ý mức: {al.l}</span></div></div>
             <p className="mt-1 mb-2 text-[12px] text-muted bg-subtle ring-1 ring-line/70 rounded-lg px-3 py-1.5">ℹ️ AI chỉ <b>đọc số liệu và gợi ý</b> — mọi con số do hệ thống tính (SQL/thống kê), <b>không phải AI</b>. Kết luận &amp; quyết định GMP do IPC/QA phê duyệt.</p>
             <AiSections text={aiResult.text} />
             {aiNote && <p className="mt-3 text-[12px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-3 py-2">⚠ {aiNote}</p>}

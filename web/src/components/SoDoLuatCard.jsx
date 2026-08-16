@@ -329,7 +329,7 @@ export default function SoDoLuatCard({ dsNut }) {
         </div>
         <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-info-soft px-3 py-2 text-[12px] leading-relaxed text-info">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>Khi công tắc <b>Tự phân tuyến</b> bật và điều kiện khớp, hệ thống có thể chuyển <b>Chưa xử lý → Đã báo Cơ điện</b>; nếu không, IPC thực hiện bước bàn giao.</span>
+          <span>Khi công tắc <b>Phân công tự động</b> bật và điều kiện khớp, hệ thống có thể chuyển <b>Chưa xử lý → Đã báo Cơ điện</b>; nếu không, IPC thực hiện bước bàn giao.</span>
         </div>
       </section>
 

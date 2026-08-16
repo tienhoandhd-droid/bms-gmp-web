@@ -19,6 +19,7 @@ function AiSections({ text }) {
     const nl = b.indexOf("\n");
     const title = (nl < 0 ? b : b.slice(0, nl)).trim();
     const body = (nl < 0 ? "" : b.slice(nl + 1)).trim();
+    const hienTitle = (t) => t.replace("PHÂN TÍCH", "NHẬN ĐỊNH").replace("DỮ LIỆU", "SỐ LIỆU CHÍNH").replace("BÁO CÁO", "TÓM TẮT");
     const m = META.find((x) => title.toUpperCase().includes(x.kw)) || { icon: Sparkles, c: "var(--primary)", bg: "bg-subtle", ring: "ring-line" };
     const Icon = m.icon;
     const lines = body.split("\n").map((l) => l.replace(/\s+$/, "")).filter((l) => l.trim());
@@ -35,7 +36,7 @@ function AiSections({ text }) {
     const laNgan = (cells) => cells.every((c) => /^[-: ]*$/.test(c));
     return (
       <div key={idx} className={`rounded-2xl ring-1 ${m.ring} ${m.bg} p-3.5`}>
-        <div className="flex items-center gap-2 mb-1.5"><Icon className="w-4 h-4 shrink-0" style={{ color: m.c }} strokeWidth={1.9} /><h5 className="text-[12px] font-bold uppercase tracking-wide" style={{ color: m.c }}>{title}</h5></div>
+        <div className="flex items-center gap-2 mb-1.5"><Icon className="w-4 h-4 shrink-0" style={{ color: m.c }} strokeWidth={1.9} /><h5 className="text-[12px] font-bold uppercase tracking-wide" style={{ color: m.c }}>{hienTitle(title)}</h5></div>
         <div className="space-y-1.5">{khoi.map((k, j) => {
           if (k.kind === "table") {
             const rows = k.rows.map(parseRow).filter((cells) => !laNgan(cells));

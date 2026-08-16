@@ -60,7 +60,7 @@ export default function AuthGate() {
         <div className="px-7 py-6 space-y-4">
           <div>
             <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--text-strong)" }}>Đăng nhập để tiếp tục</h2>
-            <p className="text-[12px] meta leading-relaxed">Hệ thống yêu cầu đăng nhập. Nhập email và mật khẩu được cấp.</p>
+            <p className="text-[12px] meta leading-relaxed">Đăng nhập bằng tài khoản CPC1 Hà Nội.</p>
           </div>
           <div>
             <label htmlFor="dn-email" className="block text-[13px] font-medium text-body mb-1">Email công việc</label>
@@ -102,9 +102,7 @@ export default function AuthGate() {
             className="w-full text-[12px] font-medium text-muted hover:text-success disabled:opacity-50">
             {kp === "dang_gui" ? "Đang gửi email khôi phục…" : "Quên mật khẩu? Gửi email đặt lại"}
           </button>
-          <p className="text-[12px] meta leading-relaxed">
-            Tài khoản do Quản trị hệ thống cấp. Vai trò (Kiểm soát hiện trường / Cơ điện / Trực hồ sơ lô / Đảm bảo chất lượng / Quản trị) xác định theo email.
-          </p>
+          <p className="text-[12px] meta leading-relaxed">Tài khoản nội bộ do Quản trị hệ thống cấp.</p>
         </div>
       </form>
     </div>
