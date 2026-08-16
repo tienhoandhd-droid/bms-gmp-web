@@ -14,6 +14,12 @@ import AuthGate from "../AuthGate";
 const AuditLogPage = React.lazy(() => import("../components/AuditLogPage"));
 const SoDoLuatCard = React.lazy(() => import("../components/SoDoLuatCard"));
 const SoDoVongDoi = React.lazy(() => import("../components/SoDoVongDoi"));
+// Nạp trễ các trang feature lớn (17/08) — chỉ tải khi mở đúng tab:
+const TrendPage = React.lazy(() => import("../features/trends/TrendPage"));
+const ReportsPage = React.lazy(() => import("../features/reports/ReportsPage"));
+const ChenhApTheoAhu = React.lazy(() => import("../features/pressure/ChenhApTheoAhu"));
+const CauHinhNguoiNhan = React.lazy(() => import("../features/recipients/RecipientsPage"));
+const LuatPhanTuyenCard = React.lazy(() => import("../features/recipients/RecipientsPage").then((m) => ({ default: m.LuatPhanTuyenCard })));
 import { moHoSoCumBanIn } from "../lib/hoSoCum";
 import {
   Droplets, Thermometer, Sparkles, ShieldCheck, ShieldAlert, Activity,
@@ -56,12 +62,9 @@ import { KpiCard, OosMiniBars } from "../components/ui/KpiCard";
 
 /* ===== QUẢN LÝ PHÒNG (gồm sửa cảm biến/giới hạn phòng cũ) ===== */
 
-import TrendPage, { AiSections } from "../features/trends/TrendPage";
-import ReportsPage, { HuongDanEmailNut, ModalVeEmail } from "../features/reports/ReportsPage";
+import { HuongDanEmailNut, ModalVeEmail } from "../features/reports/EmailParts";
 import { LoginModal, SucKhoeWidget, DoiMatKhauCard, DoiMatKhauModal, PhanTichGmpCard, TaiKhoanCard, ChuoiHashCard } from "../features/settings/SettingsParts";
 import { DS_KHU, DB_MOI_MAC_DINH } from "../lib/phanQuyen";
-import CauHinhNguoiNhan, { LuatPhanTuyenCard } from "../features/recipients/RecipientsPage";
-import ChenhApTheoAhu from "../features/pressure/ChenhApTheoAhu";
 import CamBienPage, { TheDungHinhTongQuan, ModalKetLuanCum, ModalMoLai, CumDrawer } from "../features/sensors/CamBienPage";
 import { BuocSuCo, KiemSoatXuLy, ApprovalModal, DanhGiaHieuQuaCanhBao } from "../features/incidents/IncidentsParts";
 import ViecCuaBan from "../features/tasks/ViecCuaBan";
@@ -1145,10 +1148,10 @@ export default function AppShell() {
             );
           })()}
 
-          {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><ChenhApTheoAhu isLive={isLive} khuChoPhep={khuChoPhep} active={tab === "recent"} /></div>}
+          {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: 360 }} />}><ChenhApTheoAhu isLive={isLive} khuChoPhep={khuChoPhep} active={tab === "recent"} /></React.Suspense></div>}
           {tab === "sensors" && <CamBienPage isLive={isLive} />}
-          {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
-          {tab === "reports" && <ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} />}
+          {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: 360 }} />}><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /></React.Suspense><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
+          {tab === "reports" && <React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: 360 }} />}><ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} /></React.Suspense>}
 
           {tab === "audit" && (() => {
             const subTabs = [
@@ -1181,7 +1184,7 @@ export default function AppShell() {
             );
           })()}
 
-          {tab === "recipients" && <CauHinhNguoiNhan isLive={isLive} canManage={canManage} laAdmin={user?.role === "ADMIN"} actor={user?.email} />}
+          {tab === "recipients" && <React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: 360 }} />}><CauHinhNguoiNhan isLive={isLive} canManage={canManage} laAdmin={user?.role === "ADMIN"} actor={user?.email} /></React.Suspense>}
 
           {tab === "settings" && (() => {
             const cfgSubTabs = [
@@ -1304,7 +1307,7 @@ export default function AppShell() {
               )}
 
               {cfgTab === "phantuyen" && (
-              <LuatPhanTuyenCard isLive={isLive} canManage={canManage} actor={user?.email} />
+              <React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: 360 }} />}><LuatPhanTuyenCard isLive={isLive} canManage={canManage} actor={user?.email} /></React.Suspense>
               )}
 
               {cfgTab === "taikhoan" && role === "ADMIN" && (
