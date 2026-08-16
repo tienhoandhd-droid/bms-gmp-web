@@ -70,6 +70,7 @@ import { BuocSuCo, KiemSoatXuLy, ApprovalModal, DanhGiaHieuQuaCanhBao } from "..
 import ViecCuaBan from "../features/tasks/ViecCuaBan";
 import { RoomCard, RoomDetailModal, KpiListModal, RoomManager } from "../features/dashboard/DashboardParts";
 import GiaoDienCard from "../features/settings/GiaoDienCard";
+import StatusAnchor from "../components/layout/StatusAnchor";
 import { fmtPhut } from "../lib/dinhDang";
 
 
@@ -726,25 +727,7 @@ export default function AppShell() {
             <div className="flex flex-col justify-center min-w-0"><h1 className="text-base sm:text-lg font-bold tracking-tight leading-tight truncate" style={{ color: "var(--text-strong)" }}>Hệ thống giám sát HVAC phòng sạch GMP</h1><p className="text-[12px] font-semibold tracking-wide mt-0.5" style={{ color: "var(--primary)" }}>V/Q team — QLCL</p></div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap justify-end ml-auto">
-            {(() => { const ok = (kpis.thieuDL || 0) === 0; return (
-              <div className={`hidden md:flex items-center gap-2.5 rounded-2xl bg-surface px-4 ring-1 h-[50px] ${ok ? "ring-success-line" : "ring-warning-line"}`} style={cardShadow}>
-                {ok ? <ShieldCheck className="w-4 h-4 text-success" strokeWidth={1.8} /> : <ShieldAlert className="w-4 h-4 text-warning" strokeWidth={1.8} />}
-                <div className="leading-tight"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold">Toàn vẹn dữ liệu</p><p className={`text-xs font-semibold ${ok ? "text-success" : "text-warning"}`}>{ok ? "Đầy đủ" : `${kpis.thieuDL} phòng thiếu DL`}</p></div>
-              </div>
-            ); })()}
             {isLive && <SucKhoeWidget sk={live.sucKhoe} dangTai={live.dangTai} />}
-            {HAS_SUPABASE ? (
-              <button onClick={doiBannerLive} className="flex items-center gap-2.5 rounded-2xl bg-surface px-4 ring-1 h-[50px] hover:bg-success-soft/50" style={{ ...cardShadow, borderColor: "var(--success-line)" }} title={`Đang đọc/ghi dữ liệu thật từ Supabase — bấm để ${anBannerLive ? "hiện" : "ẩn"} dòng mô tả nguồn dữ liệu`}>
-                <span className={`w-2.5 h-2.5 rounded-full bg-success-solid ${live.dangTai ? "animate-pulse" : ""}`} />
-                <div className="leading-tight text-left"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold">Nguồn dữ liệu</p><p className="text-xs font-semibold" style={{ color: "var(--primary)" }}>LIVE · Supabase</p></div>
-              </button>
-            ) : (
-              <div className="flex items-center gap-2.5 rounded-2xl bg-surface px-4 ring-1 ring-warning-line h-[50px]" style={cardShadow} title="Chưa cấu hình VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY">
-                <span className="w-2.5 h-2.5 rounded-full bg-subtle" />
-                <div className="leading-tight text-left"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold">Nguồn dữ liệu</p><p className="text-xs font-semibold text-warning">Chưa cấu hình</p></div>
-              </div>
-            )}
-            <HeaderChip><Clock className="w-4 h-4" style={{ color: "var(--primary)" }} strokeWidth={1.8} /><div className="leading-tight"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold">Giờ máy chủ · UTC+7</p><ServerClock live={isLive} /></div></HeaderChip>
             {user ? <div className="flex items-center gap-2.5 rounded-2xl bg-surface pl-2 pr-2 ring-1 ring-line h-[50px]" style={cardShadow}><div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: "var(--primary-solid)" }}>{user.name[0]}</div><div className="leading-tight"><p className="text-xs font-semibold" style={{ color: "var(--text-default)" }}>{user.name}</p><p className="text-[12px] font-medium" style={{ color: "var(--primary)" }}>{ROLE_VI[user.role] || user.role}</p></div><button onClick={() => setPwOpen(true)} className="ml-1 rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đổi mật khẩu"><KeyRound className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => { setUser(null); if (isLive) authDangXuat(); }} className="rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đăng xuất"><LogOut className="w-4 h-4" strokeWidth={1.8} /></button></div>
               : <button onClick={() => setLoginOpen(true)} className="flex items-center gap-2 rounded-2xl px-4 text-sm font-semibold text-white h-[50px]" style={{ background: "var(--primary-solid)", ...cardShadow }}><LogIn className="w-4 h-4" strokeWidth={1.8} /> Đăng nhập</button>}
           </div>
@@ -752,6 +735,15 @@ export default function AppShell() {
 
         {/* Mobile: tab TỰ XUỐNG DÒNG (không kéo ngang); desktop giữ 1 hàng cuộn. */}
         <nav className="mt-5"><div className="rounded-2xl bg-surface/80 backdrop-blur ring-1 ring-line p-1.5 flex gap-1 flex-wrap md:flex-nowrap md:overflow-x-auto" style={cardShadow}>{visibleTabs.map((t) => { const Icon = t.icon; const active = tab === t.k; return <button key={t.k} onClick={() => setTab(t.k)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition ${active ? "text-white" : "text-body hover:bg-subtle"}`} style={active ? { background: "var(--primary-solid)", boxShadow: "0 6px 16px -6px rgba(20,158,144,0.55)" } : {}}><Icon className="w-4 h-4" strokeWidth={1.8} /> {t.label}{t.k === "events" && <span className="ml-0.5 text-[12px] px-1.5 py-0.5 rounded-full font-bold" style={active ? { background: "rgba(255,255,255,0.25)" } : { background: "rgba(226,103,79,0.16)", color: "var(--danger)" }}>{p12Open}</span>}</button>; })}</div></nav>
+
+        {/* G3: chip kỹ thuật hạ xuống 1 dòng meta — hero mới là anchor duy nhất */}
+        <div className="mt-2 px-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] meta">
+          <button onClick={doiBannerLive} className="hover:underline" title="Bấm để hiện/ẩn dòng mô tả nguồn dữ liệu">
+            Trạng thái đồng bộ: {HAS_SUPABASE ? <b className="text-success">Dữ liệu trực tiếp</b> : <b className="text-warning">Chế độ thử nghiệm</b>}
+          </button>
+          <span>Toàn vẹn dữ liệu: {(kpis.thieuDL || 0) === 0 ? <b className="text-success">đầy đủ</b> : <b className="text-warning">{kpis.thieuDL} phòng thiếu DL</b>}</span>
+          <span className="inline-flex items-center gap-1">Giờ máy chủ (UTC+7): <ServerClock live={isLive} /></span>
+        </div>
 
         <main className="mt-6">
           {isLive && (!anBannerLive || live.loi) && (
@@ -769,7 +761,8 @@ export default function AppShell() {
           {HIEN_VIEC_CUA_BAN && isLive && user && role && <ViecCuaBan viecCuaToi={viecCuaToi} cumChoToi={cumChoToi} onXuLy={openApproval} onGhiKetLuan={ghiKetLuanCum} />}
           {tab === "home" && (
             <div className="space-y-5">
-              <Card className="px-5 sm:px-7 py-5 sm:py-6 overflow-hidden" style={{ background: "var(--bg-subtle)" }}><p className="text-[12px] uppercase tracking-[0.2em] font-semibold" style={{ color: "var(--primary)" }}>Tri thức · Tuân thủ · Toàn vẹn dữ liệu</p><h2 className="mt-1 text-xl sm:text-2xl font-semibold" style={{ color: "var(--text-strong)" }}>Giám sát chênh áp · độ ẩm · nhiệt độ theo thời gian thực</h2><div className="mt-4 flex gap-2 flex-wrap text-xs">{[`${kpis.tong} phòng giám sát`, khuChoPhep ? `Phạm vi xem: khu ${khuChoPhep.join(" · ")}` : "3 khu: C1 · C4 · Q2", "8 AHU", "Cập nhật mỗi giờ"].map((p) => <span key={p} className="bg-surface ring-1 ring-line text-body px-3 py-1.5 rounded-full font-medium">{p}</span>)}</div>{!user && <div className="mt-4 inline-flex items-center gap-2 text-xs text-warning bg-warning-soft ring-1 ring-warning-line px-3 py-1.5 rounded-xl font-medium"><LogIn className="w-3.5 h-3.5" strokeWidth={1.8} /> Đăng nhập để thao tác theo phân quyền.</div>}</Card>
+              <StatusAnchor p12Open={p12Open} kpis={kpis} matNguon={matNguon} isLive={isLive} capNhatLuc={live && live.capNhatLuc} khuChoPhep={khuChoPhep} onXemSuCo={() => setTab("events")} />
+              {!user && <div className="inline-flex items-center gap-2 text-xs text-warning bg-warning-soft ring-1 ring-warning-line px-3 py-1.5 rounded-xl font-medium"><LogIn className="w-3.5 h-3.5" strokeWidth={1.8} /> Đăng nhập để thao tác theo phân quyền.</div>}
               {/* 12/08 — BĂNG MẤT NGUỒN ĐẦU TRANG. Sự cố 09:39 (FMS + n8n cùng câm) cho thấy
                   người trực mở trang ra là thấy ngay các ô KPI đầy số, phải cuộn xuống thẻ
                   chênh áp mới biết nguồn đã chết. Trạng thái nguồn phải nằm TRÊN mọi con số
