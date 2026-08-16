@@ -69,6 +69,7 @@ import CamBienPage, { TheDungHinhTongQuan, ModalKetLuanCum, ModalMoLai, CumDrawe
 import { BuocSuCo, KiemSoatXuLy, ApprovalModal, DanhGiaHieuQuaCanhBao } from "../features/incidents/IncidentsParts";
 import ViecCuaBan from "../features/tasks/ViecCuaBan";
 import { RoomCard, RoomDetailModal, KpiListModal, RoomManager } from "../features/dashboard/DashboardParts";
+import GiaoDienCard from "../features/settings/GiaoDienCard";
 import { fmtPhut } from "../lib/dinhDang";
 
 
@@ -1322,6 +1323,7 @@ export default function AppShell() {
               {cfgTab === "hethong" && (
               <div className="space-y-5">
                 <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối Supabase</SectionTitle><div className="space-y-3 mt-4 text-sm">{(() => { const conn = !HAS_SUPABASE ? ["chưa cấu hình", "text-slate-600 bg-slate-100"] : !isLive ? ["DEMO", "text-amber-700 bg-amber-100"] : live.loi ? ["lỗi kết nối", "text-rose-700 bg-rose-100"] : live.dangTai ? ["đang tải…", "text-sky-700 bg-sky-100"] : ["đã kết nối", "text-teal-700 bg-teal-100"]; const keyState = HAS_SUPABASE ? ["đã nạp", "text-teal-700 bg-teal-100"] : ["thiếu .env", "text-rose-700 bg-rose-100"]; const rows = [{ k: "Nguồn dữ liệu", v: isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu", s: conn }, { k: "Khóa môi trường", v: HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập", s: keyState }, { k: "Cập nhật gần nhất", v: live.capNhatLuc ? live.capNhatLuc.toLocaleString("vi-VN") : "—", s: conn }]; return rows.map((r, i) => <div key={i} className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0"><span className="text-slate-500 w-44">{r.k}</span><code className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded-lg ring-1 ring-slate-200 flex-1">{r.v}</code><span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.s[1]}`}>{r.s[0]}</span></div>); })()}</div>{isLive && live.loi && <p className="text-[11px] text-rose-600 mt-3">Chi tiết lỗi: {live.loi.thong_bao || live.loi.message || "không xác định"}</p>}</Card>
+                <GiaoDienCard />
                 <ChuoiHashCard isLive={isLive} />
                 <DoiMatKhauCard user={user} isLive={isLive} />
               </div>

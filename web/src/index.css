@@ -1,9 +1,12 @@
+@import "./theme/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 html, body, #root { height: 100%; }
-body { margin: 0; -webkit-font-smoothing: antialiased; }
+/* Nền/chữ lấy từ semantic token — đổi theme là đổi cả trang (G2 17/08/2026). */
+body { margin: 0; -webkit-font-smoothing: antialiased; background: var(--bg-canvas); color: var(--text-default); }
 
 /* ============================================================
    Mảng 4 — Chỉ báo focus cho bàn phím (WCAG 2.4.7 Focus Visible).
@@ -14,7 +17,7 @@ body { margin: 0; -webkit-font-smoothing: antialiased; }
    cho :focus-visible nên click chuột KHÔNG hiện vòng (không gây rối thị giác).
    ============================================================ */
 :focus-visible {
-  outline: 2px solid #1E72B8 !important;   /* sky sâu — đủ tương phản ≥3:1 với nền trắng */
+  outline: 2px solid var(--focus) !important;   /* token --focus — đủ tương phản ≥3:1 cả 2 theme */
   outline-offset: 2px;
   border-radius: 3px;
 }

@@ -1,0 +1,114 @@
+/* ============================================================
+   tokens.css — semantic token Light/Dark (G2 nâng cấp 17/08/2026).
+   Nguồn thiết kế: deep-research-report (8) — "Aqua Clinical" trưởng thành:
+   Light giữ hệ thủy, tăng tách lớp surface; Dark = "lacquered clinical
+   instrument" (nền xanh-đen sâu, không card trắng, không neon).
+   MỌI component lấy màu qua var(--…); cấm hard-code hex/class màu Tailwind.
+   Sau khi đổi token PHẢI chạy: node scripts/kiem-mau.mjs (gate contrast WCAG).
+   ============================================================ */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Canvas & surfaces */
+  --bg-canvas: #EAF2F5;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #E1EDF1;
+  --bg-raised: #FFFFFF;
+
+  /* Text */
+  --text-strong: #0B1F2E;
+  --text-default: #243B4D;
+  --text-muted: #526878;
+  --text-inverse: #FFFFFF;
+
+  /* Borders */
+  --border: #C4D4DC;
+  --border-strong: #9FB7C3;
+
+  /* Brand / navigation */
+  --anchor: #102A3E;
+  --anchor-soft: #143C50;
+
+  --primary: #0A6E68;
+  --primary-hover: #085A55;
+  --primary-soft: #DCEFEB;
+
+  --info: #1768A1;
+  --info-soft: #E0EEF8;
+
+  /* Semantics */
+  --success: #0A6E68;
+  --success-soft: #DCEFEB;
+
+  --warning: #8A5300;
+  --warning-soft: #F7E7C1;
+
+  --danger: #A72924;
+  --danger-soft: #F7DEDC;
+
+  --missing: #81501F;
+  --missing-soft: #F1E2D3;
+
+  --focus: #0B67B2;
+
+  /* Chart */
+  --chart-grid: #CCD9DF;
+  --chart-axis: #526878;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-canvas: #08141D;
+  --bg-surface: #0E202B;
+  --bg-subtle: #15303C;
+  --bg-raised: #183744;
+
+  --text-strong: #F3F8FA;
+  --text-default: #D8E4E9;
+  --text-muted: #AFC1C9;
+  --text-inverse: #07131B;
+
+  --border: #2B4A57;
+  --border-strong: #456473;
+
+  --anchor: #071018;
+  --anchor-soft: #0D2933;
+
+  --primary: #4FC1B5;
+  --primary-hover: #6CCEC4;
+  --primary-soft: #123D3A;
+
+  --info: #73B8E6;
+  --info-soft: #15344A;
+
+  --success: #55C7B8;
+  --success-soft: #123B37;
+
+  --warning: #F0B45A;
+  --warning-soft: #3A2B12;
+
+  --danger: #F08078;
+  --danger-soft: #411D1B;
+
+  --missing: #D9A26C;
+  --missing-soft: #39291D;
+
+  --focus: #77C7FF;
+
+  --chart-grid: #27424F;
+  --chart-axis: #AFC1C9;
+}
+
+/* ---------- lớp tiện ích semantic (thay cho bg-white/ring-slate) ---------- */
+.surface {
+  background: var(--bg-surface);
+  color: var(--text-default);
+}
+.surface--subtle { background: var(--bg-subtle); }
+.page-title { color: var(--text-strong); }
+.meta { color: var(--text-muted); }
+.button-primary { color: var(--text-inverse); background: var(--primary); }
+.button-primary:hover { background: var(--primary-hover); }
