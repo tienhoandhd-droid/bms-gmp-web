@@ -1,5 +1,6 @@
 // TrendPage.jsx — trang Xu hướng (tách move-only từ App.jsx 17/08/2026).
 import { AiSections } from "./AiSections";
+import InspectorDrawer from "../../components/layout/InspectorDrawer";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Activity, AlertOctagon, AlertTriangle, Check, CheckCircle2, ChevronDown, CircleDot, FileBarChart, Gauge, LineChart as LineIcon, Mail, Minus, Printer, Save, Search, Sparkles, TrendingDown, TrendingUp, Wifi } from "lucide-react";
@@ -218,6 +219,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [dtFromDraft, setDtFromDraft] = useState("");
   const [dtToDraft, setDtToDraft] = useState("");
   const [aiResult, setAiResult] = useState(null);
+  const [diemChon, setDiemChon] = useState(null);   // G3: điểm được click trên biểu đồ chính → inspector
   const [aiBusy, setAiBusy] = useState(false);        // đang gọi AI qua workflow
   const [dangInBaoCao, setDangInBaoCao] = useState(false); // đang chuẩn bị in (chờ AI xong)
   const [aiNote, setAiNote] = useState(null);         // ghi chú trạng thái (vd: lỗi → dùng bản cục bộ)
@@ -497,6 +499,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const prevData = (soKyTruoc && donVi === "NGAY" && !dtFrom && !dtTo && (prevSeries[trendKey] || []).length)
     ? (prevSeries[trendKey] || []).map((p) => p.comp) : null;
   // A3 — overlay SỰ CỐ (⚑) lên đường xu hướng: lọc theo phạm vi đang xem, tìm điểm gần nhất.
+  const chonDiem = (prm) => { if (prm && prm.dataIndex != null) setDiemChon(prm.dataIndex); };
   const incidentMarks = useMemo(() => {
     if (!isLive || !liveIncidents || !liveIncidents.length || !view.length) return null;
     const roomsById = {}; (liveRooms || []).forEach((r) => { roomsById[r.id] = r; });
@@ -894,7 +897,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             <p className="text-[12px] text-muted mt-1">% đạt = 100% − % ngoài giới hạn (OOS). Đường dưới mốc 80% là kỳ cần chú ý.</p>
             <div className="mt-3">{showMulti
               ? <Chart type="complyPerMetric" data={viewMulti} present={sensorsPresent} h={296} />
-              : <Chart type="complyTotal" data={view} idSuffix="RoomOne" incidents={incidentMarks} prevData={prevData} h={296} />}</div>
+              : <Chart type="complyTotal" data={view} idSuffix="RoomOne" incidents={incidentMarks} prevData={prevData} h={296} onPointClick={chonDiem} />}</div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted">{showMulti ? sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: SENSOR_COLOR[k] }} /> {SENSOR_META[k]?.label || k}</span>) : (<><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_OK }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_BAD }} /> &lt; 80% (điểm đỏ)</span></>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: "var(--warning-line)" }} /> Ngưỡng 80%</span></div>
           </Card>
           {/* (3) SPC — Levey-Jennings quanh nền 30 ngày (A2) */}
@@ -921,7 +924,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           {/* (1) % đạt / OOS TOÀN PHẦN (hoặc theo chỉ tiêu đang chọn) */}
           <Card className="p-6"><SectionTitle icon={LineIcon} hint={`${activeScope.name} · ${sensor === "ALL" ? "toàn phần" : SENSOR_META[sensor]?.label} · theo ${isHourly ? "giờ" : "ngày"}`}>① % đạt / OOS {sensor === "ALL" ? "toàn phần" : `— ${SENSOR_META[sensor]?.label}`} theo thời gian</SectionTitle>
             <p className="text-[12px] text-muted mt-1">{sensor === "ALL" ? "Tổng hợp mọi cảm biến trong phạm vi" : `Chỉ riêng ${SENSOR_META[sensor]?.label}`}. % đạt = 100% − % ngoài giới hạn (OOS). Vùng xanh nhạt minh hoạ mức đạt.</p>
-            <div className="mt-3"><Chart type="complyTotal" data={view} idSuffix="Large" incidents={incidentMarks} prevData={prevData} h={296} /></div>
+            <div className="mt-3"><Chart type="complyTotal" data={view} idSuffix="Large" incidents={incidentMarks} prevData={prevData} h={296} onPointClick={chonDiem} /></div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted"><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_OK }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_BAD }} /> &lt; 80% (điểm đỏ)</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: "var(--warning-line)" }} /> Ngưỡng 80%</span></div>
           </Card>
           {/* (2) % đạt / OOS THEO TỪNG CHỈ TIÊU */}
@@ -1050,6 +1053,23 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <div className="mt-3"><Chart type="roomDayHeat" rooms={maTran.rooms} days={maTran.days} values={maTran.values} height={Math.max(180, maTran.rooms.length * 20 + 70)} h={Math.max(180, maTran.rooms.length * 20 + 70)} /></div>
       </Card>
       )}
+        {diemChon != null && view[diemChon] && (() => { const d = view[diemChon]; const sc = (incidentMarks || []).filter((m) => m.idx === diemChon); return (
+          <InspectorDrawer onClose={() => setDiemChon(null)} eyebrow={`${activeScope.name} · ${SENSORS.find((x) => x.k === sensor).label}`} title={`Chi tiết ${d.label}`}>
+            <div className="grid grid-cols-2 gap-2 text-[13px]">
+              <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Tỉ lệ đạt</span><span className="font-semibold text-body tabular-nums text-[18px]">{d.comp != null ? `${d.comp}%` : "—"}</span></div>
+              <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Độ đầy dữ liệu</span><span className="font-semibold text-body tabular-nums text-[18px]">{d.dq != null ? `${d.dq}%` : "—"}</span></div>
+              <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Giờ cảnh báo</span><span className="font-semibold text-warning tabular-nums">{d.warnH}</span></div>
+              <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Giờ nghiêm trọng</span><span className="font-semibold text-danger tabular-nums">{d.critH}</span></div>
+            </div>
+            <div>
+              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Phiếu sự cố mở trong kỳ này</p>
+              {sc.length === 0 ? <p className="mt-1.5 text-[12px] text-muted italic">Không có phiếu sự cố gắn với mốc này.</p>
+                : <ul className="mt-1.5 space-y-1">{sc.map((m, i) => <li key={i} className="text-[13px] text-body">⚑ {m.name}</li>)}</ul>}
+              <p className="mt-2 text-[12px] text-muted">Xem đầy đủ ở tab <b>Sự cố</b>.</p>
+            </div>
+            <p className="text-[12px] meta">Số liệu tất định do hệ thống tính — bấm điểm khác trên biểu đồ để so sánh.</p>
+          </InspectorDrawer>
+        ); })()}
         {/* G3: Nhận định hỗ trợ đặt SAU toàn bộ dữ liệu tất định (thứ tự theo báo cáo nâng cấp) */}
         {!aiBusy && aiResult && (() => { const al = [{ l: "Kiểm soát tốt", c: "text-success", bg: "bg-success-soft", ring: "ring-success-line" }, { l: "Cần chú ý", c: "text-info", bg: "bg-info-soft", ring: "ring-info-line" }, { l: "Cảnh báo", c: "text-warning", bg: "bg-warning-soft", ring: "ring-warning-line" }, { l: "Hành động", c: "text-danger", bg: "bg-danger-soft", ring: "ring-danger-line" }][aiResult.level]; return (
           <Card className={`p-5 ring-1 ${al.ring}`}>

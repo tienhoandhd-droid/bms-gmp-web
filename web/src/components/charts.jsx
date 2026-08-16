@@ -64,9 +64,11 @@ const tooltipBase = () => ({ backgroundColor: T().surface, borderColor: T().bord
 const gradient = (c, top = 0.30, bot = 0.02) => new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: echarts.color.modifyAlpha(c, top) }, { offset: 1, color: echarts.color.modifyAlpha(c, bot) }]);
 
 // ---- Wrapper React quanh ECharts: init 1 lần, cập nhật option, tự resize ----
-function EChart({ option, height = 200, width = "100%", className = "", group = null }) {
+function EChart({ option, height = 200, width = "100%", className = "", group = null, onPointClick = null }) {
   const elRef = useRef(null);
   const instRef = useRef(null);
+  const clickRef = useRef(onPointClick);
+  clickRef.current = onPointClick;
   useEffect(() => {
     const inst = echarts.init(elRef.current, null, { renderer: "canvas" });
     instRef.current = inst;
@@ -75,6 +77,19 @@ function EChart({ option, height = 200, width = "100%", className = "", group = 
     reg.set(elRef.current, inst);
     // Tooltip ĐỒNG BỘ: các chart cùng `group` (vd 3 chỉ tiêu 1 phòng) rê chuột cùng thời điểm.
     if (group) { inst.group = group; echarts.connect(group); }
+    inst.on("click", (prm) => { if (clickRef.current) clickRef.current(prm); });
+    // Click bất kỳ đâu trong vùng lưới → quy về mốc gần nhất trên trục X (đường
+    // line ẩn symbol rất khó bấm trúng đúng điểm).
+    inst.getZr().on("click", (e) => {
+      if (!clickRef.current) return;
+      const pt = [e.offsetX, e.offsetY];
+      try {
+        if (inst.containPixel("grid", pt)) {
+          const xi = inst.convertFromPixel({ seriesIndex: 0 }, pt);
+          if (xi && xi.length) clickRef.current({ dataIndex: Math.max(0, Math.round(xi[0])) });
+        }
+      } catch { /* chart chưa sẵn sàng */ }
+    });
     const ro = new ResizeObserver(() => instRef.current && instRef.current.resize());
     ro.observe(elRef.current);
     return () => { ro.disconnect(); reg.delete(elRef.current); inst.dispose(); instRef.current = null; };
@@ -165,7 +180,7 @@ export function Sparkline({ chuoi }) {
 }
 
 // ====== (A) % đạt TOÀN PHẦN + vùng OOS + ngưỡng 80% (chấm đỏ khi < 80) ======
-export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents = null, prevData = null }) {
+export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents = null, prevData = null, onPointClick = null }) {
   const prevVals = (prevData || []).map((v) => (v == null ? null : +v));
   const [ymin, ymax] = complyDomain([...data.map((d) => d.comp), ...prevVals]);
   // Overlay SỰ CỐ: vạch dọc ⚑ tại thời điểm mở sự cố — incidents = [{idx, name}]
@@ -185,7 +200,7 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
     toolbox: toolboxLuuAnh("ty-le-dat" + (idSuffix ? "-" + idSuffix : "")),
     dataZoom: dataZoomTruot(6),
     tooltip: {
-      trigger: "axis", ...tooltipBase(),
+      trigger: "axis", axisPointer: { type: "cross", label: { show: false } }, ...tooltipBase(),
       formatter: (ps) => {
         const cur = ps.find((x) => x.seriesName === "Kỳ này") || ps[0];
         const prv = ps.find((x) => x.seriesName === "Kỳ trước");
@@ -213,7 +228,7 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
       },
     ],
   };
-  return <div className={chartWrap} style={{ height: height + 16 }}><EChart option={option} height={height} /></div>;
+  return <div className={chartWrap} style={{ height: height + 16 }}><EChart option={option} height={height} onPointClick={onPointClick} /></div>;
 }
 
 // ====== (B) % đạt THEO TỪNG CHỈ TIÊU (DP/RH/T) ======
@@ -617,7 +632,7 @@ export default function LazyChart({ type, ...p }) {
     case "oosMini": return <OOSMini data={p.data} />;
     case "roomBand": return <RoomBandChart sensorKey={p.sensorKey} series={p.series} baseline={p.baseline} isHourly={p.isHourly} group={p.group} />;
     case "complyPerMetric": return <ChartComplyPerMetric data={p.data} present={p.present} />;
-    case "complyTotal": return <ChartComplyTotal data={p.data} idSuffix={p.idSuffix} incidents={p.incidents} prevData={p.prevData} />;
+    case "complyTotal": return <ChartComplyTotal data={p.data} idSuffix={p.idSuffix} incidents={p.incidents} prevData={p.prevData} onPointClick={p.onPointClick} />;
     case "miniArea": return <MiniArea data={p.data} />;
     case "sparkline": return <Sparkline chuoi={p.chuoi} />;
     case "roomDetail": return <RoomDetailMiniChart pts={p.pts} smin={p.smin} smax={p.smax} mean={p.mean} unit={p.unit} group={p.group} />;
