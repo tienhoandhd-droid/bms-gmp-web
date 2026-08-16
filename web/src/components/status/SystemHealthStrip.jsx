@@ -3,9 +3,24 @@
 // Nguyên tắc HMI: bình thường = im lặng (1 dòng mảnh); bất thường = nổi rõ.
 import React from "react";
 
-export default function SystemHealthStrip({ isLive, matNguon, dangTai, capNhatLuc, thieuDL = 0, suCoCanXuLy = 0, loi = null }) {
+export default function SystemHealthStrip({ isLive, matNguon, dangTai, capNhatLuc, thieuDL = 0, suCoCanXuLy = 0, loi = null, inline = false }) {
   const gio = capNhatLuc ? capNhatLuc.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : null;
 
+  // inline: chip gọn nằm trong header (báo cáo 10 — bình thường không chiếm hàng riêng)
+  if (inline) {
+    if (!isLive) return <span className="inline-flex items-center gap-1.5 text-[13px] text-muted"><span className="w-2 h-2 rounded-full bg-muted/60" /> Dữ liệu mẫu</span>;
+    if (matNguon || loi) return <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-danger"><span className="w-2 h-2 rounded-full bg-danger-solid" /> Mất kết nối{gio ? ` · ${gio}` : ""}</span>;
+    const canh = [];
+    if (thieuDL > 0) canh.push(`${thieuDL} thiếu dữ liệu`);
+    if (suCoCanXuLy > 0) canh.push(`${suCoCanXuLy} sự cố`);
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[13px] text-body" aria-label={`Kết nối ổn định${gio ? `, cập nhật ${gio}` : ""}`}>
+        <span className={`w-2 h-2 rounded-full bg-success-solid ${dangTai ? "animate-pulse" : ""}`} />
+        <span className="hidden xl:inline">{canh.length ? canh.join(" · ") : "Kết nối ổn định"}</span>
+        {gio && <span className="text-muted tabular-nums">{gio}</span>}
+      </span>
+    );
+  }
   if (!isLive) {
     return (
       <div className="flex items-center gap-2 px-1 py-1.5 text-[13px] text-muted">

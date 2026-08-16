@@ -77,6 +77,7 @@ import MobileBottomNav from "../components/navigation/MobileBottomNav";
 import MoreNavigationSheet from "../components/navigation/MoreNavigationSheet";
 import SystemHealthStrip from "../components/status/SystemHealthStrip";
 import IncidentProcessOverview from "../components/process/IncidentProcessOverview";
+import InspectorDrawer from "../components/layout/InspectorDrawer";
 import { fmtPhut } from "../lib/dinhDang";
 
 
@@ -122,6 +123,7 @@ const HIEN_VIEC_CUA_BAN = false;   // 16/07: user tạm ẩn — chưa cần thi
 export default function AppShell() {
   const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return NAV_ITEMS.some((x) => x.k === t) || t === "tasks" ? t : "home"; } catch { return "home"; } });
   const [sheetThem, setSheetThem] = useState(false);   // sheet "Thêm" của bottom-nav mobile
+  const [incChiTiet, setIncChiTiet] = useState(null);  // drawer chi tiết sự cố (bảng 7 cột — báo cáo 10)
   // KEEP-ALIVE tab nặng (Xu hướng, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
   // bằng display:none — đổi tab rồi quay lại KHÔNG tải lại từ đầu (giữ cache chuỗi, kết quả AI,
   // bộ lọc, vị trí cuộn trong tab). Kèm cú "resize" khi quay lại để ECharts tự căn lại khung.
@@ -731,19 +733,23 @@ export default function AppShell() {
         <header className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
             <div className="lg:hidden rounded-2xl bg-surface px-2.5 ring-1 ring-line flex items-center justify-center h-[50px] w-[50px] shrink-0" style={cardShadow}><CpcLogo className="h-10 w-10" /></div>
-            <div className="flex flex-col justify-center min-w-0"><h1 className="text-base sm:text-lg font-bold tracking-tight leading-tight truncate" style={{ color: "var(--text-strong)" }}>Giám sát HVAC phòng sạch</h1><p className="text-[12px] font-semibold tracking-wide mt-0.5" style={{ color: "var(--primary)" }}>Phòng Quản lý chất lượng</p></div>
+            <div className="flex flex-col justify-center min-w-0"><h1 className="text-lg sm:text-xl font-semibold tracking-tight leading-tight truncate" style={{ color: "var(--text-strong)" }}>{(NAV_ITEMS.find((t) => t.k === tab) || {}).label || "Giám sát HVAC phòng sạch"}</h1><p className="text-[12px] font-medium tracking-wide mt-0.5 text-muted">Giám sát HVAC phòng sạch · Phòng Quản lý chất lượng</p></div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap justify-end ml-auto">
+            <div className="hidden md:block"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} /></div>
             {isLive && <SucKhoeWidget sk={live.sucKhoe} dangTai={live.dangTai} />}
             {user ? <div className="flex items-center gap-2.5 rounded-2xl bg-surface pl-2 pr-2 ring-1 ring-line h-[50px]" style={cardShadow}><div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: "var(--primary-solid)" }}>{user.name[0]}</div><div className="leading-tight"><p className="text-xs font-semibold" style={{ color: "var(--text-default)" }}>{user.name}</p><p className="text-[12px] font-medium" style={{ color: "var(--primary)" }}>{ROLE_VI[user.role] || user.role}</p></div><button onClick={() => setPwOpen(true)} className="ml-1 rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đổi mật khẩu"><KeyRound className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => { setUser(null); if (isLive) authDangXuat(); }} className="rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đăng xuất"><LogOut className="w-4 h-4" strokeWidth={1.8} /></button></div>
               : <button onClick={() => setLoginOpen(true)} className="flex items-center gap-2 rounded-2xl px-4 text-sm font-semibold text-white h-[50px]" style={{ background: "var(--primary-solid)", ...cardShadow }}><LogIn className="w-4 h-4" strokeWidth={1.8} /> Đăng nhập</button>}
           </div>
         </header>
 
-        {/* Phase A: một dòng sức khỏe hệ thống thay meta + banner (bình thường = im lặng) */}
-        <div className="mt-3">
-          <SystemHealthStrip isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} />
-        </div>
+        {/* Báo cáo (10): bình thường nằm GỌN trong header; chỉ bất thường mới có ribbon riêng */}
+        {(matNguon || (isLive && live.loi)) && (
+          <div className="mt-3">
+            <SystemHealthStrip isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} />
+          </div>
+        )}
+        <div className="mt-2 md:hidden"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} /></div>
 
         <MobileBottomNav tab={tab} setTab={setTab} role={role} badges={{ events: p12Open }} onMoThem={() => setSheetThem(true)} />
         <MoreNavigationSheet open={sheetThem} onClose={() => setSheetThem(false)} tab={tab} setTab={setTab} role={role} />
@@ -987,50 +993,72 @@ export default function AppShell() {
                   );
                 })}
               </div>
-              {/* ═══ DESKTOP (md+): bảng đầy đủ như cũ ═══ */}
-              <div className="hidden md:block overflow-x-auto"><table className="w-full min-w-[1024px] text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Mức độ", "Chỉ tiêu", "Bắt đầu", "Thời gian", "Trạng thái", "Phụ trách", "Tình trạng dữ liệu", "Hành động"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
+              {/* ═══ DESKTOP (md+): bảng 7 CỘT (báo cáo 10) — chi tiết còn lại trong drawer ═══ */}
+              <div className="hidden md:block overflow-x-auto"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Mức độ", "Sự cố", "Phòng / AHU", "Hiện trạng", "Thời gian", "Phụ trách", "Thao tác"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
                 <tbody>{incSorted.map((inc, idx) => {
-                  // P0-2: ở LIVE, nếu chưa biết bộ luật thì KHOÁ nút — logic chung trong tinhNut.
                   const { terminal, myActs, choAi } = tinhNut(inc);
                   const moCum = idx === 0 || cumAhu(incSorted[idx - 1]) !== cumAhu(inc);
                   const soTrongCum = incSorted.filter((x) => cumAhu(x) === cumAhu(inc)).length;
+                  const q = phuTrachTheoId[inc.dbId];
                   return (
                   <React.Fragment key={inc.id}>
                   {moCum && (
                     <tr className="bg-subtle/70">
-                      <td colSpan={11} className="py-1.5 px-3 text-[12px] font-semibold uppercase tracking-wider text-muted">
+                      <td colSpan={7} className="py-1.5 px-3 text-[12px] font-semibold uppercase tracking-wider text-muted">
                         {cumAhu(inc)} <span className="text-muted font-normal normal-case tracking-normal">· {soTrongCum} sự cố</span>
                       </td>
                     </tr>)}
-                  <tr className={`border-t border-line hover:bg-info-soft/40 transition ${inc.silenced ? "opacity-60" : ""}`}>
-                    <td className="py-3 px-3 font-semibold" style={{ color: "var(--text-strong)" }}>{inc.id}</td>
-                    <td className="py-3 px-3">{inc.cumHienThi
-                      ? <span className="rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] font-medium text-body tabular-nums">{inc.cumHienThi}</span>
-                      : <span className="text-[12px] text-muted">—</span>}</td>
-                    <td className="py-3 px-3">{inc.room}{inc.mucCanhBao === "SUPPRESSED" && <span title="Cảm biến không đo được — hệ ngừng chấm mức, chờ Thiết bị đo. Không gửi email." className="ml-1.5 align-middle inline-block rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] font-medium text-muted">cảm biến đứng tín hiệu</span>}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[12px] text-muted">{kh}</span> : null; })()}</td>
+                  <tr onClick={() => setIncChiTiet(inc)} className={`border-t border-line hover:bg-info-soft/40 transition cursor-pointer ${inc.silenced ? "opacity-60" : ""}`}>
                     <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
-                    <td className="py-3 px-3 text-body">{inc.sensor}{inc.huong && <span className={`ml-1.5 text-[12px] font-semibold px-1.5 py-0.5 rounded ${inc.huong === "CAO" ? "bg-danger-soft text-danger" : inc.huong === "THAP" ? "bg-info-soft text-info" : "bg-warning-soft text-warning"}`}>{inc.huong === "CAO" ? "↑ cao" : inc.huong === "THAP" ? "↓ thấp" : "↕ cả 2"}</span>}
-                      {nhanSoCu(inc)}
-                      {inc.giaTriGanNhat != null && <div className="text-[12px] text-muted mt-0.5 leading-tight">TB 5′ cuối <b className="text-body tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.cuaSo5p && <span className="tabular-nums"> ({inc.cuaSo5p}{inc.ngay5p ? ` · ${inc.ngay5p}` : ""})</span>}{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") ? <span className="text-success"> · đã về ngưỡng</span> : inc.mucGanNhat && <span className="text-danger"> · {inc.mucGanNhat}</span>}{inc.thieuDiem && <span className="text-warning"> · FMS thiếu điểm</span>}{inc.tuoiDuLieuPhut > 75 && <span className="text-warning"> · số liệu {(inc.tuoiDuLieuPhut / 60).toFixed(1)}h trước</span>}</div>}</td>
-                    <td className="py-3 px-3 text-muted tabular-nums text-[12px]">{inc.start.slice(11)}</td>
-                    <td className="py-3 px-3 text-warning font-medium">{inc.duration}h</td>
-                    <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-body font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span></td>
-                    <td className="py-3 px-3">{(() => { const q = phuTrachTheoId[inc.dbId]; if (!q) return <span className="text-[12px] text-muted">—</span>;
-                      const cham = !!q.dang_cham;
-                      return (<div className="leading-tight">
-                        <span className={`text-[12px] font-semibold ${cham ? "text-danger" : "text-body"}`}>{tenVaiTro(q.vai_tro_phu_trach, inc.room) || "—"}</span>
-                        <p className={`text-[12px] mt-0.5 ${cham ? "text-danger font-medium" : "text-muted"}`}>
-                          {q.nguong_phut === 0 ? "bế tắc — Trực + QA được báo ngay"
-                            : cham ? `im lặng ${fmtPhut(q.phut_im_lang)} / ngưỡng ${fmtPhut(q.nguong_phut)}`
-                            : `trong nhịp · ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}`}
-                        </p>
-                        {cham && q.da_bao_truc && <p className="text-[12px] text-warning mt-0.5">đã báo Trực</p>}
-                      </div>); })()}</td>
-                    <td className="py-3 px-3">{user && (role === "ADMIN" || role === "LOT" || role === "QA") ? <button onClick={() => toggleSilence(inc.id)} className={`text-[12px] font-medium rounded-lg px-2.5 py-1.5 ring-1 transition flex items-center gap-1 ${inc.silenced ? "text-muted bg-subtle ring-line hover:bg-subtle" : "text-danger bg-danger-soft ring-danger-line hover:bg-danger-soft"}`}>{inc.silenced ? <><Bell className="w-3.5 h-3.5" strokeWidth={1.8} /> Bật lại</> : <><BellOff className="w-3.5 h-3.5" strokeWidth={1.8} /> Tạm hoãn</>}</button> : <span className="text-[12px] text-muted">{inc.silenced ? "đang tạm hoãn" : "—"}</span>}{inc.silenced && inc.tamDungDen && <div className="text-[12px] text-muted mt-1" title={inc.tamDungLyDo || ""}>tới {new Date(inc.tamDungDen).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})} · {inc.tamDungBoi || "?"}</div>}</td>
-                    <td className="py-3 px-3">{terminal ? <span className="text-success text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[12px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-line text-muted bg-surface hover:bg-subtle">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[12px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[12px] text-muted">Chờ {choAi.map((r) => tenVaiTro(r, inc.room)).join("/")}</span>}</td>
+                    <td className="py-3 px-3"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{inc.id}</span>{inc.cumHienThi && <span className="ml-1.5 rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] font-medium text-body tabular-nums">{inc.cumHienThi}</span>}<span className="block text-[12px] text-muted mt-0.5">{inc.sensor}</span></td>
+                    <td className="py-3 px-3">{inc.room}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[12px] text-muted">{kh}</span> : null; })()}</td>
+                    <td className="py-3 px-3"><span className="inline-flex items-center gap-1.5 text-[12px] text-body font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span>
+                      {inc.mucCanhBao === "SUPPRESSED" && <span className="block mt-0.5 text-[12px] text-muted">cảm biến đứng tín hiệu</span>}
+                      {nhanSoCu(inc) && <span className="block mt-0.5">{nhanSoCu(inc)}</span>}
+                      {(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") && <span className="block mt-0.5 text-[12px] text-success">đã về ngưỡng</span>}</td>
+                    <td className="py-3 px-3 tabular-nums"><span className="text-warning font-medium">{inc.duration}h</span><span className="block text-[12px] text-muted">từ {inc.start.slice(11, 16)}</span></td>
+                    <td className="py-3 px-3">{q ? <div className="leading-tight"><span className={`text-[12px] font-semibold ${q.dang_cham ? "text-danger" : "text-body"}`}>{tenVaiTro(q.vai_tro_phu_trach, inc.room) || "—"}</span>{q.dang_cham && <p className="text-[12px] text-danger mt-0.5">im lặng {fmtPhut(q.phut_im_lang)}/{fmtPhut(q.nguong_phut)}{q.da_bao_truc ? " · đã báo Trực" : ""}</p>}</div> : <span className="text-[12px] text-muted">—</span>}</td>
+                    <td className="py-3 px-3" onClick={(e) => e.stopPropagation()}>{terminal ? <span className="text-success text-[12px] font-medium">Đã khắc phục</span> : !user ? <button onClick={() => setLoginOpen(true)} className="text-[12px] font-medium rounded-xl px-3 py-1.5 ring-1 ring-line text-muted bg-surface hover:bg-subtle">Đăng nhập</button> : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => openApproval(inc, a)} className={`text-[12px] font-medium rounded-xl px-2.5 py-1.5 ring-1 ring-black/5 transition hover:brightness-95 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div> : <span className="text-[12px] text-muted">Chờ {choAi.map((r) => tenVaiTro(r, inc.room)).join("/")}</span>}</td>
                   </tr>
                   </React.Fragment>
-                ); })}</tbody></table></div></>)}</Card>
+                ); })}</tbody></table></div>
+              {/* Drawer chi tiết sự cố + dòng thời gian xử lý (báo cáo 10) */}
+              {incChiTiet && (() => {
+                const inc = incSorted.find((i) => i.id === incChiTiet.id) || incChiTiet;
+                const { terminal, myActs, choAi } = tinhNut(inc);
+                const q = phuTrachTheoId[inc.dbId];
+                return (
+                  <InspectorDrawer onClose={() => setIncChiTiet(null)} eyebrow={[incKhu(inc), incAhu(inc)].filter(Boolean).join(" / ") || "Sự cố"} title={`${inc.id} · ${inc.room}`}
+                    actions={user && (role === "ADMIN" || role === "LOT" || role === "QA") ? <button onClick={() => toggleSilence(inc.id)} className={`rounded-xl px-2.5 py-1 text-[13px] font-medium ring-1 ${inc.silenced ? "text-muted ring-line bg-subtle" : "text-danger ring-danger-line bg-danger-soft"}`}>{inc.silenced ? "Bật lại" : "Tạm hoãn"}</button> : null}>
+                    <div className="flex items-center gap-2 flex-wrap"><MucBadge p={inc.priority} /><span className="inline-flex items-center gap-1.5 text-[13px] text-body font-medium"><span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} />{inc.status}</span>{nhanSoCu(inc)}</div>
+                    <div className="grid grid-cols-2 gap-2 text-[13px]">
+                      <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Chỉ tiêu</span><span className="font-semibold text-strong">{inc.sensor}{inc.huong && <span className="ml-1 text-[12px] font-medium text-muted">({inc.huong === "CAO" ? "vượt trần" : inc.huong === "THAP" ? "dưới sàn" : "cả hai phía"})</span>}</span></div>
+                      <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Bắt đầu · kéo dài</span><span className="font-semibold text-strong tabular-nums">{inc.start.slice(11, 16)} · {inc.duration}h</span></div>
+                      {inc.giaTriGanNhat != null && <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">TB 5′ cuối</span><span className="font-semibold text-strong tabular-nums">{inc.giaTriGanNhat}{inc.donVi}{inc.cuaSo5p && <span className="text-[12px] font-normal text-muted"> ({inc.cuaSo5p})</span>}</span></div>}
+                      {inc.gioiHanDuoi != null && <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Giới hạn</span><span className="font-semibold text-strong tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}{inc.donVi}</span></div>}
+                    </div>
+                    {q && <p className={`text-[13px] ${q.dang_cham ? "text-danger" : "text-body"}`}>Phụ trách: <b>{tenVaiTro(q.vai_tro_phu_trach, inc.room)}</b>{q.nguong_phut === 0 ? " · chờ điều kiện xử lý — Trực + QA được báo" : q.dang_cham ? ` · im lặng ${fmtPhut(q.phut_im_lang)} / ngưỡng ${fmtPhut(q.nguong_phut)}` : ` · trong nhịp (${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)})`}{q.da_bao_truc ? " · đã báo Trực" : ""}</p>}
+                    {inc.silenced && inc.tamDungDen && <p className="text-[12px] text-muted">Đang tạm hoãn tới {new Date(inc.tamDungDen).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} · {inc.tamDungBoi || "?"}{inc.tamDungLyDo ? ` · ${inc.tamDungLyDo}` : ""}</p>}
+                    <div>
+                      <p className="text-[12px] font-semibold uppercase tracking-wider text-muted mb-1.5">Thao tác</p>
+                      {terminal ? <p className="text-[13px] text-success font-medium">Đã khắc phục — phiếu đã đóng.</p>
+                        : !user ? <button onClick={() => setLoginOpen(true)} className="text-[13px] font-medium rounded-xl px-3.5 py-2 ring-1 ring-line text-body bg-surface hover:bg-subtle">Đăng nhập để thao tác</button>
+                        : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => { setIncChiTiet(null); openApproval(inc, a); }} className={`text-[13px] font-medium rounded-xl px-3 py-2 ring-1 ring-black/5 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div>
+                        : <p className="text-[13px] text-muted">Đang chờ {choAi.map((r) => tenVaiTro(r, inc.room)).join(" / ")} thao tác.</p>}
+                    </div>
+                    {Array.isArray(inc.trail) && inc.trail.length > 0 ? (
+                      <div>
+                        <p className="text-[12px] font-semibold uppercase tracking-wider text-muted mb-1.5">Dòng thời gian xử lý</p>
+                        <ol className="space-y-2 border-l-2 border-line pl-3">
+                          {inc.trail.map((t, i) => (
+                            <li key={i} className="text-[13px]"><span className="tabular-nums text-muted">{t.t}</span> <b className="text-strong">{t.who}</b><span className="block text-body">{t.act}</span></li>
+                          ))}
+                        </ol>
+                      </div>
+                    ) : <p className="text-[12px] text-muted">Nhật ký thao tác đầy đủ xem ở <b>Nhật ký & SOP</b>.</p>}
+                  </InspectorDrawer>
+                );
+              })()}</>)}</Card>
               <p className="text-[12px] text-muted text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
               {/* Cụm điều tra — mục RIÊNG, đặt SAU danh sách sự cố: sự cố là thứ vận hành
                   cần thấy trước; cụm là lớp điều tra/kết luận QA, tra cứu sau. */}
