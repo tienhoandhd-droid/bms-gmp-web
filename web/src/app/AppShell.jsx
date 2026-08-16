@@ -33,7 +33,7 @@ import logoCpc1hn from "../assets/logo-cpc1hn.png";
 
 
 // ===== Đã tách move-only 17/08/2026 → lib/uiConst, lib/phanQuyen, lib/dinhDang, lib/moPhong, lib/nutThaoTac, components/ui/CpcLogo =====
-import { PAGE_BG, cardShadow, CARD, STATUS, PRIORITY, MUC, LEVELS, LEVEL_PRIORITY, LEVEL_GLYPH, levelGlyph, SENSOR_META, OOS_FILL, ICON_CANH_BAO } from "../lib/uiConst";
+import { PAGE_BG, cardShadow, CARD, STATUS, PRIORITY, MUC, LEVELS, LEVEL_PRIORITY, LEVEL_GLYPH, levelGlyph, SENSOR_META, ICON_CANH_BAO } from "../lib/uiConst";
 import { ROLE_VI, TEN_VAI_KHU, khuCua, tenVaiTro, docTenVaiTro, FULL_ACCESS, canManageRooms, TAB_ROLES, roleCanSeeTab } from "../lib/phanQuyen";
 import { mulberry32, hashStr, fmtH, fmtDelta, deltaTone, pad, toLocalInput, vnNow } from "../lib/dinhDang";
 import { RAW, ROOM_BIAS, rawSeries, sensorStats, sensorLevel, roomLevel, roomCompliance, roomHourlyOOS, genDaily, genHourly, SCOPES, MASTER, byType, findScope, RANGES, SENSORS, SCOPE_LEVELS, applySensor, getSeries, AREAS, AHUS, defSensors, ROOM_SEED, INITIAL_ROOMS, INCIDENTS0, SYSTEM_ALERTS, SOP } from "../lib/moPhong";
@@ -414,7 +414,7 @@ export default function AppShell() {
 
   const logConfig = (change) => setConfigHistory((h) => [{ t: now.slice(11, 16) + " 29/5", who: user ? `${user.name} (${user.role})` : "(chưa đăng nhập)", change }, ...h]);
   const apMoi = () => live.lamMoi({ nen: true });
-  const baoLoi = (error, fallback) => { if (error) alert(error.thong_bao || error.ma_loi || fallback || "Lỗi kết nối — thử lại."); return !error; };
+  const baoLoi = (error, duPhong) => { if (error) alert(error.thong_bao || error.ma_loi || duPhong || "Lỗi kết nối — thử lại."); return !error; };
   const addRoom = async (r) => {
     if (isLive) { const { error } = await themPhong({ p_ma_phong: r.id, p_ten_phong: r.name, p_khu_vuc: r.area, p_ahu: r.ahu, p_muc_uu_tien: r.priority, p_ghi_chu: r.note || null, p_thieu_du_lieu: !!r.noData, p_cam_bien: (r.sensors || []).map((s) => ({ loai: s.k, min: s.min, max: s.max })), p_actor: user?.email || null }); if (baoLoi(error, "Không thêm được phòng")) await apMoi(); return; }
     setRooms((rs) => [...rs, r]); logConfig(`Thêm phòng ${r.id} (${r.name}) · ${r.noData ? "no-data" : r.sensors.map((s) => s.k).join("/")}`);
@@ -773,7 +773,7 @@ export default function AppShell() {
                   </p>
                   <p className="mt-1 text-[12px] leading-snug text-danger">
                     {skTomTat || "Nguồn dữ liệu không cập nhật."} Hệ <b>không kết luận đạt/không đạt</b> trên số đã cũ — mọi phòng chuyển sang ô “Thiếu dữ liệu”.
-                    Kiểm FMS và n8n ngay: nguồn treo thì phải có người khởi động lại, hệ không tự khỏi.
+                    Kiểm nguồn dữ liệu ngay (chi tiết ở Cấu hình → Hệ thống): nguồn treo thì phải có người khởi động lại, hệ không tự khỏi.
                   </p>
                 </div>
               )}
@@ -948,7 +948,7 @@ export default function AppShell() {
                 <div className="p-2 space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-20 rounded-2xl bg-subtle animate-pulse" />)}</div>
               ) : incFiltered.length === 0 ? (incidentsXem.length === 0 ? (
                 <div className="px-5 py-10 text-center">
-                  <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#E6F4F1" }}><CheckCircle2 className="w-6 h-6" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div>
+                  <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "var(--primary-soft)" }}><CheckCircle2 className="w-6 h-6" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div>
                   <p className="mt-3 text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>Chưa có sự cố nào đang mở</p>
                   <p className="mt-1.5 text-[12px] text-muted max-w-md mx-auto leading-relaxed">Sự cố được <b>tự động tạo</b> khi hệ thống phát hiện mức <b className="text-warning">Cảnh báo</b> hoặc <b className="text-danger">Hành động</b> từ dữ liệu theo giờ. Danh sách trống nghĩa là tất cả phòng đang trong ngưỡng — hoặc chưa có dữ liệu kích hoạt.</p>
                   {isLive && <p className="mt-3 text-[12px] text-muted max-w-md mx-auto">Nếu bạn chắc chắn đang có cảnh báo mà vẫn trống, kiểm tra: lịch chấm điểm dữ liệu có đang chạy (Cài đặt → Hệ thống) · ngưỡng trong <b>Cài đặt</b> · và bạn đã <b>đăng nhập</b> đúng vai trò để xem.</p>}
@@ -1239,7 +1239,7 @@ export default function AppShell() {
                 <div className="mt-5">
                   <div className="relative h-10 rounded-xl overflow-hidden ring-1 ring-line flex text-[12px] font-semibold text-white select-none">
                     <div style={{ width: pct(cfgHT.warn) + "%", background: "var(--primary-solid)" }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Kiểm soát tốt · tự đóng sự cố</span></div>
-                    <div style={{ width: Math.max(0, 100 - pct(cfgHT.warn)) + "%", background: "#ef4444" }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Vượt ngưỡng</span></div>
+                    <div style={{ width: Math.max(0, 100 - pct(cfgHT.warn)) + "%", background: "var(--danger-solid)" }} className="flex items-center justify-center min-w-0"><span className="truncate px-1">Vượt ngưỡng</span></div>
                   </div>
                   <div className="flex justify-between text-[12px] text-muted mt-1 tabular-nums"><span>0</span><span>số điểm lỗi trong 1 giờ →</span><span>60</span></div>
                 </div>
@@ -1363,7 +1363,7 @@ export default function AppShell() {
                       <details className="rounded-2xl ring-1 ring-line px-4 py-3">
                         <summary className="cursor-pointer text-[13px] font-medium text-muted select-none">Thông tin kỹ thuật</summary>
                         <div className="mt-3 space-y-2 text-[13px]">
-                          <div className="flex items-center justify-between gap-3"><span className="text-muted w-44">Nguồn dữ liệu</span><code className="text-xs text-body bg-subtle px-2 py-1 rounded-lg ring-1 ring-line flex-1">{isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu"}</code></div>
+                          <div className="flex items-center justify-between gap-3"><span className="text-muted w-44">Nguồn dữ liệu</span><code className="text-xs text-body bg-subtle px-2 py-1 rounded-lg ring-1 ring-line flex-1">{isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu"}{/* copy-exception: trong details Thông tin kỹ thuật */}</code></div>
                           <div className="flex items-center justify-between gap-3"><span className="text-muted w-44">Khóa môi trường</span><code className="text-xs text-body bg-subtle px-2 py-1 rounded-lg ring-1 ring-line flex-1">{HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập"}</code></div>
                         </div>
                       </details>

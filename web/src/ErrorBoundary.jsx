@@ -60,7 +60,7 @@ export default class ErrorBoundary extends React.Component {
             Giao diện gặp sự cố hiển thị
           </h1>
           <p style={{ fontSize: 13, color: "#4A6072", margin: "0 0 20px", lineHeight: 1.5 }}>
-            Đã có lỗi khi dựng trang. Dữ liệu giám sát trên Supabase KHÔNG bị ảnh hưởng.
+            Đã có lỗi khi dựng trang. Dữ liệu giám sát trên máy chủ KHÔNG bị ảnh hưởng.
             Vui lòng tải lại trang; nếu còn lỗi, báo IT kèm ảnh chụp màn hình.
           </p>
           <button

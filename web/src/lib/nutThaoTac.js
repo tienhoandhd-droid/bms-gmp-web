@@ -61,4 +61,4 @@ export function nutChoVaiTro(dsNut, statusCode, role, daDong = false) {
       style: { color: n.mau_chu, backgroundColor: n.mau_nen },
     }));
 }
-export const STATUS_DOT = { "Chưa xử lý": "bg-danger-solid", "IPC: bất thường": "bg-violet-500", "Đã báo cơ điện": "bg-warning-solid", "Cơ điện đang xử lý": "bg-info-solid", "Cơ điện chờ xử lý": "bg-muted", "Chờ IPC kiểm lại": "bg-success-solid", "Đã khắc phục": "bg-success" };
+export const STATUS_DOT = { "Chưa xử lý": "bg-danger-solid", "IPC: bất thường": "bg-line-strong", "Đã báo cơ điện": "bg-warning-solid", "Cơ điện đang xử lý": "bg-info-solid", "Cơ điện chờ xử lý": "bg-muted", "Chờ IPC kiểm lại": "bg-success-solid", "Đã khắc phục": "bg-success" };

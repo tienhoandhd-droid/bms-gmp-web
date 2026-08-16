@@ -7,8 +7,8 @@ import React from "react";
 import { AlertOctagon } from "lucide-react";
 
 // Màu nhấn dùng TRÊN NỀN ANCHOR (tối ở cả 2 theme) — hằng sáng cố định. (token-ngoai-le)
-const DO_SANG = "#FFB3AB";
-const VANG_SANG = "#F5CE8B";
+const DO_SANG = "#FFB3AB";   // token-ngoai-le: nhấn sáng trên nền anchor tối (cả 2 theme)
+const VANG_SANG = "#F5CE8B"; // token-ngoai-le: nhấn sáng trên nền anchor tối (cả 2 theme)
 
 export default function StatusAnchor({ p12Open, kpis, matNguon, khuChoPhep, onXemSuCo }) {
   const coViec = (p12Open || 0) > 0;

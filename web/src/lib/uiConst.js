@@ -34,7 +34,6 @@ export const levelGlyph = (lvl) => (lvl == null || lvl < 0 ? "–" : (LEVEL_GLYP
 
 // Meta cơ bản (label/unit/màu) dùng chung với charts.jsx qua lib/designTokens — chỉ icon là riêng App.
 export const SENSOR_META = { DP: { ...SENSOR_META_BASE.DP, icon: Gauge }, RH: { ...SENSOR_META_BASE.RH, icon: Droplets }, T: { ...SENSOR_META_BASE.T, icon: Thermometer } };
-export const OOS_FILL = "#df7d62";     // vùng OOS
 
 // Chọn icon cho cảnh báo hệ thống LIVE theo mức
 export const ICON_CANH_BAO = (a) => (a.kind === "critical" ? Wind : a.kind === "warning" ? AlertTriangle : Cpu);

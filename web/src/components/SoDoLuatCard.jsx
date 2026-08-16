@@ -264,7 +264,7 @@ export default function SoDoLuatCard({ dsNut }) {
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-3xl bg-[#102a43] text-white shadow-[0_18px_45px_rgba(15,42,67,0.16)]">
+      <section className="overflow-hidden rounded-3xl text-white" style={{ background: "var(--anchor)" }}>
         <div className="relative px-5 py-5 sm:px-6">
           <div className="absolute -right-12 -top-14 h-40 w-40 rounded-full bg-info/10" />
           <div className="absolute -bottom-20 right-28 h-44 w-44 rounded-full bg-success/10" />
@@ -313,7 +313,7 @@ export default function SoDoLuatCard({ dsNut }) {
             <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-subtle text-muted lg:block" />
           </div>
           <div className="relative rounded-xl border border-line bg-surface p-3">
-            <div className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4 text-violet-600" /><b className="text-[12px] text-body">2. WF1 đánh giá</b></div>
+            <div className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4 text-info" /><b className="text-[12px] text-body">2. Đánh giá dữ liệu</b></div>
             <p className="mt-1.5 text-[12px] leading-relaxed text-muted">Chuẩn hoá cửa sổ giờ, tính số điểm ngoài ngưỡng và 10 phút cuối theo cấu hình hiện hành.</p>
             <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-subtle text-muted lg:block" />
           </div>
@@ -321,13 +321,13 @@ export default function SoDoLuatCard({ dsNut }) {
             <div className="flex items-center gap-2"><CircleDot className="h-4 w-4 text-danger" /><b className="text-[12px] text-body">3. Phân mức</b></div>
             <div className="mt-2 space-y-1 text-[9.8px] leading-snug">
               <p><b className="text-success">Bình thường:</b> OOS ngắn, hoặc 10′ cuối đã về dải — không mở phiếu; sự cố mở đủ 2 giờ sạch thì tự đóng.</p>
-              <p><b className="text-danger">Nghiêm trọng:</b> OOS cả giờ &amp; 10′ cuối vẫn vượt ngưỡng — mở phiếu + đưa vào nhịp email WF8.</p>
+              <p><b className="text-danger">Nghiêm trọng:</b> OOS cả giờ &amp; 10′ cuối vẫn vượt ngưỡng — mở phiếu + đưa vào nhịp email nhắc.</p>
             </div>
             <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-subtle text-muted lg:block" />
           </div>
           <div className="rounded-xl border border-line bg-surface p-3">
             <div className="flex items-center gap-2"><BellRing className="h-4 w-4 text-danger" /><b className="text-[12px] text-body">4. Mở và điều phối</b></div>
-            <p className="mt-1.5 text-[12px] leading-relaxed text-muted">Sự cố mới vào <b>Chưa xử lý</b>. WF8 nhắc đúng vai trò; WF6 giám sát nếu dữ liệu hoặc nhịp nhắc bị đình trệ.</p>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-muted">Sự cố mới vào <b>Chưa xử lý</b>. Hệ thống nhắc đúng vai trò và tự giám sát nếu dữ liệu hoặc nhịp nhắc bị đình trệ.</p>
           </div>
         </div>
         <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-info-soft px-3 py-2 text-[12px] leading-relaxed text-info">
@@ -345,12 +345,12 @@ export default function SoDoLuatCard({ dsNut }) {
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Lọc sơ đồ theo vai trò">
             {["ALL", ...vaiCo].map((v) => {
               const on = vai === v;
-              const m = v === "ALL" ? { net: "#102a43", nen: "#eef2f6", chu: "#334155" } : mv(v);
+              const m = v === "ALL" ? { net: "var(--anchor)", nen: "var(--bg-subtle)", chu: "var(--text-default)" } : mv(v);
               const count = v === "ALL" ? tatCa.length : tatCa.filter((r) => r.vai_tro === v).length;
               return (
                 <button key={v} type="button" aria-pressed={on} onClick={() => setVai(v)}
                   className="rounded-full px-3 py-1.5 text-[12px] font-bold transition ring-1 ring-inset"
-                  style={on ? { background: m.net, color: "#fff", boxShadow: `inset 0 0 0 1px ${m.net}` } : { background: m.nen, color: m.chu, boxShadow: "inset 0 0 0 1px #e2e8f0" }}>
+                  style={on ? { background: m.net, color: "var(--anchor-fg)", boxShadow: `inset 0 0 0 1px ${m.net}` } : { background: m.nen, color: m.chu, boxShadow: "inset 0 0 0 1px var(--border)" }}>
                   {v === "ALL" ? "Tất cả" : (VAI_TRO_TEN[v] || v)} · {count}
                 </button>
               );
@@ -408,8 +408,8 @@ export default function SoDoLuatCard({ dsNut }) {
           <p className="mt-2 text-[12px] leading-relaxed text-success/70">Khi Cơ điện báo không thể xử lý, QA được CC. QA đóng hoặc mở lại trên web theo bảng luật và phải ghi lý do khi xác nhận khắc phục.</p>
         </div>
         <div className="rounded-2xl border border-line bg-subtle/60 p-4">
-          <div className="flex items-center gap-2 text-violet-800"><Wrench className="h-4 w-4" /><b className="text-[12px]">Cơ chế tự bảo vệ</b></div>
-          <p className="mt-2 text-[12px] leading-relaxed text-violet-900/70">Sensor về bình thường đủ 2 giờ liên tiếp thì hệ thống tự đóng ở mọi pha. WF6 theo dõi nếu dữ liệu hoặc cảnh báo bị đứng để báo IT/QA.</p>
+          <div className="flex items-center gap-2 text-body"><Wrench className="h-4 w-4" /><b className="text-[12px]">Cơ chế tự bảo vệ</b></div>
+          <p className="mt-2 text-[12px] leading-relaxed text-muted">Sensor về bình thường đủ 2 giờ liên tiếp thì hệ thống tự đóng ở mọi pha. Hệ thống theo dõi nếu dữ liệu hoặc cảnh báo bị đứng để báo IT/QA.</p>
         </div>
       </section>
 

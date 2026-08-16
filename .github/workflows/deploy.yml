@@ -47,6 +47,19 @@ jobs:
       - name: Bộ kiểm import (kiem_tra/kiem_import.py)
         working-directory: ${{ github.workspace }}
         run: python3 kiem_tra/kiem_import.py
+      # Bộ kiểm UX/UI (báo cáo 10): màu qua token · từ ngữ vận hành · contrast WCAG.
+      # CHẶN deploy nếu vi phạm — nguồn: web/kiemtra-ui/.
+      - name: Gate UX/UI tĩnh (màu · từ ngữ · contrast)
+        run: |
+          npm run check:colors
+          npm run check:copy
+          npm run check:contrast
+      # Bộ kiểm runtime: build bản demo (env rỗng) rồi duyệt 10 tab × 2 theme × 3 viewport
+      # bằng Chrome thật — bắt pageerror, tràn ngang, dark kẹt light, lộ thuật ngữ hạ tầng.
+      - name: Bộ kiểm UX/UI runtime (test:ui)
+        run: |
+          npx puppeteer browsers install chrome
+          npm run test:ui
       # Theo dõi lỗ hổng phụ thuộc mức cao — không chặn (advisory phụ thuộc gián tiếp).
       - run: npm audit --omit=dev --audit-level=high || true
       - run: npm run build

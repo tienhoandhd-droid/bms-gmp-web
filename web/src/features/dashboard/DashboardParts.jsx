@@ -84,10 +84,10 @@ function RoomDetailModal({ room, cfg, onClose }) {
 
 function KpiListModal({ kind, groups, incidents, cfg, onClose, onPickRoom, onPickIncident, onGotoIncidents }) {
   const META = {
-    dat:   { title: "Phòng đạt", desc: "Tỷ lệ đạt ≥ 80% trong 1 giờ gần nhất", color: "var(--primary)", grad: "#E6F4F1", Icon: CheckCircle2 },
-    khong: { title: "Phòng không đạt", desc: "Tỷ lệ đạt < 80% — nên kiểm tra ngay", color: "var(--danger)", grad: "#FBE9E4", Icon: AlertTriangle },
-    thieu: { title: "Thiếu dữ liệu", desc: "Mất tín hiệu hoặc dữ liệu quá cũ — không coi là đạt", color: "var(--warning)", grad: "#FBF1DE", Icon: HelpCircle },
-    p1:    { title: "Sự cố Nghiêm trọng đang mở", desc: "Phòng trọng yếu & quan trọng — ưu tiên xử lý", color: "var(--info)", grad: "#E6F1FA", Icon: Activity },
+    dat:   { title: "Phòng đạt", desc: "Tỷ lệ đạt ≥ 80% trong 1 giờ gần nhất", color: "var(--primary)", Icon: CheckCircle2 },
+    khong: { title: "Phòng không đạt", desc: "Tỷ lệ đạt < 80% — nên kiểm tra ngay", color: "var(--danger)", Icon: AlertTriangle },
+    thieu: { title: "Thiếu dữ liệu", desc: "Mất tín hiệu hoặc dữ liệu quá cũ — không coi là đạt", color: "var(--warning)", Icon: HelpCircle },
+    p1:    { title: "Sự cố Nghiêm trọng đang mở", desc: "Phòng trọng yếu & quan trọng — ưu tiên xử lý", color: "var(--info)", Icon: Activity },
   }[kind];
   const isP1 = kind === "p1";
   const rooms = isP1 ? [] : (groups[kind] || []);

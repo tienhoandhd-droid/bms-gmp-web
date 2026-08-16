@@ -9,7 +9,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:colors": "node kiemtra-ui/check-ui-colors.mjs",
+    "check:copy": "node kiemtra-ui/check-ui-copy.mjs",
+    "check:contrast": "node kiemtra-ui/check-ui-contrast.mjs",
+    "test:ui": "node kiemtra-ui/test-ui.mjs",
+    "quality": "npm run check:colors && npm run check:copy && npm run check:contrast && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.106.2",

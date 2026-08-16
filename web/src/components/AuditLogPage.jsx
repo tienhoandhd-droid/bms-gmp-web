@@ -36,7 +36,7 @@ const SOURCE_OPTIONS = [
 const SOURCE_META = {
   web: { label: 'Web', cls: 'bg-info-soft text-info ring-info-line' },
   email: { label: 'Email', cls: 'bg-warning-soft text-warning ring-warning-line' },
-  web_email: { label: 'Email → web', cls: 'bg-violet-50 text-violet-700 ring-violet-200' },
+  web_email: { label: 'Email → web', cls: 'bg-info-soft text-info ring-info-line' },
   system: { label: 'Hệ thống', cls: 'bg-subtle text-body ring-line' },
   api: { label: 'API', cls: 'bg-success-soft text-success ring-success-line' },
 }
@@ -384,11 +384,11 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-3xl bg-surface/95 p-5 ring-1 ring-[#D8E6EC] sm:p-6" style={{ boxShadow: '0 12px 34px -18px rgba(16,40,55,0.30)' }}>
+      <div className="rounded-3xl bg-surface/95 p-5 ring-1 ring-line sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2"><FileText className="h-4 w-4" style={{ color: "var(--primary)" }} /><h3 className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>Nhật ký audit</h3><span className="text-[12px] uppercase tracking-wider text-muted">thao tác sự cố</span></div>
-            <p className="mt-1.5 max-w-3xl text-[12px] leading-relaxed text-muted">Tra cứu thao tác web, email và sự kiện hệ thống đã ghi tại Supabase. Dữ liệu nguồn là audit trail append-only theo ALCOA+.</p>
+            <p className="mt-1.5 max-w-3xl text-[12px] leading-relaxed text-muted">Tra cứu thao tác web, email và sự kiện hệ thống đã ghi tại máy chủ. Dữ liệu nguồn là audit trail append-only theo ALCOA+.</p>
           </div>
           <div className="text-right text-[12px] text-muted"><p>Khoảng đang áp dụng</p><p className="mt-0.5 font-medium tabular-nums text-body">{appliedSummary}</p></div>
         </div>
@@ -421,7 +421,7 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
         {(validationError || exportError) && <p className="mt-3 text-[12px] text-danger">{validationError || exportError}</p>}
       </div>
 
-      <div className="overflow-hidden rounded-3xl bg-surface/95 ring-1 ring-[#D8E6EC]" style={{ boxShadow: '0 12px 34px -18px rgba(16,40,55,0.30)' }}>
+      <div className="overflow-hidden rounded-3xl bg-surface/95 ring-1 ring-line">
         {error ? <div className="px-6 py-12 text-center"><p className="text-[13px] font-medium text-danger">{error}</p>{!forbidden && <button onClick={refresh} className="mt-3 rounded-xl bg-surface px-3 py-1.5 text-[12px] text-body ring-1 ring-line">Thử lại</button>}</div>
           : loading && rows.length === 0 ? <div className="space-y-2 p-6">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-subtle" />)}</div>
             : rows.length === 0 ? <div className="px-6 py-12 text-center"><FileText className="mx-auto h-7 w-7 text-muted" /><p className="mt-3 text-[13px] font-medium text-body">Không có bản ghi audit khớp bộ lọc.</p><p className="mt-1 text-[12px] text-muted">Thử mở rộng khoảng thời gian hoặc đặt lại điều kiện tra cứu.</p></div>

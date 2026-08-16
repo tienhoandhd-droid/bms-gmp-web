@@ -32,6 +32,7 @@ function regStat(ys) {
 // In tab Xu hướng thành BÁO CÁO A4 chuẩn form: biểu đồ ECharts (canvas) được
 // XUẤT THÀNH ẢNH (getDataURL, loại toolbox/dataZoom) — nếu chỉ copy innerHTML thì
 // canvas ra TRẮNG. Giữ nguyên CSS ứng dụng để thẻ đẹp; thêm khổ giấy A4 + tiêu đề.
+/* mau:off — printTrend: HTML bản in A4, cửa sổ in không có tokens.css (nền trắng chủ đích) */
 function printTrend(meta = {}) {
   try {
     const node = document.getElementById("trendPrintArea");
@@ -105,6 +106,7 @@ ${styleTags}
 
 // ====== COMBOBOX TÌM KIẾM (kiểu web bán hàng) cho chọn đối tượng ======
 // Gõ để lọc; danh sách thả xuống có highlight, %đạt, khu/AHU; chọn bằng chuột hoặc bàn phím.
+/* mau:on */
 function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -151,7 +153,7 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
     if (open && listRef.current) { const el = listRef.current.querySelector(`[data-i="${hi}"]`); if (el) el.scrollIntoView({ block: "nearest" }); }
   }, [hi, open]);
 
-  const pctColor = (p) => (p == null ? "#94a3b8" : p < 70 ? COMPLY_BAD : p < 88 ? "#d99a2b" : COMPLY_OK);
+  const pctColor = (p) => (p == null ? "var(--text-muted)" : p < 70 ? COMPLY_BAD : p < 88 ? "var(--warning-solid)" : COMPLY_OK);
   const hl = (text) => {
     if (!ql) return text;
     const i = text.toLowerCase().indexOf(ql);
@@ -703,7 +705,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         phan_tich_sau: phanTichSau,       // độ phủ DL + OOS tách trên/dưới + lịch sử (kỳ trước, TB 7/30 ngày)
         quet_bat_thuong: quetBatThuong,   // (Tổng quan/Khu vực) xếp hạng khu vực + phòng tốt/xấu + đợt bất thường có mốc thời gian
       };
-      const r = await phanTichAiQuaWorkflow(aiUrl, payload, undefined, (m) => setAiNote(m), sau ? "WF7_SAU" : "WF7");
+      const r = await phanTichAiQuaWorkflow(aiUrl, payload, undefined, (m) => setAiNote(m), sau ? "WF7_SAU" : "WF7"); // copy-exception: mã kênh nội bộ, không hiển thị
       setAiBusy(false);
       if (r.ok) { setAiNote(null); const loc = buildLocalAnalysis(); finishAI(r.text, r.level != null ? r.level : loc.level, sau ? "openai_sau" : "openai"); return; }
       // lỗi → rơi về bản cục bộ + ghi chú trạng thái (KHÔNG nối vào nội dung để giữ 4 mục sạch)
@@ -849,7 +851,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <div className="flex gap-2">
           <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo (chờ AI)…" : "In báo cáo A4 (kèm nhận định hỗ trợ)"}</button>
           <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "Tạo nhận định"}</button>
-          {isLive && aiWebhookSau && <button onClick={() => runAI(true)} disabled={aiBusy} title="Phân tích sâu hơn: nguyên nhân gốc + CAPA đa tầng (IPC/Cơ điện/BMS) + đề xuất phòng ngừa — dùng model mạnh, chạy ~1–3 phút" className={`text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={2} /> {aiBusy ? "Đang phân tích chi tiết…" : "Phân tích chi tiết (CAPA)"}</button>}
+          {isLive && aiWebhookSau && <button onClick={() => runAI(true)} disabled={aiBusy} title="Phân tích sâu hơn: nguyên nhân gốc + CAPA đa tầng (IPC/Cơ điện/BMS) + đề xuất phòng ngừa — dùng model mạnh, chạy ~1–3 phút" className={`text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ background: "var(--info-solid)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={2} /> {aiBusy ? "Đang phân tích chi tiết…" : "Phân tích chi tiết (CAPA)"}</button>}
         </div>
       </Card>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1016,7 +1018,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       </Card>
       )}
       <Card className="p-6"><SectionTitle icon={CircleDot} hint="% điểm đạt mỗi cấp · theo dõi nhanh">Xu hướng theo cấp</SectionTitle>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-(RANGE_DAYS[range] || 30)) : getSeries(sc, sensor, range); const lt = d[d.length - 1] || {}; const p = lt.comp; const pc = p == null ? "#94a3b8" : p < 70 ? COMPLY_BAD : p < 88 ? "#d99a2b" : COMPLY_OK; return <div key={lvl} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold" style={{ color: "var(--text-strong)" }}>{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-[12px] px-2 py-0.5 rounded-full text-body bg-surface ring-1 ring-line">{sc.id}</span></div><div className="flex items-baseline gap-1.5 mb-1"><span className="text-2xl font-light tabular-nums leading-none" style={{ color: pc }}>{p == null ? "—" : fmtPct(p)}</span><span className="text-[12px] text-muted">% đạt mới nhất</span></div><p className="text-[12px] text-muted mb-1 truncate">{sc.name}</p><Chart type="miniArea" data={d} h={84} /></div>; })}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-(RANGE_DAYS[range] || 30)) : getSeries(sc, sensor, range); const lt = d[d.length - 1] || {}; const p = lt.comp; const pc = p == null ? "var(--text-muted)" : p < 70 ? COMPLY_BAD : p < 88 ? "var(--warning-solid)" : COMPLY_OK; return <div key={lvl} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold" style={{ color: "var(--text-strong)" }}>{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-[12px] px-2 py-0.5 rounded-full text-body bg-surface ring-1 ring-line">{sc.id}</span></div><div className="flex items-baseline gap-1.5 mb-1"><span className="text-2xl font-light tabular-nums leading-none" style={{ color: pc }}>{p == null ? "—" : fmtPct(p)}</span><span className="text-[12px] text-muted">% đạt mới nhất</span></div><p className="text-[12px] text-muted mb-1 truncate">{sc.name}</p><Chart type="miniArea" data={d} h={84} /></div>; })}</div>
       </Card>
 
       <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="Tổng → Khu → AHU → Phòng · tỉ lệ đạt 1/3/7 ngày">Xếp hạng rủi ro</SectionTitle>
@@ -1031,7 +1033,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
          !duBao ? <p className="mt-3 text-[13px] text-muted italic">Chưa đủ dữ liệu để dự báo cho phạm vi đang chọn.</p> :
          (duBao.du_bao_dang_tin && (duBao.du_bao || []).length) ? (() => {
            const last = duBao.du_bao[duBao.du_bao.length - 1];
-           const hv = { cai_thien: ["Cải thiện", COMPLY_OK], xau_di: ["Xấu đi", COMPLY_BAD], on_dinh: ["Ổn định", "#5f7a90"] }[duBao.huong] || ["—", "#5f7a90"];
+           const hv = { cai_thien: ["Cải thiện", COMPLY_OK], xau_di: ["Xấu đi", COMPLY_BAD], on_dinh: ["Ổn định", "var(--text-muted)"] }[duBao.huong] || ["—", "var(--text-muted)"];
            return (
              <div className="mt-3">
                <div className="flex items-baseline gap-3 flex-wrap">
