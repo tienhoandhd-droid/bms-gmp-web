@@ -14,7 +14,7 @@ import logoCpc1hn from '../assets/logo-cpc1hn.png'
 
 const NAVY = '#1E3A56'
 const TEAL = '#0E7C6B'
-const PAGE_BG = 'linear-gradient(155deg,#EAF3F8 0%,#FAFDFF 45%,#E2F2EE 100%)'
+const PAGE_BG = 'var(--bg-canvas)'
 
 // Đọc token từ hash NGAY khi nạp module rồi dọn URL (token là bí mật — không
 // để nằm trên thanh địa chỉ/lịch sử). GoTrue trả về dạng:
@@ -32,7 +32,7 @@ try { window.history.replaceState(null, '', window.location.pathname) } catch { 
 function Khung({ children }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: PAGE_BG }}>
-      <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200 p-7 sm:p-8">{children}</div>
+      <div className="w-full max-w-md rounded-3xl bg-surface shadow-2xl ring-1 ring-line p-7 sm:p-8">{children}</div>
     </div>
   )
 }
@@ -63,10 +63,10 @@ function DauTrang({ type = 'lock', tieuDe, phu }) {
       <HuyHieu type={type} />
       <div className="flex items-center gap-1.5 mt-4">
         <img src={logoCpc1hn} onError={(e) => { e.currentTarget.style.display = 'none' }} alt="" className="h-4 w-4 object-contain opacity-70" />
-        <span className="text-[10.5px] font-bold tracking-[0.14em] uppercase text-slate-400">BMS · CPC1HN</span>
+        <span className="text-[10.5px] font-bold tracking-[0.14em] uppercase text-muted">BMS · CPC1HN</span>
       </div>
       <h1 className="mt-2 text-[22px] font-bold leading-tight" style={{ color: NAVY }}>{tieuDe}</h1>
-      <p className="mt-1.5 text-[13px] text-slate-500 leading-relaxed max-w-[300px]">{phu}</p>
+      <p className="mt-1.5 text-[13px] text-muted leading-relaxed max-w-[300px]">{phu}</p>
     </div>
   )
 }
@@ -78,10 +78,10 @@ function OMatKhau({ value, onChange, placeholder, autoFocus }) {
     <div className="relative">
       <input type={hien ? 'text' : 'password'} value={value} onChange={onChange} autoFocus={autoFocus} required
         placeholder={placeholder} autoComplete="new-password"
-        className="w-full rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3.5 py-3 pr-11 text-sm outline-none transition focus:bg-white focus:ring-2 focus:ring-teal-400/70" />
+        className="w-full rounded-xl bg-subtle ring-1 ring-line px-3.5 py-3 pr-11 text-sm outline-none transition focus:bg-surface focus:ring-2 focus:ring-success-line/70" />
       <button type="button" onClick={() => setHien((v) => !v)} tabIndex={-1}
         aria-label={hien ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600">
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-body">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           {hien
             ? <><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a13.3 13.3 0 0 1-2.16 2.83M6.1 6.1A13.3 13.3 0 0 0 2 12s3.5 7 10 7a9.1 9.1 0 0 0 3.32-.6M1 1l22 22" /></>
@@ -108,30 +108,30 @@ function FormGuiLai({ loiBanDau }) {
   if (tt === 'da_gui') return (
     <Khung>
       <DauTrang type="check" tieuDe="Đã gửi email" phu="Kiểm tra hộp thư để tiếp tục đặt lại mật khẩu." />
-      <p className="mt-5 text-[13px] text-teal-800 bg-teal-50 ring-1 ring-teal-100 rounded-xl px-4 py-3 leading-relaxed text-center">
+      <p className="mt-5 text-[13px] text-success bg-success-soft ring-1 ring-success-line rounded-xl px-4 py-3 leading-relaxed text-center">
         Nếu <b>{email}</b> có trong hệ thống, liên kết đặt lại đã được gửi. Mở thư và bấm liên kết. Không thấy? Kiểm tra <b>Spam/Quảng cáo</b>.
       </p>
       <div className="mt-5 text-center">
-        <a href="index.html" className="text-[12.5px] font-medium text-slate-500 hover:text-teal-700">← Về trang đăng nhập</a>
+        <a href="index.html" className="text-[12.5px] font-medium text-muted hover:text-success">← Về trang đăng nhập</a>
       </div>
     </Khung>
   )
   return (
     <Khung>
       <DauTrang type="mail" tieuDe="Khôi phục mật khẩu" phu="Nhập email tài khoản — chúng tôi gửi liên kết đặt lại mật khẩu tới hộp thư của bạn." />
-      {loiBanDau && <p className="mt-5 text-[12.5px] text-amber-800 bg-amber-50 ring-1 ring-amber-100 rounded-xl px-4 py-2.5 leading-relaxed text-center">{loiBanDau} Liên kết chỉ dùng 1 lần trong ~1 giờ — gửi lại bên dưới.</p>}
+      {loiBanDau && <p className="mt-5 text-[12.5px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-4 py-2.5 leading-relaxed text-center">{loiBanDau} Liên kết chỉ dùng 1 lần trong ~1 giờ — gửi lại bên dưới.</p>}
       <form onSubmit={gui} className="mt-5 space-y-3">
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required
           placeholder="Email tài khoản" autoComplete="username"
-          className="w-full rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3.5 py-3 text-sm outline-none transition focus:bg-white focus:ring-2 focus:ring-teal-400/70" />
-        {loi && <p className="text-[13px] text-rose-600 text-center">{loi}</p>}
+          className="w-full rounded-xl bg-subtle ring-1 ring-line px-3.5 py-3 text-sm outline-none transition focus:bg-surface focus:ring-2 focus:ring-success-line/70" />
+        {loi && <p className="text-[13px] text-danger text-center">{loi}</p>}
         <button type="submit" disabled={tt === 'dang_gui'}
           className="w-full rounded-xl py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:opacity-40" style={{ backgroundColor: TEAL }}>
           {tt === 'dang_gui' ? 'Đang gửi…' : 'Gửi liên kết đặt lại'}
         </button>
       </form>
       <div className="mt-5 text-center">
-        <a href="index.html" className="text-[12.5px] font-medium text-slate-500 hover:text-teal-700">← Về trang đăng nhập</a>
+        <a href="index.html" className="text-[12.5px] font-medium text-muted hover:text-success">← Về trang đăng nhập</a>
       </div>
     </Khung>
   )
@@ -168,16 +168,16 @@ function FormDatLai() {
       <DauTrang type="lock" tieuDe="Tạo mật khẩu mới" phu="Chọn mật khẩu mới cho tài khoản của bạn. Chỉ bạn biết mật khẩu này." />
       <form onSubmit={dat} className="mt-5 space-y-3">
         <OMatKhau value={mk1} onChange={(e) => setMk1(e.target.value)} placeholder="Mật khẩu mới" autoFocus />
-        <p className="text-[11.5px] text-slate-400 -mt-1 pl-1">{mk1.length >= 8 ? <span className="text-teal-600">✓ Đủ độ dài</span> : 'Tối thiểu 8 ký tự'}</p>
+        <p className="text-[11.5px] text-muted -mt-1 pl-1">{mk1.length >= 8 ? <span className="text-success">✓ Đủ độ dài</span> : 'Tối thiểu 8 ký tự'}</p>
         <OMatKhau value={mk2} onChange={(e) => setMk2(e.target.value)} placeholder="Nhập lại mật khẩu mới" />
-        {mk2.length > 0 && <p className={`text-[11.5px] -mt-1 pl-1 ${khop ? 'text-teal-600' : 'text-rose-500'}`}>{khop ? '✓ Hai mật khẩu khớp' : 'Hai lần nhập chưa khớp'}</p>}
-        {loi && <p className="text-[13px] text-rose-600 text-center">{loi}</p>}
+        {mk2.length > 0 && <p className={`text-[11.5px] -mt-1 pl-1 ${khop ? 'text-success' : 'text-danger'}`}>{khop ? '✓ Hai mật khẩu khớp' : 'Hai lần nhập chưa khớp'}</p>}
+        {loi && <p className="text-[13px] text-danger text-center">{loi}</p>}
         <button type="submit" disabled={dang}
           className="w-full rounded-xl py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:opacity-40" style={{ backgroundColor: TEAL }}>
           {dang ? 'Đang lưu…' : 'Đặt mật khẩu mới'}
         </button>
       </form>
-      <p className="mt-4 text-[11px] text-slate-400 leading-relaxed text-center">
+      <p className="mt-4 text-[11px] text-muted leading-relaxed text-center">
         🔒 Chỉ bạn biết mật khẩu này — quản trị hệ thống không xem được (hồ sơ GMP/Part 11).
       </p>
     </Khung>
@@ -185,7 +185,7 @@ function FormDatLai() {
 }
 
 export default function DatLaiApp() {
-  if (!supabase) return <Khung><p className="text-sm text-slate-500 py-4 text-center">Chưa cấu hình máy chủ.</p></Khung>
+  if (!supabase) return <Khung><p className="text-sm text-muted py-4 text-center">Chưa cấu hình máy chủ.</p></Khung>
   const coToken = TOKEN.type === 'recovery' && TOKEN.access && TOKEN.refresh
   if (coToken) return <FormDatLai />
   return <FormGuiLai loiBanDau={TOKEN.loi} />

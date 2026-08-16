@@ -2,11 +2,11 @@
 import { TRANG_THAI_CODE_TO_LABEL } from "./supabaseData";
 
 // Mỗi trạng thái → DANH SÁCH hành động (nút) theo vai trò. code = mã RPC; next = trạng thái hiển thị kế; dong = đóng sự cố.
-export const A_TEAL = "text-teal-700 bg-teal-50 hover:bg-teal-100 ring-teal-200";
-export const A_AMBER = "text-amber-700 bg-amber-50 hover:bg-amber-100 ring-amber-200";
-export const A_INFO = "text-sky-700 bg-sky-50 hover:bg-sky-100 ring-sky-200";
-export const A_ROSE = "text-rose-700 bg-rose-50 hover:bg-rose-100 ring-rose-200";
-export const A_SLATE = "text-slate-600 bg-slate-100 hover:bg-slate-200 ring-slate-200";
+export const A_TEAL = "text-success bg-success-soft hover:bg-success-soft/70 ring-success-line";
+export const A_AMBER = "text-warning bg-warning-soft hover:bg-warning-soft/70 ring-warning-line";
+export const A_INFO = "text-info bg-info-soft hover:bg-info-soft/70 ring-info-line";
+export const A_ROSE = "text-danger bg-danger-soft hover:bg-danger-soft/70 ring-danger-line";
+export const A_SLATE = "text-body bg-subtle hover:bg-subtle/70 ring-line";
 // Luồng gọn: IPC (kiểm tra hiện trường) + Cơ điện (điều chỉnh). Luật DB dùng '*' nên đóng được từ mọi trạng thái.
 export const A_IPC = { label: "Bình thường — đóng", code: "ipc_binh_thuong", next: "Đã khắc phục", dong: true, roles: ["IPC"], color: A_TEAL };
 export const A_MEP_NHAN = { label: "Cơ điện đang xử lý", code: "mep_tiep_nhan", next: "Cơ điện đang xử lý", roles: ["MEP"], color: A_INFO };
@@ -61,4 +61,4 @@ export function nutChoVaiTro(dsNut, statusCode, role, daDong = false) {
       style: { color: n.mau_chu, backgroundColor: n.mau_nen },
     }));
 }
-export const STATUS_DOT = { "Chưa xử lý": "bg-rose-500", "IPC: bất thường": "bg-violet-500", "Đã báo cơ điện": "bg-amber-500", "Cơ điện đang xử lý": "bg-cyan-500", "Cơ điện chờ xử lý": "bg-slate-400", "Chờ IPC kiểm lại": "bg-teal-500", "Đã khắc phục": "bg-emerald-500" };
+export const STATUS_DOT = { "Chưa xử lý": "bg-danger-solid", "IPC: bất thường": "bg-violet-500", "Đã báo cơ điện": "bg-warning-solid", "Cơ điện đang xử lý": "bg-info-solid", "Cơ điện chờ xử lý": "bg-muted", "Chờ IPC kiểm lại": "bg-success-solid", "Đã khắc phục": "bg-success" };

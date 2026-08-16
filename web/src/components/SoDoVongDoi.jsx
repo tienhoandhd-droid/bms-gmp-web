@@ -260,9 +260,9 @@ export default function SoDoVongDoi() {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-[11px] text-slate-400">Sơ đồ tự co theo màn hình — bấm phóng to nếu muốn xem chữ lớn.</span>
+        <span className="text-[11px] text-muted">Sơ đồ tự co theo màn hình — bấm phóng to nếu muốn xem chữ lớn.</span>
         <button onClick={() => setFull(true)}
-          className="shrink-0 rounded-xl bg-slate-100 px-3 py-1.5 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-200">
+          className="shrink-0 rounded-xl bg-subtle px-3 py-1.5 text-[12px] font-semibold text-body ring-1 ring-line hover:bg-subtle">
           ⛶ Phóng to toàn màn hình
         </button>
       </div>
@@ -270,11 +270,11 @@ export default function SoDoVongDoi() {
         <div style={{ minWidth: 1240 }} dangerouslySetInnerHTML={{ __html: SVG }} />
       </div>
       {full && (
-        <div className="fixed inset-0 z-[90] overflow-auto bg-white p-3 sm:p-5">
+        <div className="fixed inset-0 z-[90] overflow-auto bg-surface p-3 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <b className="text-[14px] text-slate-800">Sơ đồ vòng đời sự cố — toàn màn hình</b>
+            <b className="text-[14px] text-strong">Sơ đồ vòng đời sự cố — toàn màn hình</b>
             <button onClick={() => setFull(false)}
-              className="rounded-xl bg-slate-900 px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:bg-slate-700">✕ Đóng (Esc)</button>
+              className="rounded-xl bg-slate-900 px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:bg-anchorink">✕ Đóng (Esc)</button>
           </div>
           <div style={{ minWidth: 1560 }} dangerouslySetInnerHTML={{ __html: SVG }} />
         </div>

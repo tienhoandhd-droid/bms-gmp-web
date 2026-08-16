@@ -15,7 +15,7 @@ export function BannerCapNhat() {
   return (
     <div className="fixed inset-x-3 bottom-3 z-[60] mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-2xl sm:inset-x-auto sm:right-4">
       <span className="text-[13px] font-medium leading-tight">Đã có bản cập nhật mới của ứng dụng.</span>
-      <button onClick={() => window.location.reload()} className="ml-auto shrink-0 rounded-xl bg-white px-3.5 py-1.5 text-[13px] font-semibold text-slate-900 hover:bg-slate-100">Tải lại</button>
+      <button onClick={() => window.location.reload()} className="ml-auto shrink-0 rounded-xl bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-strong hover:bg-subtle">Tải lại</button>
       <button onClick={() => setHien(false)} aria-label="Để sau" className="shrink-0 text-white/50 hover:text-white">✕</button>
     </div>
   );

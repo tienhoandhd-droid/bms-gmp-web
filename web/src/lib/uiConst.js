@@ -6,11 +6,11 @@ import { SENSOR_META_BASE } from "./designTokens";
 /* ============ AQUA CLINICAL NEO-MINIMALISM — HỆ THỦY ============ */
 /* Giữ tên biến, làm SÂU màu để đủ tương phản (WCAG): chữ đậm, teal/sky sâu,
    critical đỏ trầm chuyên nghiệp, warning amber đậm, không hồng/vàng nhạt. */
-export const PAGE_BG = "linear-gradient(155deg,#EAF3F8 0%,#FAFDFF 45%,#E2F2EE 100%)";
+export const PAGE_BG = "var(--bg-canvas)";   // G2: một nền phẳng theo token — bỏ gradient 3 lớp
 export const cardShadow = { boxShadow: "0 12px 34px -18px rgba(16,40,55,0.30)" };
-export const CARD = "rounded-3xl bg-white/95 backdrop-blur ring-1 ring-[#D8E6EC]";
-export const STATUS = { normal: { txt: "text-teal-700", bg: "bg-teal-50", dot: "bg-teal-500" }, warning: { txt: "text-amber-700", bg: "bg-amber-50", dot: "bg-amber-500" }, critical: { txt: "text-rose-700", bg: "bg-rose-50", dot: "bg-rose-600" } };
-export const PRIORITY = { P1: "bg-rose-600 text-white ring-1 ring-rose-700", P2: "bg-amber-100 text-amber-900 ring-1 ring-amber-400", P3: "bg-sky-100 text-sky-800 ring-1 ring-sky-300" };
+export const CARD = "rounded-3xl bg-surface/95 backdrop-blur ring-1 ring-line";
+export const STATUS = { normal: { txt: "text-success", bg: "bg-success-soft", dot: "bg-success-solid" }, warning: { txt: "text-warning", bg: "bg-warning-soft", dot: "bg-warning-solid" }, critical: { txt: "text-danger", bg: "bg-danger-soft", dot: "bg-danger-solid" } };
+export const PRIORITY = { P1: "bg-danger-solid text-white ring-1 ring-danger", P2: "bg-warning-soft text-warning ring-1 ring-warning", P3: "bg-info-soft text-info ring-1 ring-info-line" };
 export const MUC = { P1: "Mức 1", P2: "Mức 2", P3: "Mức 3" };
 // Thang 3 mức từ 10/07/2026 (mức NOTICE cũ đã gỡ — nó chưa bao giờ đổi hành vi gì):
 //   0 Kiểm soát tốt      OOS 1 giờ ≤ nguong_canh_bao
@@ -18,10 +18,10 @@ export const MUC = { P1: "Mức 1", P2: "Mức 2", P3: "Mức 3" };
 //   3 Cảnh báo           OOS vượt ngưỡng VÀ 10 phút cuối còn ≥ nguong_hanh_dong ⇒ gửi mail
 // Chỉ số 2 giữ chỗ để không phải đánh số lại toàn bộ mã cũ; không mức nào rơi vào đó.
 export const LEVELS = [
-  { key: "normal", label: "Kiểm soát tốt", txt: "text-teal-700", bg: "bg-teal-50", ring: "ring-teal-200", dot: "bg-teal-400" },
-  { key: "notice", label: "Chú ý — theo dõi", txt: "text-sky-700", bg: "bg-sky-50", ring: "ring-sky-200", dot: "bg-sky-400" },
-  { key: "warning", label: "Cảnh báo", txt: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200", dot: "bg-amber-400" },
-  { key: "action", label: "Cảnh báo — cần xử lý", txt: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200", dot: "bg-rose-500" },
+  { key: "normal", label: "Kiểm soát tốt", txt: "text-success", bg: "bg-success-soft", ring: "ring-success-line", dot: "bg-success-solid" },
+  { key: "notice", label: "Chú ý — theo dõi", txt: "text-info", bg: "bg-info-soft", ring: "ring-info-line", dot: "bg-info-solid" },
+  { key: "warning", label: "Cảnh báo", txt: "text-warning", bg: "bg-warning-soft", ring: "ring-warning-line", dot: "bg-warning-solid" },
+  { key: "action", label: "Cảnh báo — cần xử lý", txt: "text-danger", bg: "bg-danger-soft", ring: "ring-danger-line", dot: "bg-danger-solid" },
 ];
 // Thứ tự ưu tiên theo dõi: phòng nguy cơ cao nhất (Hành động) xếp trước. -1 = mất dữ liệu.
 export const LEVEL_PRIORITY = (lvl) => (lvl == null || lvl < 0 ? -0.5 : lvl);

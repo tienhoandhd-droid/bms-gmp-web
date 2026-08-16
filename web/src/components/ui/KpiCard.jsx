@@ -7,12 +7,12 @@ import { COLOR } from "../../lib/designTokens";
 export const KpiCard = React.memo(function KpiCard({ icon: Icon, label, value, total, sub, accent, onClick, loading }) {
   const clickable = typeof onClick === "function";
   return (
-    <Card className={`relative p-6 overflow-hidden ${clickable ? "cursor-pointer transition hover:-translate-y-0.5 hover:ring-teal-200" : ""}`}>
+    <Card className={`relative p-6 overflow-hidden ${clickable ? "cursor-pointer transition hover:-translate-y-0.5 hover:ring-success-line" : ""}`}>
       {clickable ? <button onClick={onClick} className="absolute inset-0 z-10" aria-label={`Xem danh sách: ${label}`} /> : null}
       <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${accent.glow} blur-2xl opacity-40`} />
       {/* Mảng 4: skeleton pulse khi CHƯA có số → không hiện "0" rồi nhảy (giảm CLS). */}
-      <div className="relative flex items-start justify-between"><div><p className="text-[11px] uppercase tracking-[0.1em] text-slate-500 font-semibold">{label}</p>{loading ? <div className="mt-3 h-[3rem] w-20 rounded-lg bg-slate-100 animate-pulse" /> : <p className="mt-3 text-5xl font-light tabular-nums leading-none" style={{ color: COLOR.navy }}>{value}{total != null && <span className="text-xl text-slate-300 font-light">/{total}</span>}</p>}{loading ? <div className="mt-2 h-3 w-28 rounded bg-slate-100 animate-pulse" /> : <p className={`mt-2 text-xs font-medium ${accent.txt}`}>{sub}</p>}</div><div className={`rounded-2xl p-2.5 ${accent.bg}`}><Icon className={`w-5 h-5 ${accent.txt}`} strokeWidth={1.8} /></div></div>
-      {clickable && <div className="relative mt-2 flex items-center gap-1 text-[10px] font-medium text-slate-400"><Eye className="w-3 h-3" strokeWidth={1.8} /> bấm để xem danh sách phòng</div>}
+      <div className="relative flex items-start justify-between"><div><p className="text-[11px] uppercase tracking-[0.1em] text-muted font-semibold">{label}</p>{loading ? <div className="mt-3 h-[3rem] w-20 rounded-lg bg-subtle animate-pulse" /> : <p className="mt-3 text-5xl font-light tabular-nums leading-none" style={{ color: "var(--text-strong)" }}>{value}{total != null && <span className="text-xl text-muted font-light">/{total}</span>}</p>}{loading ? <div className="mt-2 h-3 w-28 rounded bg-subtle animate-pulse" /> : <p className={`mt-2 text-xs font-medium ${accent.txt}`}>{sub}</p>}</div><div className={`rounded-2xl p-2.5 ${accent.bg}`}><Icon className={`w-5 h-5 ${accent.txt}`} strokeWidth={1.8} /></div></div>
+      {clickable && <div className="relative mt-2 flex items-center gap-1 text-[10px] font-medium text-muted"><Eye className="w-3 h-3" strokeWidth={1.8} /> bấm để xem danh sách phòng</div>}
     </Card>
   );
 }, (t, s) => t.label === s.label && t.value === s.value && t.total === s.total && t.sub === s.sub
@@ -32,11 +32,11 @@ export const OosMiniBars = React.memo(function OosMiniBars({ data, h = 70 }) {
       <div className="flex items-end gap-[3px]" style={{ height: barsH }}>
         {data.map((d, i) => { const v = d.oos || 0; const hb = v > 0 ? Math.max(2, Math.round((v / max) * barsH)) : 0; return (
           <div key={i} className="flex-1 flex items-end justify-center" title={`Giờ ${d.label} · ${v} điểm OOS`}>
-            <div className="w-full rounded-t" style={{ height: hb, background: COLOR.softCoral }} />
+            <div className="w-full rounded-t" style={{ height: hb, background: "var(--danger-line)" }} />
           </div>
         ); })}
       </div>
-      <div className="flex gap-[3px] mt-1">{data.map((d, i) => <div key={i} className="flex-1 text-center text-[10px] text-slate-400 tabular-nums leading-none truncate">{i % 2 === 0 ? d.label : ""}</div>)}</div>
+      <div className="flex gap-[3px] mt-1">{data.map((d, i) => <div key={i} className="flex-1 text-center text-[10px] text-muted tabular-nums leading-none truncate">{i % 2 === 0 ? d.label : ""}</div>)}</div>
     </div>
   );
 });

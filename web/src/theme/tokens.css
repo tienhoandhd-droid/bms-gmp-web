@@ -34,19 +34,28 @@
   --primary: #0A6E68;
   --primary-hover: #085A55;
   --primary-soft: #DCEFEB;
+  --primary-solid: #0A6E68;
 
   --info: #1768A1;
   --info-soft: #E0EEF8;
+  --info-line: #9CC4E2;
+  --info-solid: #1E72B8;
 
   /* Semantics */
   --success: #0A6E68;
   --success-soft: #DCEFEB;
+  --success-line: #7FC9BE;
+  --success-solid: #0E7C73;
 
   --warning: #8A5300;
   --warning-soft: #F7E7C1;
+  --warning-line: #E0B366;
+  --warning-solid: #C77E12;
 
   --danger: #A72924;
   --danger-soft: #F7DEDC;
+  --danger-line: #D9827E;
+  --danger-solid: #B3261E;
 
   --missing: #81501F;
   --missing-soft: #F1E2D3;
@@ -80,18 +89,27 @@
   --primary: #4FC1B5;
   --primary-hover: #6CCEC4;
   --primary-soft: #123D3A;
+  --primary-solid: #0E7C73;
 
   --info: #73B8E6;
   --info-soft: #15344A;
+  --info-line: #2E5A7A;
+  --info-solid: #2B7BB9;
 
   --success: #55C7B8;
   --success-soft: #123B37;
+  --success-line: #2E6B62;
+  --success-solid: #0F6E66;
 
   --warning: #F0B45A;
   --warning-soft: #3A2B12;
+  --warning-line: #7A5A26;
+  --warning-solid: #9A6A14;
 
   --danger: #F08078;
   --danger-soft: #411D1B;
+  --danger-line: #7A3A36;
+  --danger-solid: #C24840;
 
   --missing: #D9A26C;
   --missing-soft: #39291D;
@@ -112,3 +130,72 @@
 .meta { color: var(--text-muted); }
 .button-primary { color: var(--text-inverse); background: var(--primary); }
 .button-primary:hover { background: var(--primary-hover); }
+
+/* ===== KHỐI SINH TỰ ĐỘNG — KHÔNG SỬA TAY (python3 scripts/sinh-rgb-token.py) =====
+   Bộ ba R G B cho Tailwind alpha: rgb(var(--rgb-x) / <alpha-value>). */
+:root,
+:root[data-theme="light"] {
+  --rgb-bg-surface: 255 255 255;
+  --rgb-bg-subtle: 225 237 241;
+  --rgb-bg-canvas: 234 242 245;
+  --rgb-anchor: 16 42 62;
+  --rgb-border: 196 212 220;
+  --rgb-border-strong: 159 183 195;
+  --rgb-text-strong: 11 31 46;
+  --rgb-text-default: 36 59 77;
+  --rgb-text-muted: 82 104 120;
+  --rgb-text-inverse: 255 255 255;
+  --rgb-primary: 10 110 104;
+  --rgb-primary-soft: 220 239 235;
+  --rgb-primary-solid: 10 110 104;
+  --rgb-success: 10 110 104;
+  --rgb-success-soft: 220 239 235;
+  --rgb-success-line: 127 201 190;
+  --rgb-success-solid: 14 124 115;
+  --rgb-danger: 167 41 36;
+  --rgb-danger-soft: 247 222 220;
+  --rgb-danger-line: 217 130 126;
+  --rgb-danger-solid: 179 38 30;
+  --rgb-warning: 138 83 0;
+  --rgb-warning-soft: 247 231 193;
+  --rgb-warning-line: 224 179 102;
+  --rgb-warning-solid: 199 126 18;
+  --rgb-info: 23 104 161;
+  --rgb-info-soft: 224 238 248;
+  --rgb-info-line: 156 196 226;
+  --rgb-info-solid: 30 114 184;
+  --rgb-focus: 11 103 178;
+}
+:root[data-theme="dark"] {
+  --rgb-bg-surface: 14 32 43;
+  --rgb-bg-subtle: 21 48 60;
+  --rgb-bg-canvas: 8 20 29;
+  --rgb-anchor: 7 16 24;
+  --rgb-border: 43 74 87;
+  --rgb-border-strong: 69 100 115;
+  --rgb-text-strong: 243 248 250;
+  --rgb-text-default: 216 228 233;
+  --rgb-text-muted: 175 193 201;
+  --rgb-text-inverse: 7 19 27;
+  --rgb-primary: 79 193 181;
+  --rgb-primary-soft: 18 61 58;
+  --rgb-primary-solid: 14 124 115;
+  --rgb-success: 85 199 184;
+  --rgb-success-soft: 18 59 55;
+  --rgb-success-line: 46 107 98;
+  --rgb-success-solid: 15 110 102;
+  --rgb-danger: 240 128 120;
+  --rgb-danger-soft: 65 29 27;
+  --rgb-danger-line: 122 58 54;
+  --rgb-danger-solid: 194 72 64;
+  --rgb-warning: 240 180 90;
+  --rgb-warning-soft: 58 43 18;
+  --rgb-warning-line: 122 90 38;
+  --rgb-warning-solid: 154 106 20;
+  --rgb-info: 115 184 230;
+  --rgb-info-soft: 21 52 74;
+  --rgb-info-line: 46 90 122;
+  --rgb-info-solid: 43 123 185;
+  --rgb-focus: 119 199 255;
+}
+/* ===== hết khối sinh ===== */

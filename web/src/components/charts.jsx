@@ -19,8 +19,20 @@ import {
   DataZoomComponent, ToolboxComponent, CalendarComponent, VisualMapComponent
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-import { COLOR, SENSOR_COLOR, SENSOR_META_BASE as SENSOR_META, COMPLY_OK, COMPLY_BAD, COMPLY_SCALE, complyColor, fmtPct } from "../lib/designTokens";
-import { chartTokens, useThemeVersion } from "../theme/chartTheme";
+import { SENSOR_COLOR, SENSOR_META_BASE as SENSOR_META, COMPLY_OK, COMPLY_BAD, COMPLY_SCALE, complyColor, fmtPct } from "../lib/designTokens";
+import { chartTokens, useThemeVersion, layToken } from "../theme/chartTheme";
+// CHEX — màu series/tooltip đọc token ĐÃ RESOLVE tại thời điểm truy cập (canvas
+// không hiểu var()); getter để đổi theme là option dựng lại có màu mới.
+const CHEX = {
+  get navy() { return layToken("--text-strong", "#102A3E"); },
+  get ink() { return layToken("--text-default", "#33506e"); },
+  get teal() { return layToken("--primary", "#0E7C73"); },
+  get sky() { return layToken("--info", "#1E72B8"); },
+  get coral() { return layToken("--danger", "#D9534F"); },
+  get coralDeep() { return layToken("--danger-solid", "#B3261E"); },
+  get sand() { return layToken("--warning", "#C77E12"); },
+  get softCoral() { return layToken("--danger-line", "#D9534F"); },
+};
 // T() — token biểu đồ đọc từ CSS var tại thời điểm DỰNG option (re-render khi đổi theme).
 const T = () => chartTokens();
 
@@ -31,7 +43,7 @@ const complyPieces = () => COMPLY_SCALE.map((b) => ({ ...(b.gte != null ? { gte:
 echarts.use([LineChart, BarChart, CustomChart, HeatmapChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, MarkPointComponent, LegendComponent, DataZoomComponent, ToolboxComponent, CalendarComponent, VisualMapComponent, CanvasRenderer]);
 
 // Toolbox (xuất PNG) + dataZoom (kéo–thu phóng) dùng chung cho biểu đồ xu hướng lớn.
-const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Lưu ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: "#fff" } }, iconStyle: { borderColor: T().textMuted }, emphasis: { iconStyle: { borderColor: COLOR.teal } } });
+const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Lưu ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: "#fff" } }, iconStyle: { borderColor: T().textMuted }, emphasis: { iconStyle: { borderColor: "var(--success-line)" } } });
 const dataZoomTruot = (bottom = 6) => ([
   { type: "inside", filterMode: "none" },
   { type: "slider", height: 15, bottom, filterMode: "none", brushSelect: false, borderColor: "transparent", fillerColor: "rgba(14,124,115,0.10)", handleSize: "80%", moveHandleSize: 4, dataBackground: { lineStyle: { color: T().chartGrid }, areaStyle: { color: T().chartGrid } }, textStyle: { fontSize: 8, color: T().textMuted } },
@@ -46,7 +58,7 @@ function complyDomain(values) {
   const pad = Math.max(4, (hi - lo) * 0.18);
   return [Math.max(0, Math.floor(lo - pad)), Math.min(100, Math.ceil(hi + pad))];
 }
-const chartWrap = "rounded-2xl p-2 bg-gradient-to-b from-sky-50/70 to-white ring-1 ring-sky-100/80";
+const chartWrap = "rounded-2xl p-2 bg-gradient-to-b from-info-soft/70 to-surface ring-1 ring-info-line/80";
 const TT_CSS = "border-radius:12px;box-shadow:0 10px 30px -8px rgba(35,80,110,0.4);padding:8px 12px;";
 const tooltipBase = () => ({ backgroundColor: T().surface, borderColor: T().border, borderWidth: 1, textStyle: { fontSize: 11, color: T().textStrong }, extraCssText: TT_CSS });
 const gradient = (c, top = 0.30, bot = 0.02) => new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: echarts.color.modifyAlpha(c, top) }, { offset: 1, color: echarts.color.modifyAlpha(c, bot) }]);
@@ -113,7 +125,7 @@ export function OOSMini({ data }) {
     tooltip: { trigger: "axis", ...tooltipBase(), formatter: (p) => `Giờ ${p[0].axisValue}<br/>${p[0].data} điểm OOS` },
     xAxis: { ...axisX(data.map((d) => d.label), 1), axisLine: { show: false } },
     yAxis: { type: "value", show: false, min: 0 },
-    series: [{ type: "bar", data: data.map((d) => d.oos), barMaxWidth: 16, itemStyle: { color: COLOR.softCoral, borderRadius: [3, 3, 0, 0] } }],
+    series: [{ type: "bar", data: data.map((d) => d.oos), barMaxWidth: 16, itemStyle: { color: "var(--danger-line)", borderRadius: [3, 3, 0, 0] } }],
   };
   return <EChart option={option} height={70} />;
 }
@@ -130,7 +142,7 @@ export function MiniArea({ data }) {
     series: [{
       type: "line", data: comps, smooth: true, showSymbol: false, connectNulls: true,
       lineStyle: { color: COMPLY_OK, width: 2 }, areaStyle: { color: gradient(COMPLY_OK, 0.28, 0.02) },
-      markLine: { silent: true, symbol: "none", label: { show: false }, data: [{ yAxis: 80 }], lineStyle: { color: COLOR.sand, type: "dashed", width: 1 } },
+      markLine: { silent: true, symbol: "none", label: { show: false }, data: [{ yAxis: 80 }], lineStyle: { color: "var(--warning)", type: "dashed", width: 1 } },
     }],
   };
   return <EChart option={option} height={84} />;
@@ -138,9 +150,9 @@ export function MiniArea({ data }) {
 
 // ====== Sparkline (bảng xếp hạng rủi ro) — màu theo chiều tăng/giảm ======
 export function Sparkline({ chuoi }) {
-  if (!chuoi || chuoi.length < 2) return <span className="text-[11px] text-slate-300">—</span>;
+  if (!chuoi || chuoi.length < 2) return <span className="text-[11px] text-muted">—</span>;
   const last = chuoi[chuoi.length - 1]?.comp, first = chuoi[0]?.comp;
-  const stroke = (last != null && first != null) ? (last >= first ? COLOR.teal : COLOR.coral) : COLOR.teal;
+  const stroke = (last != null && first != null) ? (last >= first ? CHEX.teal : CHEX.coral) : CHEX.teal;
   const option = {
     animation: false,
     grid: { top: 3, right: 2, bottom: 0, left: 2, containLabel: false },
@@ -158,11 +170,11 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
   const [ymin, ymax] = complyDomain([...data.map((d) => d.comp), ...prevVals]);
   // Overlay SỰ CỐ: vạch dọc ⚑ tại thời điểm mở sự cố — incidents = [{idx, name}]
   const markLineData = [
-    { yAxis: 80, lineStyle: { color: COLOR.sand, type: "dashed", width: 1.4 }, label: { formatter: "ngưỡng 80%", fontSize: 9, color: COLOR.sand, position: "insideEndTop" } },
+    { yAxis: 80, lineStyle: { color: "var(--warning)", type: "dashed", width: 1.4 }, label: { formatter: "ngưỡng 80%", fontSize: 9, color: "var(--warning)", position: "insideEndTop" } },
     ...(incidents || []).filter((sc) => sc.idx >= 0 && sc.idx < data.length).map((sc) => ({
       xAxis: sc.idx,
-      lineStyle: { color: COLOR.coral, type: "solid", width: 1.1, opacity: 0.65 },
-      label: { formatter: "⚑", fontSize: 11, color: COLOR.coralDeep, position: "insideEndTop", distance: 2 },
+      lineStyle: { color: "var(--danger)", type: "solid", width: 1.1, opacity: 0.65 },
+      label: { formatter: "⚑", fontSize: 11, color: "var(--danger)", position: "insideEndTop", distance: 2 },
     })),
   ];
   const incByIdx = {};
@@ -179,7 +191,7 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
         const prv = ps.find((x) => x.seriesName === "Kỳ trước");
         const v = cur && cur.data != null ? (cur.data.value != null ? cur.data.value : cur.data) : null;
         const i = cur ? cur.dataIndex : -1;
-        const sc = incByIdx[i] ? `<div style="color:${COLOR.coralDeep}">⚑ ${incByIdx[i].join("<br/>⚑ ")}</div>` : "";
+        const sc = incByIdx[i] ? `<div style="color:${CHEX.coralDeep}">⚑ ${incByIdx[i].join("<br/>⚑ ")}</div>` : "";
         const pv = prv && prv.data != null ? `<div style="color:#94a3b8">Kỳ trước: ${fmtPct(prv.data)}</div>` : "";
         return `${cur ? cur.axisValue : ""}<br/>${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}${pv}${sc}`;
       },
@@ -215,11 +227,11 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
     grid: { top: 20, right: 16, bottom: 34, left: 8, containLabel: true },
     toolbox: toolboxLuuAnh("ty-le-dat-theo-chi-tieu"),
     dataZoom: [{ type: "inside", filterMode: "none" }],
-    legend: { data: ks.map((k) => SENSOR_META[k].label), bottom: 0, textStyle: { fontSize: 11, color: COLOR.ink }, icon: "roundRect", itemWidth: 14, itemHeight: 3 },
+    legend: { data: ks.map((k) => SENSOR_META[k].label), bottom: 0, textStyle: { fontSize: 11, color: "var(--text-default)" }, icon: "roundRect", itemWidth: 14, itemHeight: 3 },
     tooltip: {
       trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
-        const head = `<div style="font-weight:600;color:${COLOR.navy};margin-bottom:4px">${ps[0].axisValue}</div>`;
+        const head = `<div style="font-weight:600;color:${CHEX.navy};margin-bottom:4px">${ps[0].axisValue}</div>`;
         return head + ps.map((p) => { const v = p.data; return `<div style="display:flex;justify-content:space-between;gap:16px"><span style="color:${p.color}">● ${p.seriesName}</span><span>${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}</span></div>`; }).join("");
       },
     },
@@ -229,7 +241,7 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
       name: SENSOR_META[k].label, type: "line", smooth: true, connectNulls: false, showSymbol: false,
       data: data.map((d) => d[`comp_${k}`]), lineStyle: { color: SENSOR_COLOR[k], width: 2.4 }, itemStyle: { color: SENSOR_COLOR[k] },
       areaStyle: { color: gradient(SENSOR_COLOR[k], 0.16, 0.01) },
-      ...(k === ks[0] ? { markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: COLOR.sand, type: "dashed", width: 1.4 }, label: { formatter: "80%", fontSize: 9, color: COLOR.sand, position: "insideEndTop" } } } : {}),
+      ...(k === ks[0] ? { markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: "var(--warning)", type: "dashed", width: 1.4 }, label: { formatter: "80%", fontSize: 9, color: "var(--warning)", position: "insideEndTop" } } } : {}),
     })),
   };
   return <div className={chartWrap} style={{ height: height + 16 }}><EChart option={option} height={height} /></div>;
@@ -238,7 +250,7 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
 // ====== Giá trị TB + dải P5–P95 + trung vị P50 + GHD/GHT + baseline 30 ngày ======
 export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
   const unit = SENSOR_META[sensorKey]?.unit || "";
-  const color = SENSOR_COLOR[sensorKey] || COLOR.teal;
+  const color = SENSOR_COLOR[sensorKey] || CHEX.teal;
   const lo = [...series].reverse().find((p) => p.lo != null)?.lo ?? null;
   const hi = [...series].reverse().find((p) => p.hi != null)?.hi ?? null;
   const vals = series.filter((p) => p.avg != null);
@@ -256,13 +268,13 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
   const pad = Math.max(0.5, (yHi - yLo) * 0.1);
   const hasDomain = dv.length && isFinite(yLo) && isFinite(yHi);
   const markLineData = [];
-  if (lo != null) markLineData.push({ yAxis: lo, label: { formatter: `GHD ${lo}`, fontSize: 9, color: COLOR.coralDeep, position: "insideStartBottom" }, lineStyle: { color: COLOR.coral, type: "dashed", width: 1.3 } });
-  if (hi != null) markLineData.push({ yAxis: hi, label: { formatter: `GHT ${hi}`, fontSize: 9, color: COLOR.coralDeep, position: "insideStartTop" }, lineStyle: { color: COLOR.coral, type: "dashed", width: 1.3 } });
-  if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: COLOR.navy, position: "insideEndTop" }, lineStyle: { color: COLOR.navy, type: "dashed", width: 1.2 } });
-  if (bTb != null) markLineData.push({ yAxis: bTb, label: { formatter: `Nền 30n ${bTb}`, fontSize: 9, color: COLOR.sky, position: "insideEndBottom" }, lineStyle: { color: COLOR.sky, type: "dotted", width: 1.2 } });
+  if (lo != null) markLineData.push({ yAxis: lo, label: { formatter: `GHD ${lo}`, fontSize: 9, color: "var(--danger)", position: "insideStartBottom" }, lineStyle: { color: "var(--danger)", type: "dashed", width: 1.3 } });
+  if (hi != null) markLineData.push({ yAxis: hi, label: { formatter: `GHT ${hi}`, fontSize: 9, color: "var(--danger)", position: "insideStartTop" }, lineStyle: { color: "var(--danger)", type: "dashed", width: 1.3 } });
+  if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: "var(--text-strong)", position: "insideEndTop" }, lineStyle: { color: "var(--text-strong)", type: "dashed", width: 1.2 } });
+  if (bTb != null) markLineData.push({ yAxis: bTb, label: { formatter: `Nền 30n ${bTb}`, fontSize: 9, color: "var(--info)", position: "insideEndBottom" }, lineStyle: { color: "var(--info)", type: "dotted", width: 1.2 } });
   if (bTb != null && bSig != null && bSig > 0) {
-    markLineData.push({ yAxis: +(bTb + bSig).toFixed(3), label: { show: false }, lineStyle: { color: echarts.color.modifyAlpha(COLOR.sky, 0.5), type: "dotted", width: 1 } });
-    markLineData.push({ yAxis: +(bTb - bSig).toFixed(3), label: { show: false }, lineStyle: { color: echarts.color.modifyAlpha(COLOR.sky, 0.5), type: "dotted", width: 1 } });
+    markLineData.push({ yAxis: +(bTb + bSig).toFixed(3), label: { show: false }, lineStyle: { color: echarts.color.modifyAlpha(CHEX.sky, 0.5), type: "dotted", width: 1 } });
+    markLineData.push({ yAxis: +(bTb - bSig).toFixed(3), label: { show: false }, lineStyle: { color: echarts.color.modifyAlpha(CHEX.sky, 0.5), type: "dotted", width: 1 } });
   }
   const bandSeries = hasPct ? [bandCustomSeries({ name: "_p595", points: series.map((p) => (p.p5 != null && p.p95 != null ? { lo: p.p5, hi: p.p95 } : null)), color, alpha: 0.13 })] : [];
   const option = {
@@ -277,8 +289,8 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
         if (v == null && p.p50 == null) return "";
         const oob = (lo != null && v < lo) || (hi != null && v > hi);
         const pctl = (p.p5 != null && p.p95 != null) ? `<div style="color:#94a3b8">P5–P95: ${(+p.p5).toFixed(2)}–${(+p.p95).toFixed(2)}${p.p50 != null ? ` · P50 ${(+p.p50).toFixed(2)}` : ""}</div>` : "";
-        const base = (bTb != null) ? `<div style="color:${COLOR.sky}">Nền 30n: ${bTb}${bSig != null ? ` ± ${bSig}` : ""} ${unit}</div>` : "";
-        return `<div style="font-weight:600;color:${COLOR.navy}">${ps[0].axisValue}</div><div>TB: <b style="color:${oob ? COLOR.coralDeep : color}">${v == null ? "—" : (+v).toFixed(2)} ${unit}</b>${oob ? ' <span style="color:#e11d48">· ngoài giới hạn</span>' : ""}</div><div style="color:#94a3b8">GHD ${lo == null ? "—" : lo} · GHT ${hi == null ? "—" : hi} ${unit}</div>${pctl}${base}`;
+        const base = (bTb != null) ? `<div style="color:${CHEX.sky}">Nền 30n: ${bTb}${bSig != null ? ` ± ${bSig}` : ""} ${unit}</div>` : "";
+        return `<div style="font-weight:600;color:${CHEX.navy}">${ps[0].axisValue}</div><div>TB: <b style="color:${oob ? CHEX.coralDeep : color}">${v == null ? "—" : (+v).toFixed(2)} ${unit}</b>${oob ? ' <span style="color:#e11d48">· ngoài giới hạn</span>' : ""}</div><div style="color:#94a3b8">GHD ${lo == null ? "—" : lo} · GHT ${hi == null ? "—" : hi} ${unit}</div>${pctl}${base}`;
       },
     },
     xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
@@ -288,7 +300,7 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
       ...(hasPct ? [{ name: "P50", type: "line", data: series.map((p) => (p.p50 != null ? p.p50 : null)), connectNulls: true, showSymbol: false, symbol: "none", lineStyle: { color: echarts.color.modifyAlpha(color, 0.55), width: 1, type: "dashed" }, tooltip: { show: false }, z: 2 }] : []),
       {
         name: "TB", type: "line", smooth: true, connectNulls: true, showSymbol: true, symbolSize: 5, z: 3,
-        data: series.map((p) => ({ value: p.avg, itemStyle: { color: (lo != null && p.avg < lo) || (hi != null && p.avg > hi) ? COLOR.coralDeep : color, borderColor: "#fff", borderWidth: 0.9 } })),
+        data: series.map((p) => ({ value: p.avg, itemStyle: { color: (lo != null && p.avg < lo) || (hi != null && p.avg > hi) ? CHEX.coralDeep : color, borderColor: "#fff", borderWidth: 0.9 } })),
         lineStyle: { color, width: 2.4 }, areaStyle: hasPct ? undefined : { color: gradient(color, 0.16, 0.03) },
         markArea: (lo != null && hi != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(color, 0.06) }, data: [[{ yAxis: lo }, { yAxis: hi }]] } : undefined,
         markLine: markLineData.length ? { silent: true, symbol: "none", data: markLineData } : undefined,
@@ -297,10 +309,10 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
   };
   return (
     <div>
-      <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h4 className="text-[14px] font-semibold" style={{ color: COLOR.navy }}>{SENSOR_META[sensorKey]?.label} ({sensorKey})</h4></div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Nền 30n", bTb == null ? "—" : `${bTb}${bSig != null ? `±${bSig}` : ""}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 ring-1 ring-slate-200 py-1.5"><p className="text-[10px] uppercase text-slate-400 font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: COLOR.navy }}>{v}</p></div>)}</div>
+      <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h4 className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>{SENSOR_META[sensorKey]?.label} ({sensorKey})</h4></div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Nền 30n", bTb == null ? "—" : `${bTb}${bSig != null ? `±${bSig}` : ""}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-subtle ring-1 ring-line py-1.5"><p className="text-[10px] uppercase text-muted font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{v}</p></div>)}</div>
       <EChart option={option} height={210} group={group} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-500">{hasPct && <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.28 }} /> Dải P5–P95</span>}<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dotted" style={{ borderColor: COLOR.sky }} /> Nền 30 ngày ±σ</span></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-muted">{hasPct && <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.28 }} /> Dải P5–P95</span>}<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--danger-solid)" }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dotted" style={{ borderColor: "var(--info-line)" }} /> Nền 30 ngày ±σ</span></div>
     </div>
   );
 }
@@ -314,9 +326,9 @@ export function RoomDetailMiniChart({ pts, smin, smax, mean, unit, group = null 
   const span = hi - lo; const dec = span >= 10 ? 0 : span >= 2 ? 1 : 2;
   const hasBand = pts.some((p) => p.vmin != null && p.vmax != null);
   const markLineData = [];
-  if (smin != null) markLineData.push({ yAxis: smin, label: { formatter: `GHD ${smin}`, fontSize: 9, color: COLOR.coralDeep, position: "insideStartBottom" }, lineStyle: { color: COLOR.coral, type: "dashed", width: 1.3 } });
-  if (smax != null) markLineData.push({ yAxis: smax, label: { formatter: `GHT ${smax}`, fontSize: 9, color: COLOR.coralDeep, position: "insideStartTop" }, lineStyle: { color: COLOR.coral, type: "dashed", width: 1.3 } });
-  if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: COLOR.navy, position: "insideEndTop" }, lineStyle: { color: COLOR.navy, type: "dashed", width: 1.2 } });
+  if (smin != null) markLineData.push({ yAxis: smin, label: { formatter: `GHD ${smin}`, fontSize: 9, color: "var(--danger)", position: "insideStartBottom" }, lineStyle: { color: "var(--danger)", type: "dashed", width: 1.3 } });
+  if (smax != null) markLineData.push({ yAxis: smax, label: { formatter: `GHT ${smax}`, fontSize: 9, color: "var(--danger)", position: "insideStartTop" }, lineStyle: { color: "var(--danger)", type: "dashed", width: 1.3 } });
+  if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: "var(--text-strong)", position: "insideEndTop" }, lineStyle: { color: "var(--text-strong)", type: "dashed", width: 1.2 } });
   const option = {
     animation: false,
     grid: { top: 8, right: 14, bottom: 20, left: 8, containLabel: true },
@@ -327,19 +339,19 @@ export function RoomDetailMiniChart({ pts, smin, smax, mean, unit, group = null 
         const avg = byName["TB giờ"] ? byName["TB giờ"].data : null;
         const f = (x) => (x == null ? "—" : (+x).toFixed(2));
         const lohi = hasBand ? `<div style="color:#94a3b8">Min–Max: ${f(pts[ps[0].dataIndex]?.vmin)}–${f(pts[ps[0].dataIndex]?.vmax)} ${unit}</div>` : "";
-        return `<div style="font-weight:600;color:${COLOR.navy}">${ps[0].axisValue}</div><div>TB giờ: <b>${f(avg)} ${unit}</b></div>${lohi}`;
+        return `<div style="font-weight:600;color:${CHEX.navy}">${ps[0].axisValue}</div><div>TB giờ: <b>${f(avg)} ${unit}</b></div>${lohi}`;
       },
     },
     xAxis: axisX(pts.map((p) => p.label)),
     yAxis: { type: "value", min: +lo.toFixed(dec), max: +hi.toFixed(dec), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => (+v).toFixed(dec) } },
     series: [
       // Dải min–max: custom polygon (chịu null, không cần stack)
-      ...(hasBand ? [bandCustomSeries({ name: "_minmax", points: pts.map((p) => (p.vmin != null && p.vmax != null ? { lo: p.vmin, hi: p.vmax } : null)), color: COLOR.sky, alpha: 0.14 })] : []),
+      ...(hasBand ? [bandCustomSeries({ name: "_minmax", points: pts.map((p) => (p.vmin != null && p.vmax != null ? { lo: p.vmin, hi: p.vmax } : null)), color: "var(--info)", alpha: 0.14 })] : []),
       {
         name: "TB giờ", type: "line", smooth: true, connectNulls: true, showSymbol: true, symbolSize: 6, z: 3,
-        data: pts.map((p) => ({ value: p.avg, itemStyle: { color: (smin != null && p.avg < smin) || (smax != null && p.avg > smax) ? COLOR.coralDeep : COLOR.teal, borderColor: "#fff", borderWidth: 1 } })),
-        lineStyle: { color: COLOR.teal, width: 2.2 },
-        markArea: (smin != null && smax != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(COLOR.teal, 0.10) }, data: [[{ yAxis: smin }, { yAxis: smax }]] } : undefined,
+        data: pts.map((p) => ({ value: p.avg, itemStyle: { color: (smin != null && p.avg < smin) || (smax != null && p.avg > smax) ? CHEX.coralDeep : CHEX.teal, borderColor: "#fff", borderWidth: 1 } })),
+        lineStyle: { color: "var(--primary)", width: 2.2 },
+        markArea: (smin != null && smax != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(CHEX.teal, 0.10) }, data: [[{ yAxis: smin }, { yAxis: smax }]] } : undefined,
         markLine: markLineData.length ? { silent: true, symbol: "none", data: markLineData } : undefined,
       },
     ],
@@ -361,9 +373,9 @@ export function TrendMainChart({ data, range }) {
       { type: "value", min: 0, max: 100, position: "right", axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 10, color: T().chartAxis } },
     ],
     series: [
-      { name: "Warning", type: "bar", stack: "h", data: data.map((d) => d.warnH), barMaxWidth: 26, itemStyle: { color: COLOR.sand } },
-      { name: "Critical", type: "bar", stack: "h", data: data.map((d) => d.critH), barMaxWidth: 26, itemStyle: { color: COLOR.softCoral, borderRadius: [4, 4, 0, 0] } },
-      { name: "Tuân thủ", type: "line", yAxisIndex: 1, smooth: true, showSymbol: false, data: data.map((d) => d.comp), lineStyle: { color: COLOR.teal, width: 2.6 }, itemStyle: { color: COLOR.teal }, markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: COLOR.sand, type: "dashed", width: 1.5 } } },
+      { name: "Warning", type: "bar", stack: "h", data: data.map((d) => d.warnH), barMaxWidth: 26, itemStyle: { color: "var(--warning)" } },
+      { name: "Critical", type: "bar", stack: "h", data: data.map((d) => d.critH), barMaxWidth: 26, itemStyle: { color: "var(--danger-line)", borderRadius: [4, 4, 0, 0] } },
+      { name: "Tuân thủ", type: "line", yAxisIndex: 1, smooth: true, showSymbol: false, data: data.map((d) => d.comp), lineStyle: { color: "var(--primary)", width: 2.6 }, itemStyle: { color: "var(--primary)" }, markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: "var(--warning)", type: "dashed", width: 1.5 } } },
     ],
   };
   return <EChart option={option} height={300} />;
@@ -392,13 +404,13 @@ export function nelsonViolations(vals, tb, sigma) {
 }
 export function SpcChart({ sensorKey, series, baseline, height = 230, group = null }) {
   const unit = SENSOR_META[sensorKey]?.unit || "";
-  const color = SENSOR_COLOR[sensorKey] || COLOR.teal;
+  const color = SENSOR_COLOR[sensorKey] || CHEX.teal;
   const tb = baseline && baseline.tb != null ? +baseline.tb : null;
   const sig = baseline && baseline.sigma != null && +baseline.sigma > 0 ? +baseline.sigma : null;
   const vals = series.map((p) => (p.avg != null ? +p.avg : null));
   const vio = nelsonViolations(vals, tb, sig);
   if (tb == null || sig == null) {
-    return <p className="text-[12px] text-slate-400 italic">Chưa đủ nền 30 ngày (TB/σ) để dựng biểu đồ kiểm soát cho {SENSOR_META[sensorKey]?.label}.</p>;
+    return <p className="text-[12px] text-muted italic">Chưa đủ nền 30 ngày (TB/σ) để dựng biểu đồ kiểm soát cho {SENSOR_META[sensorKey]?.label}.</p>;
   }
   const zones = [ // vùng sigma tô nhạt dần từ trong ra
     [tb - sig, tb + sig, 0.10], [tb - 2 * sig, tb - sig, 0.05], [tb + sig, tb + 2 * sig, 0.05],
@@ -407,10 +419,10 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
   const dv = vals.filter((v) => v != null).concat([tb - 3.3 * sig, tb + 3.3 * sig]);
   const yLo = Math.min(...dv), yHi = Math.max(...dv); const pad = (yHi - yLo) * 0.06;
   const sigLines = [
-    { yAxis: tb, label: { formatter: `TB ${+tb.toFixed(2)}`, fontSize: 9, color: COLOR.navy, position: "insideEndTop" }, lineStyle: { color: COLOR.navy, type: "solid", width: 1.4 } },
+    { yAxis: tb, label: { formatter: `TB ${+tb.toFixed(2)}`, fontSize: 9, color: "var(--text-strong)", position: "insideEndTop" }, lineStyle: { color: "var(--text-strong)", type: "solid", width: 1.4 } },
     ...[1, 2, 3].flatMap((k) => [
-      { yAxis: tb + k * sig, label: { formatter: `+${k}σ`, fontSize: 8, color: T().textMuted, position: "end" }, lineStyle: { color: k === 3 ? COLOR.coral : "#b6c6d4", type: "dashed", width: k === 3 ? 1.4 : 1 } },
-      { yAxis: tb - k * sig, label: { formatter: `−${k}σ`, fontSize: 8, color: T().textMuted, position: "end" }, lineStyle: { color: k === 3 ? COLOR.coral : "#b6c6d4", type: "dashed", width: k === 3 ? 1.4 : 1 } },
+      { yAxis: tb + k * sig, label: { formatter: `+${k}σ`, fontSize: 8, color: T().textMuted, position: "end" }, lineStyle: { color: k === 3 ? CHEX.coral : "#b6c6d4", type: "dashed", width: k === 3 ? 1.4 : 1 } },
+      { yAxis: tb - k * sig, label: { formatter: `−${k}σ`, fontSize: 8, color: T().textMuted, position: "end" }, lineStyle: { color: k === 3 ? CHEX.coral : "#b6c6d4", type: "dashed", width: k === 3 ? 1.4 : 1 } },
     ]),
   ];
   const option = {
@@ -423,15 +435,15 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
       formatter: (ps) => {
         const i = ps[0].dataIndex; const v = vals[i];
         const z = v != null ? ((v - tb) / sig).toFixed(2) : null;
-        const rules = vio[i].length ? `<div style="color:${COLOR.coralDeep}">⚠ ${vio[i].join("<br/>⚠ ")}</div>` : `<div style="color:${COLOR.teal}">Trong kiểm soát</div>`;
-        return `<div style="font-weight:600;color:${COLOR.navy}">${ps[0].axisValue}</div><div>${v == null ? "—" : (+v).toFixed(2)} ${unit} ${z != null ? `· z=${z}` : ""}</div>${rules}`;
+        const rules = vio[i].length ? `<div style="color:${CHEX.coralDeep}">⚠ ${vio[i].join("<br/>⚠ ")}</div>` : `<div style="color:${CHEX.teal}">Trong kiểm soát</div>`;
+        return `<div style="font-weight:600;color:${CHEX.navy}">${ps[0].axisValue}</div><div>${v == null ? "—" : (+v).toFixed(2)} ${unit} ${z != null ? `· z=${z}` : ""}</div>${rules}`;
       },
     },
     xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
     yAxis: { type: "value", min: +(yLo - pad).toFixed(2), max: +(yHi + pad).toFixed(2), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 9, color: T().chartAxis } },
     series: [{
       name: "Giá trị", type: "line", smooth: false, connectNulls: true, showSymbol: true, symbolSize: 6, z: 3,
-      data: vals.map((v, i) => ({ value: v, itemStyle: { color: vio[i].some((r) => r.startsWith("R1")) ? COLOR.coralDeep : vio[i].length ? COLOR.sand : color, borderColor: "#fff", borderWidth: 1 } })),
+      data: vals.map((v, i) => ({ value: v, itemStyle: { color: vio[i].some((r) => r.startsWith("R1")) ? CHEX.coralDeep : vio[i].length ? CHEX.sand : color, borderColor: "#fff", borderWidth: 1 } })),
       lineStyle: { color, width: 1.8 },
       markArea: { silent: true, data: zones.map(([lo, hi, a]) => [{ yAxis: lo, itemStyle: { color: echarts.color.modifyAlpha(color, a) } }, { yAxis: hi }]) },
       markLine: { silent: true, symbol: "none", data: sigLines },
@@ -440,10 +452,10 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
   return (
     <div>
       <EChart option={option} height={height} group={group} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-muted">
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> Trong kiểm soát</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.sand }} /> Tín hiệu Nelson R2/R3</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COLOR.coralDeep }} /> Vượt 3σ (R1)</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--warning-solid)" }} /> Tín hiệu Nelson R2/R3</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--danger-solid)" }} /> Vượt 3σ (R1)</span>
         <span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dashed" style={{ borderColor: "#b6c6d4" }} /> ±1/2/3σ quanh nền 30 ngày</span>
       </div>
     </div>
@@ -454,7 +466,7 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
 // days: [{date:'YYYY-MM-DD', value:comp|null}]
 export function CalendarHeat({ days, height = 190 }) {
   const valid = (days || []).filter((d) => d.value != null && d.date);
-  if (!valid.length) return <p className="text-[12px] text-slate-400 italic">Chưa có dữ liệu ngày để dựng lịch tuân thủ.</p>;
+  if (!valid.length) return <p className="text-[12px] text-muted italic">Chưa có dữ liệu ngày để dựng lịch tuân thủ.</p>;
   const dates = valid.map((d) => d.date).sort();
   const option = {
     animation: false,
@@ -486,7 +498,7 @@ export function CalendarHeat({ days, height = 190 }) {
 //   days   : ['01/07', …]            (nhãn trục X)
 //   values : number[rooms][days]     (%-đạt hoặc null nếu thiếu dữ liệu)
 export function RoomDayHeatmap({ rooms, days, values, height, cellH = 18 }) {
-  if (!rooms?.length || !days?.length) return <p className="text-[12px] text-slate-400 italic">Chưa đủ dữ liệu phòng×ngày để dựng bản đồ tuân thủ.</p>;
+  if (!rooms?.length || !days?.length) return <p className="text-[12px] text-muted italic">Chưa đủ dữ liệu phòng×ngày để dựng bản đồ tuân thủ.</p>;
   const data = [];
   for (let y = 0; y < rooms.length; y++) {
     const row = values[y] || [];
@@ -522,7 +534,7 @@ export function RoomDayHeatmap({ rooms, days, values, height, cellH = 18 }) {
 export function ForecastChart({ chuoi, duBao, height = 180 }) {
   const hist = (chuoi || []).map((p) => (p.y == null ? null : +p.y));
   const fc = duBao || [];
-  if (!hist.length || !fc.length) return <p className="text-[12px] text-slate-400 italic">Chưa đủ dữ liệu để vẽ dự báo.</p>;
+  if (!hist.length || !fc.length) return <p className="text-[12px] text-muted italic">Chưa đủ dữ liệu để vẽ dự báo.</p>;
   const fmtD = (s) => String(s).slice(5).split("-").reverse().join("/");
   const N = hist.length, F = fc.length;
   const labels = [...(chuoi || []).map((p) => fmtD(p.ngay)), ...fc.map((p) => fmtD(p.ngay))];
@@ -554,7 +566,7 @@ export function ForecastChart({ chuoi, duBao, height = 180 }) {
       { name: "band-to", type: "line", data: bandDelta, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: echarts.color.modifyAlpha(COMPLY_OK, 0.13) }, silent: true, tooltip: { show: false } },
       { name: "Lịch sử", type: "line", data: histData, showSymbol: false, connectNulls: false, lineStyle: { color: COMPLY_OK, width: 2.2 } },
       { name: "Dự báo", type: "line", data: fcData, showSymbol: false, connectNulls: true, lineStyle: { color: COMPLY_OK, width: 2, type: "dashed" } },
-      { name: "nguong", type: "line", data: [], markLine: { silent: true, symbol: "none", label: { formatter: "80%", fontSize: 9, color: COLOR.sand, position: "insideEndTop" }, data: [{ yAxis: 80 }], lineStyle: { color: COLOR.sand, type: "dashed", width: 1 } } },
+      { name: "nguong", type: "line", data: [], markLine: { silent: true, symbol: "none", label: { formatter: "80%", fontSize: 9, color: "var(--warning)", position: "insideEndTop" }, data: [{ yAxis: 80 }], lineStyle: { color: "var(--warning)", type: "dashed", width: 1 } } },
     ],
   };
   return <EChart option={option} height={height} />;

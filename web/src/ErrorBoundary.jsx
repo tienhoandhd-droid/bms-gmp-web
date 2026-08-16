@@ -25,7 +25,7 @@ export default class ErrorBoundary extends React.Component {
     // Fallback GỌN cho boundary con (quanh biểu đồ): chỉ 1 dòng, không chiếm trang.
     if (this.props.gon) {
       return (
-        <div className="rounded-2xl bg-rose-50 ring-1 ring-rose-200 text-rose-700 text-[12px] px-3 py-4 text-center">
+        <div className="rounded-2xl bg-danger-soft ring-1 ring-danger-line text-danger text-[12px] px-3 py-4 text-center">
           Không hiển thị được phần này. Dữ liệu khác vẫn hoạt động bình thường.
         </div>
       );
@@ -39,7 +39,7 @@ export default class ErrorBoundary extends React.Component {
           alignItems: "center",
           justifyContent: "center",
           padding: 24,
-          background: "linear-gradient(155deg,#EAF3F8 0%,#FAFDFF 45%,#E2F2EE 100%)",
+          background: "var(--bg-canvas)",
           fontFamily: "Inter, system-ui, -apple-system, sans-serif",
         }}
       >

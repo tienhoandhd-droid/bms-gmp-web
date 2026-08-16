@@ -7,5 +7,5 @@ import { COLOR } from "../../lib/designTokens";
 export default function ServerClock({ live }) {
   const [t, setT] = useState(live ? vnNow() : "2026-05-29 14:08:22");
   useEffect(() => { if (!live) return; const id = setInterval(() => setT(vnNow()), 1000); return () => clearInterval(id); }, [live]);
-  return <span className="text-xs font-semibold tabular-nums" style={{ color: COLOR.ink }}>{t}</span>;
+  return <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--text-default)" }}>{t}</span>;
 }

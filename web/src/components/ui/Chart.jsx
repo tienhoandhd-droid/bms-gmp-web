@@ -6,7 +6,7 @@ import React from "react";
 const LazyChart = React.lazy(() => import("../charts"));
 export default function Chart({ h = 200, ...p }) {
   return (
-    <React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: h }} />}>
+    <React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: h }} />}>
       <LazyChart {...p} />
     </React.Suspense>
   );
