@@ -2,6 +2,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Gauge } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
+import InspectorDrawer from "../../components/layout/InspectorDrawer";
+import PressureRange from "../../components/pressure/PressureRange";
 import { COLOR } from "../../lib/designTokens";
 import { DS_KHU } from "../../lib/phanQuyen";
 import { capNhatPhut8h, dangKyRealtimeChenhAp, layCamBienDungHinh, layChenhApTheoAhu } from "../../lib/supabaseData";
@@ -13,6 +15,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   const [khu, setKhu] = React.useState("ALL");
   const [ahuLoc, setAhuLoc] = React.useState("ALL");
   const [dangTuoi, setDangTuoi] = React.useState(false);   // đang gọi FMS lấy realtime
+  const [chiTiet, setChiTiet] = React.useState(null);      // phòng đang mở drawer chi tiết (Phase C)
   const [dhMap, setDhMap] = React.useState({});            // ma_phong → số giờ đứng hình (cảm biến DP)
   const [napLuc, setNapLuc] = React.useState(Date.now());  // mốc client nhận lô số hiện hành
   const [dongHo, setDongHo] = React.useState(Date.now());  // nhịp 10s để nhãn tuổi TỰ ĐẾM LÊN
@@ -109,11 +112,53 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
     return <span className={`font-semibold ${mau}`}> · {p <= 0 ? "vừa xong" : `${p}′ trước`}</span>;
   };
   const ordUu = (p) => p === "P1" ? 1 : p === "P2" ? 2 : p === "P3" ? 3 : 4;
+  // Phase C (báo cáo 9): phân loại một chỗ — hàng hiển thị + chip đếm + sort dùng chung.
+  const phanLoai = (r) => r.coDuLieu === false ? "thieu"
+    : laDungHinh(r) ? "dung"
+    : canGap(r) ? "canXuLy"
+    : (p3KhongDat(r) || ngoaiKhoang(r)) ? "theoDoi"
+    : "dat";
+  const rank = (r) => ({ canXuLy: 0, theoDoi: 1, dung: 2, thieu: 3, dat: 4 })[phanLoai(r)];
+  const soDat = filt.filter((r) => phanLoai(r) === "dat").length;
+  const trangThaiChu = (r) => {
+    const pl = phanLoai(r);
+    if (pl === "thieu") return <span className="text-muted">thiếu dữ liệu</span>;
+    if (pl === "dung") return <span className="text-warning font-medium">đứng tín hiệu {dhMap[r.maPhong]} giờ</span>;
+    if (pl === "canXuLy") return <span className="text-danger font-semibold">{r.giaTri != null && r.ghDuoi != null && Number(r.giaTri) < r.ghDuoi ? "dưới giới hạn" : "trên giới hạn"} · cần xử lý</span>;
+    if (pl === "theoDoi") return <span className="text-warning font-medium">{r.uuTien === "P3" && r.dat === false ? "P3 · theo dõi" : "trên giới hạn · theo dõi"}</span>;
+    return null;
+  };
+  const HangPhong = ({ r, gon = false }) => (
+    <button onClick={() => setChiTiet(r)} className={`w-full text-left rounded-xl px-3.5 ${gon ? "py-1.5" : "py-2.5"} flex items-center gap-x-4 gap-y-1 flex-wrap ring-1 ${phanLoai(r) === "canXuLy" ? "bg-danger-soft/40 ring-danger-line" : phanLoai(r) === "theoDoi" ? "bg-warning-soft/30 ring-warning-line" : "bg-surface ring-line hover:bg-subtle"}`}>
+      <span className="w-[150px] shrink-0 min-w-0">
+        <span className="flex items-center gap-1.5"><span className="text-[13.5px] font-semibold text-strong">{r.maPhong}</span><span className="text-[12px] font-bold px-1.5 py-0.5 rounded-full bg-subtle text-muted">{r.uuTien}</span></span>
+        {!gon && <span className="block text-[12px] text-muted truncate" title={r.tenPhong}>{r.tenPhong}</span>}
+      </span>
+      <span className="grow flex justify-center min-w-[140px]"><PressureRange value={r.coDuLieu === false ? null : r.giaTri} min={r.ghDuoi} max={r.ghTren} stale={!!r.duLieuCu || laDungHinh(r)} missing={r.coDuLieu === false} donVi={r.donVi} w={gon ? 160 : 220} /></span>
+      <span className="ml-auto w-[150px] text-right shrink-0">
+        <span className={`block text-[16px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[12px] font-medium"> {r.donVi}</span></>}</span>
+        <span className="block text-[12px] mt-0.5">{trangThaiChu(r) || (r.coDuLieu !== false && <span className="text-muted">{r.thoiDiem}{nhanTuoi(r)}</span>)}</span>
+      </span>
+    </button>
+  );
+  const chipDem = (nhan, so, cls) => <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold ring-1 ${cls}`}><b className="tabular-nums">{so}</b> {nhan}</span>;
   return (
     <Card className="p-5">
-      <SectionTitle icon={Gauge} hint="5 phút gần nhất từ FMS · ĐỎ = dưới sàn cần chỉnh (P1/P2) · VIỀN VÀNG XÁM = cảm biến đứng hình · XÁM PHỚT HỒNG = P3 chưa gấp · VÀNG = trên dải · XANH = đạt">Chênh áp theo AHU{filt.length > 0 && <> — <b className="text-danger">{soKhongDat}</b> cần chỉnh{soDh > 0 && <> · <b className="text-warning">{soDh}</b> đứng hình</>}{soP3 > 0 && <> · <b className="text-muted">{soP3}</b> P3 chưa gấp</>}{soNgoaiKhoang > 0 && <> · <b className="text-warning">{soNgoaiKhoang}</b> trên dải</>}{soMatDuLieu > 0 && <> · <b className="text-muted">{soMatDuLieu}</b> mất dữ liệu</>} /{filt.length} phòng</>}{dangTuoi && <span className="text-[12px] font-normal text-success"> · đang lấy realtime…</span>}</SectionTitle>
+      <SectionTitle icon={Gauge} hint="Số liệu 5 phút gần nhất">
+        <span title="Nguồn: FMS">Chênh áp</span>
+        {dangTuoi && <span className="text-[12px] font-normal text-success"> · đang cập nhật…</span>}
+      </SectionTitle>
+      {rows !== null && filt.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {chipDem("cần xử lý", soKhongDat, soKhongDat > 0 ? "bg-danger-soft text-danger ring-danger-line" : "bg-subtle text-muted ring-line")}
+          {chipDem("theo dõi", soP3 + soNgoaiKhoang, (soP3 + soNgoaiKhoang) > 0 ? "bg-warning-soft text-warning ring-warning-line" : "bg-subtle text-muted ring-line")}
+          {chipDem("đứng tín hiệu", soDh, soDh > 0 ? "bg-warning-soft text-warning ring-warning-line" : "bg-subtle text-muted ring-line")}
+          {chipDem("thiếu dữ liệu", soMatDuLieu, soMatDuLieu > 0 ? "bg-missing-soft text-missing ring-line" : "bg-subtle text-muted ring-line")}
+          {chipDem("đạt", soDat, "bg-subtle text-muted ring-line")}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 mt-3">
-        <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Lọc khu</span>
+        <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Khu vực</span>
         {chip("ALL", "Tất cả", khu === "ALL", () => { setKhu("ALL"); setAhuLoc("ALL"); })}
         {dsKhu.map((k) => chip(k, `Khu ${k}`, khu === k, () => { setKhu(k); setAhuLoc("ALL"); }))}
         {ahuPairs.length > 0 && (
@@ -123,113 +168,78 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
           </select>
         )}
       </div>
-      {/* 11/08 — BĂNG BÁO MẤT NGUỒN. Sự cố FMS treo 08:42–10:07 cho thấy bảng vẫn
-          xanh mướt suốt 85 phút vì rơi âm thầm về rollup giờ. Nay trạng thái nguồn
-          phải nằm ở chỗ dễ thấy nhất, không phải chữ nhỏ cạnh từng ô. */}
+      {/* 11/08 — BĂNG BÁO MẤT NGUỒN (giữ nguyên logic; đây là banner DUY NHẤT được to). */}
       {rows !== null && soMatDuLieu > 0 && (
         <div className="mt-3 rounded-xl bg-danger-soft px-3.5 py-2.5 ring-1 ring-danger-line">
-          <p className="text-[12.5px] font-bold text-danger">
-            ⚠ MẤT NGUỒN SỐ LIỆU — {soMatDuLieu}/{filt.length} phòng không có số đo đủ mới
-          </p>
+          <p className="text-[13px] font-bold text-danger">⚠ Mất kết nối dữ liệu — {soMatDuLieu}/{filt.length} phòng không có số đo đủ mới</p>
           <p className="mt-0.5 text-[12px] leading-snug text-danger">
-            Số cuối cùng đo được vẫn hiện để tham khảo, nhưng hệ <b>KHÔNG kết luận đạt/không đạt</b> trên số đã cũ
-            {nguongTuoi != null && <> (quá {nguongTuoi} phút)</>} — các phòng này không được tính vào số "đạt" lẫn số "cần chỉnh".
+            Số cuối cùng đo được vẫn hiện để tham khảo, nhưng hệ <b>không kết luận đạt/không đạt</b> trên số đã cũ
+            {nguongTuoi != null && <> (quá {nguongTuoi} phút)</>} — các phòng này không tính vào số "đạt" lẫn "cần xử lý".
             Kiểm FMS ngay: nguồn treo thì phải có người khởi động lại, hệ không tự khỏi.
           </p>
         </div>
       )}
       {rows !== null && soMatDuLieu === 0 && soDungGio > 0 && (
         <div className="mt-3 rounded-xl bg-warning-soft px-3.5 py-2 ring-1 ring-warning-line">
-          <p className="text-[12px] text-warning">
-            <b>Đang dùng số liệu theo GIỜ</b> ({soDungGio}/{filt.length} phòng) — mạch phút không có điểm mới trong 6 phút.
-            Số đang xem là trung bình 5 phút cuối của giờ đã xong, không phải hiện tại.
-          </p>
+          <p className="text-[12px] text-warning"><b>Đang dùng số liệu theo giờ</b> ({soDungGio}/{filt.length} phòng) — mạch phút không có điểm mới trong 6 phút. Số đang xem là trung bình 5 phút cuối của giờ đã xong, không phải hiện tại.</p>
         </div>
       )}
       {rows === null ? <div className="mt-3 h-24 rounded-2xl bg-subtle animate-pulse" />
         : filt.length === 0 ? <p className="mt-3 text-[13px] text-muted">Không có phòng chênh áp trong phạm vi lọc.</p>
-        : <div className="mt-3 space-y-4">
-          {/* ĐỎ lên đầu (16/07): trong nhóm xếp đỏ → vàng → xanh → xám; nhóm AHU có
-              phòng đỏ cũng nổi lên trước các nhóm toàn xanh. */}
-          {Object.keys(groups).sort((a, b) => {
-            const rank = (r) => r.coDuLieu === false ? 5 : canGap(r) ? 0 : laDungHinh(r) ? 1 : p3KhongDat(r) ? 2 : ngoaiKhoang(r) ? 3 : 4;
-            const ma = Math.min(...groups[a].map(rank)), mb = Math.min(...groups[b].map(rank));
-            return ma - mb || a.localeCompare(b);
-          }).map((k) => {
-            const rank = (r) => r.coDuLieu === false ? 5 : canGap(r) ? 0 : laDungHinh(r) ? 1 : p3KhongDat(r) ? 2 : ngoaiKhoang(r) ? 3 : 4;
-            const ds = groups[k].slice().sort((a, b) => rank(a) - rank(b) || ordUu(a.uuTien) - ordUu(b.uuTien) || String(a.maPhong).localeCompare(String(b.maPhong)));
-            // 11/08: mẫu số là phòng CÓ SỐ ĐO DÙNG ĐƯỢC, không phải mọi phòng.
-            // Trước đây "{soDat}/{ds.length} đạt" đếm cả phòng đang mất nguồn mà
-            // server vẫn trả dat=true từ bucket giờ cũ ⇒ số phòng đạt là đạt giả.
-            const dsCo = ds.filter((r) => r.coDuLieu !== false);
-            const soDat = dsCo.filter((r) => r.dat).length;
-            const soMatDl = ds.length - dsCo.length;
-            return (
-              <div key={k}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[12px] font-bold uppercase tracking-wide text-muted">{k}</span>
-                  <span className="text-[12px] tabular-nums">
-                    {dsCo.length === 0
-                      ? <span className="font-semibold text-muted">không có số đo — không kết luận</span>
-                      : <><span className="text-muted">{soDat}/{dsCo.length} đạt</span>
-                          {soMatDl > 0 && <span className="ml-1.5 font-semibold text-muted">· {soMatDl} mất dữ liệu</span>}</>}
-                  </span>
+        : (() => {
+          const dsBat = filt.filter((r) => phanLoai(r) !== "dat");
+          const dsDat = filt.filter((r) => phanLoai(r) === "dat");
+          const nhom = (ds) => {
+            const g = {};
+            ds.forEach((r) => { const k = `${r.khuVuc} / ${r.ahu}`; (g[k] ??= []).push(r); });
+            return Object.keys(g).sort((a, b) => Math.min(...g[a].map(rank)) - Math.min(...g[b].map(rank)) || a.localeCompare(b))
+              .map((k) => [k, g[k].slice().sort((x, y) => rank(x) - rank(y) || ordUu(x.uuTien) - ordUu(y.uuTien) || String(x.maPhong).localeCompare(String(y.maPhong)))]);
+          };
+          return (
+            <div className="mt-3 space-y-4">
+              {dsBat.length === 0 && <p className="text-[13px] text-success font-medium py-2">Tất cả phòng trong phạm vi lọc đang đạt.</p>}
+              {nhom(dsBat).map(([k, ds]) => (
+                <div key={k}>
+                  <p className="text-[12px] font-bold uppercase tracking-wide text-muted mb-1.5">{k}</p>
+                  <div className="space-y-1.5">{ds.map((r) => <HangPhong key={r.maPhong} r={r} />)}</div>
                 </div>
-                <div className="space-y-1.5">
-                  {ds.map((r) => (
-                    <div key={r.maPhong} className={`rounded-xl px-3.5 py-2.5 flex items-center gap-x-5 gap-y-2 flex-wrap ${oCls(r)}`}>
-                      <div className="w-[168px] shrink-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[13.5px] font-semibold text-strong">{r.maPhong}</span>
-                          <span className="text-[12px] font-bold px-1.5 py-0.5 rounded-full bg-surface/80 text-muted">{r.uuTien}</span>
-                        </div>
-                        <div className="text-[12px] text-muted truncate" title={r.tenPhong}>{r.tenPhong}</div>
-                        {laDungHinh(r) && (
-                          <div className="mt-1 inline-block rounded-md bg-warning-soft px-1.5 py-0.5 text-[12px] font-semibold leading-tight text-warning ring-1 ring-warning-line">
-                            ⚠ Cảm biến đứng hình {dhMap[r.maPhong]} giờ — vui lòng kiểm tra lại trước khi chỉnh
-                          </div>
-                        )}
+              ))}
+              {dsDat.length > 0 && (
+                <details className="rounded-2xl ring-1 ring-line px-4 py-3">
+                  <summary className="cursor-pointer text-[13px] font-medium text-muted select-none">Đang đạt · {dsDat.length} phòng — mở xem</summary>
+                  <div className="mt-3 space-y-3">
+                    {nhom(dsDat).map(([k, ds]) => (
+                      <div key={k}>
+                        <p className="text-[12px] font-bold uppercase tracking-wide text-muted mb-1">{k}</p>
+                        <div className="space-y-1">{ds.map((r) => <HangPhong key={r.maPhong} r={r} gon />)}</div>
                       </div>
-                      <div className="w-[96px] shrink-0 rounded-lg bg-surface/80 px-2 py-1 text-center ring-1 ring-line/60">
-                        <div className="text-[12px] font-semibold uppercase tracking-wider text-muted">Yêu cầu ({r.donVi})</div>
-                        <div className="text-[15px] font-bold text-strong tabular-nums leading-tight">{r.ghDuoi}–{r.ghTren}</div>
-                      </div>
-                      {/* 16/07 (user): chuỗi 5′ kẻ BẢNG 2 hàng — giờ trên, chênh áp dưới — dễ dò cột hơn dãy chữ liền */}
-                      {r.chuoi && r.chuoi.length > 0 && (
-                        <div className="grow flex justify-center"><div className="rounded-lg overflow-hidden ring-1 ring-line bg-surface shrink-0">
-                        <table className="border-collapse shrink-0">
-                          <tbody>
-                            <tr>
-                              {r.chuoi.map((p) => (
-                                <td key={`t${p.t}`} className="border border-line bg-subtle px-2 py-0.5 text-center text-[12px] text-body tabular-nums">{p.t}</td>
-                              ))}
-                            </tr>
-                            <tr>
-                              {r.chuoi.map((p, i) => {
-                                const cuoi = i === r.chuoi.length - 1;
-                                const duoiSan = Number(p.v) < r.ghDuoi; const trenTran = Number(p.v) > r.ghTren;
-                                return (
-                                  <td key={`v${p.t}`} className={`border border-line px-2 py-0.5 text-center text-[12.5px] tabular-nums ${cuoi ? `font-bold ${vCls(r)} bg-surface` : duoiSan ? "text-danger font-semibold bg-danger-soft/50" : trenTran ? "text-warning font-semibold bg-warning-soft/50" : "text-body bg-surface"}`}>{p.v}</td>
-                                );
-                              })}
-                            </tr>
-                          </tbody>
-                        </table>
-                        </div></div>
-                      )}
-                      <div className="ml-auto w-[132px] text-right shrink-0">
-                        <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[12px] font-medium"> {r.donVi}</span></>}</div>
-                        <div className="text-[12px] text-muted mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-success font-semibold">● realtime</span> : <span className="text-warning">giờ gần nhất</span>} {r.thoiDiem}{nhanTuoi(r)}{r.dat === false && (r.uuTien === "P3"
-                          ? <span className="font-medium text-muted"> · P3 — chưa cần xử lý ngay</span>
-                          : <span className={`font-semibold ${vCls(r)}`}> · KHÔNG ĐẠT</span>)}</>}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>}
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          );
+        })()}
+      {chiTiet && (() => { const r = chiTiet; return (
+        <InspectorDrawer onClose={() => setChiTiet(null)} eyebrow={`${r.khuVuc} / ${r.ahu} · ${r.uuTien}`} title={`${r.maPhong} — ${r.tenPhong || "Chênh áp"}`}>
+          <div className="grid grid-cols-2 gap-2 text-[13px]">
+            <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Hiện tại</span><span className={`font-bold tabular-nums text-[18px] ${vCls(r)}`}>{r.coDuLieu === false ? "—" : `${r.giaTri} ${r.donVi}`}</span></div>
+            <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Giới hạn ({r.donVi})</span><span className="font-semibold text-strong tabular-nums text-[18px]">{r.ghDuoi}–{r.ghTren}</span></div>
+          </div>
+          <div className="py-1"><PressureRange value={r.coDuLieu === false ? null : r.giaTri} min={r.ghDuoi} max={r.ghTren} stale={!!r.duLieuCu || laDungHinh(r)} missing={r.coDuLieu === false} donVi={r.donVi} w={340} /></div>
+          <p className="text-[13px] text-body">{trangThaiChu(r) || <span className="text-success font-medium">Trong giới hạn</span>}{r.coDuLieu !== false && <span className="text-muted"> · {r.realtime ? "số liệu trực tiếp" : "theo giờ gần nhất"} · {r.thoiDiem}{nhanTuoi(r)}</span>}</p>
+          {laDungHinh(r) && <p className="text-[12px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-3 py-2">⚠ Cảm biến đứng tín hiệu {dhMap[r.maPhong]} giờ — kiểm tra lại cảm biến trước khi chỉnh hệ thống.</p>}
+          {r.chuoi && r.chuoi.length > 0 && (
+            <div>
+              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted mb-1.5">Chuỗi 5 phút gần nhất</p>
+              <div className="rounded-lg overflow-x-auto ring-1 ring-line bg-surface"><table className="border-collapse w-full"><tbody>
+                <tr>{r.chuoi.map((p2) => <td key={`t${p2.t}`} className="border border-line bg-subtle px-2 py-0.5 text-center text-[12px] text-body tabular-nums">{p2.t}</td>)}</tr>
+                <tr>{r.chuoi.map((p2, i) => { const cuoi = i === r.chuoi.length - 1; const duoiSan = Number(p2.v) < r.ghDuoi; const trenTran = Number(p2.v) > r.ghTren; return <td key={`v${p2.t}`} className={`border border-line px-2 py-0.5 text-center text-[12.5px] tabular-nums ${cuoi ? `font-bold ${vCls(r)} bg-surface` : duoiSan ? "text-danger font-semibold bg-danger-soft/50" : trenTran ? "text-warning font-semibold bg-warning-soft/50" : "text-body bg-surface"}`}>{p2.v}</td>; })}</tr>
+              </tbody></table></div>
+            </div>
+          )}
+        </InspectorDrawer>
+      ); })()}
     </Card>
   );
 }
