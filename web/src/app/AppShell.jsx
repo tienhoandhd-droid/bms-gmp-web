@@ -71,6 +71,10 @@ import ViecCuaBan from "../features/tasks/ViecCuaBan";
 import { RoomCard, RoomDetailModal, KpiListModal, RoomManager } from "../features/dashboard/DashboardParts";
 import GiaoDienCard from "../features/settings/GiaoDienCard";
 import StatusAnchor from "../components/layout/StatusAnchor";
+import DesktopSidebar from "../components/navigation/DesktopSidebar";
+import MobileBottomNav from "../components/navigation/MobileBottomNav";
+import MoreNavigationSheet from "../components/navigation/MoreNavigationSheet";
+import SystemHealthStrip from "../components/status/SystemHealthStrip";
 import { fmtPhut } from "../lib/dinhDang";
 
 
@@ -115,6 +119,7 @@ const HIEN_VIEC_CUA_BAN = false;   // 16/07: user tạm ẩn — chưa cần thi
 
 export default function AppShell() {
   const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return TABS.some((x) => x.k === t) ? t : "home"; } catch { return "home"; } });
+  const [sheetThem, setSheetThem] = useState(false);   // sheet "Thêm" của bottom-nav mobile
   // KEEP-ALIVE tab nặng (Xu hướng & tuân thủ, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
   // bằng display:none — đổi tab rồi quay lại KHÔNG tải lại từ đầu (giữ cache chuỗi, kết quả AI,
   // bộ lọc, vị trí cuộn trong tab). Kèm cú "resize" khi quay lại để ECharts tự căn lại khung.
@@ -717,14 +722,14 @@ export default function AppShell() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: PAGE_BG, color: "var(--text-default)", fontFamily: "'Inter','Montserrat',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif" }}>
-      <div className="pointer-events-none fixed inset-0 overflow-hidden"><div className="absolute -top-40 -left-24 w-[28rem] h-[28rem] rounded-full bg-info-soft opacity-15 blur-3xl" /><div className="absolute top-32 right-0 w-96 h-96 rounded-full bg-success-soft opacity-10 blur-3xl" /><div className="absolute bottom-0 left-1/4 w-[30rem] h-[30rem] rounded-full bg-info-soft opacity-20 blur-3xl" /></div>
-
-      <div className="relative max-w-[1400px] mx-auto px-6 py-6">
+    <div className="min-h-screen lg:flex" style={{ background: PAGE_BG, color: "var(--text-default)", fontFamily: "'Inter','Montserrat',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+      {/* Phase A (báo cáo 9): sidebar desktop + bottom-nav mobile thay dải 10 tab; bỏ blob trang trí. */}
+      <DesktopSidebar tab={tab} setTab={setTab} role={role} badges={{ events: p12Open }} />
+      <div className="relative flex-1 min-w-0 max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-24 lg:pb-6">
         <header className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="rounded-2xl bg-surface px-2.5 ring-1 ring-line flex items-center justify-center h-[50px] w-[50px] shrink-0" style={cardShadow}><CpcLogo className="h-10 w-10" /></div>
-            <div className="flex flex-col justify-center min-w-0"><h1 className="text-base sm:text-lg font-bold tracking-tight leading-tight truncate" style={{ color: "var(--text-strong)" }}>Hệ thống giám sát HVAC phòng sạch GMP</h1><p className="text-[12px] font-semibold tracking-wide mt-0.5" style={{ color: "var(--primary)" }}>V/Q team — QLCL</p></div>
+            <div className="lg:hidden rounded-2xl bg-surface px-2.5 ring-1 ring-line flex items-center justify-center h-[50px] w-[50px] shrink-0" style={cardShadow}><CpcLogo className="h-10 w-10" /></div>
+            <div className="flex flex-col justify-center min-w-0"><h1 className="text-base sm:text-lg font-bold tracking-tight leading-tight truncate" style={{ color: "var(--text-strong)" }}>Giám sát HVAC phòng sạch</h1><p className="text-[12px] font-semibold tracking-wide mt-0.5" style={{ color: "var(--primary)" }}>Phòng Quản lý chất lượng</p></div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap justify-end ml-auto">
             {isLive && <SucKhoeWidget sk={live.sucKhoe} dangTai={live.dangTai} />}
@@ -733,29 +738,15 @@ export default function AppShell() {
           </div>
         </header>
 
-        {/* Mobile: tab TỰ XUỐNG DÒNG (không kéo ngang); desktop giữ 1 hàng cuộn. */}
-        <nav className="mt-5"><div className="rounded-2xl bg-surface/80 backdrop-blur ring-1 ring-line p-1.5 flex gap-1 flex-wrap md:flex-nowrap md:overflow-x-auto" style={cardShadow}>{visibleTabs.map((t) => { const Icon = t.icon; const active = tab === t.k; return <button key={t.k} onClick={() => setTab(t.k)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition ${active ? "text-white" : "text-body hover:bg-subtle"}`} style={active ? { background: "var(--primary-solid)", boxShadow: "0 6px 16px -6px rgba(20,158,144,0.55)" } : {}}><Icon className="w-4 h-4" strokeWidth={1.8} /> {t.label}{t.k === "events" && <span className="ml-0.5 text-[12px] px-1.5 py-0.5 rounded-full font-bold" style={active ? { background: "rgba(255,255,255,0.25)" } : { background: "rgba(226,103,79,0.16)", color: "var(--danger)" }}>{p12Open}</span>}</button>; })}</div></nav>
-
-        {/* G3: chip kỹ thuật hạ xuống 1 dòng meta — hero mới là anchor duy nhất */}
-        <div className="mt-2 px-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] meta">
-          <button onClick={doiBannerLive} className="hover:underline" title="Bấm để hiện/ẩn dòng mô tả nguồn dữ liệu">
-            Trạng thái đồng bộ: {HAS_SUPABASE ? <b className="text-success">Dữ liệu trực tiếp</b> : <b className="text-warning">Chế độ thử nghiệm</b>}
-          </button>
-          <span>Toàn vẹn dữ liệu: {(kpis.thieuDL || 0) === 0 ? <b className="text-success">đầy đủ</b> : <b className="text-warning">{kpis.thieuDL} phòng thiếu DL</b>}</span>
-          <span className="inline-flex items-center gap-1">Giờ máy chủ (UTC+7): <ServerClock live={isLive} /></span>
+        {/* Phase A: một dòng sức khỏe hệ thống thay meta + banner (bình thường = im lặng) */}
+        <div className="mt-3">
+          <SystemHealthStrip isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} />
         </div>
 
+        <MobileBottomNav tab={tab} setTab={setTab} role={role} badges={{ events: p12Open }} onMoThem={() => setSheetThem(true)} />
+        <MoreNavigationSheet open={sheetThem} onClose={() => setSheetThem(false)} tab={tab} setTab={setTab} role={role} />
+
         <main className="mt-6">
-          {isLive && (!anBannerLive || live.loi) && (
-            <div className="mb-4 flex items-start gap-2 rounded-2xl bg-success-soft ring-1 ring-success-line px-4 py-2.5 text-[12px] text-body">
-              <Wifi className="w-4 h-4 mt-0.5 text-success shrink-0" strokeWidth={1.8} />
-              <span className="flex-1">Đang đọc/ghi dữ liệu thật từ Supabase cho <b>tất cả các tab</b> (Tổng quan · Sự cố · Phòng · Xu hướng · Báo cáo · Nhật ký). <b>Xu hướng &amp; Rủi ro</b> tính trực tiếp từ dữ liệu theo giờ (luôn có sẵn); riêng <b>Báo cáo AI</b> tổng hợp theo ngày sẽ đầy đủ dần khi WF rollup chạy.{live.loi && <span className="text-danger"> · Lỗi tải: {live.loi.thong_bao || live.loi.message || "kết nối"}</span>}{live.capNhatLuc && !live.loi && <span className="text-muted"> · Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</span>
-              {!live.loi && (
-                <button onClick={doiBannerLive} title="Ẩn dòng này cho gọn — bấm ô 'Nguồn dữ liệu' trên đầu trang để hiện lại"
-                  className="shrink-0 rounded-lg px-1.5 py-0.5 text-muted hover:bg-success-soft/60 hover:text-body text-[13px] leading-none">✕</button>
-              )}
-            </div>
-          )}
           {/* 16/07 (user): TẠM ẨN banner "Việc của bạn" — chưa cần trong giai đoạn triển khai.
               Bật lại: đổi HIEN_VIEC_CUA_BAN = true (component + dữ liệu giữ nguyên). */}
           {HIEN_VIEC_CUA_BAN && isLive && user && role && <ViecCuaBan viecCuaToi={viecCuaToi} cumChoToi={cumChoToi} onXuLy={openApproval} onGhiKetLuan={ghiKetLuanCum} />}
