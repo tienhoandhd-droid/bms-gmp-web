@@ -68,7 +68,8 @@ import { DS_KHU, DB_MOI_MAC_DINH } from "../lib/phanQuyen";
 import CamBienPage, { TheDungHinhTongQuan, ModalKetLuanCum, ModalMoLai, CumDrawer } from "../features/sensors/CamBienPage";
 import { BuocSuCo, KiemSoatXuLy, ApprovalModal, DanhGiaHieuQuaCanhBao } from "../features/incidents/IncidentsParts";
 import ViecCuaBan from "../features/tasks/ViecCuaBan";
-import { RoomCard, RoomDetailModal, KpiListModal, RoomManager } from "../features/dashboard/DashboardParts";
+import { RoomDetailModal, KpiListModal, RoomManager } from "../features/dashboard/DashboardParts";
+import { RoomSummaryCard, laBatThuong } from "../components/room/RoomSummaryCard";
 import GiaoDienCard from "../features/settings/GiaoDienCard";
 import StatusAnchor from "../components/layout/StatusAnchor";
 import DesktopSidebar from "../components/navigation/DesktopSidebar";
@@ -782,7 +783,17 @@ export default function AppShell() {
               </p>
               <TheDungHinhTongQuan isLive={isLive} khuChoPhep={khuChoPhep} onXemChiTiet={roleCanSeeTab(role, "sensors") ? () => setTab("sensors") : null} />
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
-                <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-line overflow-hidden text-[12px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={!xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Tất cả</button></div><span className="text-[12px] text-muted">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-muted">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongHienThi.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incidentsXem.find((i) => i.room === r.id && i.status !== "Đã khắc phục") || null} />)}</div>}</div>
+                <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-line overflow-hidden text-[12px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={!xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Tất cả</button></div><span className="text-[12px] text-muted">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-muted">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : (() => {
+                  // Phase B (báo cáo 9): phòng bất thường = card đủ; phòng đạt = một dòng gọn.
+                  const incCua = (r) => incidentsXem.find((i) => i.room === r.id && i.status !== "Đã khắc phục") || null;
+                  const batThuong = phongHienThi.filter((r) => laBatThuong(r, cfg, incCua(r)));
+                  const dat = phongHienThi.filter((r) => !laBatThuong(r, cfg, incCua(r)));
+                  return (<>
+                    {batThuong.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{batThuong.map((r) => <RoomSummaryCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incCua(r)} />)}</div>}
+                    {batThuong.length === 0 && <Card className="p-5 text-center text-[13px] text-success font-medium">Không có phòng nào bất thường trong nhóm đang xem.</Card>}
+                    {dat.length > 0 && <div className="mt-4"><p className="px-1 mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted">Đang đạt · {dat.length} phòng</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{dat.map((r) => <RoomSummaryCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={null} />)}</div></div>}
+                  </>);
+                })()}</div>
                 <aside className="space-y-5">
                   {isLive ? (
                   <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Tóm tắt hệ thống</SectionTitle>{live.capNhatLuc && !live.loi && <span className="text-[12px] text-muted">Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</div><p className="mt-3 text-[13px] leading-relaxed text-body">{matNguon ? <><b className="text-danger">MẤT NGUỒN SỐ LIỆU.</b> {skTomTat || ""} Không kết luận đạt/không đạt cho {kpis.tong} phòng cho tới khi nguồn trở lại.{p12Open > 0 && <> Còn <b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở.</>}</> : live.kpis ? <>Đang giám sát <b style={{ color: "var(--text-strong)" }}>{kpis.tong}</b> phòng: <span className="text-success font-semibold">{kpis.dat} đạt</span> · <span className="text-danger font-semibold">{kpis.khongDat} không đạt</span> · <span className="text-warning font-semibold">{kpis.thieuDL} thiếu DL</span>. {p12Open > 0 ? <><b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở — ưu tiên xử lý.</> : "Không có sự cố Nghiêm trọng đang mở."}</> : (live.loi ? "Không tải được dữ liệu — kiểm tra kết nối/đăng nhập." : "Đang tải dữ liệu…")}</p><p className="mt-2 text-[12px] text-muted">Nhận định hỗ trợ chi tiết ở tab Báo cáo · Xu hướng & tuân thủ.</p></Card>
@@ -1344,7 +1355,7 @@ export default function AppShell() {
           banner "Việc của bạn" hiện trên mọi tab — trước đây bấm "Ghi kết luận" từ
           tab khác thì state đặt xong mà modal không render (nút như chết). */}
       {cumKetLuan && <ModalKetLuanCum cum={cumKetLuan} dangChay={dangGhiCum} onDong={() => setCumKetLuan(null)} onLuu={luuKetLuanCum} />}
-      {roomModal && <RoomDetailModal room={roomModal} onClose={() => setRoomModal(null)} />}
+      {roomModal && <RoomDetailModal room={roomModal} cfg={cfg} onClose={() => setRoomModal(null)} />}
       {kpiModal && <KpiListModal kind={kpiModal} groups={nhomPhong} incidents={suCoP12} cfg={cfg}
         onClose={() => setKpiModal(null)}
         onPickRoom={(r) => { setKpiModal(null); setRoomModal(r); }}
