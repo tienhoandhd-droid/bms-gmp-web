@@ -25,16 +25,6 @@ import {
 } from "lucide-react";
 import logoCpc1hn from "./assets/logo-cpc1hn.png";
 
-// Biểu đồ (Recharts) tách sang module riêng, NẠP TRỄ (lazy) → bundle màn hình đầu
-// KHÔNG kèm Recharts (~400KB); chỉ tải khi mở tab Xu hướng / modal chi tiết phòng.
-const LazyChart = React.lazy(() => import("./components/charts"));
-function Chart({ h = 200, ...p }) {
-  return (
-    <React.Suspense fallback={<div className="rounded-2xl bg-slate-50 animate-pulse" style={{ height: h }} />}>
-      <LazyChart {...p} />
-    </React.Suspense>
-  );
-}
 
 // ===== Đã tách move-only 17/08/2026 → lib/uiConst, lib/phanQuyen, lib/dinhDang, lib/moPhong, lib/nutThaoTac, components/ui/CpcLogo =====
 import { PAGE_BG, cardShadow, CARD, STATUS, PRIORITY, MUC, LEVELS, LEVEL_PRIORITY, LEVEL_GLYPH, levelGlyph, SENSOR_META, OOS_FILL, ICON_CANH_BAO } from "./lib/uiConst";
@@ -43,38 +33,14 @@ import { mulberry32, hashStr, fmtH, fmtDelta, deltaTone, pad, toLocalInput, vnNo
 import { RAW, ROOM_BIAS, rawSeries, sensorStats, sensorLevel, roomLevel, roomCompliance, roomHourlyOOS, genDaily, genHourly, SCOPES, MASTER, byType, findScope, RANGES, SENSORS, SCOPE_LEVELS, applySensor, getSeries, AREAS, AHUS, defSensors, ROOM_SEED, INITIAL_ROOMS, INCIDENTS0, SYSTEM_ALERTS, SOP } from "./lib/moPhong";
 import { A_TEAL, A_AMBER, A_INFO, A_ROSE, A_SLATE, A_IPC, A_MEP_NHAN, A_MEP_XONG, A_MEP_KHONG, STATUS_ACTIONS, rolesOfStatus, firstActionFor, nutKhopTrangThai, nutChoVaiTro, STATUS_DOT } from "./lib/nutThaoTac";
 import CpcLogo from "./components/ui/CpcLogo";
+import Chart from "./components/ui/Chart";
+import { Card, SectionTitle, MucBadge, HeaderChip } from "./components/ui/Card";
+import ServerClock from "./components/ui/ServerClock";
+import { BannerCapNhat } from "./components/ui/BannerCapNhat";
+import { KpiCard, OosMiniBars } from "./components/ui/KpiCard";
+export { BannerCapNhat };   // main.jsx vẫn import từ App.jsx — giữ nguyên API
 
-/* ============ UI HELPERS ============ */
-function Card({ children, className = "", style = {} }) { return <div className={`${CARD} ${className}`} style={{ ...cardShadow, ...style }}>{children}</div>; }
-function SectionTitle({ icon: Icon, children, hint }) { return <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: COLOR.navy }}><Icon className="w-4 h-4" style={{ color: COLOR.teal }} strokeWidth={1.8} />{children}{hint && <span className="text-[11px] font-normal text-slate-400">— {hint}</span>}</h3>; }
-function MucBadge({ p, stack }) { const n = p[1]; return stack ? <span className={`inline-flex flex-col items-center justify-center leading-tight px-2.5 py-1 rounded-lg ${PRIORITY[p]}`}><span className="text-[11px] font-semibold uppercase tracking-wide">Mức</span><span className="text-[14px] font-bold">{n}</span></span> : <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${PRIORITY[p]}`}>{MUC[p]}</span>; }
-function HeaderChip({ children, ring = "ring-slate-200" }) { return <div className={`flex items-center gap-2.5 rounded-2xl bg-white px-4 ring-1 ${ring} h-[50px]`} style={cardShadow}>{children}</div>; }
-// Đồng hồ máy chủ UTC+7 tự cập nhật mỗi giây (tách riêng để không render lại toàn trang).
-function ServerClock({ live }) {
-  const [t, setT] = useState(live ? vnNow() : "2026-05-29 14:08:22");
-  useEffect(() => { if (!live) return; const id = setInterval(() => setT(vnNow()), 1000); return () => clearInterval(id); }, [live]);
-  return <span className="text-xs font-semibold tabular-nums" style={{ color: COLOR.ink }}>{t}</span>;
-}
 
-// Banner "có bản mới" — hiện khi SW phát hiện phiên bản deploy mới (sự kiện
-// bms:co-ban-moi từ index.html). 1 chạm Tải lại (index.html network-first nên
-// reload nhận đủ HTML+asset mới). Đặc biệt hữu ích trên điện thoại (không F5 tay).
-export function BannerCapNhat() {
-  const [hien, setHien] = useState(false);
-  useEffect(() => {
-    const on = () => setHien(true);
-    window.addEventListener("bms:co-ban-moi", on);
-    return () => window.removeEventListener("bms:co-ban-moi", on);
-  }, []);
-  if (!hien) return null;
-  return (
-    <div className="fixed inset-x-3 bottom-3 z-[60] mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-2xl sm:inset-x-auto sm:right-4">
-      <span className="text-[13px] font-medium leading-tight">Đã có bản cập nhật mới của ứng dụng.</span>
-      <button onClick={() => window.location.reload()} className="ml-auto shrink-0 rounded-xl bg-white px-3.5 py-1.5 text-[13px] font-semibold text-slate-900 hover:bg-slate-100">Tải lại</button>
-      <button onClick={() => setHien(false)} aria-label="Để sau" className="shrink-0 text-white/50 hover:text-white">✕</button>
-    </div>
-  );
-}
 // ═══ KIỂM SOÁT XỬ LÝ (17/07 — yêu cầu Quản trị) ═══
 // Vé đang ở bộ phận nào, im lặng bao lâu so với NGƯỠNG THEO TRẠNG THÁI
 // (IPC 20′ · Cơ điện chưa nhận 15′ · đang/chờ xử lý 1h), ai đang chậm.
@@ -244,42 +210,7 @@ function HuongDanEmailNut() {
    mỗi lần bấm bất kỳ nút nào trên trang. Comparator BỎ QUA identity của prop hàm/objeto
    trang trí (onClick, accent tạo inline) — chỉ so giá trị hiển thị; hành vi hàm không đổi
    giữa các render nên bỏ qua identity là an toàn. */
-const KpiCard = React.memo(function KpiCard({ icon: Icon, label, value, total, sub, accent, onClick, loading }) {
-  const clickable = typeof onClick === "function";
-  return (
-    <Card className={`relative p-6 overflow-hidden ${clickable ? "cursor-pointer transition hover:-translate-y-0.5 hover:ring-teal-200" : ""}`}>
-      {clickable ? <button onClick={onClick} className="absolute inset-0 z-10" aria-label={`Xem danh sách: ${label}`} /> : null}
-      <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${accent.glow} blur-2xl opacity-40`} />
-      {/* Mảng 4: skeleton pulse khi CHƯA có số → không hiện "0" rồi nhảy (giảm CLS). */}
-      <div className="relative flex items-start justify-between"><div><p className="text-[11px] uppercase tracking-[0.1em] text-slate-500 font-semibold">{label}</p>{loading ? <div className="mt-3 h-[3rem] w-20 rounded-lg bg-slate-100 animate-pulse" /> : <p className="mt-3 text-5xl font-light tabular-nums leading-none" style={{ color: COLOR.navy }}>{value}{total != null && <span className="text-xl text-slate-300 font-light">/{total}</span>}</p>}{loading ? <div className="mt-2 h-3 w-28 rounded bg-slate-100 animate-pulse" /> : <p className={`mt-2 text-xs font-medium ${accent.txt}`}>{sub}</p>}</div><div className={`rounded-2xl p-2.5 ${accent.bg}`}><Icon className={`w-5 h-5 ${accent.txt}`} strokeWidth={1.8} /></div></div>
-      {clickable && <div className="relative mt-2 flex items-center gap-1 text-[10px] font-medium text-slate-400"><Eye className="w-3 h-3" strokeWidth={1.8} /> bấm để xem danh sách phòng</div>}
-    </Card>
-  );
-}, (t, s) => t.label === s.label && t.value === s.value && t.total === s.total && t.sub === s.sub
-   && t.loading === s.loading && t.icon === s.icon
-   && (typeof t.onClick === "function") === (typeof s.onClick === "function")
-   && t.accent.txt === s.accent.txt && t.accent.bg === s.accent.bg && t.accent.glow === s.accent.glow);
 
-/* ===== OOS mini 8h — cột thuần CSS (KHÔNG dùng ECharts) =====
-   Trước đây thẻ phòng ở tab Tổng quan (trang mặc định) render <Chart type="oosMini">
-   → kéo cả chunk ECharts (~730KB) ngay màn hình đầu, dù chỉ để vẽ 8 cột đơn giản.
-   Thay bằng cột div nhẹ → ECharts chỉ nạp khi mở Xu hướng / chi tiết phòng. */
-const OosMiniBars = React.memo(function OosMiniBars({ data, h = 70 }) {
-  const max = Math.max(1, ...data.map((d) => d.oos || 0));
-  const barsH = h - 16;   // chừa ~16px cho nhãn giờ ở dưới
-  return (
-    <div className="w-full select-none" style={{ height: h }}>
-      <div className="flex items-end gap-[3px]" style={{ height: barsH }}>
-        {data.map((d, i) => { const v = d.oos || 0; const hb = v > 0 ? Math.max(2, Math.round((v / max) * barsH)) : 0; return (
-          <div key={i} className="flex-1 flex items-end justify-center" title={`Giờ ${d.label} · ${v} điểm OOS`}>
-            <div className="w-full rounded-t" style={{ height: hb, background: COLOR.softCoral }} />
-          </div>
-        ); })}
-      </div>
-      <div className="flex gap-[3px] mt-1">{data.map((d, i) => <div key={i} className="flex-1 text-center text-[10px] text-slate-400 tabular-nums leading-none truncate">{i % 2 === 0 ? d.label : ""}</div>)}</div>
-    </div>
-  );
-});
 
 /* ===== THẺ PHÒNG =====
    Memo: chỉ render lại khi room/cfg/incident đổi THAM CHIẾU (đều là state/phần tử state —
