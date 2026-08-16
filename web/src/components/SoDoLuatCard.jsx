@@ -317,8 +317,8 @@ export default function SoDoLuatCard({ dsNut }) {
           <div className="relative rounded-xl border border-line bg-surface p-3">
             <div className="flex items-center gap-2"><CircleDot className="h-4 w-4 text-danger" /><b className="text-[12px] text-body">3. Phân mức</b></div>
             <div className="mt-2 space-y-1 text-[9.8px] leading-snug">
-              <p><b className="text-success">Bình thường:</b> OOS ngắn, hoặc 10′ cuối đã về dải — không mở vé; sự cố mở đủ 2 giờ sạch thì tự đóng.</p>
-              <p><b className="text-danger">Nghiêm trọng:</b> OOS cả giờ &amp; 10′ cuối vẫn vượt ngưỡng — mở vé + đưa vào nhịp email WF8.</p>
+              <p><b className="text-success">Bình thường:</b> OOS ngắn, hoặc 10′ cuối đã về dải — không mở phiếu; sự cố mở đủ 2 giờ sạch thì tự đóng.</p>
+              <p><b className="text-danger">Nghiêm trọng:</b> OOS cả giờ &amp; 10′ cuối vẫn vượt ngưỡng — mở phiếu + đưa vào nhịp email WF8.</p>
             </div>
             <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-subtle text-muted lg:block" />
           </div>

@@ -97,7 +97,7 @@ const RECENT_RANGES = [{ k: 1, label: "1 giờ" }, { k: 4, label: "4 giờ" }, {
 
 
 
-const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "tasks", label: "Nhiệm vụ", icon: ClipboardList }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Chênh áp", icon: Gauge }, { k: "sensors", label: "Cảm biến", icon: Gauge }, { k: "trend", label: "Xu hướng GMP", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
+const TABS = [{ k: "home", label: "Tổng quan", icon: LayoutDashboard }, { k: "tasks", label: "Công việc", icon: ClipboardList }, { k: "events", label: "Sự cố", icon: AlertOctagon }, { k: "recent", label: "Chênh áp", icon: Gauge }, { k: "sensors", label: "Cảm biến", icon: Gauge }, { k: "trend", label: "Xu hướng & tuân thủ", icon: LineIcon }, { k: "reports", label: "Báo cáo", icon: FileBarChart }, { k: "audit", label: "Nhật ký & SOP", icon: ScrollText }, { k: "recipients", label: "Người nhận thông báo", icon: Mail }, { k: "settings", label: "Cài đặt", icon: Cog }];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CỤM ĐIỀU TRA & MỞ LẠI SỰ CỐ — modal/ngăn kéo (10/07/2026)
@@ -115,7 +115,7 @@ const HIEN_VIEC_CUA_BAN = false;   // 16/07: user tạm ẩn — chưa cần thi
 
 export default function AppShell() {
   const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return TABS.some((x) => x.k === t) ? t : "home"; } catch { return "home"; } });
-  // KEEP-ALIVE tab nặng (Xu hướng GMP, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
+  // KEEP-ALIVE tab nặng (Xu hướng & tuân thủ, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
   // bằng display:none — đổi tab rồi quay lại KHÔNG tải lại từ đầu (giữ cache chuỗi, kết quả AI,
   // bộ lọc, vị trí cuộn trong tab). Kèm cú "resize" khi quay lại để ECharts tự căn lại khung.
   const [daMo, setDaMo] = useState({});
@@ -198,7 +198,7 @@ export default function AppShell() {
   // KHÔNG tải gì cho tới khi người dùng bấm "Mở bảng điều khiển".
   const cheDoThaoTac = moTuEmail && !vaoDashboard;
   const live = useLiveData(dataSource, { phienId: user?.email || null, batDau: !cheDoThaoTac });
-  // Có token email + đã đăng nhập → soi vé (CHỈ ĐỌC). DB kiểm vai trò, khu, hạn
+  // Có token email + đã đăng nhập → soi phiếu (CHỈ ĐỌC). DB kiểm vai trò, khu, hạn
   // token, và cả việc sự cố đã đổi trạng thái từ lúc gửi mail.
   //
   // ⚠ BUG ĐÃ SỬA (10/07/2026) — effect tự huỷ chính nó, modal kẹt ở "Đang kiểm tra liên kết…":
@@ -532,7 +532,7 @@ export default function AppShell() {
   // CRITICAL hoặc phòng P1 chỉ QA/Quản trị được hoãn — máy chủ tự kiểm, không tin giao diện.
   // ═══ CỤM ĐIỀU TRA (10/07/2026) ═══
   // 24 sự cố đang mở là 12 cụm. Cơ điện không sửa "một phòng", họ sửa một AHU; QA không
-  // kết luận "một vé", họ kết luận một sai lệch có nguyên nhân gốc và CAPA. Máy chủ ghi
+  // kết luận "một phiếu", họ kết luận một sai lệch có nguyên nhân gốc và CAPA. Máy chủ ghi
   // một dòng audit cho TỪNG sự cố thuộc cụm — không ai được đóng gộp mà mất dấu vết.
   const cumRows = useMemo(() => (isLive && Array.isArray(live.cumSuCo) ? live.cumSuCo : []), [isLive, live.cumSuCo]);
   // Lọc hai tầng: quyền khu của phiên (khuChoPhep) + bộ lọc Khu/AHU người dùng đang
@@ -682,7 +682,7 @@ export default function AppShell() {
 
   // ═══ CHẾ ĐỘ THAO TÁC NHẸ (mở web từ nút trong email) ═══
   // Đã đăng nhập + có vai trò + mở từ email và CHƯA chủ động vào dashboard → chỉ dựng
-  // màn thao tác nhẹ (soi vé + xác nhận + kết quả). useLiveData đã tắt (batDau=false) nên
+  // màn thao tác nhẹ (soi phiếu + xác nhận + kết quả). useLiveData đã tắt (batDau=false) nên
   // KHÔNG có tải nặng nào chạy. Bấm nhiều nút email = nhiều tab nhẹ, hết lag & hết đá phiên.
   if (isLive && user && role && cheDoThaoTac) {
     return (
@@ -794,9 +794,9 @@ export default function AppShell() {
                 <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-line overflow-hidden text-[12px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={!xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Tất cả</button></div><span className="text-[12px] text-muted">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-muted">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{phongHienThi.map((r) => <RoomCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incidentsXem.find((i) => i.room === r.id && i.status !== "Đã khắc phục") || null} />)}</div>}</div>
                 <aside className="space-y-5">
                   {isLive ? (
-                  <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Tóm tắt hệ thống</SectionTitle>{live.capNhatLuc && !live.loi && <span className="text-[12px] text-muted">Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</div><p className="mt-3 text-[13px] leading-relaxed text-body">{matNguon ? <><b className="text-danger">MẤT NGUỒN SỐ LIỆU.</b> {skTomTat || ""} Không kết luận đạt/không đạt cho {kpis.tong} phòng cho tới khi nguồn trở lại.{p12Open > 0 && <> Còn <b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở.</>}</> : live.kpis ? <>Đang giám sát <b style={{ color: "var(--text-strong)" }}>{kpis.tong}</b> phòng: <span className="text-success font-semibold">{kpis.dat} đạt</span> · <span className="text-danger font-semibold">{kpis.khongDat} không đạt</span> · <span className="text-warning font-semibold">{kpis.thieuDL} thiếu DL</span>. {p12Open > 0 ? <><b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở — ưu tiên xử lý.</> : "Không có sự cố Nghiêm trọng đang mở."}</> : (live.loi ? "Không tải được dữ liệu — kiểm tra kết nối/đăng nhập." : "Đang tải dữ liệu…")}</p><p className="mt-2 text-[12px] text-muted">Phân tích AI chi tiết ở tab Báo cáo · Xu hướng GMP.</p></Card>
+                  <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Tóm tắt hệ thống</SectionTitle>{live.capNhatLuc && !live.loi && <span className="text-[12px] text-muted">Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</div><p className="mt-3 text-[13px] leading-relaxed text-body">{matNguon ? <><b className="text-danger">MẤT NGUỒN SỐ LIỆU.</b> {skTomTat || ""} Không kết luận đạt/không đạt cho {kpis.tong} phòng cho tới khi nguồn trở lại.{p12Open > 0 && <> Còn <b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở.</>}</> : live.kpis ? <>Đang giám sát <b style={{ color: "var(--text-strong)" }}>{kpis.tong}</b> phòng: <span className="text-success font-semibold">{kpis.dat} đạt</span> · <span className="text-danger font-semibold">{kpis.khongDat} không đạt</span> · <span className="text-warning font-semibold">{kpis.thieuDL} thiếu DL</span>. {p12Open > 0 ? <><b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở — ưu tiên xử lý.</> : "Không có sự cố Nghiêm trọng đang mở."}</> : (live.loi ? "Không tải được dữ liệu — kiểm tra kết nối/đăng nhập." : "Đang tải dữ liệu…")}</p><p className="mt-2 text-[12px] text-muted">Nhận định hỗ trợ chi tiết ở tab Báo cáo · Xu hướng & tuân thủ.</p></Card>
                   ) : (
-                  <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Phân tích AI</SectionTitle><span className="inline-flex items-center gap-1 text-[12px] font-semibold text-danger bg-danger-soft px-2 py-1 rounded-full"><TrendingDown className="w-3 h-3" strokeWidth={2} /> Δ 7 ngày −6%</span></div><p className="mt-3 text-[13px] leading-relaxed text-body"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>AHU-K01</span> cần kiểm tra ưu tiên — C4.R7, C4.R1 đều kém, nghi lỗi quạt/filter.</p></Card>
+                  <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Nhận định hỗ trợ</SectionTitle><span className="inline-flex items-center gap-1 text-[12px] font-semibold text-danger bg-danger-soft px-2 py-1 rounded-full"><TrendingDown className="w-3 h-3" strokeWidth={2} /> Δ 7 ngày −6%</span></div><p className="mt-3 text-[13px] leading-relaxed text-body"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>AHU-K01</span> cần kiểm tra ưu tiên — C4.R7, C4.R1 đều kém, nghi lỗi quạt/filter.</p></Card>
                   )}
                   <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{duLieuLoi ? <div className="rounded-2xl bg-danger-soft ring-1 ring-danger-line px-3 py-3 text-[12px] text-danger"><b>Không xác minh được trạng thái hệ thống.</b><p className="text-[12px] text-danger/80 mt-1">Máy chủ không trả lời. Đây KHÔNG có nghĩa là hệ thống đang bình thường — hãy kiểm tra n8n và Supabase.</p></div> : systemAlerts === null ? <div className="h-20 rounded-2xl bg-subtle animate-pulse" />  : systemAlerts.length === 0 ? <p className="text-[12px] text-muted py-2">Không có cảnh báo hệ thống nào.</p>  : systemAlerts.map((a, i) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={i} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-line/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-body font-medium">{a.text}</p><p className="text-[12px] text-muted mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
                 </aside>
@@ -805,20 +805,20 @@ export default function AppShell() {
           )}
 
           {/* ═══ TAB NHIỆM VỤ (17/07 — yêu cầu user: "ai cũng thấy") ═══
-              Vé đang ở bộ phận nào, ai đang chậm (KiemSoatXuLy — mọi vai trò đều xem
+              Phiếu đang ở bộ phận nào, ai quá thời hạn (KiemSoatXuLy — mọi vai trò đều xem
               được) + danh sách việc đang chờ đúng vai trò của mình, bấm xử lý ngay. */}
           {tab === "tasks" && (
             <div className="space-y-5">
-              <SectionTitle icon={ClipboardList} hint={user ? `vai trò: ${ROLE_VI[role] || "chưa phân quyền"}` : "đăng nhập để thao tác"}>Nhiệm vụ — vé đang ở đâu, ai đang chậm</SectionTitle>
+              <SectionTitle icon={ClipboardList} hint={user ? `vai trò: ${ROLE_VI[role] || "chưa phân quyền"}` : "đăng nhập để thao tác"}>Công việc cần xử lý</SectionTitle>
               {isLive && Array.isArray(live.suCoPhuTrach) && live.suCoPhuTrach.length === 0 && (
-                <Card className="p-6 text-center"><CheckCircle2 className="mx-auto w-7 h-7" style={{ color: "var(--primary)" }} strokeWidth={1.8} /><p className="mt-2 text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>Không có vé nào đang mở</p><p className="mt-1 text-[12px] text-muted">Tất cả sự cố đã được xử lý hoặc hệ đã tự đóng.</p></Card>
+                <Card className="p-6 text-center"><CheckCircle2 className="mx-auto w-7 h-7" style={{ color: "var(--primary)" }} strokeWidth={1.8} /><p className="mt-2 text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>Không có phiếu nào đang mở</p><p className="mt-1 text-[12px] text-muted">Tất cả sự cố đã được xử lý hoặc hệ đã tự đóng.</p></Card>
               )}
               <KiemSoatXuLy rows={isLive ? (live.suCoPhuTrach || []) : []} />
               {isLive && user && role && (
                 <Card className="p-4 sm:p-5">
-                  <SectionTitle icon={User} hint="các vé đang chờ đúng vai trò của bạn bấm nút — bấm Xử lý để thao tác ngay">Việc của bạn — {ROLE_VI[role] || role}</SectionTitle>
+                  <SectionTitle icon={User} hint="các phiếu đang chờ đúng vai trò của bạn bấm nút — bấm Xử lý để thao tác ngay">Việc của bạn — {ROLE_VI[role] || role}</SectionTitle>
                   {viecCuaToi.length === 0 && cumChoToi.length === 0 ? (
-                    <p className="mt-3 text-[13px] text-muted">Không có vé nào đang chờ vai trò của bạn. 👍</p>
+                    <p className="mt-3 text-[13px] text-muted">Không có phiếu nào đang chờ vai trò của bạn. 👍</p>
                   ) : (
                     <div className="mt-3 space-y-1.5">
                       {viecCuaToi.map(({ q, inc }) => (
@@ -900,7 +900,7 @@ export default function AppShell() {
               return { acts, terminal, myActs, choAi };
             };
             // 12/08 — TUỔI SỐ LIỆU PHẢI ĐỨNG NGANG HÀNG VỚI MỨC CẢNH BÁO khi mất nguồn.
-            // Vé SC-4177 hô CRITICAL bằng số đo lúc 08:00 (186 phút trước): chữ CRITICAL
+            // Phiếu SC-4177 hô CRITICAL bằng số đo lúc 08:00 (186 phút trước): chữ CRITICAL
             // to và đỏ, còn tuổi số liệu là chữ xám nhỏ cuối dòng ⇒ người trực đọc lướt
             // tưởng phòng ĐANG lệch ngay lúc này. Sự thật là KHÔNG BIẾT — có thể tệ hơn,
             // có thể đã về đạt. Mất nguồn thì nhãn hiện với MỌI tuổi, không chờ quá 75′.
@@ -915,19 +915,19 @@ export default function AppShell() {
             return (
             <div className="space-y-5">
               <SectionTitle icon={AlertOctagon} hint={user ? `vai trò: ${ROLE_VI[role]}` : "đăng nhập để thao tác"}>Sự cố đang xử lý</SectionTitle>
-              {/* Vé VẪN hiện khi mất nguồn là ĐÚNG — mất dữ liệu không xoá được sự kiện đã
-                  xảy ra, đóng vé vì hết dữ liệu là làm mất hồ sơ GMP (bài học 14/07). Cái
+              {/* Phiếu VẪN hiện khi mất nguồn là ĐÚNG — mất dữ liệu không xoá được sự kiện đã
+                  xảy ra, đóng phiếu vì hết dữ liệu là làm mất hồ sơ GMP (bài học 14/07). Cái
                   phải nói rõ là: mức đang hiện dựa trên số CŨ, và khoảng mù này KHÔNG mở
-                  được vé mới vì WF1 không chạy. */}
+                  được phiếu mới vì WF1 không chạy. */}
               {matNguon && (
                 <div className="rounded-2xl bg-danger-soft px-4 sm:px-5 py-3.5 ring-1 ring-danger-line">
                   <p className="text-[13px] font-bold text-danger flex items-center gap-2">
                     <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> MẤT NGUỒN SỐ LIỆU — mức cảnh báo bên dưới dựa trên số đo CŨ
                   </p>
                   <p className="mt-1 text-[12px] leading-snug text-danger">
-                    {skTomTat || "Nguồn dữ liệu không cập nhật."} Vé đang mở <b>vẫn giữ nguyên</b> (sự cố đã xảy ra là có thật, hệ không tự đóng khi thiếu dữ liệu),
+                    {skTomTat || "Nguồn dữ liệu không cập nhật."} Phiếu đang mở <b>vẫn giữ nguyên</b> (sự cố đã xảy ra là có thật, hệ không tự đóng khi thiếu dữ liệu),
                     nhưng <b>không khẳng định được phòng hiện giờ ra sao</b> — có thể đã nặng hơn, có thể đã về đạt.
-                    Nguy hơn: trong lúc mất nguồn hệ <b>không mở được vé mới</b>, phòng lệch chuẩn lúc này sẽ không có ai báo.
+                    Nguy hơn: trong lúc mất nguồn hệ <b>không mở được phiếu mới</b>, phòng lệch chuẩn lúc này sẽ không có ai báo.
                   </p>
                 </div>
               )}
@@ -945,7 +945,7 @@ export default function AppShell() {
               </div>
               <Card className="p-2 sm:p-4">{isLive && live.dangTai && incidentsXem.length === 0 ? (
                 /* ĐANG TẢI + chưa có gì: skeleton — không được hiện "Chưa có sự cố nào"
-                   khi thật ra là đang chờ mạng (15/07: gây hiểu lầm hệ trống vé). */
+                   khi thật ra là đang chờ mạng (15/07: gây hiểu lầm hệ trống phiếu). */
                 <div className="p-2 space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-20 rounded-2xl bg-subtle animate-pulse" />)}</div>
               ) : incFiltered.length === 0 ? (incidentsXem.length === 0 ? (
                 <div className="px-5 py-10 text-center">
@@ -1318,7 +1318,23 @@ export default function AppShell() {
               )}
               {cfgTab === "hethong" && (
               <div className="space-y-5">
-                <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối Supabase</SectionTitle><div className="space-y-3 mt-4 text-sm">{(() => { const conn = !HAS_SUPABASE ? ["chưa cấu hình", "text-body bg-subtle"] : !isLive ? ["DEMO", "text-warning bg-warning-soft"] : live.loi ? ["lỗi kết nối", "text-danger bg-danger-soft"] : live.dangTai ? ["đang tải…", "text-info bg-info-soft"] : ["đã kết nối", "text-success bg-success-soft"]; const keyState = HAS_SUPABASE ? ["đã nạp", "text-success bg-success-soft"] : ["thiếu .env", "text-danger bg-danger-soft"]; const rows = [{ k: "Nguồn dữ liệu", v: isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu", s: conn }, { k: "Khóa môi trường", v: HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập", s: keyState }, { k: "Cập nhật gần nhất", v: live.capNhatLuc ? live.capNhatLuc.toLocaleString("vi-VN") : "—", s: conn }]; return rows.map((r, i) => <div key={i} className="flex items-center justify-between gap-3 pb-3 border-b border-line last:border-0 last:pb-0"><span className="text-muted w-44">{r.k}</span><code className="text-xs text-body bg-subtle px-2 py-1 rounded-lg ring-1 ring-line flex-1">{r.v}</code><span className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${r.s[1]}`}>{r.s[0]}</span></div>); })()}</div>{isLive && live.loi && <p className="text-[12px] text-danger mt-3">Chi tiết lỗi: {live.loi.thong_bao || live.loi.message || "không xác định"}</p>}</Card>
+                <Card className="p-6"><SectionTitle icon={Wifi}>Kết nối dữ liệu</SectionTitle>
+                  {(() => { const conn = !HAS_SUPABASE ? ["Chế độ thử nghiệm — dữ liệu mẫu", "text-warning bg-warning-soft"] : live.loi ? ["Lỗi kết nối", "text-danger bg-danger-soft"] : live.dangTai ? ["Đang đồng bộ…", "text-info bg-info-soft"] : ["Đã kết nối", "text-success bg-success-soft"]; return (
+                    <div className="mt-4 space-y-3 text-sm">
+                      <div className="flex items-center gap-3">
+                        <span className={`text-[13px] px-2.5 py-1 rounded-full font-semibold ${conn[1]}`}>{conn[0]}</span>
+                        <span className="text-[13px] text-muted">Cập nhật gần nhất: <b className="text-body tabular-nums">{live.capNhatLuc ? live.capNhatLuc.toLocaleString("vi-VN") : "—"}</b></span>
+                      </div>
+                      {isLive && live.loi && <p className="text-[12px] text-danger">Chi tiết lỗi: {live.loi.thong_bao || live.loi.message || "không xác định"}</p>}
+                      <details className="rounded-2xl ring-1 ring-line px-4 py-3">
+                        <summary className="cursor-pointer text-[13px] font-medium text-muted select-none">Thông tin kỹ thuật</summary>
+                        <div className="mt-3 space-y-2 text-[13px]">
+                          <div className="flex items-center justify-between gap-3"><span className="text-muted w-44">Nguồn dữ liệu</span><code className="text-xs text-body bg-subtle px-2 py-1 rounded-lg ring-1 ring-line flex-1">{isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu"}</code></div>
+                          <div className="flex items-center justify-between gap-3"><span className="text-muted w-44">Khóa môi trường</span><code className="text-xs text-body bg-subtle px-2 py-1 rounded-lg ring-1 ring-line flex-1">{HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập"}</code></div>
+                        </div>
+                      </details>
+                    </div>
+                  ); })()}</Card>
                 <GiaoDienCard />
                 <ChuoiHashCard isLive={isLive} />
                 <DoiMatKhauCard user={user} isLive={isLive} />

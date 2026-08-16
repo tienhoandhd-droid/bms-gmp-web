@@ -1,4 +1,4 @@
-// ReportsPage.jsx — trang Báo cáo + hướng dẫn email + modal vé email (tách move-only từ App.jsx 17/08/2026).
+// ReportsPage.jsx — trang Báo cáo + hướng dẫn email + modal phiếu email (tách move-only từ App.jsx 17/08/2026).
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { FileBarChart, History, Mail, Printer, Sparkles } from "lucide-react";
@@ -31,8 +31,8 @@ function ReportsPage({ ai, aiRows = null }) {
   return (
     <div className="space-y-5">
       <SectionTitle icon={FileBarChart}>Báo cáo & Phân tích AI</SectionTitle>
-      <Card className="p-6"><SectionTitle icon={Sparkles} hint="tích hợp từ tab Xu hướng GMP">Phân tích AI</SectionTitle>
-        {ai ? <div className="rounded-2xl ring-1 ring-success-line p-5 text-sm leading-relaxed text-body mt-4" style={{ background: "var(--bg-subtle)" }}><p className="text-[12px] text-muted mb-2">{ai.scope} · {ai.sensor} · {ai.range} · tạo lúc {ai.time}</p><AiSections text={ai.text} /></div> : <div className="rounded-2xl ring-1 ring-warning-line bg-warning-soft/50 p-5 text-sm text-body mt-4">Chưa có phân tích. Vào tab <b>Xu hướng GMP</b>, chọn đối tượng/khoảng thời gian rồi bấm <b>AI phân tích</b>.</div>}
+      <Card className="p-6"><SectionTitle icon={Sparkles} hint="tích hợp từ tab Xu hướng & tuân thủ">Nhận định hỗ trợ</SectionTitle>
+        {ai ? <div className="rounded-2xl ring-1 ring-success-line p-5 text-sm leading-relaxed text-body mt-4" style={{ background: "var(--bg-subtle)" }}><p className="text-[12px] text-muted mb-2">{ai.scope} · {ai.sensor} · {ai.range} · tạo lúc {ai.time}</p><AiSections text={ai.text} /></div> : <div className="rounded-2xl ring-1 ring-warning-line bg-warning-soft/50 p-5 text-sm text-body mt-4">Chưa có phân tích. Vào tab <b>Xu hướng & tuân thủ</b>, chọn đối tượng/khoảng thời gian rồi bấm <b>AI phân tích</b>.</div>}
         {aiRows && aiRows.length > 0 && (
           <div className="mt-5">
             <p className="text-[12px] uppercase tracking-wider text-muted font-semibold mb-2 flex items-center gap-1.5"><History className="w-3 h-3" strokeWidth={1.8} /> Phân tích đã lưu — gần đây</p>
@@ -45,7 +45,7 @@ function ReportsPage({ ai, aiRows = null }) {
           </div>
         )}
       </Card>
-      <Card className="p-6"><SectionTitle icon={Mail} hint="báo cáo quản trị WF5 v2 — kỳ liền trước">Gửi báo cáo bù (email)</SectionTitle>
+      <Card className="p-6"><SectionTitle icon={Mail} hint="báo cáo quản trị WF5 v2 — kỳ liền trước">Gửi lại kỳ trước (email)</SectionTitle>
         <p className="text-[12px] text-muted mt-3">Dùng khi cần gửi lại báo cáo của kỳ đã qua (ví dụ lịch tự động bị lỡ). Hệ thống tổng hợp số liệu thật từ Supabase (<code className="text-[12px]">rpc_bao_cao_tong_hop</code>), ráp scorecard + PDF rồi gửi email trong nền (~1 phút).</p>
         <div className="mt-4 flex items-center gap-3 flex-wrap">
           <label className="text-[12px] uppercase text-muted font-semibold">Kỳ báo cáo</label>
@@ -56,7 +56,7 @@ function ReportsPage({ ai, aiRows = null }) {
             className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${guiTT === "DANG_GUI" ? "opacity-60 cursor-wait" : !wf5Url ? "opacity-50 cursor-not-allowed" : ""}`}
             style={{ backgroundColor: "var(--danger-solid)" }}>
             <Mail className="w-3.5 h-3.5" strokeWidth={1.8} />
-            {guiTT === "DANG_GUI" ? "Đang gửi yêu cầu…" : "Gửi báo cáo bù"}
+            {guiTT === "DANG_GUI" ? "Đang gửi yêu cầu…" : "Gửi lại kỳ trước"}
           </button>
           <button onClick={() => window.print()} className="text-xs font-medium rounded-xl px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> In / PDF</button>
         </div>

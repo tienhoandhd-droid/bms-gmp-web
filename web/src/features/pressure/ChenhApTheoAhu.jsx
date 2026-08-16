@@ -69,7 +69,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
   // theo canh_bao_huong nên đổi hướng trong Cài đặt là màu tự đổi theo.
   const ngoaiKhoang = (r) => r.coDuLieu !== false && r.giaTri != null
     && ((r.ghDuoi != null && r.giaTri < r.ghDuoi) || (r.ghTren != null && r.giaTri > r.ghTren));
-  // 16/07 (user): P3 không mở vé → P3 không đạt hiển thị DỊU (đỏ nhạt + nhãn
+  // 16/07 (user): P3 không mở phiếu → P3 không đạt hiển thị DỊU (đỏ nhạt + nhãn
   // "chưa cần xử lý ngay"), tách khỏi số "cần chỉnh" của P1/P2.
   // 16/07 (user): cảm biến ĐỨNG HÌNH → số đang xem là số CHẾT — nhãn cảnh báo riêng,
   // không tô đỏ/xanh (đỏ giả hoặc đạt giả), không tính vào "cần chỉnh".

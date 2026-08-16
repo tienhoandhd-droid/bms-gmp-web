@@ -257,8 +257,8 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
             {dongHoDoi.length > 0 && <span className="text-[12px] text-warning">Thay đổi CHƯA có hiệu lực cho tới khi bấm Lưu.</span>}
           </div>
         )}
-        <p className="text-[12px] text-muted mt-3"><b>Ngoài khung giờ</b> bộ phận đó KHÔNG nhận email (cả nhắc định kỳ lẫn email tức thời); vé vẫn mở, web vẫn hiện, hệ vẫn tự đóng khi đủ 2 giờ sạch. Vào lại khung giờ, lượt kiểm 5′ đầu tiên gửi ngay các vé còn mở — không mất tin. Muốn một bộ phận nhận 24/7 (ví dụ Trực HSL) thì để chế độ <b>24/7</b>.</p>
-        <p className="text-[12px] text-muted mt-1">Lưu ý: đồng hồ leo thang (IPC 20′ · Cơ điện chưa nhận việc 15′ · đang/chờ xử lý 1 giờ) vẫn chạy ngoài giờ — sáng vào khung giờ, vé tồn qua đêm sẽ hiện đã leo thang lên Trực.</p>
+        <p className="text-[12px] text-muted mt-3"><b>Ngoài khung giờ</b> bộ phận đó KHÔNG nhận email (cả nhắc định kỳ lẫn email tức thời); phiếu vẫn mở, web vẫn hiện, hệ vẫn tự đóng khi đủ 2 giờ sạch. Vào lại khung giờ, lượt kiểm 5′ đầu tiên gửi ngay các phiếu còn mở — không mất tin. Muốn một bộ phận nhận 24/7 (ví dụ Trực HSL) thì để chế độ <b>24/7</b>.</p>
+        <p className="text-[12px] text-muted mt-1">Lưu ý: đồng hồ leo thang (IPC 20′ · Cơ điện chưa nhận việc 15′ · đang/chờ xử lý 1 giờ) vẫn chạy ngoài giờ — sáng vào khung giờ, phiếu tồn qua đêm sẽ hiện đã leo thang lên Trực.</p>
       </Card>
 
       <Card className="p-6"><SectionTitle icon={Cog} hint="địa chỉ gửi đi + nhận khi ở chế độ thử + fallback báo cáo">Địa chỉ hệ thống & fallback</SectionTitle>

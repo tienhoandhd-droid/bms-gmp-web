@@ -5,7 +5,7 @@
 // dashboard đầy đủ thì mỗi cú bấm phải TẢI + PARSE ~776KB JS (index+react+supabase)
 // và có thể prefetch cả echarts 733KB — bấm nhiều nút = nhiều tab nặng → web lag +
 // refresh-token đa-tab đá nhau → "lỗi đăng nhập". Trang này CHỈ có: đăng nhập +
-// soi vé + xác nhận (2 RPC). KHÔNG import App/dashboard/charts.
+// soi phiếu + xác nhận (2 RPC). KHÔNG import App/dashboard/charts.
 //
 // GMP/21 CFR Part 11: VẪN bắt đăng nhập → thao tác quy được cho người thật (JWT).
 // Mọi kiểm tra vai trò/khu/hạn token do RPC làm ở máy chủ (SECURITY DEFINER).
@@ -107,7 +107,7 @@ function FormDangNhap({ onXong }) {
   )
 }
 
-// Soi vé + xác nhận. Tái hiện đúng hành vi ModalVeEmail trong App (nhưng dạng trang).
+// Soi phiếu + xác nhận. Tái hiện đúng hành vi ModalVeEmail trong App (nhưng dạng trang).
 function TheoVe({ email }) {
   const [ve, setVe] = useState(null)       // { dangTai } | { ve } | { loi }
   const [ketQua, setKetQua] = useState(null)
@@ -143,7 +143,7 @@ function TheoVe({ email }) {
     <Khung><DauTrang phu={email} /><p className="mt-6 text-sm text-muted text-center py-4">Đang kiểm tra liên kết…</p></Khung>
   )
 
-  // Màn từ chối (vé lỗi HOẶC thực thi trả ok:false) — bày ngữ cảnh DB gửi kèm.
+  // Màn từ chối (phiếu lỗi HOẶC thực thi trả ok:false) — bày ngữ cảnh DB gửi kèm.
   if (ve.loi || (ketQua && !ketQua.ok)) {
     const bc = ketQua && !ketQua.ok ? ketQua : ve.boiCanh
     const ganNhat = bc?.thao_tac_gan_nhat
@@ -166,7 +166,7 @@ function TheoVe({ email }) {
               <li key={n.hanh_dong} className="text-[13px] text-body flex gap-1.5"><span className="text-muted">•</span>{n.nhan}</li>))}</ul>
           </div>)}
         {/* Lỗi MẠNG (không có bối cảnh DB, chưa thực thi gì) → cho thử lại tại chỗ,
-            khỏi đóng-mở lại email. Từ chối nghiệp vụ (vé hết hạn/đã xử lý) thì không. */}
+            khỏi đóng-mở lại email. Từ chối nghiệp vụ (phiếu hết hạn/đã xử lý) thì không. */}
         {!ketQua && ve.loi && !ve.boiCanh && (
           <button onClick={() => setLanThu((n) => n + 1)}
             className="mt-4 w-full rounded-xl py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: TEAL }}>

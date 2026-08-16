@@ -164,7 +164,7 @@ function CamBienPage({ isLive }) {
       {rows !== null && nghi.length > 0 && (
         <div className="mt-5 rounded-2xl bg-subtle ring-1 ring-line px-4 py-3">
           <p className="text-[12px] font-semibold text-body">Nghi đứng hình — mới dưới 3 giờ ({nghi.length} điểm đo)</p>
-          <p className="mt-0.5 text-[12px] text-muted leading-relaxed">Giá trị vừa lặp y hệt trong 1–2 giờ gần nhất. <b>Chưa đủ ngưỡng 3 giờ</b> nên vẫn chấm điểm và mở vé như thường; nếu tiếp tục đứng, đủ 3 giờ sẽ tự chuyển lên bảng trên và được tách khỏi cảnh báo.</p>
+          <p className="mt-0.5 text-[12px] text-muted leading-relaxed">Giá trị vừa lặp y hệt trong 1–2 giờ gần nhất. <b>Chưa đủ ngưỡng 3 giờ</b> nên vẫn chấm điểm và mở phiếu như thường; nếu tiếp tục đứng, đủ 3 giờ sẽ tự chuyển lên bảng trên và được tách khỏi cảnh báo.</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {nghi.map((r) => (
               <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium ring-1 text-body bg-surface ring-line">

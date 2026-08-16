@@ -93,7 +93,7 @@ ${styleTags}
 <body><div class="rp-wrap">
   <div class="rp-head">${logoSrc ? `<img src="${logoSrc}" alt="logo"/>` : ""}<div><div class="rp-title">CÔNG TY CPC1 HÀ NỘI — Giám sát môi trường HVAC phòng sạch GMP</div><div class="rp-sub">BÁO CÁO XU HƯỚNG · xuất lúc ${now}</div>${phamVi ? `<div class="rp-scope">PHẠM VI IN: <b>${phamVi}</b></div>` : ""}${detail ? `<div class="rp-meta">${detail}</div>` : ""}</div></div>
   ${clone.outerHTML}
-  <div class="rp-foot">Số liệu tất định do hệ thống tính (giới hạn GHD/GHT theo phòng trong CSDL). AI chỉ hỗ trợ gợi ý — kết luận GMP do IPC/QA phê duyệt.</div>
+  <div class="rp-foot">Số liệu tất định do hệ thống tính (giới hạn GHD/GHT theo phòng trong CSDL). Nhận định tự động chỉ dùng để tham khảo. IPC/QA chịu trách nhiệm đánh giá và kết luận GMP.</div>
 </div>
 <scr` + `ipt>window.onload=function(){setTimeout(function(){try{window.focus();window.print();}catch(e){}},450);};</scr` + `ipt>
 </body></html>`);
@@ -783,7 +783,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: "var(--text-strong)" }}><LineIcon className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /> Xu hướng GMP — biểu đồ theo thời gian</h2>
+        <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: "var(--text-strong)" }}><LineIcon className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /> Xu hướng & tuân thủ — biểu đồ theo thời gian</h2>
       </div>
 
       <Card className="relative z-30 p-5">
@@ -844,9 +844,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       <Card className="p-4 flex items-center justify-between flex-wrap gap-3">
         <span className="text-[12px] text-body">Đang chọn: <b style={{ color: "var(--text-strong)" }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {RANGES.find((r) => r.k === range).label}{(dtFrom || dtTo) ? ` · ${view[0]?.label}→${view[view.length - 1]?.label}` : ""}</span>
         <div className="flex gap-2">
-          <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo (chờ AI)…" : "In báo cáo A4 (kèm phân tích AI)"}</button>
-          <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "AI gợi ý đọc biểu đồ"}</button>
-          {isLive && aiWebhookSau && <button onClick={() => runAI(true)} disabled={aiBusy} title="Phân tích sâu hơn: nguyên nhân gốc + CAPA đa tầng (IPC/Cơ điện/BMS) + đề xuất phòng ngừa — dùng model mạnh, chạy ~1–3 phút" className={`text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={2} /> {aiBusy ? "AI đang phân tích sâu…" : "AI phân tích chuyên sâu (CAPA)"}</button>}
+          <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo (chờ AI)…" : "In báo cáo A4 (kèm nhận định hỗ trợ)"}</button>
+          <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "Tạo nhận định hỗ trợ"}</button>
+          {isLive && aiWebhookSau && <button onClick={() => runAI(true)} disabled={aiBusy} title="Phân tích sâu hơn: nguyên nhân gốc + CAPA đa tầng (IPC/Cơ điện/BMS) + đề xuất phòng ngừa — dùng model mạnh, chạy ~1–3 phút" className={`text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={2} /> {aiBusy ? "Đang phân tích chi tiết…" : "Phân tích chi tiết (CAPA)"}</button>}
         </div>
       </Card>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -980,7 +980,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             ["Tổng điểm OOS", `${tech.totOos ?? 0}`, "text-danger"],
           ].map(([k, v, c]) => <div key={k} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold leading-tight">{k}</p><p className={`text-lg font-light mt-1 tabular-nums ${c}`}>{v}</p></div>)}</div>
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">{[["Đạt 1 ngày", fmtPct(activeScope.dat1n)], ["Đạt 3 ngày", fmtPct(activeScope.dat3n)], ["Đạt 7 ngày", fmtPct(activeScope.dat7n)], ["Min–Max kỳ", tech.n ? `${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%` : "—"]].map(([k, v]) => <div key={k} className="rounded-xl bg-surface ring-1 ring-line py-2"><p className="text-[12px] uppercase text-muted font-semibold">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{v}</p></div>)}</div>
-          <p className="text-[12px] text-muted mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Đây là <b>số liệu tất định</b> (hệ thống tính). Bấm <b>“AI gợi ý đọc biểu đồ”</b> để AI diễn giải &amp; gợi ý (không thay thế kết luận GMP).</p>
+          <p className="text-[12px] text-muted mt-3">Độ dốc &gt; 0 là xu hướng cải thiện; R² càng gần 1 thì xu hướng càng rõ. Đây là <b>số liệu tất định</b> (hệ thống tính). Bấm <b>“Tạo nhận định hỗ trợ”</b> để AI diễn giải &amp; gợi ý (không thay thế kết luận GMP).</p>
         </Card>
 
         {/* ====== BẢNG DỮ LIỆU THÔ + ĐÁNH GIÁ CƠ BẢN (tất định, TRƯỚC khi AI gợi ý / QA kết luận) ====== */}

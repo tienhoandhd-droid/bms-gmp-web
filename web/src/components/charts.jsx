@@ -575,8 +575,8 @@ export function ForecastChart({ chuoi, duBao, height = 180 }) {
 // ====== Điểm vào điều phối ======
 // ====== Tỉ lệ phản hồi của các bộ phận theo NGÀY (tab Nhiệm vụ) ======
 // Dữ liệu vào: { ngay[], series: [{vai_tro, nhan, mau, diem:[{pct, can, da}]}] }.
-// Ngày KHÔNG có vé nào để pct = null ⇒ đường ĐỨT tại đó (connectNulls:false).
-// Cố ý không nối liền: "hôm đó không có vé" khác hẳn "có vé mà không ai đụng",
+// Ngày KHÔNG có phiếu nào để pct = null ⇒ đường ĐỨT tại đó (connectNulls:false).
+// Cố ý không nối liền: "hôm đó không có phiếu" khác hẳn "có phiếu mà không ai đụng",
 // nối liền hai đoạn qua ngày rỗng là bịa ra một xu hướng không có thật.
 export function PhanHoiTheoNgayChart({ ngay, series, height = 260 }) {
   const option = {
@@ -591,7 +591,7 @@ export function PhanHoiTheoNgayChart({ ngay, series, height = 260 }) {
         for (const s of series) {
           const d = s.diem[i] || {};
           h += `<br/><span style="display:inline-block;width:8px;height:8px;border-radius:9px;background:${s.mau}"></span> ${s.nhan}: `
-            + (d.pct == null ? `<i style="color:#94a3b8">không có vé</i>` : `<b>${d.pct}%</b> <span style="color:#94a3b8">(${d.da}/${d.can} vé)</span>`);
+            + (d.pct == null ? `<i style="color:#94a3b8">không có phiếu</i>` : `<b>${d.pct}%</b> <span style="color:#94a3b8">(${d.da}/${d.can} phiếu)</span>`);
         }
         return h;
       },
