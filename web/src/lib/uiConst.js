@@ -7,8 +7,10 @@ import { SENSOR_META_BASE } from "./designTokens";
 /* Giữ tên biến, làm SÂU màu để đủ tương phản (WCAG): chữ đậm, teal/sky sâu,
    critical đỏ trầm chuyên nghiệp, warning amber đậm, không hồng/vàng nhạt. */
 export const PAGE_BG = "var(--bg-canvas)";   // G2: một nền phẳng theo token — bỏ gradient 3 lớp
-export const cardShadow = { boxShadow: "0 12px 34px -18px rgba(16,40,55,0.30)" };
-export const CARD = "rounded-3xl bg-surface/95 backdrop-blur ring-1 ring-line";
+// Báo cáo (10): card thường KHÔNG bóng — viền là lớp phân tách; bóng chỉ cho modal/drawer/popover.
+export const cardShadow = {};
+export const POP_SHADOW = { boxShadow: "0 24px 60px -22px rgba(16,40,55,0.40)" };
+export const CARD = "rounded-3xl bg-surface ring-1 ring-line";
 export const STATUS = { normal: { txt: "text-success", bg: "bg-success-soft", dot: "bg-success-solid" }, warning: { txt: "text-warning", bg: "bg-warning-soft", dot: "bg-warning-solid" }, critical: { txt: "text-danger", bg: "bg-danger-soft", dot: "bg-danger-solid" } };
 export const PRIORITY = { P1: "bg-danger-solid text-white ring-1 ring-danger", P2: "bg-warning-soft text-warning ring-1 ring-warning", P3: "bg-info-soft text-info ring-1 ring-info-line" };
 export const MUC = { P1: "Mức 1", P2: "Mức 2", P3: "Mức 3" };

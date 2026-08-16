@@ -1,0 +1,8 @@
+/* cleanroom.css — pattern lưới kỹ thuật RẤT nhẹ (báo cáo 9/10).
+   Chỉ dùng ở: nền đăng nhập, empty state. KHÔNG đặt dưới bảng/chart. */
+.cleanroom-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--border) 22%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border) 16%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}

@@ -26,9 +26,8 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <SectionTitle icon={Gauge} hint="theo dõi riêng · không tính vào chấm điểm">Cảm biến đứng tín hiệu — {ds.length} điểm đo</SectionTitle>
-          <p className="mt-1.5 text-[12px] text-muted leading-relaxed max-w-3xl">
-            Các phòng dưới đây có cảm biến <b>mất tín hiệu (giá trị không đổi ≥ 3 giờ)</b> nên được tách riêng,
-            <b> tương đương phòng thiếu dữ liệu</b>: không chấm mức, không mở sự cố, không vào báo cáo chung — chờ Cơ điện khôi phục đầu đo.
+          <p className="mt-1.5 text-[13px] text-body leading-relaxed max-w-3xl">
+            Giá trị không thay đổi ít nhất 3 giờ — tạm không dùng để đánh giá trạng thái phòng, chờ Cơ điện khôi phục đầu đo.
           </p>
         </div>
         {onXemChiTiet && <button onClick={onXemChiTiet} className="shrink-0 flex items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 text-[12px] font-semibold text-warning ring-1 ring-warning-line hover:bg-warning-soft">Xem chi tiết → tab Cảm biến</button>}
@@ -105,14 +104,19 @@ function CamBienPage({ isLive }) {
     <Card className="p-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <SectionTitle icon={Gauge}>Cảm biến đứng tín hiệu (im lặng)</SectionTitle>
-          <p className="mt-1.5 text-[12px] text-muted leading-relaxed max-w-3xl">
-            Bảng dưới là cảm biến <b>đứng tín hiệu ≥ 3 giờ liên tiếp</b> — thường do hỏng, mất kết nối
-            hoặc treo tín hiệu tại FMS. Từ 13/07, phòng có cảm biến đứng tín hiệu được <b>tách riêng như phòng thiếu dữ liệu</b>:
-            không chấm mức, <b>không mở sự cố</b> và không tính vào báo cáo chung. Danh sách này là nơi theo dõi duy nhất;
-            việc cần làm là Cơ điện kiểm tra / thay thế đầu đo — cảm biến sống lại sẽ tự trở lại chấm điểm bình thường.
-            <br /><span className="text-muted">Dấu <b>≥</b> nghĩa là cảm biến chưa từng cho một giờ đo &ldquo;còn sống&rdquo; nào trong toàn bộ dữ liệu còn lưu — thời gian đứng thật có thể dài hơn con số hiển thị.</span>
+          <SectionTitle icon={Gauge}>Cảm biến đứng tín hiệu</SectionTitle>
+          <p className="mt-1.5 text-[13px] text-body leading-relaxed max-w-3xl">
+            Giá trị không thay đổi ít nhất 3 giờ. Các điểm này tạm không dùng để đánh giá trạng thái phòng — Cơ điện kiểm tra hoặc thay đầu đo.
           </p>
+          <details className="mt-1.5 max-w-3xl">
+            <summary className="cursor-pointer text-[12px] font-medium text-muted select-none">Xem giải thích</summary>
+            <p className="mt-1.5 text-[12px] text-muted leading-relaxed">
+              Nguyên nhân thường gặp: hỏng đầu đo, mất kết nối hoặc treo tín hiệu tại nguồn dữ liệu. Phòng có cảm biến
+              đứng tín hiệu được tách riêng như phòng thiếu dữ liệu: không chấm mức, không mở sự cố, không tính vào báo
+              cáo chung; cảm biến sống lại sẽ tự trở lại chấm điểm bình thường. Dấu <b>≥</b> nghĩa là cảm biến chưa từng
+              cho một giờ đo còn sống nào trong toàn bộ dữ liệu còn lưu — thời gian đứng thật có thể dài hơn số hiển thị.
+            </p>
+          </details>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {luc && <span className="text-[12px] text-muted">Cập nhật {luc.toLocaleTimeString("vi-VN")}</span>}

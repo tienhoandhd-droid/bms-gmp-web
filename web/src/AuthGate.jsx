@@ -44,7 +44,7 @@ export default function AuthGate() {
   const O_INPUT = "w-full rounded-2xl surface--subtle ring-1 ring-line px-4 py-3 text-sm text-body outline-none focus:ring-2 focus:ring-[var(--focus)]";
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--bg-canvas)" }}>
+    <div className="min-h-screen flex items-center justify-center p-4 cleanroom-grid" style={{ background: "var(--bg-canvas)" }}>
       <form className="w-full max-w-md rounded-3xl surface ring-1 ring-line overflow-hidden"
         style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.4)" }}
         onSubmit={(e) => { e.preventDefault(); dangNhap(); }}>

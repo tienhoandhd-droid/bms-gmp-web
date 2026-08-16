@@ -12,29 +12,29 @@
   color-scheme: light;
 
   /* Canvas & surfaces */
-  --bg-canvas: #EAF2F5;
-  --bg-surface: #FFFFFF;
-  --bg-subtle: #E1EDF1;
+  --bg-canvas: #E5EEF2;
+  --bg-surface: #FCFEFF;
+  --bg-subtle: #D9E7EC;
   --bg-raised: #FFFFFF;
 
   /* Text */
-  --text-strong: #0B1F2E;
-  --text-default: #243B4D;
-  --text-muted: #526878;
+  --text-strong: #0A1D2B;
+  --text-default: #213746;
+  --text-muted: #4C6372;
   --text-inverse: #FFFFFF;
 
   /* Borders */
-  --border: #C4D4DC;
-  --border-strong: #72909F;
+  --border: #AFC4CE;
+  --border-strong: #6D8D9C;
 
   /* Brand / navigation */
-  --anchor: #102A3E;
-  --anchor-soft: #143C50;
+  --anchor: #0C293B;
+  --anchor-soft: #123B4D;
   --anchor-fg: #FFFFFF;
 
-  --primary: #0A6E68;
-  --primary-hover: #085A55;
-  --primary-soft: #DCEFEB;
+  --primary: #08736C;
+  --primary-hover: #065E59;
+  --primary-soft: #D8ECE9;
   --primary-solid: #0A6E68;
 
   --info: #1768A1;
@@ -71,29 +71,29 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --bg-canvas: #08141D;
-  --bg-surface: #0E202B;
-  --bg-subtle: #15303C;
-  --bg-raised: #183744;
+  --bg-canvas: #06131B;
+  --bg-surface: #0C202A;
+  --bg-subtle: #15313B;
+  --bg-raised: #183B48;
 
-  --text-strong: #F3F8FA;
-  --text-default: #D8E4E9;
-  --text-muted: #AFC1C9;
+  --text-strong: #F4F9FB;
+  --text-default: #DBE7EB;
+  --text-muted: #B4C6CD;
   --text-inverse: #07131B;
 
-  --border: #2B4A57;
-  --border-strong: #527687;
+  --border: #355766;
+  --border-strong: #638594;
 
-  --anchor: #071018;
+  --anchor: #050E14;
   --anchor-soft: #0D2933;
-  --anchor-fg: #F3F8FA;
+  --anchor-fg: #F4F9FB;
 
-  --primary: #4FC1B5;
-  --primary-hover: #6CCEC4;
+  --primary: #58C8BC;
+  --primary-hover: #70D4C9;
   --primary-soft: #123D3A;
   --primary-solid: #0E7C73;
 
-  --info: #73B8E6;
+  --info: #79BDE8;
   --info-soft: #15344A;
   --info-line: #2E5A7A;
   --info-solid: #2B7BB9;
@@ -137,19 +137,19 @@
    Bộ ba R G B cho Tailwind alpha: rgb(var(--rgb-x) / <alpha-value>). */
 :root,
 :root[data-theme="light"] {
-  --rgb-bg-surface: 255 255 255;
-  --rgb-bg-subtle: 225 237 241;
-  --rgb-bg-canvas: 234 242 245;
-  --rgb-anchor: 16 42 62;
+  --rgb-bg-surface: 252 254 255;
+  --rgb-bg-subtle: 217 231 236;
+  --rgb-bg-canvas: 229 238 242;
+  --rgb-anchor: 12 41 59;
   --rgb-anchor-fg: 255 255 255;
-  --rgb-border: 196 212 220;
-  --rgb-border-strong: 114 144 159;
-  --rgb-text-strong: 11 31 46;
-  --rgb-text-default: 36 59 77;
-  --rgb-text-muted: 82 104 120;
+  --rgb-border: 175 196 206;
+  --rgb-border-strong: 109 141 156;
+  --rgb-text-strong: 10 29 43;
+  --rgb-text-default: 33 55 70;
+  --rgb-text-muted: 76 99 114;
   --rgb-text-inverse: 255 255 255;
-  --rgb-primary: 10 110 104;
-  --rgb-primary-soft: 220 239 235;
+  --rgb-primary: 8 115 108;
+  --rgb-primary-soft: 216 236 233;
   --rgb-primary-solid: 10 110 104;
   --rgb-success: 10 110 104;
   --rgb-success-soft: 220 239 235;
@@ -172,18 +172,18 @@
   --rgb-focus: 11 103 178;
 }
 :root[data-theme="dark"] {
-  --rgb-bg-surface: 14 32 43;
-  --rgb-bg-subtle: 21 48 60;
-  --rgb-bg-canvas: 8 20 29;
-  --rgb-anchor: 7 16 24;
-  --rgb-anchor-fg: 243 248 250;
-  --rgb-border: 43 74 87;
-  --rgb-border-strong: 82 118 135;
-  --rgb-text-strong: 243 248 250;
-  --rgb-text-default: 216 228 233;
-  --rgb-text-muted: 175 193 201;
+  --rgb-bg-surface: 12 32 42;
+  --rgb-bg-subtle: 21 49 59;
+  --rgb-bg-canvas: 6 19 27;
+  --rgb-anchor: 5 14 20;
+  --rgb-anchor-fg: 244 249 251;
+  --rgb-border: 53 87 102;
+  --rgb-border-strong: 99 133 148;
+  --rgb-text-strong: 244 249 251;
+  --rgb-text-default: 219 231 235;
+  --rgb-text-muted: 180 198 205;
   --rgb-text-inverse: 7 19 27;
-  --rgb-primary: 79 193 181;
+  --rgb-primary: 88 200 188;
   --rgb-primary-soft: 18 61 58;
   --rgb-primary-solid: 14 124 115;
   --rgb-success: 85 199 184;
@@ -198,7 +198,7 @@
   --rgb-warning-soft: 58 43 18;
   --rgb-warning-line: 122 90 38;
   --rgb-warning-solid: 154 106 20;
-  --rgb-info: 115 184 230;
+  --rgb-info: 121 189 232;
   --rgb-info-soft: 21 52 74;
   --rgb-info-line: 46 90 122;
   --rgb-info-solid: 43 123 185;

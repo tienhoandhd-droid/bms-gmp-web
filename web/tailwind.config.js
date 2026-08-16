@@ -8,6 +8,8 @@ export default {
   content: ['./index.html', './action.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
+      // Báo cáo (10) — radius "instrument": card 14-16px, control 8-10px; pill chỉ badge/chip.
+      borderRadius: { lg: "8px", xl: "10px", "2xl": "14px", "3xl": "16px" },
       colors: {
         // WCAG AA (Mảng 4): ghi đè slate-400 (#4A6072 ≈ 4.6:1) — giữ cho code cũ
         // chưa quét; code mới dùng text-muted.

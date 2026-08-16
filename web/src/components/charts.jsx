@@ -61,7 +61,7 @@ function complyDomain(values) {
   const pad = Math.max(4, (hi - lo) * 0.18);
   return [Math.max(0, Math.floor(lo - pad)), Math.min(100, Math.ceil(hi + pad))];
 }
-const chartWrap = "rounded-2xl p-2 bg-gradient-to-b from-info-soft/70 to-surface ring-1 ring-info-line/80";
+const chartWrap = "rounded-xl bg-surface ring-1 ring-line p-2";
 const TT_CSS = "border-radius:12px;box-shadow:0 10px 30px -8px rgba(35,80,110,0.4);padding:8px 12px;"; // chart-color-exception: tooltip DOM shadow
 const tooltipBase = () => ({ backgroundColor: T().surface, borderColor: T().border, borderWidth: 1, textStyle: { fontSize: 11, color: T().textStrong }, extraCssText: TT_CSS });
 const gradient = (c, top = 0.30, bot = 0.02) => new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: echarts.color.modifyAlpha(c, top) }, { offset: 1, color: echarts.color.modifyAlpha(c, bot) }]);

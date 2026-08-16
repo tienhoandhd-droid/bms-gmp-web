@@ -6,14 +6,17 @@ import {
 } from "lucide-react";
 import { phanTichLuat, sinhMermaid, tenTT, VAI_TRO_TEN } from "../lib/soDoLuat";
 
+// Báo cáo (10): vai trò dùng badge NEUTRAL — màu dành cho bất thường, không cho danh tính.
+// Phân biệt vai trò bằng nhãn/vị trí, không bằng cầu vồng.
+const NEU = { net: "var(--border-strong)", nen: "var(--bg-subtle)", chu: "var(--text-default)" };
 const VAI = {
-  IPC:    { net: "#1670ad", nen: "#eaf4fb", chu: "#135b8c", ten: "IPC" },
-  MEP:    { net: "#b96908", nen: "#fff3df", chu: "#8b5005", ten: "Cơ điện" },
-  LOT:    { net: "#c2413b", nen: "#fdeceb", chu: "#9f302b", ten: "Trực HSL" },
-  QA:     { net: "#087f62", nen: "#e7f7f1", chu: "#08644f", ten: "QA" },
-  IT:     { net: "#6d55b3", nen: "#f1edff", chu: "#533d93", ten: "IT" },
-  ADMIN:  { net: "#59687a", nen: "#eef2f6", chu: "#3d4b5a", ten: "Quản trị" },
-  SYSTEM: { net: "#5b5bd6", nen: "#efefff", chu: "#4545a8", ten: "Hệ thống" },
+  IPC:    { ...NEU, ten: "IPC" },
+  MEP:    { ...NEU, ten: "Cơ điện" },
+  LOT:    { ...NEU, ten: "Trực HSL" },
+  QA:     { ...NEU, ten: "QA" },
+  IT:     { ...NEU, ten: "IT" },
+  ADMIN:  { ...NEU, ten: "Quản trị" },
+  SYSTEM: { net: "var(--primary)", nen: "var(--primary-soft)", chu: "var(--primary-hover)", ten: "Hệ thống" },
 };
 const mv = (v) => VAI[v] || VAI.SYSTEM;
 const VAI_THU_TU = ["SYSTEM", "IPC", "MEP", "LOT", "QA", "IT", "ADMIN"];
@@ -58,19 +61,19 @@ const TRANG_THAI = {
 
 const GIAI_DOAN = [
   {
-    so: "01", ten: "IPC tiếp nhận", moTa: "Bắt đầu hoặc mở lại", mau: "#1670ad",
+    so: "01", ten: "IPC tiếp nhận", moTa: "Bắt đầu hoặc mở lại", mau: "var(--primary)",
     states: ["CHUA_XU_LY", "MO_LAI"],
   },
   {
-    so: "02", ten: "Bàn giao Cơ điện", moTa: "Chờ xác nhận nhận việc", mau: "#b96908",
+    so: "02", ten: "Bàn giao Cơ điện", moTa: "Chờ xác nhận nhận việc", mau: "var(--primary)",
     states: ["DA_BAO_CO_DIEN"],
   },
   {
-    so: "03", ten: "Cơ điện xử lý", moTa: "Xử lý chính và các nhánh ngoại lệ", mau: "#d97706",
+    so: "03", ten: "Cơ điện xử lý", moTa: "Xử lý chính và các nhánh ngoại lệ", mau: "var(--primary)",
     states: ["CO_DIEN_DANG_XU_LY", "CO_DIEN_CHO_XU_LY", "CO_DIEN_KHONG_XU_LY_DUOC"],
   },
   {
-    so: "04", ten: "Kết thúc", moTa: "Bốn kết quả đóng được phân biệt", mau: "#087f62",
+    so: "04", ten: "Kết thúc", moTa: "Bốn kết quả đóng được phân biệt", mau: "var(--primary)",
     states: ["DA_KHAC_PHUC", "IPC_BINH_THUONG", "DONG_TU_DONG", "DONG_NGOAI_PHAM_VI"],
   },
 ];
@@ -94,8 +97,8 @@ function DieuKien({ rule, compact = false }) {
   if (rule.dong) tags.push({ t: "Đóng sự cố", c: "bg-success-soft text-success" });
   if (rule.moLai) tags.push({ t: "Mở lại", c: "bg-info-soft text-info" });
   if (rule.batBuocLyDo) tags.push({ t: "Bắt buộc lý do", c: "bg-danger-soft text-danger" });
-  if (rule.apDungKhi === "DONG") tags.push({ t: "Chỉ khi đã đóng", c: "bg-violet-50 text-violet-700" });
-  if (rule.apDungKhi === "CA_HAI") tags.push({ t: "Mở hoặc đã đóng", c: "bg-violet-50 text-violet-700" });
+  if (rule.apDungKhi === "DONG") tags.push({ t: "Chỉ khi đã đóng", c: "bg-subtle text-body" });
+  if (rule.apDungKhi === "CA_HAI") tags.push({ t: "Mở hoặc đã đóng", c: "bg-subtle text-body" });
   if (!tags.length) return null;
   return (
     <div className={`flex flex-wrap ${compact ? "gap-1" : "gap-1.5"}`}>
@@ -179,7 +182,7 @@ function NhomLuatToanCuc({ title, icon: Icon, description, rules }) {
   return (
     <section className="rounded-2xl border border-line bg-surface p-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white"><Icon className="h-4 w-4" /></div>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "var(--anchor)" }}><Icon className="h-4 w-4" /></div>
         <div>
           <h3 className="text-[13px] font-bold text-strong">{title}</h3>
           <p className="mt-0.5 text-[12px] leading-relaxed text-muted">{description}</p>
@@ -404,7 +407,7 @@ export default function SoDoLuatCard({ dsNut }) {
           <div className="flex items-center gap-2 text-success"><ShieldCheck className="h-4 w-4" /><b className="text-[12px]">QA kiểm soát hồ sơ</b></div>
           <p className="mt-2 text-[12px] leading-relaxed text-success/70">Khi Cơ điện báo không thể xử lý, QA được CC. QA đóng hoặc mở lại trên web theo bảng luật và phải ghi lý do khi xác nhận khắc phục.</p>
         </div>
-        <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
+        <div className="rounded-2xl border border-line bg-subtle/60 p-4">
           <div className="flex items-center gap-2 text-violet-800"><Wrench className="h-4 w-4" /><b className="text-[12px]">Cơ chế tự bảo vệ</b></div>
           <p className="mt-2 text-[12px] leading-relaxed text-violet-900/70">Sensor về bình thường đủ 2 giờ liên tiếp thì hệ thống tự đóng ở mọi pha. WF6 theo dõi nếu dữ liệu hoặc cảnh báo bị đứng để báo IT/QA.</p>
         </div>
