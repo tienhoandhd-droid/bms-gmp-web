@@ -1,4 +1,9 @@
 // ============================================================
+// ⚠ 17/08/2026 (G2): LỚP TƯƠNG THÍCH. Nguồn màu chính thức của UI là
+// src/theme/tokens.css (semantic token Light/Dark, đổi qua data-theme).
+// File này chỉ còn phục vụ chart/legacy trong lúc quét token hóa;
+// KHÔNG thêm màu mới vào đây — thêm vào tokens.css.
+// ============================================================
 // theme.js — Hệ thiết kế "AQUA CLINICAL NEO-MINIMALISM"
 // ------------------------------------------------------------
 // Design tokens cho AquaBMS: nền sáng – hệ thủy – sạch – kiểm soát cao,

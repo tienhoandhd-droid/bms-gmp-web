@@ -20,6 +20,9 @@ import {
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import { COLOR, SENSOR_COLOR, SENSOR_META_BASE as SENSOR_META, COMPLY_OK, COMPLY_BAD, COMPLY_SCALE, complyColor, fmtPct } from "../lib/designTokens";
+import { chartTokens, useThemeVersion } from "../theme/chartTheme";
+// T() — token biểu đồ đọc từ CSS var tại thời điểm DỰNG option (re-render khi đổi theme).
+const T = () => chartTokens();
 
 // Mảng 3: pieces cho visualMap piecewise dựng TỪ thang màu chuẩn duy nhất
 // (COMPLY_SCALE) → mọi heatmap dùng chung ngưỡng, sửa 1 chỗ đồng bộ.
@@ -28,10 +31,10 @@ const complyPieces = () => COMPLY_SCALE.map((b) => ({ ...(b.gte != null ? { gte:
 echarts.use([LineChart, BarChart, CustomChart, HeatmapChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, MarkPointComponent, LegendComponent, DataZoomComponent, ToolboxComponent, CalendarComponent, VisualMapComponent, CanvasRenderer]);
 
 // Toolbox (xuất PNG) + dataZoom (kéo–thu phóng) dùng chung cho biểu đồ xu hướng lớn.
-const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Lưu ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: "#fff" } }, iconStyle: { borderColor: "#94a3b8" }, emphasis: { iconStyle: { borderColor: COLOR.teal } } });
+const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Lưu ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: "#fff" } }, iconStyle: { borderColor: T().textMuted }, emphasis: { iconStyle: { borderColor: COLOR.teal } } });
 const dataZoomTruot = (bottom = 6) => ([
   { type: "inside", filterMode: "none" },
-  { type: "slider", height: 15, bottom, filterMode: "none", brushSelect: false, borderColor: "transparent", fillerColor: "rgba(14,124,115,0.10)", handleSize: "80%", moveHandleSize: 4, dataBackground: { lineStyle: { color: "#cbd5e1" }, areaStyle: { color: "#eef2f6" } }, textStyle: { fontSize: 8, color: "#94a3b8" } },
+  { type: "slider", height: 15, bottom, filterMode: "none", brushSelect: false, borderColor: "transparent", fillerColor: "rgba(14,124,115,0.10)", handleSize: "80%", moveHandleSize: 4, dataBackground: { lineStyle: { color: T().chartGrid }, areaStyle: { color: T().chartGrid } }, textStyle: { fontSize: 8, color: T().textMuted } },
 ]);
 
 // ---- Hằng số thiết kế: DÙNG CHUNG qua lib/designTokens (hết lặp App/charts) ----
@@ -45,7 +48,7 @@ function complyDomain(values) {
 }
 const chartWrap = "rounded-2xl p-2 bg-gradient-to-b from-sky-50/70 to-white ring-1 ring-sky-100/80";
 const TT_CSS = "border-radius:12px;box-shadow:0 10px 30px -8px rgba(35,80,110,0.4);padding:8px 12px;";
-const tooltipBase = { backgroundColor: "#fff", borderColor: "#e2e8f0", borderWidth: 1, textStyle: { fontSize: 11, color: COLOR.ink }, extraCssText: TT_CSS };
+const tooltipBase = () => ({ backgroundColor: T().surface, borderColor: T().border, borderWidth: 1, textStyle: { fontSize: 11, color: T().textStrong }, extraCssText: TT_CSS });
 const gradient = (c, top = 0.30, bot = 0.02) => new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: echarts.color.modifyAlpha(c, top) }, { offset: 1, color: echarts.color.modifyAlpha(c, bot) }]);
 
 // ---- Wrapper React quanh ECharts: init 1 lần, cập nhật option, tự resize ----
@@ -98,8 +101,8 @@ function bandCustomSeries({ name, points, color, alpha = 0.13, z = 1 }) {
 
 const axisX = (labels, interval = 0, show = true) => ({
   type: "category", data: labels, boundaryGap: true,
-  axisTick: { show: false }, axisLine: { show, lineStyle: { color: "#cbdde8" } },
-  axisLabel: show ? { fontSize: 9, color: "#5f7a90", interval } : { show: false },
+  axisTick: { show: false }, axisLine: { show, lineStyle: { color: T().chartGrid } },
+  axisLabel: show ? { fontSize: 9, color: T().chartAxis, interval } : { show: false },
 });
 
 // ====== Mini cột "điểm OOS theo giờ (8h)" — thẻ phòng ở tab Tổng quan ======
@@ -107,7 +110,7 @@ export function OOSMini({ data }) {
   const option = {
     animation: false,
     grid: { top: 6, right: 4, bottom: 18, left: 4, containLabel: false },
-    tooltip: { trigger: "axis", ...tooltipBase, formatter: (p) => `Giờ ${p[0].axisValue}<br/>${p[0].data} điểm OOS` },
+    tooltip: { trigger: "axis", ...tooltipBase(), formatter: (p) => `Giờ ${p[0].axisValue}<br/>${p[0].data} điểm OOS` },
     xAxis: { ...axisX(data.map((d) => d.label), 1), axisLine: { show: false } },
     yAxis: { type: "value", show: false, min: 0 },
     series: [{ type: "bar", data: data.map((d) => d.oos), barMaxWidth: 16, itemStyle: { color: COLOR.softCoral, borderRadius: [3, 3, 0, 0] } }],
@@ -121,7 +124,7 @@ export function MiniArea({ data }) {
   const option = {
     animation: false,
     grid: { top: 6, right: 4, bottom: 4, left: 4, containLabel: false },
-    tooltip: { trigger: "axis", ...tooltipBase, formatter: (p) => `${p[0].axisValue}<br/>${fmtPct(p[0].data)} % đạt` },
+    tooltip: { trigger: "axis", ...tooltipBase(), formatter: (p) => `${p[0].axisValue}<br/>${fmtPct(p[0].data)} % đạt` },
     xAxis: { ...axisX(data.map((d) => d.label), 0, false) },
     yAxis: { type: "value", show: false, scale: true, max: 100 },
     series: [{
@@ -141,7 +144,7 @@ export function Sparkline({ chuoi }) {
   const option = {
     animation: false,
     grid: { top: 3, right: 2, bottom: 0, left: 2, containLabel: false },
-    tooltip: { trigger: "axis", ...tooltipBase, formatter: (p) => `${p[0].axisValue}<br/>${fmtPct(p[0].data)} đạt` },
+    tooltip: { trigger: "axis", ...tooltipBase(), formatter: (p) => `${p[0].axisValue}<br/>${fmtPct(p[0].data)} đạt` },
     xAxis: { ...axisX(chuoi.map((d) => d.label), 0, false) },
     yAxis: { type: "value", show: false, scale: true },
     series: [{ type: "line", data: chuoi.map((d) => d.comp), smooth: true, showSymbol: false, lineStyle: { color: stroke, width: 1.6 }, areaStyle: { color: echarts.color.modifyAlpha(stroke, 0.12) } }],
@@ -170,7 +173,7 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
     toolbox: toolboxLuuAnh("ty-le-dat" + (idSuffix ? "-" + idSuffix : "")),
     dataZoom: dataZoomTruot(6),
     tooltip: {
-      trigger: "axis", ...tooltipBase,
+      trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
         const cur = ps.find((x) => x.seriesName === "Kỳ này") || ps[0];
         const prv = ps.find((x) => x.seriesName === "Kỳ trước");
@@ -182,13 +185,13 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
       },
     },
     xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
-    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: "{value}%" } },
+    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" } },
     series: [
       // "Bóng" KỲ TRƯỚC (xám đứt, canh theo index) — bật qua nút So kỳ trước.
       ...(prevVals.length ? [{
         name: "Kỳ trước", type: "line", smooth: true, connectNulls: true, showSymbol: false, silent: true, z: 1,
         data: data.map((_, i) => (prevVals[i] != null ? prevVals[i] : null)),
-        lineStyle: { color: "#94a3b8", width: 1.6, type: "dashed" },
+        lineStyle: { color: T().textMuted, width: 1.6, type: "dashed" },
       }] : []),
       {
         name: "Kỳ này", type: "line", smooth: true, connectNulls: false, showSymbol: true, symbolSize: 5, z: 3,
@@ -214,14 +217,14 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
     dataZoom: [{ type: "inside", filterMode: "none" }],
     legend: { data: ks.map((k) => SENSOR_META[k].label), bottom: 0, textStyle: { fontSize: 11, color: COLOR.ink }, icon: "roundRect", itemWidth: 14, itemHeight: 3 },
     tooltip: {
-      trigger: "axis", ...tooltipBase,
+      trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
         const head = `<div style="font-weight:600;color:${COLOR.navy};margin-bottom:4px">${ps[0].axisValue}</div>`;
         return head + ps.map((p) => { const v = p.data; return `<div style="display:flex;justify-content:space-between;gap:16px"><span style="color:${p.color}">● ${p.seriesName}</span><span>${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}</span></div>`; }).join("");
       },
     },
     xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
-    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: "{value}%" } },
+    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" } },
     series: ks.map((k) => ({
       name: SENSOR_META[k].label, type: "line", smooth: true, connectNulls: false, showSymbol: false,
       data: data.map((d) => d[`comp_${k}`]), lineStyle: { color: SENSOR_COLOR[k], width: 2.4 }, itemStyle: { color: SENSOR_COLOR[k] },
@@ -268,7 +271,7 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
     toolbox: toolboxLuuAnh("gia-tri-" + sensorKey),
     dataZoom: dataZoomTruot(6),
     tooltip: {
-      trigger: "axis", ...tooltipBase,
+      trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
         const i = ps[0].dataIndex; const p = series[i] || {}; const v = p.avg;
         if (v == null && p.p50 == null) return "";
@@ -279,7 +282,7 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
       },
     },
     xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
-    yAxis: { type: "value", scale: true, ...(hasDomain ? { min: +(yLo - pad).toFixed(1), max: +(yHi + pad).toFixed(1) } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: (v) => `${+(+v).toFixed(1)}` } },
+    yAxis: { type: "value", scale: true, ...(hasDomain ? { min: +(yLo - pad).toFixed(1), max: +(yHi + pad).toFixed(1) } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => `${+(+v).toFixed(1)}` } },
     series: [
       ...bandSeries,
       ...(hasPct ? [{ name: "P50", type: "line", data: series.map((p) => (p.p50 != null ? p.p50 : null)), connectNulls: true, showSymbol: false, symbol: "none", lineStyle: { color: echarts.color.modifyAlpha(color, 0.55), width: 1, type: "dashed" }, tooltip: { show: false }, z: 2 }] : []),
@@ -318,7 +321,7 @@ export function RoomDetailMiniChart({ pts, smin, smax, mean, unit, group = null 
     animation: false,
     grid: { top: 8, right: 14, bottom: 20, left: 8, containLabel: true },
     tooltip: {
-      trigger: "axis", ...tooltipBase,
+      trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
         const byName = {}; ps.forEach((p) => { byName[p.seriesName] = p; });
         const avg = byName["TB giờ"] ? byName["TB giờ"].data : null;
@@ -328,7 +331,7 @@ export function RoomDetailMiniChart({ pts, smin, smax, mean, unit, group = null 
       },
     },
     xAxis: axisX(pts.map((p) => p.label)),
-    yAxis: { type: "value", min: +lo.toFixed(dec), max: +hi.toFixed(dec), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: (v) => (+v).toFixed(dec) } },
+    yAxis: { type: "value", min: +lo.toFixed(dec), max: +hi.toFixed(dec), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => (+v).toFixed(dec) } },
     series: [
       // Dải min–max: custom polygon (chịu null, không cần stack)
       ...(hasBand ? [bandCustomSeries({ name: "_minmax", points: pts.map((p) => (p.vmin != null && p.vmax != null ? { lo: p.vmin, hi: p.vmax } : null)), color: COLOR.sky, alpha: 0.14 })] : []),
@@ -350,12 +353,12 @@ export function TrendMainChart({ data, range }) {
   const option = {
     animation: false,
     grid: { top: 16, right: 40, bottom: 24, left: 8, containLabel: true },
-    tooltip: { trigger: "axis", ...tooltipBase },
+    tooltip: { trigger: "axis", ...tooltipBase() },
     legend: { show: false },
     xAxis: axisX(data.map((d) => d.label), interval),
     yAxis: [
-      { type: "value", axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#e6f0f5" } }, axisLabel: { fontSize: 10, color: "#5f7a90" } },
-      { type: "value", min: 0, max: 100, position: "right", axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 10, color: "#5f7a90" } },
+      { type: "value", axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 10, color: T().chartAxis } },
+      { type: "value", min: 0, max: 100, position: "right", axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 10, color: T().chartAxis } },
     ],
     series: [
       { name: "Warning", type: "bar", stack: "h", data: data.map((d) => d.warnH), barMaxWidth: 26, itemStyle: { color: COLOR.sand } },
@@ -406,8 +409,8 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
   const sigLines = [
     { yAxis: tb, label: { formatter: `TB ${+tb.toFixed(2)}`, fontSize: 9, color: COLOR.navy, position: "insideEndTop" }, lineStyle: { color: COLOR.navy, type: "solid", width: 1.4 } },
     ...[1, 2, 3].flatMap((k) => [
-      { yAxis: tb + k * sig, label: { formatter: `+${k}σ`, fontSize: 8, color: "#94a3b8", position: "end" }, lineStyle: { color: k === 3 ? COLOR.coral : "#b6c6d4", type: "dashed", width: k === 3 ? 1.4 : 1 } },
-      { yAxis: tb - k * sig, label: { formatter: `−${k}σ`, fontSize: 8, color: "#94a3b8", position: "end" }, lineStyle: { color: k === 3 ? COLOR.coral : "#b6c6d4", type: "dashed", width: k === 3 ? 1.4 : 1 } },
+      { yAxis: tb + k * sig, label: { formatter: `+${k}σ`, fontSize: 8, color: T().textMuted, position: "end" }, lineStyle: { color: k === 3 ? COLOR.coral : "#b6c6d4", type: "dashed", width: k === 3 ? 1.4 : 1 } },
+      { yAxis: tb - k * sig, label: { formatter: `−${k}σ`, fontSize: 8, color: T().textMuted, position: "end" }, lineStyle: { color: k === 3 ? COLOR.coral : "#b6c6d4", type: "dashed", width: k === 3 ? 1.4 : 1 } },
     ]),
   ];
   const option = {
@@ -416,7 +419,7 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
     toolbox: toolboxLuuAnh("spc-" + sensorKey),
     dataZoom: [{ type: "inside", filterMode: "none" }],
     tooltip: {
-      trigger: "axis", ...tooltipBase,
+      trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
         const i = ps[0].dataIndex; const v = vals[i];
         const z = v != null ? ((v - tb) / sig).toFixed(2) : null;
@@ -425,7 +428,7 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
       },
     },
     xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
-    yAxis: { type: "value", min: +(yLo - pad).toFixed(2), max: +(yHi + pad).toFixed(2), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 9, color: "#5f7a90" } },
+    yAxis: { type: "value", min: +(yLo - pad).toFixed(2), max: +(yHi + pad).toFixed(2), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 9, color: T().chartAxis } },
     series: [{
       name: "Giá trị", type: "line", smooth: false, connectNulls: true, showSymbol: true, symbolSize: 6, z: 3,
       data: vals.map((v, i) => ({ value: v, itemStyle: { color: vio[i].some((r) => r.startsWith("R1")) ? COLOR.coralDeep : vio[i].length ? COLOR.sand : color, borderColor: "#fff", borderWidth: 1 } })),
@@ -455,19 +458,19 @@ export function CalendarHeat({ days, height = 190 }) {
   const dates = valid.map((d) => d.date).sort();
   const option = {
     animation: false,
-    tooltip: { ...tooltipBase, formatter: (p) => `${p.data[0]}<br/><b>${fmtPct(p.data[1])}</b> đạt` },
+    tooltip: { ...tooltipBase(), formatter: (p) => `${p.data[0]}<br/><b>${fmtPct(p.data[1])}</b> đạt` },
     visualMap: {
       type: "piecewise", orient: "horizontal", left: "center", bottom: 0,
       pieces: complyPieces(),   // Mảng 3: dùng thang màu chuẩn duy nhất
-      textStyle: { fontSize: 9, color: "#5f7a90" }, itemWidth: 12, itemHeight: 12,
+      textStyle: { fontSize: 9, color: T().chartAxis }, itemWidth: 12, itemHeight: 12,
     },
     calendar: {
       top: 22, left: 40, right: 10, bottom: 34, cellSize: ["auto", 15],
       range: [dates[0], dates[dates.length - 1]],
       itemStyle: { color: "#f7fafc", borderWidth: 2.5, borderColor: "#fff" },
-      splitLine: { lineStyle: { color: "#cbdde8", width: 1 } },
-      dayLabel: { nameMap: ["CN", "T2", "T3", "T4", "T5", "T6", "T7"], fontSize: 8.5, color: "#94a3b8", firstDay: 1 },
-      monthLabel: { nameMap: ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6", "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"], fontSize: 9.5, color: "#5f7a90" },
+      splitLine: { lineStyle: { color: T().chartGrid, width: 1 } },
+      dayLabel: { nameMap: ["CN", "T2", "T3", "T4", "T5", "T6", "T7"], fontSize: 8.5, color: T().textMuted, firstDay: 1 },
+      monthLabel: { nameMap: ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6", "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"], fontSize: 9.5, color: T().chartAxis },
       yearLabel: { show: false },
     },
     series: [{ type: "heatmap", coordinateSystem: "calendar", data: valid.map((d) => [d.date, d.value]) }],
@@ -497,12 +500,12 @@ export function RoomDayHeatmap({ rooms, days, values, height, cellH = 18 }) {
     animation: false,
     grid: { top: 8, right: 12, bottom: 46, left: 8, containLabel: true },
     tooltip: {
-      position: "top", ...tooltipBase,
+      position: "top", ...tooltipBase(),
       formatter: (p) => `${rooms[p.data[1]]} · ${days[p.data[0]]}<br/><b>${p.data[2] === "-" ? "thiếu dữ liệu" : fmtPct(p.data[2])}</b>`,
     },
-    xAxis: { type: "category", data: days, splitArea: { show: true }, axisTick: { show: false }, axisLine: { lineStyle: { color: "#cbdde8" } }, axisLabel: { fontSize: 9, color: "#5f7a90", interval: xTickEvery(days.length) } },
-    yAxis: { type: "category", data: rooms, splitArea: { show: true }, axisTick: { show: false }, axisLine: { lineStyle: { color: "#cbdde8" } }, axisLabel: { fontSize: 10, color: "#4a6072" } },
-    visualMap: { type: "piecewise", orient: "horizontal", left: "center", bottom: 6, pieces: complyPieces(), textStyle: { fontSize: 9, color: "#5f7a90" }, itemWidth: 12, itemHeight: 12 },
+    xAxis: { type: "category", data: days, splitArea: { show: true }, axisTick: { show: false }, axisLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, interval: xTickEvery(days.length) } },
+    yAxis: { type: "category", data: rooms, splitArea: { show: true }, axisTick: { show: false }, axisLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 10, color: "#4a6072" } },
+    visualMap: { type: "piecewise", orient: "horizontal", left: "center", bottom: 6, pieces: complyPieces(), textStyle: { fontSize: 9, color: T().chartAxis }, itemWidth: 12, itemHeight: 12 },
     series: [{
       name: "% đạt", type: "heatmap", data,
       label: { show: rooms.length * days.length <= 240, fontSize: 8, color: "#1f2d3a", formatter: (p) => (p.data[2] === "-" ? "" : Math.round(p.data[2])) },
@@ -535,7 +538,7 @@ export function ForecastChart({ chuoi, duBao, height = 180 }) {
     animation: false,
     grid: { top: 10, right: 12, bottom: 22, left: 8, containLabel: true },
     tooltip: {
-      trigger: "axis", ...tooltipBase,
+      trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
         const l = ps[0].axisValue;
         const h = ps.find((x) => x.seriesName === "Lịch sử" && x.data != null);
@@ -545,7 +548,7 @@ export function ForecastChart({ chuoi, duBao, height = 180 }) {
       },
     },
     xAxis: { ...axisX(labels, xTickEvery(labels.length), true) },
-    yAxis: { type: "value", scale: true, min: ymin, max: ymax, axisLabel: { fontSize: 9, color: "#5f7a90", formatter: (v) => v + "%" }, splitLine: { lineStyle: { color: "#eef3f7" } } },
+    yAxis: { type: "value", scale: true, min: ymin, max: ymax, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => v + "%" }, splitLine: { lineStyle: { color: T().chartGrid } } },
     series: [
       { name: "band-nen", type: "line", data: bandLow, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 }, silent: true, tooltip: { show: false } },
       { name: "band-to", type: "line", data: bandDelta, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: echarts.color.modifyAlpha(COMPLY_OK, 0.13) }, silent: true, tooltip: { show: false } },
@@ -568,7 +571,7 @@ export function PhanHoiTheoNgayChart({ ngay, series, height = 260 }) {
     animation: false,
     grid: { top: 30, right: 14, bottom: 34, left: 8, containLabel: true },
     tooltip: {
-      trigger: "axis", ...tooltipBase,
+      trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
         if (!ps || !ps.length) return "";
         const i = ps[0].dataIndex;
@@ -581,11 +584,11 @@ export function PhanHoiTheoNgayChart({ ngay, series, height = 260 }) {
         return h;
       },
     },
-    legend: { top: 0, itemWidth: 14, itemHeight: 8, textStyle: { fontSize: 11, color: "#5f7a90" } },
+    legend: { top: 0, itemWidth: 14, itemHeight: 8, textStyle: { fontSize: 11, color: T().chartAxis } },
     xAxis: axisX(ngay, xTickEvery(ngay.length)),
     yAxis: { type: "value", min: 0, max: 100, axisLine: { show: false }, axisTick: { show: false },
-             splitLine: { lineStyle: { color: "#e6f0f5" } },
-             axisLabel: { fontSize: 10, color: "#5f7a90", formatter: "{value}%" } },
+             splitLine: { lineStyle: { color: T().chartGrid } },
+             axisLabel: { fontSize: 10, color: T().chartAxis, formatter: "{value}%" } },
     series: series.map((s) => ({
       name: s.nhan, type: "line", smooth: false, connectNulls: false,
       showSymbol: true, symbolSize: 5,
@@ -597,6 +600,7 @@ export function PhanHoiTheoNgayChart({ ngay, series, height = 260 }) {
 }
 
 export default function LazyChart({ type, ...p }) {
+  useThemeVersion();   // đổi theme → dựng lại option với token mới (chart không kẹt light)
   switch (type) {
     case "oosMini": return <OOSMini data={p.data} />;
     case "roomBand": return <RoomBandChart sensorKey={p.sensorKey} series={p.series} baseline={p.baseline} isHourly={p.isHourly} group={p.group} />;
