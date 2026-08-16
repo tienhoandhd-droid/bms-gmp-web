@@ -76,6 +76,7 @@ import DesktopSidebar from "../components/navigation/DesktopSidebar";
 import MobileBottomNav from "../components/navigation/MobileBottomNav";
 import MoreNavigationSheet from "../components/navigation/MoreNavigationSheet";
 import SystemHealthStrip from "../components/status/SystemHealthStrip";
+import IncidentProcessOverview from "../components/process/IncidentProcessOverview";
 import { fmtPhut } from "../lib/dinhDang";
 
 
@@ -848,12 +849,17 @@ export default function AppShell() {
               <DanhGiaHieuQuaCanhBao isLive={isLive} />
               <HuongDanEmailNut />
               <Card className="p-4 sm:p-5">
-                <SectionTitle icon={GitBranch} hint="mỗi bộ phận một làn · mũi tên mang màu người bấm nút · kéo ngang để xem hết">Sơ đồ vòng đời chi tiết — ai làm gì, lúc nào</SectionTitle>
-                <div className="mt-3">
-                  <React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 420 }} />}>
-                    <SoDoVongDoi />
-                  </React.Suspense>
-                </div>
+                <SectionTitle icon={GitBranch} hint="bấm từng bước để xem chi tiết">Quy trình xử lý sự cố</SectionTitle>
+                <div className="mt-3"><IncidentProcessOverview dsNut={isLive ? live.nutThaoTac : null} role={role} /></div>
+                {/* Phase D (báo cáo 9): sơ đồ SVG đầy đủ rút khỏi luồng mặc định — chỉ mở khi cần đào tạo/thanh tra. */}
+                <details className="mt-4 rounded-2xl ring-1 ring-line px-4 py-3">
+                  <summary className="cursor-pointer text-[13px] font-medium text-muted select-none">Sơ đồ kỹ thuật đầy đủ (đào tạo / thanh tra) ▾</summary>
+                  <div className="mt-3">
+                    <React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 420 }} />}>
+                      <SoDoVongDoi />
+                    </React.Suspense>
+                  </div>
+                </details>
               </Card>
               {!isLive && <Card className="p-6 text-center text-[13px] text-muted">Tab Nhiệm vụ chỉ hoạt động ở chế độ LIVE (đọc dữ liệu thật).</Card>}
             </div>
@@ -1314,8 +1320,12 @@ export default function AppShell() {
               )}
 
               {cfgTab === "sodo" && (
-              <Card className="p-6"><SectionTitle icon={GitBranch} hint="luồng tự động + bảng luật đang chạy">Sơ đồ xử lý sự cố toàn hệ thống</SectionTitle>
-                <div className="mt-4"><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 320 }} />}><SoDoLuatCard dsNut={isLive ? live.nutThaoTac : null} /></React.Suspense></div>
+              <Card className="p-6"><SectionTitle icon={GitBranch} hint="4 bước — bấm để xem chi tiết">Quy trình xử lý sự cố</SectionTitle>
+                <div className="mt-4"><IncidentProcessOverview dsNut={isLive ? live.nutThaoTac : null} role={role} /></div>
+                <details className="mt-4 rounded-2xl ring-1 ring-line px-4 py-3">
+                  <summary className="cursor-pointer text-[13px] font-medium text-muted select-none">Quy tắc xử lý chi tiết ▾</summary>
+                  <div className="mt-3"><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 320 }} />}><SoDoLuatCard dsNut={isLive ? live.nutThaoTac : null} /></React.Suspense></div>
+                </details>
               </Card>
               )}
               {cfgTab === "hethong" && (
