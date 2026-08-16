@@ -21,3 +21,20 @@ body { margin: 0; -webkit-font-smoothing: antialiased; background: var(--bg-canv
   outline-offset: 2px;
   border-radius: 3px;
 }
+
+/* ============================================================
+   G3 — bố cục nội dung + inspector (theo báo cáo nâng cấp 17/08/2026).
+   Content chính KHÔNG dùng position:absolute; cột phải sticky, mobile xuống dưới.
+   ============================================================ */
+.page-with-inspector {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 1.25rem;
+  align-items: start;
+}
+.chart-panel { min-width: 0; }
+.inspector { position: sticky; top: 1rem; min-width: 0; }
+@media (max-width: 1023px) {
+  .page-with-inspector { grid-template-columns: minmax(0, 1fr); }
+  .inspector { position: static; }
+}

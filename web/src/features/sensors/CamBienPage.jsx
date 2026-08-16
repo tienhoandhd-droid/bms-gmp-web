@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Gauge, RefreshCw } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
+import InspectorDrawer from "../../components/layout/InspectorDrawer";
 import { COLOR } from "../../lib/designTokens";
 import { docTenVaiTro } from "../../lib/phanQuyen";
 import { layCamBienDungHinh } from "../../lib/supabaseData";
@@ -206,21 +207,11 @@ function ModalMoLai({ row, act, dangChay, onDong, onLuu }) {
 function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo }) {
   const hh = (cum.chan_doan || "").startsWith("THIẾT BỊ ĐO");
   const honHop = (cum.chan_doan || "").startsWith("HỖN HỢP");
-  return createPortal(
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" onClick={onDong} />
-      <div className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto bg-surface shadow-2xl">
-        <div className="sticky top-0 bg-surface/95 backdrop-blur px-5 py-4 border-b border-line flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[12px] uppercase tracking-[0.16em] text-muted font-semibold">Cụm điều tra</p>
-            <h3 className="mt-0.5 text-[17px] font-semibold" style={{ color: "var(--text-strong)" }}>{cum.ma_hien_thi} — {cum.ahu || "Không rõ AHU"} · {cum.loai_cam_bien}</h3>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button onClick={onInHoSo} title="Hồ sơ đầy đủ: CAPA + mọi sự cố thành viên + audit — in hoặc lưu PDF cho thanh tra" className="rounded-xl px-2.5 py-1 text-[13px] font-medium text-success ring-1 ring-success-line bg-success-soft hover:bg-success-soft">In hồ sơ</button>
-            <button aria-label="Đóng" onClick={onDong} className="rounded-xl px-2.5 py-1 text-[13px] text-muted ring-1 ring-line hover:bg-subtle">Đóng</button>
-          </div>
-        </div>
-        <div className="px-5 py-4 space-y-4">
+  return (
+    <InspectorDrawer onClose={onDong} eyebrow="Cụm điều tra"
+      title={`${cum.ma_hien_thi} — ${cum.ahu || "Không rõ AHU"} · ${cum.loai_cam_bien}`}
+      actions={<button onClick={onInHoSo} title="Hồ sơ đầy đủ: CAPA + mọi sự cố thành viên + audit — in hoặc lưu PDF cho thanh tra" className="rounded-xl px-2.5 py-1 text-[13px] font-medium text-success ring-1 ring-success-line bg-success-soft hover:bg-success-soft">In hồ sơ</button>}>
+      <div className="space-y-4">
           <span className={`inline-block rounded-lg px-2.5 py-1 text-[12px] leading-tight ${hh ? "text-body bg-subtle" : honHop ? "text-warning bg-warning-soft" : "text-danger bg-danger-soft"}`}>{docTenVaiTro(cum.chan_doan, cum.khu_vuc)}</span>
           <div className="grid grid-cols-2 gap-2 text-[12px]">
             <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Khu · mở</span><span className="font-semibold text-body tabular-nums">{cum.khu_vuc} · {Math.round(cum.gio_mo)} giờ</span></div>
@@ -258,9 +249,9 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo })
               ))}
             </div>
           </div>
-        </div>
       </div>
-    </div>, document.body);
+    </InspectorDrawer>
+  );
 }
 
 
