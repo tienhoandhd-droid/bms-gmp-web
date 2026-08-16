@@ -901,6 +901,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted">{showMulti ? sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: SENSOR_COLOR[k] }} /> {SENSOR_META[k]?.label || k}</span>) : (<><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_OK }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_BAD }} /> &lt; 80% (điểm đỏ)</span></>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: "var(--warning-line)" }} /> Ngưỡng 80%</span></div>
           </Card>
           {/* (3) SPC — Levey-Jennings quanh nền 30 ngày (A2) */}
+          <details className="rounded-2xl ring-1 ring-line px-1 py-1"><summary className="cursor-pointer px-4 py-2.5 text-[13px] font-medium text-muted select-none">Phân tích nâng cao — kiểm soát thống kê (SPC) ▾</summary>
           <Card className="p-6"><SectionTitle icon={Activity} hint={`${activeScope.name} · vùng ±1/2/3σ quanh nền 30 ngày · tín hiệu Nelson`}>③ Kiểm soát thống kê (SPC — Levey-Jennings)</SectionTitle>
             <p className="text-[12px] text-muted mt-1">Phát hiện <b>dịch chuyển/xu hướng trước khi vượt ngưỡng OOS</b>: điểm cam = tín hiệu Nelson R2 (9 điểm cùng phía) / R3 (6 điểm đơn điệu), điểm đỏ = vượt 3σ (R1). Nền TB±σ do job đêm tính (tất định) — kết luận chính thức theo bảng SPC bên dưới trang.</p>
             {(() => {
@@ -917,6 +918,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
               ))}</div>;
             })()}
           </Card>
+          </details>
         </>)}
 
         {/* ============ KHU / AHU / TỔNG: tổng quát + theo chỉ tiêu ============ */}
@@ -941,13 +943,11 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
 
         {/* ============ CHUNG: lịch tuân thủ 90 ngày (A2 — heatmap) ============ */}
         {isLive && (
-          <Card className="p-6"><SectionTitle icon={History} hint={`${activeScope.name} · 90 ngày gần nhất · % đạt toàn phần theo ngày`}>Lịch tuân thủ 90 ngày</SectionTitle>
-            <p className="text-[12px] text-muted mt-1">Mỗi ô = 1 ngày, màu theo % đạt (đèn giao thông). Cụm ô đỏ/cam liền nhau = giai đoạn cần điều tra; nhìn được ngay "tuần nào xấu" mà không cần dò từng biểu đồ.</p>
-            <div className="mt-3"><Chart type="calHeat" days={calDays} h={190} /></div>
-          </Card>
+          {/* Phase E (báo cáo 9): bỏ Lịch tuân thủ 90 ngày — trùng vai với Bản đồ phòng × ngày */}
         )}
 
         {/* ============ CHUNG: phân tích kỹ thuật phục vụ AI ============ */}
+        <details className="rounded-2xl ring-1 ring-line px-1 py-1"><summary className="cursor-pointer px-4 py-2.5 text-[13px] font-medium text-muted select-none">Phân tích nâng cao — phân tích kỹ thuật &amp; dữ liệu thô ▾</summary>
         <Card className="p-6"><SectionTitle icon={CircleDot} hint="dữ liệu phân tích kỹ thuật phục vụ AI đánh giá xu hướng">Phân tích kỹ thuật xu hướng</SectionTitle>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4">{[
             ["Số điểm", tech.n ? `${tech.n}` : "—", "text-body"],
@@ -1007,8 +1007,14 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           })()}
           <p className="text-[12px] text-muted mt-3">Bảng &amp; đánh giá này là <b>số liệu tất định</b> từ dữ liệu đo — <b>giới hạn GHD/GHT lấy theo từng phòng trong CSDL</b> (không phải AI đặt). Dùng để <b>tự đánh giá xu hướng trước khi</b> AI gợi ý và QA kết luận.</p>
         </Card>
+        </details>
       </div>
 
+      {isLive && maTran && (
+      <Card className="p-6"><SectionTitle icon={CircleDot} hint="% đạt mỗi phòng theo ngày · phòng rủi ro nhất xếp trên">Phòng cần chú ý — bản đồ phòng × ngày</SectionTitle>
+        <div className="mt-3"><Chart type="roomDayHeat" rooms={maTran.rooms} days={maTran.days} values={maTran.values} height={Math.max(180, maTran.rooms.length * 20 + 70)} h={Math.max(180, maTran.rooms.length * 20 + 70)} /></div>
+      </Card>
+      )}
       <Card className="p-6"><SectionTitle icon={CircleDot} hint="% điểm đạt mỗi cấp · theo dõi nhanh">Xu hướng theo cấp</SectionTitle>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-(RANGE_DAYS[range] || 30)) : getSeries(sc, sensor, range); const lt = d[d.length - 1] || {}; const p = lt.comp; const pc = p == null ? "#94a3b8" : p < 70 ? COMPLY_BAD : p < 88 ? "#d99a2b" : COMPLY_OK; return <div key={lvl} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold" style={{ color: "var(--text-strong)" }}>{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-[12px] px-2 py-0.5 rounded-full text-body bg-surface ring-1 ring-line">{sc.id}</span></div><div className="flex items-baseline gap-1.5 mb-1"><span className="text-2xl font-light tabular-nums leading-none" style={{ color: pc }}>{p == null ? "—" : fmtPct(p)}</span><span className="text-[12px] text-muted">% đạt mới nhất</span></div><p className="text-[12px] text-muted mb-1 truncate">{sc.name}</p><Chart type="miniArea" data={d} h={84} /></div>; })}</div>
       </Card>
@@ -1020,7 +1026,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
 
       {/* Mảng 3 — Dự báo xu hướng (RPC gate R²) */}
       {isLive && (
-      <Card className="p-6"><SectionTitle icon={LineIcon} hint="hồi quy OLS + cổng R²≥0.5 · dải tin cậy robust (MAD) · dữ liệu thật">Dự báo xu hướng 7 ngày</SectionTitle>
+      <Card className="p-6"><SectionTitle icon={LineIcon} hint="hồi quy OLS + cổng R²≥0.5 · dải tin cậy robust (MAD) · dữ liệu thật">Ước tính xu hướng 7 ngày</SectionTitle>
         {dbBusy && !duBao ? <div className="mt-3 h-16 rounded-2xl bg-subtle animate-pulse" /> :
          !duBao ? <p className="mt-3 text-[13px] text-muted italic">Chưa đủ dữ liệu để dự báo cho phạm vi đang chọn.</p> :
          (duBao.du_bao_dang_tin && (duBao.du_bao || []).length) ? (() => {
@@ -1048,11 +1054,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       )}
 
       {/* Mảng 3 — Bản đồ tuân thủ phòng × ngày (chỉ cấp Tổng/Khu) */}
-      {isLive && maTran && (
-      <Card className="p-6"><SectionTitle icon={CircleDot} hint="% đạt mỗi phòng theo ngày · phòng rủi ro nhất xếp trên">Bản đồ tuân thủ phòng × ngày</SectionTitle>
-        <div className="mt-3"><Chart type="roomDayHeat" rooms={maTran.rooms} days={maTran.days} values={maTran.values} height={Math.max(180, maTran.rooms.length * 20 + 70)} h={Math.max(180, maTran.rooms.length * 20 + 70)} /></div>
-      </Card>
-      )}
+
         {diemChon != null && view[diemChon] && (() => { const d = view[diemChon]; const sc = (incidentMarks || []).filter((m) => m.idx === diemChon); return (
           <InspectorDrawer onClose={() => setDiemChon(null)} eyebrow={`${activeScope.name} · ${SENSORS.find((x) => x.k === sensor).label}`} title={`Chi tiết ${d.label}`}>
             <div className="grid grid-cols-2 gap-2 text-[13px]">

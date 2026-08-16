@@ -17,6 +17,7 @@ export function chartTokens() {
     chartGrid: layToken("--chart-grid", "#CCD9DF"),
     chartAxis: layToken("--chart-axis", "#526878"),
     surface: layToken("--bg-surface", "#FFFFFF"),
+    subtle: layToken("--bg-subtle", "#E1EDF1"),
     border: layToken("--border", "#C4D4DC"),
     danger: layToken("--danger", "#A72924"),
     warning: layToken("--warning", "#8A5300"),
