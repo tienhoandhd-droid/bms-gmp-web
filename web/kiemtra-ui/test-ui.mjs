@@ -17,11 +17,11 @@ const TABS = ["home", "tasks", "events", "recent", "sensors", "trend", "reports"
 const VIEWPORTS = [[1440, 900], [768, 1024], [390, 844]];
 const CAM_RUNTIME = ["Supabase", "n8n", "WF1", "WF5", "WF6", "WF7", "WF8", "rpc_", "webhook"];
 
-function timChrome() {
+async function timChrome() {
   if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
   const mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   if (existsSync(mac)) return mac;
-  try { return puppeteer.executablePath(); } catch { return undefined; }
+  try { return await puppeteer.executablePath(); } catch { return undefined; }
 }
 
 let server = null, base = process.argv[2];
@@ -44,7 +44,7 @@ function ghi(msg) { loi.push(msg); console.log("❌ " + msg); }
 
 try {
   await moServer();
-  const browser = await puppeteer.launch({ executablePath: timChrome(), headless: "new", args: ["--no-sandbox"] });
+  const browser = await puppeteer.launch({ executablePath: await timChrome(), headless: "new", args: ["--no-sandbox"] });
   for (const theme of ["light", "dark"]) {
     const page = await browser.newPage();
     const pageErrs = [];
