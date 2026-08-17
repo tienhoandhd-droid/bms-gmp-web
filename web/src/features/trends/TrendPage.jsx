@@ -849,7 +849,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       <Card className="p-4 flex items-center justify-between flex-wrap gap-3">
         <span className="text-[12px] text-body">Đang chọn: <b style={{ color: "var(--text-strong)" }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {RANGES.find((r) => r.k === range).label}{(dtFrom || dtTo) ? ` · ${view[0]?.label}→${view[view.length - 1]?.label}` : ""}</span>
         <div className="flex gap-2">
-          <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo (chờ AI)…" : "In báo cáo A4 (kèm nhận định hỗ trợ)"}</button>
+          <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo (chờ AI)…" : "In báo cáo A4 (kèm nhận định)"}</button>
           <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "AI đang đọc…" : "Tạo nhận định"}</button>
           {isLive && aiWebhookSau && <button onClick={() => runAI(true)} disabled={aiBusy} title="Phân tích sâu hơn: nguyên nhân gốc + CAPA đa tầng (IPC/Cơ điện/BMS) + đề xuất phòng ngừa — dùng model mạnh, chạy ~1–3 phút" className={`text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ background: "var(--info-solid)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={2} /> {aiBusy ? "Đang phân tích chi tiết…" : "Phân tích chi tiết (CAPA)"}</button>}
         </div>
@@ -943,10 +943,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           </Card>
         </>)}
 
-        {/* ============ CHUNG: lịch tỷ lệ đạt 90 ngày (A2 — heatmap) ============ */}
-        {isLive && (
-          {/* Phase E (báo cáo 9): bỏ Lịch tỷ lệ đạt 90 ngày — trùng vai với Bản đồ phòng × ngày */}
-        )}
+        {/* Phase E (báo cáo 9): đã bỏ Lịch tỷ lệ đạt 90 ngày — trùng vai với Bản đồ phòng × ngày.
+            (17/08: vỏ điều kiện cũ từng bọc một object literal rỗng → React #31 khi LIVE — đã gỡ trọn khối.) */}
 
         {/* ============ CHUNG: phân tích kỹ thuật phục vụ AI ============ */}
         <details className="rounded-2xl ring-1 ring-line px-1 py-1"><summary className="cursor-pointer px-4 py-2.5 text-[13px] font-medium text-muted select-none">Phân tích nâng cao — phân tích kỹ thuật &amp; dữ liệu thô ▾</summary>
