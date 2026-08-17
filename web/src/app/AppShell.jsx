@@ -1166,7 +1166,10 @@ export default function AppShell() {
             );
           })()}
 
-          {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><ChenhApTheoAhu isLive={isLive} khuChoPhep={khuChoPhep} active={tab === "recent"} /></React.Suspense></div>}
+          {(daMo.recent || tab === "recent") && <div style={{ display: tab === "recent" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><ChenhApTheoAhu isLive={isLive} khuChoPhep={khuChoPhep} active={tab === "recent"}
+                suCoMo={(incidentsXem || []).filter((i) => ((i.sensor || "").includes("DP") || (i.sensor || "").includes("Chênh áp")) && i.status !== "Đã khắc phục")}
+                suCoDong={(isLive && Array.isArray(live.suCoDongGanDay) ? live.suCoDongGanDay : []).filter((r) => r.loai_cam_bien === "DP" && (!khuChoPhep || khuChoPhep.includes(r.khu_vuc)))}
+                onMoTabSuCo={() => setTab("events")} /></React.Suspense></div>}
           {tab === "events" && (
             <div className="mt-5 space-y-5">
               <Card className="p-4 sm:p-5">

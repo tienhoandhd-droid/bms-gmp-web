@@ -3,14 +3,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Gauge } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
 import InspectorDrawer from "../../components/layout/InspectorDrawer";
-import PressureRange from "../../components/pressure/PressureRange";
+import PressureRange, { SparkChenhAp } from "../../components/pressure/PressureRange";
 import { COLOR } from "../../lib/designTokens";
 import { DS_KHU } from "../../lib/phanQuyen";
 import { capNhatPhut8h, dangKyRealtimeChenhAp, layCamBienDungHinh, layChenhApTheoAhu } from "../../lib/supabaseData";
 // Bảng CHÊNH ÁP THEO AHU (tab Sự cố gần đây) — yêu cầu (dải giới hạn) + kết quả (TB
 // 5′ cuối của bucket giờ mới nhất), gom theo AHU. Không đạt: Mức 1/2 (P1/P2) = ĐỎ ·
 // Mức 3 (P3) = VÀNG. Đạt = xanh. Thiếu dữ liệu = xám. Có bộ lọc khu/AHU riêng.
-function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
+function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [], suCoDong = [], onMoTabSuCo = null }) {
   const [rows, setRows] = React.useState(null);   // null = đang tải
   const [khu, setKhu] = React.useState("ALL");
   const [ahuLoc, setAhuLoc] = React.useState("ALL");
@@ -134,7 +134,10 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
         <span className="flex items-center gap-1.5"><span className="text-[13.5px] font-semibold text-strong">{r.maPhong}</span><span className="text-[12px] font-bold px-1.5 py-0.5 rounded-full bg-subtle text-muted">{r.uuTien}</span></span>
         {!gon && <span className="block text-[12px] text-muted truncate" title={r.tenPhong}>{r.tenPhong}</span>}
       </span>
-      <span className="grow flex justify-center min-w-[140px]"><PressureRange value={r.coDuLieu === false ? null : r.giaTri} min={r.ghDuoi} max={r.ghTren} stale={!!r.duLieuCu || laDungHinh(r)} missing={r.coDuLieu === false} donVi={r.donVi} w={gon ? 160 : 220} /></span>
+      {r.coDuLieu !== false && Array.isArray(r.chuoi) && r.chuoi.length > 0 && (
+        <span className="shrink-0" title={`Diễn biến ${r.chuoi.length * 5} phút gần nhất`}><SparkChenhAp chuoi={r.chuoi} min={r.ghDuoi} max={r.ghTren} w={gon ? 110 : 150} h={gon ? 24 : 30} /></span>
+      )}
+      <span className="grow flex justify-center min-w-[140px]"><PressureRange value={r.coDuLieu === false ? null : r.giaTri} min={r.ghDuoi} max={r.ghTren} stale={!!r.duLieuCu || laDungHinh(r)} missing={r.coDuLieu === false} donVi={r.donVi} w={gon ? 140 : 200} /></span>
       <span className="ml-auto w-[150px] text-right shrink-0">
         <span className={`block text-[16px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[12px] font-medium"> {r.donVi}</span></>}</span>
         <span className="block text-[12px] mt-0.5">{trangThaiChu(r) || (r.coDuLieu !== false && <span className="text-muted">{r.thoiDiem}{nhanTuoi(r)}</span>)}</span>
@@ -157,6 +160,42 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true }) {
           {chipDem("đạt", soDat, "bg-subtle text-muted ring-line")}
         </div>
       )}
+      {/* 17/08 (chủ hệ thống): mở tab là biết ngay hệ đang thế nào + có lỗi gì gần đây không. */}
+      {rows !== null && filt.length > 0 && (() => {
+        const coChuoi = filt.filter((r) => r.coDuLieu !== false && !laDungHinh(r) && Array.isArray(r.chuoi) && r.chuoi.length > 0);
+        const duoiGH = coChuoi.filter((r) => r.ghDuoi != null && r.chuoi.some((p2) => Number(p2.v) < r.ghDuoi));
+        const trenGH = coChuoi.filter((r) => !duoiGH.includes(r) && r.ghTren != null && r.chuoi.some((p2) => Number(p2.v) > r.ghTren));
+        const soPhut = coChuoi[0] ? coChuoi[0].chuoi.length * 5 : 40;
+        return (
+          <div className="mt-3 rounded-2xl ring-1 ring-line px-4 py-3">
+            <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Diễn biến {soPhut} phút gần nhất</p>
+            <p className={`mt-1 text-[13px] ${duoiGH.length ? "text-danger font-medium" : "text-body"}`}>
+              {duoiGH.length
+                ? <><b>{duoiGH.length}</b> phòng có điểm DƯỚI giới hạn: {duoiGH.slice(0, 6).map((r) => r.maPhong).join(", ")}{duoiGH.length > 6 ? "…" : ""}</>
+                : "Không phòng nào tụt dưới giới hạn"}
+              {trenGH.length > 0 && <span className="text-warning font-medium"> · {trenGH.length} phòng có điểm trên giới hạn</span>}
+              <span className="text-muted font-normal"> — xem chấm đỏ/vàng trên dòng diễn biến của từng phòng.</span>
+            </p>
+            {(suCoMo.length > 0 || suCoDong.length > 0) ? (
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+                {suCoMo.length > 0 && (
+                  <span className="text-danger font-medium">
+                    ● {suCoMo.length} phiếu chênh áp đang mở: {suCoMo.slice(0, 4).map((i) => `${i.id} (${i.room} · ${i.duration}h)`).join(" · ")}{suCoMo.length > 4 ? "…" : ""}
+                  </span>
+                )}
+                {suCoDong.length > 0 && (
+                  <span className="text-muted">
+                    ✓ {suCoDong.length} phiếu đóng gần đây{suCoDong[0]?.dong_luc ? `, mới nhất ${new Date(suCoDong[0].dong_luc).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
+                  </span>
+                )}
+                {onMoTabSuCo && <button onClick={onMoTabSuCo} className="text-info font-medium hover:underline">Mở tab Sự cố →</button>}
+              </div>
+            ) : (
+              <p className="mt-1 text-[13px] text-success font-medium">Không có phiếu chênh áp đang mở hoặc mới đóng.</p>
+            )}
+          </div>
+        );
+      })()}
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Khu vực</span>
         {chip("ALL", "Tất cả", khu === "ALL", () => { setKhu("ALL"); setAhuLoc("ALL"); })}

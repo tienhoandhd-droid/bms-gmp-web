@@ -24,3 +24,40 @@ export default function PressureRange({ value, min, max, stale = false, missing 
     </svg>
   );
 }
+
+// SparkChenhAp — dòng diễn biến 5′ gần nhất của MỘT phòng, SVG thuần (yêu cầu 17/08:
+// "mở tab là thấy ngay hệ thống thế nào"). Dải xám = khoảng cho phép; chấm đỏ = dưới
+// giới hạn, chấm vàng = trên giới hạn, chấm cuối to hơn = điểm mới nhất.
+export function SparkChenhAp({ chuoi, min, max, w = 150, h = 30 }) {
+  if (!Array.isArray(chuoi) || chuoi.length === 0) return null;
+  const vals = chuoi.map((p) => Number(p.v)).filter((v) => !Number.isNaN(v));
+  if (!vals.length) return null;
+  const lo = Math.min(...vals, min ?? Infinity);
+  const hi = Math.max(...vals, max ?? -Infinity);
+  const span = (hi - lo) || 1;
+  const pad = span * 0.18;
+  const y = (v) => h - 4 - ((v - (lo - pad)) / (span + pad * 2)) * (h - 8);
+  const x = (i) => 6 + (i * (w - 12)) / Math.max(1, chuoi.length - 1);
+  const diem = chuoi.map((p, i) => ({ px: x(i), py: y(Number(p.v)), t: p.t, v: Number(p.v) }));
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="max-w-full shrink-0" role="img"
+      aria-label={`Diễn biến ${chuoi.length * 5} phút gần nhất, mới nhất ${diem[diem.length - 1].v}`}>
+      {min != null && max != null && <rect x={0} y={y(max)} width={w} height={Math.max(2, y(min) - y(max))} fill="var(--bg-subtle)" />}
+      {min != null && <line x1={0} x2={w} y1={y(min)} y2={y(min)} stroke="var(--border-strong)" strokeWidth={1} strokeDasharray="3 3" />}
+      {max != null && <line x1={0} x2={w} y1={y(max)} y2={y(max)} stroke="var(--border-strong)" strokeWidth={1} strokeDasharray="3 3" />}
+      <polyline points={diem.map((d) => `${d.px},${d.py}`).join(" ")} fill="none" stroke="var(--info)" strokeWidth={1.5} />
+      {diem.map((d, i) => {
+        const duoi = min != null && d.v < min;
+        const tren = max != null && d.v > max;
+        const cuoi = i === diem.length - 1;
+        return (
+          <circle key={i} cx={d.px} cy={d.py} r={cuoi ? 3.5 : 2.5}
+            fill={duoi ? "var(--danger-solid)" : tren ? "var(--warning-solid)" : "var(--primary)"}
+            stroke="var(--bg-surface)" strokeWidth={cuoi ? 1.2 : 0.8}>
+            <title>{`${d.t}: ${d.v}${duoi ? " — dưới giới hạn" : tren ? " — trên giới hạn" : ""}`}</title>
+          </circle>
+        );
+      })}
+    </svg>
+  );
+}
