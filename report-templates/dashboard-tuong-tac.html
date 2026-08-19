@@ -322,7 +322,8 @@
       </div>
     </details>
 
-    <h2><span class="stt">14</span> Nhận định hỗ trợ từ trí tuệ nhân tạo (AI) — đã qua bước kiểm tra chéo</h2>
+    <h2><span class="stt">14</span> Nhận định hỗ trợ</h2>
+    <div id="ai-trang-thai" style="font-size:11.5px;margin:0 0 7px"></div>
     <div class="khoi-ai"><span id="ai-noi-dung">—</span><div class="dis" id="ai-dis"></div></div>
 
     <div class="foot" id="foot">—</div>
@@ -653,6 +654,19 @@
     // ================= 14. AI + FOOTER =================
     var ai=bc.nhan_dinh_ai_gan_nhat||{};
     el('ai-noi-dung').textContent=ai.noi_dung||'Chưa có nhận định AI trong kỳ.';
+    // Trạng thái đối chiếu THẬT, không khẳng định suông. Bảng phân tích là công cụ
+    // điều tra nên vẫn hiện lý do; email quản trị thì bỏ hẳn khối này.
+    (function(){
+      var TT={DA_XAC_MINH:['đã đối chiếu số liệu — khớp','#0E7C73'],
+              XAC_MINH_MOT_PHAN:['số khớp nhưng bài viết thiếu mục — cần QA rà soát','#8A5300'],
+              CHUA_XAC_MINH:['CHƯA đối chiếu được — không dùng phần này để kết luận','#B3261E'],
+              BI_TU_CHOI:['đối chiếu phát hiện số chưa khớp — đã gỡ khỏi báo cáo','#B3261E'],
+              KHONG_THAM_DINH:['bước đối chiếu đang tắt theo cấu hình','#6B7686'],
+              KHONG_CO:['không có nhận định cho kỳ này','#6B7686']};
+      var t=TT[ai.trang_thai_tham_dinh]||['—','#6B7686'];
+      var e=el('ai-trang-thai');
+      if(e) e.innerHTML='<b style="color:'+t[1]+'">Tình trạng đối chiếu:</b> <span style="color:'+t[1]+'">'+esc(t[0])+'</span>';
+    })();
     el('ai-dis').textContent='Số liệu do hệ thống tính — trí tuệ nhân tạo (AI) chỉ hỗ trợ sàng lọc và đề xuất. Kết luận theo Thực hành tốt sản xuất (GMP) do Kiểm soát trong quá trình (IPC) và Đảm bảo chất lượng (QA) xác nhận. Mô hình: '+(ai.model_dung||'—')+' · '+(ai.tao_luc||'—');
     el('foot').innerHTML='Truy vết GMP: mã lần chạy <b>'+esc(meta.ma_lan_chay||'')+'</b> · Nguồn số liệu: <code>'+esc(bc.nguon||'rpc_bao_cao_tong_hop')+"('"+esc(bc.ky||'')+"', '"+esc(bc.tu_ngay||'')+"', '"+esc(bc.den_ngay||'')+"')</code> + rpc_tat_ca_phong_ky. Đây là bản tương tác phục vụ phân tích; trạng thái bản phát hành chính thức phải được xác nhận trong quy trình kiểm soát tài liệu. Hệ thống quản lý tòa nhà BMS (CPC1HN).";
   /* ═══ E16 — BẢN ĐỒ RỦI RO + NGĂN KÉO CHI TIẾT PHÒNG ═══════════════════════

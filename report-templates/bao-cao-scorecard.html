@@ -260,7 +260,7 @@
         <div class="note-box" style="margin-top:9px"><b style="color:var(--ink)">Đối chiếu sự cố:</b> {{su_co_cau_doi_chieu}}.
           <span class="note">{{su_co_moc_do}}.</span> <span style="color:#B3261E">{{su_co_canh_bao}}</span></div>
         <div class="concl"><b>Dữ kiện cần người có thẩm quyền xác nhận:</b>
-          {{so_tin_hieu_spc}} tín hiệu kiểm soát thống kê và {{so_scope_ngoai_ks}} phạm vi ngoài kiểm soát.
+          {{so_su_kien_spc}} đợt biến động cần theo dõi ({{so_su_kien_spc_tiep_dien}} đang tiếp diễn), gộp từ {{tin_hieu_spc_trong_ky}} tín hiệu thuộc kỳ.
           Kết luận phát hành thuộc Kiểm soát trong quá trình (IPC) và Đảm bảo chất lượng (QA).</div>
         <div class="strip">
           <div><b class="num">{{kpi_gio_critical}}</b>Giờ mức nghiêm trọng ({{ty_le_critical}} tổng)</div>
@@ -298,8 +298,8 @@
         <div class="d" style="color:{{delta_critical_mau}}">{{delta_critical}} · chiếm {{ty_le_critical}} tổng {{kpi_gio_oos}}</div></div>
       <div class="kpi"><div class="lbl">Sự cố còn mở</div><div class="v num">{{so_su_co_dang_mo}}</div>
         <div class="d" style="color:var(--muted)">{{so_su_co_mo}} phát sinh · {{so_su_co_dong}} đã đóng · xử lý TB {{mttr_gio}} giờ</div></div>
-      <div class="kpi"><div class="lbl">Phạm vi cần rà (thống kê)</div><div class="v num" style="color:{{kpi_spc_mau}}">{{so_scope_ngoai_ks}}</div>
-        <div class="d" style="color:var(--muted)">từ {{so_tin_hieu_spc}} tín hiệu thô</div></div>
+      <div class="kpi"><div class="lbl">Đợt biến động cần theo dõi</div><div class="v num" style="color:{{kpi_spc_mau}}">{{so_su_kien_spc}}</div>
+        <div class="d" style="color:var(--muted)">{{so_su_kien_spc_tiep_dien}} đang tiếp diễn · gộp từ {{tin_hieu_spc_trong_ky}} tín hiệu thuộc kỳ</div></div>
       <div class="kpi"><div class="lbl">Độ tin cậy dữ liệu</div><div class="v num" style="color:{{kpi_dq_mau}}">{{kpi_dq}}<small>%</small></div>
         <div class="d" style="color:var(--muted)">độ phủ · <b>{{so_ngoai_le}}</b> ngoại lệ · {{so_ngay_thieu_dl}} ngày thiếu</div></div>
       <div class="kpi"><div class="lbl">Nhiệt độ động học trung bình (MKT)</div><div class="v num" style="color:{{kpi_mkt_mau}}">{{kpi_mkt_max}}<small>°C</small></div>
@@ -340,9 +340,9 @@
       <div class="dcard"><div class="t"><b>Nhiệt độ động học trung bình (MKT)</b></div>
         <div class="m num" style="color:{{kpi_mkt_mau}}">{{kpi_mkt_max}}<small>°C</small></div>
         <div class="c">Phòng <b>{{kpi_mkt_phong}}</b> · nhiệt độ động học trung bình 30 ngày</div></div>
-      <div class="dcard"><div class="t"><b>Kiểm soát thống kê</b></div>
-        <div class="m num" style="color:{{kpi_spc_mau}}">{{so_scope_ngoai_ks}}</div>
-        <div class="c"><b>{{so_tin_hieu_spc}}</b> tín hiệu · {{so_scope_ngoai_ks}} phạm vi ngoài kiểm soát theo các quy tắc phát hiện lệch và trôi xu hướng</div></div>
+      <div class="dcard"><div class="t"><b>Đợt biến động cần theo dõi</b></div>
+        <div class="m num" style="color:{{kpi_spc_mau}}">{{so_su_kien_spc}}</div>
+        <div class="c"><b>{{so_su_kien_spc_tiep_dien}}</b> đang tiếp diễn · gộp từ {{tin_hieu_spc_trong_ky}} tín hiệu thuộc kỳ (toàn cửa sổ {{spc_cua_so_ngay}} ngày có {{tin_hieu_spc_cua_so}}) theo các quy tắc phát hiện lệch và trôi xu hướng</div></div>
       <div class="dcard"><div class="t"><b>Độ đầy đủ dữ liệu (DQ)</b></div>
         <div class="m num" style="color:{{kpi_dq_mau}}">{{kpi_dq}}<small>%</small></div>
         <div class="c"><b>{{so_ngay_thieu_dl}}</b> ngày thiếu · nhiều nhất: {{phong_thieu_dl}}</div></div>
@@ -534,6 +534,7 @@
   <!-- ===== NHẬN ĐỊNH AI ===== -->
   <section class="ai avoid">
     <div class="hd"><b>Nhận định hỗ trợ &amp; gợi ý hành động</b><span class="ai-tag">Trí tuệ nhân tạo (AI)</span></div>
+    <div class="note-box" style="margin:0 0 8px"><b style="color:var(--ink)">Tình trạng đối chiếu:</b> {{trang_thai_tham_dinh_vi}}</div>
     <div class="body">{{nhan_dinh_ai}}</div>
 
     <!-- ============================================================
