@@ -36,6 +36,15 @@
   body{font-family:'Be Vietnam Pro','Noto Sans','Segoe UI',Roboto,Arial,sans-serif;
        color:var(--ink);font-size:12px;line-height:1.5;background:#fff;
        max-width:186mm;margin:0 auto;padding:2px 0 6px}
+  /* TRÊN MÀN HÌNH: dùng gần hết bề rộng thay vì bó trong khổ A4 703px — ở màn 2560
+     nội dung chỉ chiếm 27%, rất khó đọc. KHI IN vẫn giữ nguyên A4 nhờ @media print. */
+  @media screen and (min-width:900px){
+    /* Bỏ trần cứng: BẢNG được chạy hết bề rộng màn hình (đó là phần chiếm chỗ nhất),
+       chỉ giữ ĐOẠN VĂN ở bề rộng dễ đọc để dòng chữ không dài lê thê. */
+    body{max-width:95vw !important; padding-left:18px; padding-right:18px}
+    p, .note-box, .concl, .disc, .body{max-width:105ch}
+  }
+  @media print{ body{max-width:186mm !important; padding-left:0; padding-right:0} }
   .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
   .kick{font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--faint)}
   h2{font-size:13px;font-weight:800;letter-spacing:-.01em;color:var(--ink);margin:0}
@@ -71,6 +80,13 @@
   .gval .lb{font-size:9.5px;color:var(--muted);margin-top:3px}
   .hero h2{margin-bottom:6px;font-size:15.5px}
   .hero p{font-size:12px;color:var(--ink2);max-width:60ch}
+  .hero-2cot{display:block}
+  @media screen and (min-width:1200px){
+    /* Màn rộng: tóm tắt+lý do bên trái, các khối đối chiếu bên phải — hết khoảng
+       trống nửa phải mà vẫn giữ dòng chữ ở bề rộng dễ đọc. */
+    .hero-2cot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+    .hero p{max-width:none}
+  }
   .concl{margin-top:9px;padding:8px 11px;border-radius:8px;background:var(--accent-wash);
          border-left:3px solid var(--accent);font-size:11.5px;color:var(--accent-deep)}
   .strip{display:flex;gap:22px;margin-top:12px;padding-top:11px;border-top:1px dashed var(--line);flex-wrap:wrap}
@@ -254,14 +270,20 @@
       <div>
         <h2>Trạng thái kỳ báo cáo</h2>
         <p style="font-size:15px;font-weight:800;color:{{trang_thai_mau}};margin:0 0 6px;">{{trang_thai_ky}}</p>
-        <p>{{tom_tat_dieu_hanh}}</p>
-        <div style="margin:8px 0 2px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6B7686;font-weight:700;">Vì sao kỳ này ở trạng thái đó</div>
-        {{ly_do_html}}
-        <div class="note-box" style="margin-top:9px"><b style="color:var(--ink)">Đối chiếu sự cố:</b> {{su_co_cau_doi_chieu}}.
+        <div class="hero-2cot">
+          <div>
+            <p>{{tom_tat_dieu_hanh}}</p>
+            <div style="margin:8px 0 2px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6B7686;font-weight:700;">Vì sao kỳ này ở trạng thái đó</div>
+            {{ly_do_html}}
+          </div>
+          <div>
+        <div class="note-box" style="margin-top:0"><b style="color:var(--ink)">Đối chiếu sự cố:</b> {{su_co_cau_doi_chieu}}.
           <span class="note">{{su_co_moc_do}}.</span> <span style="color:#B3261E">{{su_co_canh_bao}}</span></div>
         <div class="concl"><b>Dữ kiện cần người có thẩm quyền xác nhận:</b>
           {{so_su_kien_spc}} đợt biến động cần theo dõi ({{so_su_kien_spc_tiep_dien}} đang tiếp diễn), gộp từ {{tin_hieu_spc_trong_ky}} tín hiệu thuộc kỳ.
           Kết luận phát hành thuộc Kiểm soát trong quá trình (IPC) và Đảm bảo chất lượng (QA).</div>
+          </div>
+        </div>
         <div class="strip">
           <div><b class="num">{{kpi_gio_critical}}</b>Giờ mức nghiêm trọng ({{ty_le_critical}} tổng)</div>
           <div><b class="num">{{su_co_ton_cuoi}}</b>Sự cố còn mở cuối kỳ · {{su_co_ton_dau}} tồn đầu / {{su_co_phat_sinh}} phát sinh / {{su_co_da_dong}} đã đóng</div>
