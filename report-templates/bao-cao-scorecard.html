@@ -202,6 +202,13 @@
   .archive .qr img,.archive .qr svg{width:58px;height:58px;display:block}
   .archive .meta2{font-size:9px;color:var(--muted);line-height:1.7;word-break:break-all}
   .archive .meta2 code{font-family:var(--mono);font-size:8.5px;background:#EEF3F6;padding:1px 4px;border-radius:3px;color:var(--ink2)}
+  /* Bảng rộng trên điện thoại: cuộn TRONG bảng, không đẩy cả trang. Không áp
+     cho bản in vì bản in là khổ A4. */
+  @media screen and (max-width:640px){
+    table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .kpis{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+    .strip{grid-template-columns:1fr !important}
+  }
 </style>
 </head>
 <body data-ky="{{ky}}">
@@ -273,7 +280,7 @@
   <section class="period-focus ky-thang keep">
     <div class="eyebrow">Trọng tâm báo cáo tháng</div>
     <h2>Nhận diện vấn đề lặp lại và kiểm tra hiệu quả xử lý</h2>
-    <p>Ưu tiên xu hướng theo khu vực/tổ hợp xử lý không khí, sự cố tái diễn, độ tin cậy dữ liệu và hiệu quả hành động khắc phục, phòng ngừa. <b>Kỳ này: {{so_doi_tuong_tai_dien}} đối tượng tái diễn từ 3 đợt trở lên — nặng nhất là {{tai_dien_dau}}.</b></p>
+    <p>Ưu tiên xu hướng theo khu vực/tổ hợp xử lý không khí, sự cố tái diễn, độ tin cậy dữ liệu và hiệu quả hành động khắc phục, phòng ngừa. <b>Kỳ này: {{so_doi_tuong_tai_dien}} đối tượng tái diễn từ 3 đợt trở lên — cần chú ý nhất là {{tai_dien_dau}}.</b></p>
   </section>
   <section class="period-focus ky-quy keep">
     <div class="eyebrow">Trọng tâm báo cáo quý</div>
@@ -375,7 +382,7 @@
 
   <div class="warnbox avoid">
     <div class="sec-h"><h2>⚠ Bất thường trong kỳ</h2><span class="note" style="color:#C98A8A">cảnh báo sớm trước khi vượt ngưỡng</span></div>
-    <div class="kick" style="color:#B27272;margin-bottom:6px">Phòng xấu đi bất thường (so kỳ trước)</div>
+    <div class="kick" style="color:#B27272;margin-bottom:6px">Phòng có diễn biến xấu hơn kỳ trước (so kỳ trước)</div>
     <table>
       <thead><tr><th>Phòng</th><th class="r">Kỳ này</th><th class="r">Kỳ trước</th><th class="r">Δ</th><th>Lý do phát hiện</th></tr></thead>
       <tbody>

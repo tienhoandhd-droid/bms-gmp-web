@@ -15,6 +15,12 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+  /* A7: dưới 600px cho hai ô chỉ số xếp dọc, thay vì bóp còn 158px mỗi ô. */
+  @media screen and (max-width:600px){
+    .o-chi-so{display:block !important;width:100% !important;box-sizing:border-box;}
+  }
+</style>
 <title>Báo cáo {{ky_hienthi}} — Hệ thống BMS</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;">
@@ -46,16 +52,12 @@
         <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:14px 24px 4px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
             <tr>
-              <td width="50%" style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Thời gian trong ngưỡng</span><br><span style="font-size:20px;font-weight:700;color:{{kpi_tuan_thu_mau}};">{{kpi_tuan_thu}}%</span> <span style="font-size:12px;color:{{delta_tuan_thu_mau}};">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}}</span><br><span style="font-size:11px;color:#64748b;">mốc theo dõi quản trị 80%</span></td>
-              <td width="50%" style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Giờ mức NGHIÊM TRỌNG</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{kpi_gio_critical}}</span> <span style="font-size:12px;color:{{delta_critical_mau}};">{{delta_critical}}</span><br><span style="font-size:11px;color:#64748b;">chiếm {{ty_le_critical}} tổng giờ cảnh báo · mức cảnh báo {{kpi_gio_warning}} giờ</span></td>
+              <td class="o-chi-so" width="50%" style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Thời gian trong ngưỡng</span><br><span style="font-size:20px;font-weight:700;color:{{kpi_tuan_thu_mau}};">{{kpi_tuan_thu}}%</span> <span style="font-size:12px;color:{{delta_tuan_thu_mau}};">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}}</span><br><span style="font-size:11px;color:#64748b;">mốc theo dõi quản trị 80%</span></td>
+              <td class="o-chi-so" width="50%" style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Giờ mức NGHIÊM TRỌNG</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{kpi_gio_critical}}</span> <span style="font-size:12px;color:{{delta_critical_mau}};">{{delta_critical}}</span><br><span style="font-size:11px;color:#64748b;">chiếm {{ty_le_critical}} tổng giờ cảnh báo · mức cảnh báo {{kpi_gio_warning}} giờ</span></td>
             </tr>
             <tr>
-              <td style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Sự cố cuối kỳ</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{su_co_ton_cuoi}}</span> <span style="font-size:12px;color:#64748b;">còn mở</span><br><span style="font-size:11px;color:#64748b;">{{su_co_ton_dau}} tồn đầu kỳ · {{su_co_phat_sinh}} phát sinh · {{su_co_da_dong}} đã đóng</span></td>
-              <td style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Độ tin cậy dữ liệu</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{kpi_do_phu}}%</span> <span style="font-size:12px;color:#64748b;">độ phủ giờ</span><br><span style="font-size:11px;color:#64748b;">{{tin_cay_ket_luan}} · <b>{{so_dot_chua_hoi_phuc}}</b> đợt chưa xác nhận hồi phục</span></td>
-            </tr>
-            <tr>
-              <td style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Khu phát sinh nhiều giờ cảnh báo nhất</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{khu_dau}}</span> <span style="font-size:12px;color:#64748b;">{{khu_dau_pct}}</span><br><span style="font-size:11px;color:#64748b;">{{khu_dau_gio}} giờ · tổ hợp xử lý không khí cần chú ý nhất: {{ahu_dau}}</span></td>
-              <td style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Đợt biến động cần theo dõi</span><br><span style="font-size:20px;font-weight:700;color:{{kpi_spc_mau}};">{{so_su_kien_spc}}</span> <span style="font-size:12px;color:#64748b;">{{so_su_kien_spc_tiep_dien}} đang tiếp diễn</span><br><span style="font-size:11px;color:#64748b;">gộp từ {{tin_hieu_spc_trong_ky}} tín hiệu thuộc kỳ</span></td>
+              <td class="o-chi-so" style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Sự cố cuối kỳ</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{su_co_ton_cuoi}}</span> <span style="font-size:12px;color:#64748b;">còn mở</span><br><span style="font-size:11px;color:#64748b;">{{su_co_ton_dau}} tồn đầu kỳ · {{su_co_phat_sinh}} phát sinh · {{su_co_da_dong}} đã đóng</span></td>
+              <td class="o-chi-so" style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Độ tin cậy dữ liệu</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{kpi_do_phu}}%</span> <span style="font-size:12px;color:#64748b;">độ phủ giờ</span><br><span style="font-size:11px;color:#64748b;">{{tin_cay_ket_luan}} · <b>{{so_dot_chua_hoi_phuc}}</b> đợt chưa xác nhận hồi phục</span></td>
             </tr>
           </table>
         </td></tr>
@@ -84,6 +86,12 @@
         </td></tr>
 
 
+
+        <!-- NÚT MỞ BÁO CÁO -->
+        <tr><td align="center" style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:14px 24px 4px;">
+          <a href="{{link_dashboard}}" style="display:inline-block;background:#0F766E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:12px 26px;border-radius:10px;">Mở báo cáo tuần</a>
+          <div style="font-size:11px;color:#64748b;margin-top:7px;">Hoặc mở tệp đính kèm ở cuối thư nếu không truy cập được.</div>
+        </td></tr>
 
         <!-- ĐỐI CHIẾU & DỮ LIỆU -->
         <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:6px 24px 14px;">
@@ -133,6 +141,7 @@
         <tr><td style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;padding:14px 24px;">
           <div style="font-size:11px;color:#94a3b8;line-height:1.6;">
             Đính kèm &amp; lưu trữ: <b>báo cáo chi tiết (.html)</b> + <b>bảng phân tích tương tác (.html)</b> — bản lưu trên <a href="{{link_drive}}" style="color:#0d9488;">Google Drive (thư mục báo cáo)</a>.<br>
+            {{truy_vet_ai}}.<br>
             Truy vết GMP: mã lần chạy <b>{{ma_lan_chay}}</b> · Nguồn: <span style="font-family:monospace;">rpc_bao_cao_tong_hop('{{ky}}','{{tu_ngay_iso}}','{{den_ngay_iso}}')</span>.
             Nhận định hỗ trợ: {{trang_thai_tham_dinh_vi}}.<br>
             Báo cáo tự động WF5 — Hệ thống quản lý tòa nhà BMS (CPC1HN).
