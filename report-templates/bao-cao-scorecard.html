@@ -414,7 +414,77 @@
                                  ('open'|'doing'|'done'), capa_trang_thai_vi, capa_han.
        Nếu chưa có dữ liệu → mảng rỗng (section vẫn hợp lệ, bảng trống). -->
   <section class="sec avoid">
-    <div class="sec-h"><h2>Đánh giá ngoài giới hạn / ngoài xu hướng &amp; hành động</h2><span class="note">OOS/OOT · hành động khắc phục và phòng ngừa (CAPA)</span></div>
+    <div class="sec-h"><h2>Hàng đợi ưu tiên xử lý</h2><span class="note">xếp theo điểm rủi ro · {{so_muc_uu_tien}} mục</span></div>
+    <p class="note" style="margin:0 0 6px">Điểm rủi ro = {{cach_tinh_diem}}. Bảng này trả lời "xử lý cái nào trước", khác với bảng xếp theo tỉ lệ thấp nhất (chỉ mô tả).</p>
+    <table>
+      <thead><tr><th>Đối tượng</th><th>Cảm biến</th><th class="r">Điểm</th><th>Vì sao ưu tiên</th><th>Giới hạn</th><th>Đang ở đâu</th></tr></thead>
+      <tbody>
+        {{#each hang_doi_uu_tien}}
+        <tr>
+          <td><b>{{ten_phong}}</b><br><span class="note">{{ma_phong}} · {{khu_vuc}} · {{ahu}} · {{muc_uu_tien}}</span></td>
+          <td style="color:{{mau_muc}};font-weight:700">{{loai_cam_bien}}<br><span class="note">{{muc}}</span></td>
+          <td class="r num" style="font-weight:800">{{diem}}</td>
+          <td style="font-size:11px">{{giai_thich}}</td>
+          <td class="num" style="font-size:11px">{{gioi_han}}</td>
+          <td style="font-size:11px">{{phu_trach}} {{cham}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <div class="note-box" style="margin-top:9px">{{ghi_chu_pham_vi_phieu}}</div>
+  </section>
+
+  <section class="card">
+    <div class="sec-h"><h2>Sổ sự kiện vượt ngưỡng</h2><span class="note">cấp cảm biến · {{so_su_kien_vuot}} sự kiện · {{so_su_kien_vuot_nghiem_trong}} nghiêm trọng · {{gio_su_kien_vuot}} giờ</span></div>
+    <p class="note" style="margin:0 0 6px">Các giờ cảnh báo LIỀN NHAU của cùng một cảm biến được gộp thành một sự kiện; cách nhau quá một giờ thì tách sự kiện mới. Cột "kết thúc do" phân biệt <b>hồi phục thật</b> với <b>mất dữ liệu</b> — giờ không có số đo vẫn được hệ ghi nhãn bình thường, nếu không xét sẽ tưởng đã hết.</p>
+    <table>
+      <thead><tr><th>Phòng</th><th>Cảm biến</th><th>Lệch</th><th>Bắt đầu</th><th>Kết thúc</th><th class="r">Giờ</th><th class="r">Nhỏ nhất</th><th class="r">Lớn nhất</th><th>Giới hạn</th><th>Kết thúc do</th><th>Phiếu</th></tr></thead>
+      <tbody>
+        {{#each so_su_kien_vuot}}
+        <tr>
+          <td><b>{{ten_phong}}</b><br><span class="note">{{ma_phong}} · {{khu_vuc}}</span></td>
+          <td style="color:{{mau_muc}};font-weight:700">{{loai_cam_bien}}<br><span class="note">{{muc}}</span></td>
+          <td>{{huong}}</td><td class="num">{{bat_dau}}</td><td class="num">{{ket_thuc}}</td>
+          <td class="r num">{{so_gio}}</td><td class="r num">{{gia_tri_min}}</td><td class="r num">{{gia_tri_max}}</td>
+          <td class="num">{{gioi_han}}</td><td style="font-size:11px">{{ket_thuc_do}}</td><td class="num">{{ma_su_co}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <div class="sec-h"><h2>Sự kiện biến động thống kê</h2><span class="note">{{so_su_kien_spc}} sự kiện · {{so_su_kien_spc_tiep_dien}} đang tiếp diễn</span></div>
+    <p class="note" style="margin:0 0 6px">{{spc_ghi_chu_cua_so}} Trong {{tin_hieu_spc_cua_so}} tín hiệu của cửa sổ, <b>{{tin_hieu_spc_trong_ky}}</b> tín hiệu thuộc kỳ báo cáo và được gộp thành <b>{{so_su_kien_spc}}</b> sự kiện — nhiều thuật toán cùng bắt một hiện tượng chỉ tính một lần.</p>
+    <table>
+      <thead><tr><th>Phạm vi</th><th>Cấp</th><th>Chiều</th><th>Xu hướng</th><th>Từ</th><th>Đến</th><th class="r">Ngày</th><th class="r">Tín hiệu</th><th>Thuật toán</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        {{#each spc_su_kien}}
+        <tr><td><b>{{ten_scope}}</b></td><td>{{scope_type}}</td><td>{{huong}}</td><td>{{xu_huong}}</td>
+          <td class="num">{{bat_dau}}</td><td class="num">{{ket_thuc}}</td>
+          <td class="r num">{{so_ngay}}</td><td class="r num">{{so_tin_hieu}}</td>
+          <td style="font-size:11px">{{cac_thuat_toan}}</td><td style="font-size:11px">{{tiep_dien}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <div class="sec-h"><h2>Độ tin cậy dữ liệu</h2><span class="note">{{tin_cay_ket_luan}}</span></div>
+    <p style="margin:0 0 8px">{{tin_cay_ly_do}} Kỳ này kỳ vọng <b>{{gio_ky_vong}}</b> giờ đo, trong đó <b>{{gio_rong}}</b> giờ không có số đo nào (độ phủ <b>{{kpi_do_phu}}%</b>). Các giờ rỗng đã bị loại khỏi mẫu số tính tỉ lệ, nên tỉ lệ trong ngưỡng không bị thổi lên — nhưng kết luận chỉ áp dụng cho khoảng có dữ liệu hợp lệ.</p>
+    <table>
+      <thead><tr><th>Mã lỗi</th><th class="r">Số lần</th><th>Diễn giải</th></tr></thead>
+      <tbody>
+        {{#each ngoai_le_chi_tiet}}
+        <tr><td><b>{{ma_loi}}</b></td><td class="r num">{{so_lan}}</td><td style="font-size:11px">{{dien_giai}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <div class="note-box" style="margin-top:9px">Cảm biến đứng hình: <b>{{so_cam_bien_dung_hinh}}</b> — theo chính sách 13/07, đứng hình được theo dõi riêng, KHÔNG mở phiếu sự cố và không trộn vào tỉ lệ tuân thủ.</div>
+  </section>
+
+  <section class="card">
+    <div class="sec-h"><h2>Tổng hợp theo phòng &amp; hành động</h2><span class="note">mức phòng — chi tiết cấp cảm biến xem Sổ sự kiện vượt ngưỡng ở trên</span></div>
     <table>
       <thead><tr><th>Mức</th><th>Phòng · chỉ tiêu</th><th class="r">Giá trị / GH</th><th>Bắt đầu</th><th>Nguyên nhân gốc</th><th>Tác động lô</th><th>CAPA</th><th class="r">Hạn</th></tr></thead>
       <tbody>

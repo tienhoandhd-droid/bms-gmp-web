@@ -51,18 +51,42 @@
             </tr>
             <tr>
               <td style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Sự cố</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{so_su_co_dang_mo}}</span> <span style="font-size:12px;color:#64748b;">còn mở</span><br><span style="font-size:11px;color:#64748b;">{{so_su_co_mo}} phát sinh · {{so_su_co_dong}} đã đóng · xử lý TB {{mttr_gio}} giờ</span></td>
-              <td style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Độ tin cậy dữ liệu</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{kpi_dq}}%</span> <span style="font-size:12px;color:#64748b;">độ phủ</span><br><span style="font-size:11px;color:#64748b;">nhưng có <b>{{so_ngoai_le}}</b> ngoại lệ dữ liệu cần rà</span></td>
+              <td style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Độ tin cậy dữ liệu</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{kpi_do_phu}}%</span> <span style="font-size:12px;color:#64748b;">độ phủ giờ</span><br><span style="font-size:11px;color:#64748b;">{{tin_cay_ket_luan}} · {{gio_rong}} giờ rỗng · <b>{{so_ngoai_le}}</b> ngoại lệ</span></td>
             </tr>
             <tr>
               <td style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Khu gánh nhiều tải cảnh báo nhất</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{khu_dau}}</span> <span style="font-size:12px;color:#64748b;">{{khu_dau_pct}}</span><br><span style="font-size:11px;color:#64748b;">{{khu_dau_gio}} giờ · tổ hợp xử lý không khí nặng nhất: {{ahu_dau}}</span></td>
-              <td style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Tín hiệu biến động thống kê</span><br><span style="font-size:20px;font-weight:700;color:{{kpi_spc_mau}};">{{so_scope_ngoai_ks}}</span> <span style="font-size:12px;color:#64748b;">phạm vi cần rà</span><br><span style="font-size:11px;color:#64748b;">từ {{so_tin_hieu_spc}} tín hiệu thô</span></td>
+              <td style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Sự kiện biến động thống kê</span><br><span style="font-size:20px;font-weight:700;color:{{kpi_spc_mau}};">{{so_su_kien_spc}}</span> <span style="font-size:12px;color:#64748b;">{{so_su_kien_spc_tiep_dien}} đang tiếp diễn</span><br><span style="font-size:11px;color:#64748b;">gộp từ {{tin_hieu_spc_trong_ky}} tín hiệu thuộc kỳ</span></td>
             </tr>
           </table>
         </td></tr>
 
+        <!-- TRỌNG TÂM XỬ LÝ -->
+        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:16px 24px 4px;">
+          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:2px;">Trọng tâm xử lý — xếp theo rủi ro</div>
+          <div style="font-size:10.5px;color:#64748b;margin-bottom:8px;">Điểm rủi ro = {{cach_tinh_diem}}</div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12.5px;">
+            <tr>
+              <th align="left"  style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Đối tượng</th>
+              <th align="right" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Điểm</th>
+              <th align="left"  style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Vì sao ưu tiên</th>
+              <th align="left"  style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Đang ở đâu</th>
+            </tr>
+            {{#each trong_tam_xu_ly}}
+            <tr>
+              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;"><strong>{{ten_phong}}</strong><br><span style="color:#94a3b8;font-size:10px;">{{ma_phong}} · {{khu_vuc}} · {{loai_cam_bien}}</span></td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #f1f5f9;color:{{mau_muc}};font-weight:700;">{{diem}}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#475569;">{{giai_thich}}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;font-size:11px;">{{phu_trach}}</td>
+            </tr>
+            {{/each}}
+          </table>
+          <div style="font-size:10.5px;color:#64748b;margin-top:6px;">{{ghi_chu_pham_vi_phieu}}</div>
+        </td></tr>
+
         <!-- TOP PHÒNG CẦN CHÚ Ý -->
         <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:16px 24px 4px;">
-          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:8px;">Phòng có tỉ lệ trong ngưỡng thấp nhất</div>
+          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:2px;">Phòng có tỉ lệ trong ngưỡng thấp nhất</div>
+          <div style="font-size:10.5px;color:#64748b;margin-bottom:8px;">Bảng mô tả — thấp đều và ổn định khác với đang có sự cố; thứ tự xử lý xem bảng trên.</div>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12.5px;">
             <tr>
               <th align="left" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Phòng</th>
