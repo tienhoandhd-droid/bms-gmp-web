@@ -101,7 +101,9 @@
   @media print{#dieu-huong{display:none}}
   /* E16 — bản đồ rủi ro + ngăn kéo chi tiết phòng */
   #bd-wrap{margin:14px 0}
+  #bd-wrap{grid-column:1/-1;width:100%}
   #bd-svg{width:100%;height:auto;display:block}
+  #bd-svg svg{width:100%;height:clamp(360px,38vw,520px)}
   .bd-cham{cursor:pointer}
   .bd-cham:hover{stroke:#0f172a;stroke-width:2}
   .bd-chu{font-size:10px;fill:#64748b}
@@ -162,6 +164,7 @@
         <div class="priority-list" id="uu-tien"></div>
       </section>
 
+    </div>
 <section class="card" id="bd-wrap">
   <div class="sec-h"><h2>Bản đồ rủi ro phòng</h2><span class="note">bấm một chấm để mở chi tiết phòng</span></div>
   <p class="note" style="margin:0 0 8px">Trục ngang: tỉ lệ thời gian trong ngưỡng. Trục dọc: số giờ ở mức nghiêm trọng.
@@ -169,7 +172,6 @@
     góc trên–trái là vừa thấp vừa nghiêm trọng lâu.</p>
   <div id="bd-svg"></div>
 </section>
-    </div>
 
     <h2><span class="stt">1</span> Tỉ lệ tuân thủ theo ngày <span style="font-weight:400;color:var(--muted);font-size:12px">(di chuột hoặc chạm để xem số · chọn phạm vi · bấm phòng để xem)</span></h2>
     <div class="card">
