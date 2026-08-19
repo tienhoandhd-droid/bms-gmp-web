@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  dashboard-tuong-tac.html — Dashboard TƯƠNG TÁC tự chứa cho báo cáo GMP (WF5 v2)
+  dashboard-tuong-tac.html — Báo cáo BMS tương tác tuần/tháng/quý (v4)
   =============================================================================
   - File TỰ CHỨA: mở bằng trình duyệt bất kỳ (kể cả OFFLINE), không tải thư viện
     ngoài. Biểu đồ vẽ bằng vanilla JS + SVG.
@@ -9,15 +9,15 @@
     '<'). bc = rpc_bao_cao_tong_hop (+ tat_ca_phong từ rpc_tat_ca_phong_ky).
     LƯU Ý: KHÔNG viết lại chuỗi placeholder dạng ngoặc-nhọn-kép ở BẤT KỲ đâu phía trên
     thẻ script — node dùng replace() chỉ thay lần xuất hiện đầu tiên, sẽ chèn nhầm.
-  - v3: bảng TẤT CẢ phòng (tìm/lọc/sắp/bấm xem biểu đồ), mục Sự cố / Độ phủ dữ liệu /
-    Giới hạn / Baseline. Danh sách DÀI để trong <details> — ẩn mặc định, BẤM ĐỂ MỞ.
-  - Bản KÝ DUYỆT chính thức là PDF scorecard đính kèm.
+  - v4: ưu tiên theo kỳ + ngôn ngữ Việt thân thiện + chú giải ngay nơi đọc; giữ toàn bộ
+    dữ liệu chi tiết trong <details> để người vận hành và quản lý cùng dùng một tệp.
+  - Trạng thái bản ký duyệt/phát hành chính thức do quy trình kiểm soát tài liệu xác nhận.
 -->
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dashboard báo cáo GMP</title>
+<title>Báo cáo định kỳ BMS — vận hành và tuân thủ GMP</title>
 <style>
   :root{--teal:#0d9488;--red:#b91c1c;--sand:#d97706;--sky:#0284c7;--ink:#0f172a;--slate:#334155;--muted:#64748b;--line:#e2e8f0;--card:#fff;}
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -37,9 +37,22 @@
   .kpi .nhan{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
   .kpi .so{font-size:23px;font-weight:700;color:var(--ink);margin:3px 0;font-variant-numeric:tabular-nums;}
   .kpi .delta{font-size:11px;font-weight:600;}
+  .lead-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;}
+  .period-card{background:linear-gradient(135deg,#ecfeff,#fff);border-left:4px solid var(--teal);}
+  .period-card .eyebrow{font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--teal);}
+  .period-card h2{margin:4px 0 5px;font-size:16px;}
+  .period-card p{font-size:12.5px;color:var(--slate);}
+  .priority-card{border-left:4px solid var(--sand);}
+  .priority-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;}
+  .priority-head h2{margin:0;font-size:16px;}
+  .status-pill{font-size:10px;font-weight:800;border-radius:999px;padding:4px 9px;white-space:nowrap;}
+  .priority-list{display:grid;gap:6px;}
+  .priority-item{display:flex;align-items:flex-start;gap:8px;padding:7px 9px;border-radius:9px;background:#f8fafc;color:var(--slate);text-decoration:none;font-size:12px;}
+  .priority-item:hover{background:#f1f5f9;}
+  .priority-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;}
   .dieu-khien{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
   .dieu-khien label{font-size:12px;color:var(--muted);}
-  select,button.pill,input.tim{font-family:inherit;font-size:12.5px;color:var(--slate);background:#fff;border:1px solid #cbd5e1;border-radius:9px;padding:6px 10px;}
+  select,button.pill,input.tim{font-family:inherit;font-size:12.5px;color:var(--slate);background:#fff;border:1px solid #cbd5e1;border-radius:9px;padding:8px 10px;min-height:38px;}
   input.tim{min-width:160px;}
   button.pill{cursor:pointer;}
   .chart-box{position:relative;width:100%;}
@@ -81,14 +94,14 @@
   details.thu-gon>summary:hover{background:#f8fafc;}
   .foot{color:var(--muted);font-size:11px;margin-top:26px;border-top:1px solid var(--line);padding-top:12px;}
   code{font-family:ui-monospace,'Courier New',monospace;font-size:11px;background:#f1f5f9;padding:1px 5px;border-radius:4px;}
-  @media (max-width:820px){.kpis{grid-template-columns:repeat(3,1fr);}.grid2{grid-template-columns:1fr;}}
-  @media (max-width:480px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  @media (max-width:820px){.kpis{grid-template-columns:repeat(3,1fr);}.grid2,.lead-grid{grid-template-columns:1fr;}}
+  @media (max-width:480px){.kpis{grid-template-columns:repeat(2,1fr);}.wrap{padding:0 10px;}header.top h1{font-size:17px;}details.thu-gon>summary{font-size:13px;padding:12px;}}
 </style>
 </head>
 <body>
   <header class="top">
     <div class="wrap">
-      <div><h1 id="tieu-de">Dashboard báo cáo GMP</h1><div class="sub" id="phu-de">—</div></div>
+      <div><h1 id="tieu-de">Báo cáo định kỳ BMS</h1><div class="sub" id="phu-de">Hệ thống quản lý tòa nhà (BMS) · Thực hành tốt sản xuất (GMP)</div></div>
       <div class="chip" id="chip-nguon">tương tác</div>
     </div>
   </header>
@@ -100,7 +113,19 @@
       <strong style="color:var(--ink)">Tóm tắt điều hành:</strong> <span id="tom-tat">—</span>
     </div>
 
-    <h2><span class="stt">1</span> Tỉ lệ tuân thủ theo ngày <span style="font-weight:400;color:var(--muted);font-size:12px">(hover xem số · chọn phạm vi · bấm phòng ở bảng để xem)</span></h2>
+    <div class="lead-grid">
+      <section class="card period-card">
+        <div class="eyebrow" id="nhan-trong-tam">Trọng tâm kỳ báo cáo</div>
+        <h2 id="tieu-de-trong-tam">—</h2>
+        <p id="noi-dung-trong-tam">—</p>
+      </section>
+      <section class="card priority-card">
+        <div class="priority-head"><h2>Ưu tiên xử lý</h2><span class="status-pill" id="muc-uu-tien">—</span></div>
+        <div class="priority-list" id="uu-tien"></div>
+      </section>
+    </div>
+
+    <h2><span class="stt">1</span> Tỉ lệ tuân thủ theo ngày <span style="font-weight:400;color:var(--muted);font-size:12px">(di chuột hoặc chạm để xem số · chọn phạm vi · bấm phòng để xem)</span></h2>
     <div class="card">
       <div class="dieu-khien">
         <label>Phạm vi:</label>
@@ -114,17 +139,17 @@
     <h2><span class="stt">2</span> Lịch tuân thủ trong kỳ</h2>
     <div class="card"><div class="chart-box" id="box-heat"><div class="tip" id="tip-heat"></div></div></div>
 
-    <h2><span class="stt">3</span> Xu hướng theo Khu &amp; AHU <span style="font-weight:400;color:var(--muted);font-size:12px">(bấm ô để xem trên biểu đồ mục 1)</span></h2>
+    <h2><span class="stt">3</span> Xu hướng theo Khu &amp; tổ hợp xử lý không khí (AHU) <span style="font-weight:400;color:var(--muted);font-size:12px">(bấm ô để xem trên biểu đồ mục 1)</span></h2>
     <div class="card">
       <h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Theo khu vực</h3>
       <div class="luoi-mini" id="mini-khu"></div>
-      <h3 style="font-size:12px;color:var(--muted);margin:14px 0 6px">Theo AHU</h3>
+      <h3 style="font-size:12px;color:var(--muted);margin:14px 0 6px">Theo tổ hợp xử lý không khí (AHU)</h3>
       <div class="luoi-mini" id="mini-ahu"></div>
     </div>
 
     <div class="grid2" style="margin-top:16px">
-      <div class="card"><h2 style="margin-top:0"><span class="stt" style="background:var(--red)">4</span> Top 5 phòng cần chú ý</h2><div id="tb-xau"></div></div>
-      <div class="card"><h2 style="margin-top:0"><span class="stt">5</span> Top 5 phòng tốt nhất</h2><div id="tb-tot"></div></div>
+      <div class="card"><h2 style="margin-top:0"><span class="stt" style="background:var(--red)">4</span> 5 phòng cần chú ý nhất</h2><div id="tb-xau"></div></div>
+      <div class="card"><h2 style="margin-top:0"><span class="stt">5</span> 5 phòng có kết quả tốt nhất</h2><div id="tb-tot"></div></div>
     </div>
 
     <!-- 6. TẤT CẢ PHÒNG — thu gọn, bấm để mở -->
@@ -134,7 +159,7 @@
         <div class="dieu-khien">
           <input class="tim" id="tim-phong" placeholder="🔍 Tìm mã/tên phòng…" />
           <select id="loc-khu"><option value="">Tất cả khu</option></select>
-          <select id="loc-ahu"><option value="">Tất cả AHU</option></select>
+          <select id="loc-ahu"><option value="">Tất cả tổ hợp xử lý không khí (AHU)</option></select>
           <select id="loc-ut"><option value="">Mọi ưu tiên</option></select>
           <button class="pill" id="reset-loc">Xóa lọc</button>
         </div>
@@ -162,26 +187,26 @@
 
     <!-- 9. ĐỘ PHỦ DỮ LIỆU -->
     <details class="thu-gon" id="dt-dq">
-      <summary><span class="tg">▸</span><span class="stt">9</span> Độ phủ dữ liệu (ALCOA+)<span class="dem" id="dem-dq">—</span></summary>
+      <summary><span class="tg">▸</span><span class="stt">9</span> Độ đầy đủ và toàn vẹn dữ liệu (DQ, ALCOA+)<span class="dem" id="dem-dq">—</span></summary>
       <div class="noi-dung" id="dq-wrap"></div>
     </details>
 
     <!-- 10. SPC + MKT -->
     <details class="thu-gon" id="dt-spc">
-      <summary><span class="tg">▸</span><span class="stt" style="background:var(--sand)">10</span> Kiểm soát thống kê (SPC) &amp; MKT (ICH Q1A)<span class="dem" id="dem-spc">—</span></summary>
+      <summary><span class="tg">▸</span><span class="stt" style="background:var(--sand)">10</span> Kiểm soát quá trình bằng thống kê (SPC) &amp; nhiệt độ động học trung bình (MKT)<span class="dem" id="dem-spc">—</span></summary>
       <div class="noi-dung">
         <div class="grid2">
-          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Tín hiệu SPC (ngoài kiểm soát)</h3><div id="tb-spc"></div></div>
-          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">MKT cao nhất 30 ngày</h3><div id="tb-mkt"></div></div>
+          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Tín hiệu biến động thống kê cần theo dõi</h3><div id="tb-spc"></div></div>
+          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Nhiệt độ động học trung bình cao nhất — cửa sổ 30 ngày</h3><div id="tb-mkt"></div></div>
         </div>
       </div>
     </details>
 
-    <!-- 11. BASELINE + XU HƯỚNG -->
+    <!-- 11. MỨC NỀN THAM CHIẾU + XU HƯỚNG -->
     <details class="thu-gon" id="dt-bl">
-      <summary><span class="tg">▸</span><span class="stt">11</span> So sánh baseline &amp; xu hướng đáng chú ý<span class="dem" id="dem-bl">—</span></summary>
+      <summary><span class="tg">▸</span><span class="stt">11</span> So sánh mức nền tham chiếu &amp; xu hướng đáng chú ý<span class="dem" id="dem-bl">—</span></summary>
       <div class="noi-dung">
-        <h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Tệ hơn / tốt hơn baseline</h3>
+        <h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Tệ hơn / tốt hơn mức nền tham chiếu</h3>
         <div id="tb-baseline"></div>
         <h3 style="font-size:12px;color:var(--muted);margin:14px 0 6px">Xu hướng hồi quy đáng chú ý (R² ≥ 0.5)</h3>
         <div id="tb-xuhuong"></div>
@@ -190,18 +215,18 @@
 
     <!-- 12. GIỚI HẠN CẤU HÌNH -->
     <details class="thu-gon" id="dt-gh">
-      <summary><span class="tg">▸</span><span class="stt">12</span> Giới hạn cấu hình (GHD–GHT)<span class="dem" id="dem-gh">—</span></summary>
+      <summary><span class="tg">▸</span><span class="stt">12</span> Giới hạn cấu hình — giới hạn dưới (GHD) và giới hạn trên (GHT)<span class="dem" id="dem-gh">—</span></summary>
       <div class="noi-dung" id="gh-wrap"></div>
     </details>
 
     <!-- 13. SO SÁNH & XẾP HẠNG + XU HƯỚNG KỲ / KỲ SAU (bổ sung 08/07/2026) -->
     <details class="thu-gon" id="dt-ss" open>
-      <summary><span class="tg">▸</span><span class="stt">13</span> So sánh &amp; xếp hạng (Khu · AHU) — thiếu dữ liệu — xu hướng kỳ &amp; kỳ sau<span class="dem" id="dem-ss">—</span></summary>
+      <summary><span class="tg">▸</span><span class="stt">13</span> So sánh khu vực/tổ hợp xử lý không khí — dữ liệu thiếu — xu hướng kỳ<span class="dem" id="dem-ss">—</span></summary>
       <div class="noi-dung">
         <div id="ss-thieudl"></div>
         <div class="grid2" style="margin-top:10px">
-          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 2 — Xếp hạng KHU VỰC theo tuân thủ</h3><div id="tb-ss-khu"></div></div>
-          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 3 — Xếp hạng AHU theo tuân thủ</h3><div id="tb-ss-ahu"></div></div>
+          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 2 — Xếp hạng khu vực theo tuân thủ</h3><div id="tb-ss-khu"></div></div>
+          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 3 — Xếp hạng tổ hợp xử lý không khí (AHU)</h3><div id="tb-ss-ahu"></div></div>
         </div>
         <div id="ss-xuhuong" style="margin-top:12px"></div>
       </div>
@@ -213,28 +238,34 @@
       <div class="noi-dung">
         <div class="grid2" style="font-size:12px;line-height:1.7">
           <div>
-            <p><b>DP</b> — chênh áp (Pa) giữa phòng và khu vực kế cận; DP thấp hơn giới hạn dưới → nguy cơ nhiễm chéo giữa các cấp sạch.</p>
-            <p><b>RH</b> — độ ẩm tương đối (%); RH cao kéo dài → nguy cơ vi sinh.</p>
+            <p><b>BMS</b> — Building Management System, hệ thống quản lý tòa nhà.</p>
+            <p><b>GMP</b> — Good Manufacturing Practice, Thực hành tốt sản xuất.</p>
+            <p><b>FMS</b> — Facility Monitoring System, hệ thống giám sát cơ sở và nguồn cấp dữ liệu cho BMS.</p>
+            <p><b>ΔP</b> — chênh áp (Pa) giữa phòng và khu vực kế cận; thấp hơn giới hạn dưới có thể làm tăng nguy cơ nhiễm chéo.</p>
+            <p><b>RH</b> — Relative Humidity, độ ẩm tương đối (%).</p>
             <p><b>T</b> — nhiệt độ (°C).</p>
-            <p><b>AHU</b> — Air Handling Unit, tổ hợp xử lý không khí; một AHU cấp khí cho nhiều phòng, nhiều phòng cùng AHU cùng xấu → nghi tại AHU.</p>
-            <p><b>GHD / GHT</b> — Giới Hạn Dưới / Giới Hạn Trên của từng chỉ tiêu theo cấu hình phòng.</p>
+            <p><b>AHU</b> — Air Handling Unit, tổ hợp xử lý không khí; nhiều phòng cùng AHU cùng xấu có thể gợi ý nguyên nhân chung tại AHU.</p>
+            <p><b>GHD / GHT</b> — giới hạn dưới / giới hạn trên của từng chỉ tiêu theo cấu hình phòng.</p>
             <p><b>Tuân thủ / % đạt</b> — % thời gian giá trị đo nằm TRONG dải GHD–GHT.</p>
-            <p><b>OOS</b> — Out Of Specification: ngoài giới hạn quy định; <b>Giờ CB</b> — số giờ ở mức cảnh báo (Warning + Critical).</p>
+            <p><b>OOS / OOT</b> — Out Of Specification / Out Of Trend: ngoài giới hạn quy định / ngoài xu hướng dự kiến.</p>
           </div>
           <div>
-            <p><b>DQ</b> — Data Quality, % số giờ có dữ liệu ghi nhận so với kỳ vọng; DQ thấp = số liệu kém tin cậy (không nội suy — ALCOA+).</p>
-            <p><b>ALCOA+</b> — nguyên tắc toàn vẹn dữ liệu GMP (Attributable, Legible, Contemporaneous, Original, Accurate…).</p>
+            <p><b>DQ</b> — Data Quality, độ đầy đủ/chất lượng dữ liệu; DQ thấp nghĩa là kết luận kém tin cậy hơn.</p>
+            <p><b>ALCOA+</b> — bộ nguyên tắc toàn vẹn dữ liệu: có thể quy trách nhiệm, dễ đọc, ghi nhận đồng thời, nguyên bản, chính xác và các thuộc tính mở rộng.</p>
             <p><b>Độ dốc</b> — mức thay đổi trung bình mỗi bước thời gian (điểm %/ngày); âm = đang xấu đi. <b>R²</b> — độ tin cậy của xu hướng (0–1); R² ≥ 0,5 mới coi là xu hướng thật, thấp hơn là dao động ngẫu nhiên.</p>
-            <p><b>SPC</b> — kiểm soát quá trình bằng thống kê (xem chú thích mục 10). <b>σ (sigma)</b> — độ lệch chuẩn.</p>
-            <p><b>MKT</b> — nhiệt độ động học trung bình theo ICH Q1A (xem chú thích mục 10).</p>
-            <p><b>Baseline</b> — mức nền tham chiếu của giai đoạn ổn định trước đó, dùng để so phòng đang tốt lên hay tệ đi.</p>
+            <p><b>SPC</b> — Statistical Process Control, kiểm soát quá trình bằng thống kê. <b>σ (sigma)</b> — độ lệch chuẩn.</p>
+            <p><b>MKT</b> — Mean Kinetic Temperature, nhiệt độ động học trung bình (xem mục 10).</p>
+            <p><b>CAPA</b> — Corrective and Preventive Action, hành động khắc phục và phòng ngừa.</p>
+            <p><b>IPC / QA</b> — Kiểm soát trong quá trình / Đảm bảo chất lượng.</p>
+            <p><b>AI</b> — Artificial Intelligence, trí tuệ nhân tạo; chỉ hỗ trợ sàng lọc và đề xuất.</p>
+            <p><b>WF5</b> — mã quy trình tự động tổng hợp và phát hành báo cáo.</p>
             <p><b>Δ (delta)</b> — mức chênh so với kỳ trước (điểm %).</p>
           </div>
         </div>
       </div>
     </details>
 
-    <h2><span class="stt">14</span> Nhận định AI (đã thẩm định Writer–Judge)</h2>
+    <h2><span class="stt">14</span> Nhận định hỗ trợ từ trí tuệ nhân tạo (AI) — đã qua bước kiểm tra chéo</h2>
     <div class="khoi-ai"><span id="ai-noi-dung">—</span><div class="dis" id="ai-dis"></div></div>
 
     <div class="foot" id="foot">—</div>
@@ -257,23 +288,47 @@
     var muiTen=function(v){return v==null?'':v>0?'▲':v<0?'▼':'＝';};
     var TT_UT={P1:{bg:'#fee2e2',c:'#b91c1c'},P2:{bg:'#fef3c7',c:'#92400e'},P3:{bg:'#e0f2fe',c:'#075985'}};
 
-    el('tieu-de').textContent='Báo cáo '+(meta.ky_bao_cao||bc.ky||'')+' — Giám sát môi trường GMP';
-    el('phu-de').textContent='Kỳ: '+(meta.tu_hienthi||bc.tu_ngay||'')+' → '+(meta.den_hienthi||bc.den_ngay||'')+(meta.tao_luc?' · Tạo lúc '+meta.tao_luc+' (giờ VN)':'');
+    el('tieu-de').textContent='Báo cáo '+(meta.ky_bao_cao||bc.ky||'')+' — Vận hành BMS & tuân thủ môi trường';
+    el('phu-de').textContent='Hệ thống quản lý tòa nhà (BMS) · Thực hành tốt sản xuất (GMP) · Kỳ: '+(meta.tu_hienthi||bc.tu_ngay||'')+' → '+(meta.den_hienthi||bc.den_ngay||'')+(meta.tao_luc?' · Tạo lúc '+meta.tao_luc+' (giờ Việt Nam)':'');
     el('chip-nguon').textContent=(meta.ma_lan_chay||'tương tác');
 
     var k1=bc.kpi_ky_nay||{},k0=bc.kpi_ky_truoc||{},sc=bc.su_co||{},dq=bc.do_phu_du_lieu||{},spc=bc.spc||{},mkt=bc.mkt||{};
     var dTuan=(k1.ty_le_tuan_thu!=null&&k0.ty_le_tuan_thu!=null)?+(k1.ty_le_tuan_thu-k0.ty_le_tuan_thu).toFixed(1):null;
     var tinHieu=spc.tong_tin_hieu||0, batThuong=bc.phong_xau_bat_thuong||[];
     var kpis=[
-      {nhan:'% Tuân thủ',so:fmt(k1.ty_le_tuan_thu)+'%',mau:mau(k1.ty_le_tuan_thu),delta:(dTuan==null?'':muiTen(dTuan)+' '+(dTuan>0?'+':'')+dTuan+'% so kỳ trước'),dmau:(dTuan==null?C.muted:dTuan>=0?C.teal:C.red)},
-      {nhan:'Giờ cảnh báo (W+C)',so:(k1.so_gio_oos==null?'—':k1.so_gio_oos),mau:C.ink,delta:((k1.so_gio_critical||0)+' crit · '+(k1.so_gio_warning||0)+' warn'),dmau:C.muted},
-      {nhan:'Sự cố (mở/đóng)',so:(sc.mo_trong_ky==null?'—':sc.mo_trong_ky)+'/'+(sc.dong_trong_ky==null?'—':sc.dong_trong_ky),mau:C.ink,delta:'MTTR '+fmt(sc.mttr_gio)+'h · đang mở '+(sc.dang_mo==null?'—':sc.dang_mo),dmau:C.muted},
-      {nhan:'Tín hiệu SPC',so:tinHieu,mau:(tinHieu>0?C.sand:C.teal),delta:(spc.so_scope_ngoai_ks||0)+' scope ngoài kiểm soát',dmau:C.muted},
-      {nhan:'Đủ dữ liệu (DQ)',so:fmt(dq.dq_tb_pct)+'%',mau:mau(dq.dq_tb_pct),delta:(dq.so_ngay_thieu==null?'—':dq.so_ngay_thieu)+' ngày thiếu dữ liệu',dmau:C.muted},
-      {nhan:'MKT cao nhất',so:fmt(mkt.mkt_max,2)+'°C',mau:(mkt.mkt_max!=null&&+mkt.mkt_max>25?C.red:C.ink),delta:(mkt.mkt_max_phong||'—')+' · ICH Q1A',dmau:C.muted}
+      {nhan:'Thời gian trong ngưỡng',so:fmt(k1.ty_le_tuan_thu)+'%',mau:mau(k1.ty_le_tuan_thu),delta:(dTuan==null?'':muiTen(dTuan)+' '+(dTuan>0?'+':'')+dTuan+' điểm so kỳ trước'),dmau:(dTuan==null?C.muted:dTuan>=0?C.teal:C.red)},
+      {nhan:'Giờ mức nghiêm trọng',so:(k1.so_gio_critical==null?'—':k1.so_gio_critical),mau:C.ink,delta:('trong tổng '+(k1.so_gio_oos==null?'—':k1.so_gio_oos)+' giờ cảnh báo · mức cảnh báo '+(k1.so_gio_warning||0)),dmau:C.muted},
+      {nhan:'Sự cố còn mở',so:(sc.dang_mo==null?'—':sc.dang_mo),mau:C.ink,delta:((sc.mo_trong_ky==null?'—':sc.mo_trong_ky)+' phát sinh · '+(sc.dong_trong_ky==null?'—':sc.dong_trong_ky)+' đã đóng · xử lý TB '+fmt(sc.mttr_gio)+' giờ'),dmau:C.muted},
+      {nhan:'Kiểm soát thống kê (SPC)',so:tinHieu,mau:(tinHieu>0?C.sand:C.teal),delta:(spc.so_scope_ngoai_ks||0)+' phạm vi ngoài kiểm soát',dmau:C.muted},
+      {nhan:'Độ tin cậy dữ liệu',so:fmt(dq.dq_tb_pct)+'%',mau:mau(dq.dq_tb_pct),delta:('độ phủ · '+((bc.ngoai_le&&bc.ngoai_le.tong_so)||0)+' ngoại lệ · '+(dq.so_ngay_thieu==null?'—':dq.so_ngay_thieu)+' ngày thiếu'),dmau:C.muted},
+      {nhan:'Nhiệt độ động học trung bình (MKT)',so:fmt(mkt.mkt_max,2)+'°C',mau:(mkt.mkt_max!=null&&+mkt.mkt_max>25?C.red:C.ink),delta:(mkt.mkt_max_phong||'—')+' · cửa sổ 30 ngày',dmau:C.muted}
     ];
     el('kpis').innerHTML=kpis.map(function(k){return '<div class="kpi"><div class="nhan">'+esc(k.nhan)+'</div><div class="so" style="color:'+k.mau+'">'+esc(k.so)+'</div><div class="delta" style="color:'+k.dmau+'">'+esc(k.delta)+'</div></div>';}).join('');
-    el('tom-tat').textContent='Kỳ '+(meta.ky_bao_cao||bc.ky)+': tuân thủ toàn nhà máy '+fmt(k1.ty_le_tuan_thu)+'% ('+(dTuan==null?'không so được kỳ trước':(dTuan>=0?'tăng ':'giảm ')+Math.abs(dTuan)+' điểm so kỳ trước')+'), '+(k1.so_gio_oos==null?'—':k1.so_gio_oos)+' giờ cảnh báo, '+(sc.mo_trong_ky==null?0:sc.mo_trong_ky)+' sự cố mở. '+(batThuong.length?('⚠ '+batThuong.length+' phòng xấu đi bất thường (mục 7). '):'Không có phòng xấu đi bất thường. ')+(tinHieu>0?(tinHieu+' tín hiệu SPC cần theo dõi.'):'SPC trong kiểm soát.');
+    el('tom-tat').textContent='Kỳ '+(meta.ky_bao_cao||bc.ky)+': tuân thủ toàn nhà máy '+fmt(k1.ty_le_tuan_thu)+'% ('+(dTuan==null?'chưa đủ dữ liệu để so kỳ trước':(dTuan>=0?'tăng ':'giảm ')+Math.abs(dTuan)+' điểm so kỳ trước')+'), '+(k1.so_gio_oos==null?'—':k1.so_gio_oos)+' giờ cảnh báo (trong đó '+(k1.so_gio_critical||0)+' giờ mức nghiêm trọng). Sự cố: '+(sc.mo_trong_ky==null?0:sc.mo_trong_ky)+' phát sinh, '+(sc.dong_trong_ky==null?0:sc.dong_trong_ky)+' đã đóng, '+(sc.dang_mo==null?0:sc.dang_mo)+' còn mở. '+(batThuong.length?('Có '+batThuong.length+' phòng xấu đi bất thường (xem mục 7). '):'Không phát hiện phòng xấu đi bất thường. ')+(tinHieu>0?(tinHieu+' tín hiệu kiểm soát thống kê cần theo dõi.'):'Không có tín hiệu biến động thống kê bất thường.');
+
+    var loaiKy=String(meta.ky||bc.ky||'').toUpperCase();
+    var trongTam={
+      TUAN:{nhan:'Trọng tâm báo cáo tuần',tieuDe:'Xử lý sớm các vấn đề mới phát sinh',noiDung:'Ưu tiên sự cố đang mở, phòng giảm nhanh, cảnh báo mới và khoảng thiếu dữ liệu. Chốt việc cần hoàn thành trước kỳ tuần tiếp theo.'},
+      THANG:{nhan:'Trọng tâm báo cáo tháng',tieuDe:'Nhận diện vấn đề lặp lại và kiểm tra hiệu quả xử lý',noiDung:'Ưu tiên xu hướng theo khu vực/tổ hợp xử lý không khí, sự cố tái diễn, độ tin cậy dữ liệu và hiệu quả hành động khắc phục, phòng ngừa.'},
+      QUY:{nhan:'Trọng tâm báo cáo quý',tieuDe:'Đánh giá trạng thái kiểm soát và quyết định nguồn lực',noiDung:'Ưu tiên rủi ro hệ thống, vấn đề tái diễn, độ bền vững của kiểm soát và quyết định cải tiến cho quý tiếp theo.'}
+    }[loaiKy]||{nhan:'Trọng tâm kỳ báo cáo',tieuDe:'Đọc trạng thái, vấn đề và hành động theo thứ tự ưu tiên',noiDung:'Dùng số liệu kỳ này để xác nhận trạng thái; không suy diễn các khoảng thiếu dữ liệu.'};
+    el('nhan-trong-tam').textContent=trongTam.nhan;
+    el('tieu-de-trong-tam').textContent=trongTam.tieuDe;
+    el('noi-dung-trong-tam').textContent=trongTam.noiDung;
+
+    var uuTien=[];
+    var soDangMo=sc.dang_mo==null?(sc.mo_trong_ky||0):sc.dang_mo;
+    if(soDangMo>0) uuTien.push({mau:C.red,href:'#dt-sc',text:soDangMo+' sự cố đang mở — kiểm tra trạng thái và thời hạn xử lý (mục 8).'});
+    if(batThuong.length) uuTien.push({mau:C.red,href:'#dt-bt',text:batThuong.length+' phòng xấu đi so với kỳ trước — rà nguyên nhân chung và diễn biến (mục 7).'});
+    if(tinHieu>0) uuTien.push({mau:C.sand,href:'#dt-spc',text:tinHieu+' tín hiệu biến động thống kê — kiểm tra trước khi vượt giới hạn (mục 10).'});
+    if(dq.dq_tb_pct!=null&&+dq.dq_tb_pct<95) uuTien.push({mau:C.sand,href:'#dt-dq',text:'Độ đầy đủ dữ liệu '+fmt(dq.dq_tb_pct)+'% — kết luận chỉ áp dụng cho khoảng có dữ liệu (mục 9).'});
+    if(!uuTien.length) uuTien.push({mau:C.teal,href:'#dt-bt',text:'Không có ưu tiên đỏ từ các chỉ số hiện có; tiếp tục giám sát và xác nhận theo quy trình.'});
+    el('uu-tien').innerHTML=uuTien.slice(0,4).map(function(u){return '<a class="priority-item" href="'+u.href+'"><span class="priority-dot" style="background:'+u.mau+'"></span><span>'+esc(u.text)+'</span></a>';}).join('');
+    var canHanhDong=soDangMo>0||batThuong.length>0;
+    var canTheoDoi=!canHanhDong&&(tinHieu>0||(dq.dq_tb_pct!=null&&+dq.dq_tb_pct<95));
+    el('muc-uu-tien').textContent=canHanhDong?'CẦN HÀNH ĐỘNG':canTheoDoi?'CẦN THEO DÕI':'DUY TRÌ GIÁM SÁT';
+    el('muc-uu-tien').style.background=canHanhDong?'#fee2e2':canTheoDoi?'#fef3c7':'#d1fae5';
+    el('muc-uu-tien').style.color=canHanhDong?C.red:canTheoDoi?'#92400e':'#065f46';
 
     // ---- helper sparkline ----
     function spark(chuoi,w,h){
@@ -289,7 +344,7 @@
     var xh=bc.xu_huong||{};
     var scopes=[{id:'__nhamay',ten:'Toàn nhà máy',chuoi:(xh.nha_may||[])}];
     (xh.theo_khu||[]).forEach(function(k){scopes.push({id:'khu:'+k.khu_vuc,ten:'Khu '+k.khu_vuc,chuoi:k.chuoi||[],tb:k.ty_le_tb});});
-    (xh.theo_ahu||[]).forEach(function(a){scopes.push({id:'ahu:'+a.ahu,ten:'AHU '+a.ahu,chuoi:a.chuoi||[],tb:a.ty_le_tb});});
+    (xh.theo_ahu||[]).forEach(function(a){scopes.push({id:'ahu:'+a.ahu,ten:'Tổ hợp xử lý không khí '+a.ahu,chuoi:a.chuoi||[],tb:a.ty_le_tb});});
     var selEl=el('chon-scope');
     selEl.innerHTML=scopes.map(function(s,i){return '<option value="'+i+'">'+esc(s.ten)+'</option>';}).join('');
     function veLine(chuoi){
@@ -299,7 +354,7 @@
       var svg=['<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" id="svg-line">'];
       svg.push('<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="#fff"/>');
       [0,25,50,75,100].forEach(function(g){svg.push('<line x1="'+padL+'" y1="'+Y(g).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+Y(g).toFixed(1)+'" stroke="#f1f5f9"/><text x="'+(padL-6)+'" y="'+(Y(g)+3.5).toFixed(1)+'" text-anchor="end" font-size="10" fill="#94a3b8">'+g+'</text>');});
-      svg.push('<line x1="'+padL+'" y1="'+Y(80).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+Y(80).toFixed(1)+'" stroke="#d97706" stroke-dasharray="6 4"/><text x="'+(W-padR)+'" y="'+(Y(80)-5).toFixed(1)+'" text-anchor="end" font-size="10" fill="#d97706">ngưỡng 80%</text>');
+      svg.push('<line x1="'+padL+'" y1="'+Y(80).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+Y(80).toFixed(1)+'" stroke="#d97706" stroke-dasharray="6 4"/><text x="'+(W-padR)+'" y="'+(Y(80)-5).toFixed(1)+'" text-anchor="end" font-size="10" fill="#d97706">mốc quản trị 80%</text>');
       var dPath='';pts.forEach(function(p,i){if(p.v==null)return;dPath+=(dPath?' L':'M')+X(i).toFixed(1)+' '+Y(p.v).toFixed(1);});
       if(dPath){
         var first=pts.findIndex(function(p){return p.v!=null;}),last=n-1-pts.slice().reverse().findIndex(function(p){return p.v!=null;});
@@ -322,8 +377,8 @@
       svgEl.addEventListener('mousemove',move);svgEl.addEventListener('mouseleave',function(){tip.style.opacity=0;cross.style.opacity=0;});
       svgEl.addEventListener('touchmove',move);svgEl.addEventListener('touchend',function(){tip.style.opacity=0;cross.style.opacity=0;});
     }
-    function xemChuoi(ten,chuoi,tb){ el('dang-xem').innerHTML='Đang xem: <b>'+esc(ten)+'</b>'+(tb!=null?' · TB kỳ '+fmt(tb)+'%':''); veLine(chuoi); }
-    function chonScope(i){var s=scopes[i];selEl.value=i;el('scope-tb').textContent=s.tb!=null?('TB kỳ: '+fmt(s.tb)+'%'):'';el('dang-xem').innerHTML='Đang xem: <b>'+esc(s.ten)+'</b>';veLine(s.chuoi);}
+    function xemChuoi(ten,chuoi,tb){ el('dang-xem').innerHTML='Đang xem: <b>'+esc(ten)+'</b>'+(tb!=null?' · trung bình kỳ '+fmt(tb)+'%':''); veLine(chuoi); }
+    function chonScope(i){var s=scopes[i];selEl.value=i;el('scope-tb').textContent=s.tb!=null?('Trung bình kỳ: '+fmt(s.tb)+'%'):'';el('dang-xem').innerHTML='Đang xem: <b>'+esc(s.ten)+'</b>';veLine(s.chuoi);}
     selEl.addEventListener('change',function(){chonScope(+selEl.value);});
     chonScope(0);
     var curScope=0; window.addEventListener('resize',function(){chonScope(+selEl.value);});
@@ -353,14 +408,14 @@
     })();
 
     // ================= MINI KHU / AHU =================
-    function miniHtml(list,prefix){return list.map(function(r){var ten=prefix==='khu'?('Khu '+r.khu_vuc):('AHU '+r.ahu),idx=scopes.findIndex(function(s){return s.id===prefix+':'+(prefix==='khu'?r.khu_vuc:r.ahu);});return '<div class="o-mini" data-idx="'+idx+'" style="cursor:pointer"><div class="ten"><span>'+esc(ten)+'</span><span style="color:'+mau(r.ty_le_tb)+'">'+fmt(r.ty_le_tb)+'%</span></div>'+spark(r.chuoi,190,44)+'</div>';}).join('');}
+    function miniHtml(list,prefix){return list.map(function(r){var ten=prefix==='khu'?('Khu '+r.khu_vuc):('Tổ hợp '+r.ahu),idx=scopes.findIndex(function(s){return s.id===prefix+':'+(prefix==='khu'?r.khu_vuc:r.ahu);});return '<div class="o-mini" data-idx="'+idx+'" style="cursor:pointer"><div class="ten"><span>'+esc(ten)+'</span><span style="color:'+mau(r.ty_le_tb)+'">'+fmt(r.ty_le_tb)+'%</span></div>'+spark(r.chuoi,190,44)+'</div>';}).join('');}
     el('mini-khu').innerHTML=miniHtml(xh.theo_khu||[],'khu');
     el('mini-ahu').innerHTML=miniHtml(xh.theo_ahu||[],'ahu');
     ['mini-khu','mini-ahu'].forEach(function(box){el(box).querySelectorAll('.o-mini').forEach(function(d){d.addEventListener('click',function(){var i=+d.getAttribute('data-idx');if(i>=0){chonScope(i);el('box-line').scrollIntoView({behavior:'smooth',block:'center'});}});});});
 
     // ================= TOP XẤU / TỐT =================
     function bangTop(rows,elId,tot){
-      var html='<table><thead><tr><th>Phòng</th><th>Khu</th><th class="num">Tuân thủ</th><th class="num">Giờ CB</th><th>Diễn biến</th></tr></thead><tbody>';
+      var html='<table><thead><tr><th>Phòng</th><th>Khu</th><th class="num">Trong ngưỡng</th><th class="num">Giờ cảnh báo</th><th>Diễn biến</th></tr></thead><tbody>';
       (rows||[]).forEach(function(r){html+='<tr'+(!tot&&r.ty_le_tuan_thu!=null&&+r.ty_le_tuan_thu<80?' class="bad"':'')+'><td><b>'+esc(r.ten_phong||r.ma_phong)+'</b><br><span style="color:#94a3b8;font-size:10px">'+esc(r.ma_phong)+'</span></td><td>'+esc(r.khu_vuc||'—')+'</td><td class="num" style="color:'+(tot?C.teal:mau(r.ty_le_tuan_thu))+';font-weight:700">'+fmt(r.ty_le_tuan_thu)+'%</td><td class="num">'+(r.so_gio_oos==null?'—':r.so_gio_oos)+'</td><td>'+spark(r.chuoi,120,34)+'</td></tr>';});
       el(elId).innerHTML=html+'</tbody></table>';
     }
@@ -378,9 +433,9 @@
       uniq('ahu').forEach(function(v){ahuEl.innerHTML+='<option value="'+esc(v)+'">'+esc(v)+'</option>';});
       uniq('muc_uu_tien').forEach(function(v){utEl.innerHTML+='<option value="'+esc(v)+'">'+esc(v)+'</option>';});
       var COLS=[
-        {k:'ma_phong',t:'Phòng',num:false},{k:'khu_vuc',t:'Khu',num:false},{k:'ahu',t:'AHU',num:false},
+        {k:'ma_phong',t:'Phòng',num:false},{k:'khu_vuc',t:'Khu',num:false},{k:'ahu',t:'Tổ hợp không khí',num:false},
         {k:'muc_uu_tien',t:'Ưu tiên',num:false},{k:'ty_le_tuan_thu',t:'Tuân thủ %',num:true},
-        {k:'oos_rate_pct',t:'OOS %',num:true},{k:'so_gio_critical',t:'Crit',num:true},{k:'so_gio_warning',t:'Warn',num:true},
+        {k:'oos_rate_pct',t:'Ngoài giới hạn %',num:true},{k:'so_gio_critical',t:'Giờ nghiêm trọng',num:true},{k:'so_gio_warning',t:'Giờ cảnh báo',num:true},
         {k:'dq_pct',t:'DQ %',num:true},{k:'_spark',t:'Diễn biến',num:false}
       ];
       var sortK='khu_vuc',sortD=1;
@@ -430,15 +485,19 @@
       el('dem-sc').textContent=(sc.dang_mo||mo.length)+' đang mở';
       // 08/07/2026: thêm MÃ PHÒNG + KHU VỰC (khu lấy từ trường khu_vuc nếu có, không thì suy từ tiền tố mã phòng C1./C4./Q2.)
       var khuCua=function(r){ return r.khu_vuc || (String(r.phong||r.ma_phong||'').split('.')[0] || '—'); };
-      el('tb-sc-tb').innerHTML=tb.length?('<table><thead><tr><th>Sự cố</th><th>Mã phòng</th><th>Khu</th><th>Tên phòng · chỉ tiêu</th><th>Bắt đầu</th><th class="num">Kéo dài (h)</th><th>Trạng thái</th></tr></thead><tbody>'+tb.map(function(r){return '<tr><td><b>'+esc(r.ma_su_co)+'</b></td><td><b>'+esc(r.phong||r.ma_phong||'—')+'</b></td><td>'+esc(khuCua(r))+'</td><td>'+esc(r.ten_phong||'')+' · '+esc(r.chi_tieu||'')+'</td><td>'+esc(r.bat_dau)+'</td><td class="num">'+fmt(r.keo_dai_gio)+'</td><td>'+esc(r.trang_thai||'')+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có sự cố tiêu biểu.</p>';
-      el('tb-sc-mo').innerHTML=mo.length?('<table><thead><tr><th>Mã</th><th>Mã phòng</th><th>Khu</th><th>Tên phòng</th><th>Ưu tiên</th><th>Mức</th><th>Cảm biến</th><th>Bắt đầu</th><th class="num">Giờ</th></tr></thead><tbody>'+mo.map(function(o){return '<tr><td>'+esc(o.ma_su_co)+'</td><td><b>'+esc(o.phong||'—')+'</b></td><td>'+esc(khuCua(o))+'</td><td><span style="color:#64748b;font-size:11px">'+esc(o.ten_phong||'—')+'</span></td><td>'+esc(o.uu_tien||'—')+'</td><td>'+esc(o.muc_canh_bao||'—')+'</td><td>'+esc(o.loai_cam_bien||o.cam_bien_vi||'—')+'</td><td>'+esc(o.bat_dau||'')+'</td><td class="num">'+fmt(o.keo_dai_gio)+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có sự cố đang mở.</p>';
+      var TRANG_THAI_SU_CO={CHUA_XU_LY:'Chưa xử lý',IPC_BAT_THUONG:'IPC xác nhận bất thường',IPC_BINH_THUONG:'IPC xác nhận bình thường',DA_KHAC_PHUC:'Đã khắc phục',DONG_TU_DONG:'Đóng tự động'};
+      var MUC_CANH_BAO={WARNING:'Cảnh báo',CRITICAL:'Nghiêm trọng',ALERT:'Cảnh báo',ACTION:'Hành động'};
+      var viTrangThai=function(v){return TRANG_THAI_SU_CO[String(v||'').toUpperCase()]||v||'—';};
+      var viMuc=function(v){return MUC_CANH_BAO[String(v||'').toUpperCase()]||v||'—';};
+      el('tb-sc-tb').innerHTML=tb.length?('<table><thead><tr><th>Sự cố</th><th>Mã phòng</th><th>Khu</th><th>Tên phòng · chỉ tiêu</th><th>Bắt đầu</th><th class="num">Kéo dài (giờ)</th><th>Trạng thái</th></tr></thead><tbody>'+tb.map(function(r){return '<tr><td><b>'+esc(r.ma_su_co)+'</b></td><td><b>'+esc(r.phong||r.ma_phong||'—')+'</b></td><td>'+esc(khuCua(r))+'</td><td>'+esc(r.ten_phong||'')+' · '+esc(r.chi_tieu||'')+'</td><td>'+esc(r.bat_dau)+'</td><td class="num">'+fmt(r.keo_dai_gio)+'</td><td>'+esc(viTrangThai(r.trang_thai))+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có sự cố tiêu biểu.</p>';
+      el('tb-sc-mo').innerHTML=mo.length?('<table><thead><tr><th>Mã</th><th>Mã phòng</th><th>Khu</th><th>Tên phòng</th><th>Ưu tiên</th><th>Mức</th><th>Cảm biến</th><th>Bắt đầu</th><th class="num">Giờ</th></tr></thead><tbody>'+mo.map(function(o){return '<tr><td>'+esc(o.ma_su_co)+'</td><td><b>'+esc(o.phong||'—')+'</b></td><td>'+esc(khuCua(o))+'</td><td><span style="color:#64748b;font-size:11px">'+esc(o.ten_phong||'—')+'</span></td><td>'+esc(o.uu_tien||'—')+'</td><td>'+esc(viMuc(o.muc_canh_bao))+'</td><td>'+esc(o.loai_cam_bien||o.cam_bien_vi||'—')+'</td><td>'+esc(o.bat_dau||'')+'</td><td class="num">'+fmt(o.keo_dai_gio)+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có sự cố đang mở.</p>';
     })();
 
     // ================= 9. ĐỘ PHỦ DỮ LIỆU =================
     (function(){
-      el('dem-dq').textContent=fmt(dq.dq_tb_pct)+'% TB';
+      el('dem-dq').textContent=fmt(dq.dq_tb_pct)+'% trung bình';
       var pt=(dq.phong_thieu_nhat||[]);
-      var html='<p style="font-size:13px">DQ (chất lượng dữ liệu — % số giờ ghi nhận được so với kỳ vọng) trung bình toàn nhà máy: <strong style="color:'+mau(dq.dq_tb_pct)+'">'+fmt(dq.dq_tb_pct)+'%</strong> · Số ngày có khoảng trống: <strong>'+(dq.so_ngay_thieu==null?'—':dq.so_ngay_thieu)+'</strong></p>';
+      var html='<p style="font-size:13px">Độ đầy đủ dữ liệu (DQ — % số giờ ghi nhận được so với kỳ vọng) trung bình toàn nhà máy: <strong style="color:'+mau(dq.dq_tb_pct)+'">'+fmt(dq.dq_tb_pct)+'%</strong> · Số ngày có khoảng trống: <strong>'+(dq.so_ngay_thieu==null?'—':dq.so_ngay_thieu)+'</strong></p>';
       // 08/07/2026: LIỆT KÊ CỤ THỂ ngày nào KHÔNG có dữ liệu (từ chuỗi toàn nhà máy — ty_le null), gom ngày liền nhau thành khoảng.
       (function(){
         var trong=(xh.nha_may||[]).filter(function(r){return r.ngay&&r.ty_le==null;}).map(function(r){return r.ngay;});
@@ -446,7 +505,7 @@
         if(trong.length){
           var doan=[];var s=trong[0],p=trong[0];
           for(var i=1;i<=trong.length;i++){var c=trong[i];var ke=c&&(new Date(c+'T00:00:00Z')-new Date(p+'T00:00:00Z')===86400000);if(!ke){doan.push(s===p?lbl(s):lbl(s)+' → '+lbl(p));s=c;}p=c||p;}
-          html+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:9px 12px;margin:8px 0;font-size:12px"><b style="color:#b45309">⚠ Ngày KHÔNG có dữ liệu toàn nhà máy ('+trong.length+' ngày):</b> '+doan.map(esc).join(' · ')+'. Các ngày này KHÔNG được tính vào kết luận (không nội suy); nếu trùng giai đoạn vận hành bình thường → nghi FMS/WF1 ngừng thu, đề nghị IT kiểm tra.</div>';
+          html+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:9px 12px;margin:8px 0;font-size:12px"><b style="color:#b45309">⚠ Ngày KHÔNG có dữ liệu toàn nhà máy ('+trong.length+' ngày):</b> '+doan.map(esc).join(' · ')+'. Các ngày này KHÔNG được tính vào kết luận (không nội suy); nếu trùng giai đoạn vận hành bình thường → nghi hệ thống giám sát cơ sở (FMS) hoặc quy trình thu thập dữ liệu bị gián đoạn, đề nghị bộ phận công nghệ thông tin kiểm tra.</div>';
         } else { html+='<p style="font-size:12px;color:#0d9488;margin:6px 0">✓ Không có ngày nào trống dữ liệu toàn nhà máy trong kỳ (thiếu cục bộ từng phòng — nếu có — xem bảng dưới và Bảng 1 mục 13: tỉ lệ thiếu theo tuần/tháng).</p>'; }
       })();
       if(pt.length){html+='<h3 style="font-size:12px;color:#64748b;margin:10px 0 6px">Phòng thiếu dữ liệu nhiều nhất (DQ thấp = nhiều giờ không ghi nhận — số liệu phòng đó kém tin cậy)</h3><table><thead><tr><th>Phòng</th><th>Khu</th><th class="num">DQ %</th><th>Mức độ</th></tr></thead><tbody>'+pt.map(function(p){var v=(p.dq_pct==null?null:+p.dq_pct);var nx=v==null?'—':(v>=95?'đủ tốt':(v>=85?'thiếu nhẹ — theo dõi':'thiếu NHIỀU — kiểm tra cảm biến/FMS'));return '<tr'+(v!=null&&v<85?' class="bad"':'')+'><td><b>'+esc(p.ma_phong)+'</b></td><td>'+esc(String(p.ma_phong||'').split('.')[0]||'—')+'</td><td class="num" style="color:'+mau(p.dq_pct)+';font-weight:700">'+fmt(p.dq_pct)+'</td><td style="font-size:11px">'+nx+'</td></tr>';}).join('')+'</tbody></table>';}
@@ -458,7 +517,7 @@
 
     // ================= 10. SPC + MKT =================
     (function(){
-      el('dem-spc').textContent=tinHieu+' tín hiệu · MKT '+fmt(mkt.mkt_max,2)+'°C';
+      el('dem-spc').textContent=tinHieu+' tín hiệu · nhiệt động học '+fmt(mkt.mkt_max,2)+'°C';
       var s=(spc.chi_tiet||[]);
       // 08/07/2026: thêm cột Ý NGHĨA + chú thích thuật ngữ SPC (yêu cầu user: viết tắt phải có chú thích + đánh giá ý nghĩa)
       el('tb-spc').innerHTML=(s.length?('<table><thead><tr><th>Phạm vi</th><th>Cảm biến</th><th class="num">Tín hiệu</th><th>Loại</th><th>Ý nghĩa</th></tr></thead><tbody>'+s.map(function(r){
@@ -470,24 +529,24 @@
         return '<tr><td>'+esc(r.ten_scope||r.scope_id)+'</td><td>'+esc(r.sensor_type)+'</td><td class="num" style="font-weight:700;color:#b45309">'+(r.so_tin_hieu==null?'—':r.so_tin_hieu)+'</td><td style="font-size:11px">'+esc(loai||'—')+'</td><td style="font-size:11px;color:#64748b">'+yn+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#0d9488">✓ Tất cả phạm vi TRONG kiểm soát thống kê — biến động hiện tại là ngẫu nhiên bình thường, không có tín hiệu trôi/đột biến.</p>')
         +'<p style="font-size:11px;color:#64748b;margin-top:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px"><b>Chú thích:</b> <b>SPC</b> (Statistical Process Control — kiểm soát quá trình bằng thống kê) phát hiện biến động BẤT THƯỜNG trước khi vượt ngưỡng: <b>±3σ</b> = điểm vượt 3 độ lệch chuẩn (đột biến); <b>chuỗi 8 điểm cùng phía</b> = lệch hệ thống; <b>6 điểm tăng/giảm liên tiếp</b> = trôi dần. Có tín hiệu ≠ vi phạm GMP — là CẢNH BÁO SỚM để kiểm tra nguyên nhân.</p>';
       var m=(mkt.chi_tiet||[]);
-      el('tb-mkt').innerHTML=(m.length?('<table><thead><tr><th>Phòng</th><th>Khu</th><th class="num">MKT °C</th><th class="num">T TB</th><th class="num">T max</th><th>Đánh giá</th></tr></thead><tbody>'+m.map(function(r){var v=(r.mkt==null?null:+r.mkt);var yn=v==null?'—':(v<=25?'trong giới hạn bảo quản thường (≤25°C)':'CAO hơn 25°C — rà điều kiện bảo quản/tải nhiệt phòng');return '<tr'+(v!=null&&v>25?' class="bad"':'')+'><td><b>'+esc(r.ma_phong)+'</b></td><td>'+esc(r.khu_vuc||'—')+'</td><td class="num" style="font-weight:700;color:'+(v!=null&&v>25?'#b91c1c':'#0f172a')+'">'+fmt(r.mkt,2)+'</td><td class="num">'+fmt(r.t_tb,2)+'</td><td class="num">'+fmt(r.t_max,2)+'</td><td style="font-size:11px;color:#64748b">'+yn+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Chưa có dữ liệu nhiệt độ.</p>')
-        +'<p style="font-size:11px;color:#64748b;margin-top:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px"><b>Chú thích:</b> <b>MKT</b> (Mean Kinetic Temperature — nhiệt độ động học trung bình, ICH Q1A) là nhiệt độ "tương đương" phản ánh tác động nhiệt TÍCH LŨY lên sản phẩm — nhấn mạnh các đợt nóng hơn so với trung bình cộng thường. MKT sát/vượt giới hạn bảo quản dù T trung bình vẫn đẹp = có các đợt nóng ngắn đáng lưu ý.</p>';
+      el('tb-mkt').innerHTML=(m.length?('<table><thead><tr><th>Phòng</th><th>Khu</th><th class="num">MKT °C</th><th class="num">Nhiệt độ trung bình</th><th class="num">Nhiệt độ cao nhất</th><th>Đánh giá</th></tr></thead><tbody>'+m.map(function(r){var v=(r.mkt==null?null:+r.mkt);var yn=v==null?'—':(v<=25?'trong giới hạn bảo quản thường (≤25°C)':'CAO hơn 25°C — rà điều kiện bảo quản/tải nhiệt phòng');return '<tr'+(v!=null&&v>25?' class="bad"':'')+'><td><b>'+esc(r.ma_phong)+'</b></td><td>'+esc(r.khu_vuc||'—')+'</td><td class="num" style="font-weight:700;color:'+(v!=null&&v>25?'#b91c1c':'#0f172a')+'">'+fmt(r.mkt,2)+'</td><td class="num">'+fmt(r.t_tb,2)+'</td><td class="num">'+fmt(r.t_max,2)+'</td><td style="font-size:11px;color:#64748b">'+yn+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Chưa có dữ liệu nhiệt độ.</p>')
+        +'<p style="font-size:11px;color:#64748b;margin-top:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px"><b>Chú thích:</b> <b>MKT</b> (Mean Kinetic Temperature — nhiệt độ động học trung bình) là nhiệt độ "tương đương" phản ánh tác động nhiệt TÍCH LŨY lên sản phẩm — nhấn mạnh các đợt nóng hơn so với trung bình cộng thường. MKT sát/vượt giới hạn bảo quản dù nhiệt độ trung bình vẫn đạt có thể cho thấy các đợt nóng ngắn đáng lưu ý.</p>';
     })();
 
-    // ================= 11. BASELINE + XU HƯỚNG =================
+    // ================= 11. MỨC NỀN THAM CHIẾU + XU HƯỚNG =================
     (function(){
       var bl=(bc.so_sanh_baseline||[]),xhc=(bc.xu_huong_dang_chu_y||[]);
-      el('dem-bl').textContent=bl.length+' baseline · '+xhc.length+' xu hướng';
-      var DG={worse_than_baseline:'Tệ hơn baseline',better_than_baseline:'Tốt hơn baseline',stable:'Ổn định'};
-      el('tb-baseline').innerHTML=bl.length?('<table><thead><tr><th>Phạm vi</th><th>Tên</th><th>Sensor</th><th class="num">Hiện tại %</th><th class="num">Baseline %</th><th class="num">Δ tuân thủ</th><th>Đánh giá</th></tr></thead><tbody>'+bl.map(function(b){var d=b.compliance_delta;return '<tr><td>'+esc(b.scope_type)+'</td><td>'+esc(b.ten_scope||b.scope_id)+'</td><td>'+esc(b.sensor_type)+'</td><td class="num">'+fmt(b.hien_tai_tb)+'</td><td class="num">'+fmt(b.baseline_tb)+'</td><td class="num" style="color:'+(d==null?C.muted:d>=0?C.teal:C.red)+';font-weight:700">'+(d==null?'—':(d>0?'+':'')+fmt(d))+'</td><td>'+esc(DG[b.danh_gia]||b.danh_gia||'—')+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có so sánh baseline trong 2 ngày gần đây.</p>';
-      el('tb-xuhuong').innerHTML=xhc.length?('<table><thead><tr><th>Phạm vi</th><th>Tên</th><th>Sensor</th><th>Hướng</th><th class="num">Độ dốc %/ngày</th><th class="num">R²</th></tr></thead><tbody>'+xhc.map(function(x){var hg=x.huong==='worsening'?'Xấu đi':x.huong==='improving'?'Cải thiện':'Ổn định';return '<tr><td>'+esc(x.scope_type)+'</td><td>'+esc(x.ten_scope||x.scope_id)+'</td><td>'+esc(x.sensor_type)+'</td><td style="color:'+(x.huong==='worsening'?C.red:x.huong==='improving'?C.teal:C.muted)+'">'+hg+'</td><td class="num">'+fmt(x.slope,3)+'</td><td class="num">'+fmt(x.r2,2)+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có xu hướng đáng chú ý.</p>';
+      el('dem-bl').textContent=bl.length+' mức nền · '+xhc.length+' xu hướng';
+      var DG={worse_than_baseline:'Tệ hơn mức nền',better_than_baseline:'Tốt hơn mức nền',stable:'Ổn định'};
+      el('tb-baseline').innerHTML=bl.length?('<table><thead><tr><th>Phạm vi</th><th>Tên</th><th>Chỉ tiêu</th><th class="num">Hiện tại %</th><th class="num">Mức nền %</th><th class="num">Chênh lệch</th><th>Đánh giá</th></tr></thead><tbody>'+bl.map(function(b){var d=b.compliance_delta;return '<tr><td>'+esc(b.scope_type)+'</td><td>'+esc(b.ten_scope||b.scope_id)+'</td><td>'+esc(b.sensor_type)+'</td><td class="num">'+fmt(b.hien_tai_tb)+'</td><td class="num">'+fmt(b.baseline_tb)+'</td><td class="num" style="color:'+(d==null?C.muted:d>=0?C.teal:C.red)+';font-weight:700">'+(d==null?'—':(d>0?'+':'')+fmt(d))+'</td><td>'+esc(DG[b.danh_gia]||b.danh_gia||'—')+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có so sánh mức nền tham chiếu trong 2 ngày gần đây.</p>';
+      el('tb-xuhuong').innerHTML=xhc.length?('<table><thead><tr><th>Phạm vi</th><th>Tên</th><th>Chỉ tiêu</th><th>Hướng</th><th class="num">Độ dốc %/ngày</th><th class="num">R²</th></tr></thead><tbody>'+xhc.map(function(x){var hg=x.huong==='worsening'?'Xấu đi':x.huong==='improving'?'Cải thiện':'Ổn định';return '<tr><td>'+esc(x.scope_type)+'</td><td>'+esc(x.ten_scope||x.scope_id)+'</td><td>'+esc(x.sensor_type)+'</td><td style="color:'+(x.huong==='worsening'?C.red:x.huong==='improving'?C.teal:C.muted)+'">'+hg+'</td><td class="num">'+fmt(x.slope,3)+'</td><td class="num">'+fmt(x.r2,2)+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có xu hướng đáng chú ý.</p>';
     })();
 
     // ================= 12. GIỚI HẠN CẤU HÌNH =================
     (function(){
       var gh=(bc.gioi_han_tham_chieu||[]);
       el('dem-gh').textContent=gh.length+' mức';
-      var html='<p style="font-size:11px;color:#64748b;margin-bottom:8px">Giới hạn hành động (GHD–GHT) cấu hình theo TỪNG PHÒNG; bảng gộp theo mức ưu tiên × chỉ tiêu. Số liệu OOS trong báo cáo luôn tính theo giới hạn riêng của từng phòng.</p>';
+      var html='<p style="font-size:11px;color:#64748b;margin-bottom:8px">Giới hạn dưới (GHD) và giới hạn trên (GHT) được cấu hình theo TỪNG PHÒNG; bảng gộp theo mức ưu tiên × chỉ tiêu. Tỉ lệ ngoài giới hạn luôn được tính theo giới hạn riêng của từng phòng.</p>';
       html+=gh.length?('<table><thead><tr><th>Ưu tiên</th><th>Chỉ tiêu</th><th class="num">GHD</th><th class="num">GHT</th><th>Đơn vị</th><th class="num">Số phòng</th></tr></thead><tbody>'+gh.map(function(g){return '<tr><td>'+esc(g.muc_uu_tien)+'</td><td>'+esc(g.chi_tieu)+'</td><td class="num">'+esc(g.ghd)+'</td><td class="num">'+esc(g.ght)+'</td><td>'+esc(g.don_vi||'')+'</td><td class="num">'+esc(g.so_phong)+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có dữ liệu giới hạn.</p>';
       el('gh-wrap').innerHTML=html;
     })();
@@ -507,12 +566,12 @@
       var slope=function(chuoi){var v=(chuoi||[]).map(function(r){return r.ty_le==null?null:+r.ty_le;}).filter(function(x){return x!=null;});var n=v.length;if(n<3)return null;var sx=0,sy=0,sxy=0,sxx=0;v.forEach(function(y,i){sx+=i;sy+=y;sxy+=i*y;sxx+=i*i;});var d=n*sxx-sx*sx;return d?+(((n*sxy-sx*sy)/d)).toFixed(2):null;};
       var mkRank=function(rows,tenCot,coKhu,elId){ var ds=(rows||[]).map(function(r){var tb=(r.ty_le_tb!=null?+r.ty_le_tb:null);return {ten:r.khu_vuc||r.ahu,khu:r.khu_vuc&&r.ahu?r.khu_vuc:null,tb:tb,doc:slope(r.chuoi),chuoi:r.chuoi};}).sort(function(a,b){return (b.tb==null?-1:b.tb)-(a.tb==null?-1:a.tb);});
         if(!ds.length){el(elId).innerHTML='<p style="font-size:11.5px;color:#94a3b8">Chưa có dữ liệu.</p>';return;}
-        var h='<table><thead><tr><th>#</th><th>'+tenCot+'</th>'+(coKhu?'<th>Khu</th>':'')+'<th class="num">Tuân thủ TB</th><th class="num">Độ dốc/kỳ</th><th>Diễn biến</th></tr></thead><tbody>';
+        var h='<table><thead><tr><th>#</th><th>'+tenCot+'</th>'+(coKhu?'<th>Khu</th>':'')+'<th class="num">Tuân thủ trung bình</th><th class="num">Độ dốc/kỳ</th><th>Diễn biến</th></tr></thead><tbody>';
         ds.forEach(function(r,i){h+='<tr'+(r.tb!=null&&r.tb<80?' class="bad"':'')+'><td style="font-weight:700;color:'+(i===0?'#0d9488':(i===ds.length-1?'#b91c1c':'#64748b'))+'">'+(i+1)+'</td><td><b>'+esc(r.ten)+'</b></td>'+(coKhu?'<td>'+esc(r.khu||'—')+'</td>':'')+'<td class="num" style="font-weight:700;color:'+mau(r.tb)+'">'+fmt(r.tb)+'%</td><td class="num" style="color:'+(r.doc==null?'#94a3b8':(r.doc<0?'#b91c1c':'#0d9488'))+'">'+(r.doc==null?'—':(r.doc>0?'+':'')+r.doc)+'</td><td>'+spark(r.chuoi,120,30)+'</td></tr>';});
         el(elId).innerHTML=h+'</tbody></table>'; };
       mkRank(xh.theo_khu,'Khu vực',false,'tb-ss-khu');
-      mkRank(xh.theo_ahu,'AHU',true,'tb-ss-ahu');
-      el('dem-ss').textContent=((xh.theo_khu||[]).length)+' khu · '+((xh.theo_ahu||[]).length)+' AHU';
+      mkRank(xh.theo_ahu,'Tổ hợp xử lý không khí',true,'tb-ss-ahu');
+      el('dem-ss').textContent=((xh.theo_khu||[]).length)+' khu · '+((xh.theo_ahu||[]).length)+' tổ hợp không khí';
       // ---- Xu hướng chính của kỳ + đánh giá kỳ sau ----
       var nm=xh.nha_may||[]; var v=nm.map(function(r){return r.ty_le==null?null:+r.ty_le;}).filter(function(x){return x!=null;});
       var htXH='';
@@ -522,7 +581,7 @@
         var lbl=function(iso){return String(iso||'').slice(5).split('-').reverse().join('/');};
         htXH+='<p style="margin:0 0 6px"><b>Xu hướng chính của kỳ:</b> tuân thủ đi từ '+dau.toFixed(1)+'% → '+cuoi.toFixed(1)+'% ('+(cuoi-dau>=0?'+':'')+(cuoi-dau).toFixed(1)+' điểm), đáy '+min.toFixed(1)+'%'+(ngayMin?' vào '+lbl(ngayMin):'')+', độ dốc '+(doc==null?'—':(doc>0?'+':'')+doc)+' điểm %/bước.</p>';
         var duBao=boSung.du_bao||null;
-        if(duBao&&duBao.huong){ htXH+='<p style="margin:0"><b>Đánh giá kỳ sau (dự báo 7 ngày, OLS cửa sổ 30 ngày):</b> hướng <b>'+esc(duBao.huong)+'</b>'+(duBao.du_bao_cuoi!=null?', dự kiến quanh '+(+duBao.du_bao_cuoi).toFixed(1)+'%':'')+(duBao.r2!=null?' (R²='+(+duBao.r2).toFixed(2)+(duBao.du_bao_dang_tin?', đáng tin':', tham khảo — biến động ngẫu nhiên')+')':'')+'. '+(duBao.ghi_chu?esc(duBao.ghi_chu):'')+'</p>'; }
+        if(duBao&&duBao.huong){ htXH+='<p style="margin:0"><b>Đánh giá kỳ sau (dự báo 7 ngày bằng hồi quy tuyến tính, cửa sổ 30 ngày):</b> hướng <b>'+esc(duBao.huong)+'</b>'+(duBao.du_bao_cuoi!=null?', dự kiến quanh '+(+duBao.du_bao_cuoi).toFixed(1)+'%':'')+(duBao.r2!=null?' (R²='+(+duBao.r2).toFixed(2)+(duBao.du_bao_dang_tin?', đáng tin':', tham khảo — biến động ngẫu nhiên')+')':'')+'. '+(duBao.ghi_chu?esc(duBao.ghi_chu):'')+'</p>'; }
         else { htXH+='<p style="margin:0"><b>Đánh giá kỳ sau (ngoại suy nhanh từ độ dốc kỳ):</b> '+(doc==null?'chưa đủ điểm để ngoại suy.':(doc<-0.15?'nếu giữ đà giảm hiện tại, kỳ sau có nguy cơ tiếp tục xuống (~'+(cuoi+doc*7).toFixed(1)+'% sau 7 bước) — cần can thiệp sớm.':(doc>0.15?'đà cải thiện, kỳ sau dự kiến tiếp tục nhích lên (~'+(cuoi+doc*7).toFixed(1)+'%).':'ổn định quanh mức hiện tại ('+cuoi.toFixed(1)+'%).')))+'</p>'; }
       } else { htXH='<p style="margin:0;color:#94a3b8">Chưa đủ điểm dữ liệu để tóm tắt xu hướng kỳ.</p>'; }
       el('ss-xuhuong').innerHTML='<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:10px 14px;font-size:12.5px">'+htXH+'</div>';
@@ -531,8 +590,8 @@
     // ================= 14. AI + FOOTER =================
     var ai=bc.nhan_dinh_ai_gan_nhat||{};
     el('ai-noi-dung').textContent=ai.noi_dung||'Chưa có nhận định AI trong kỳ.';
-    el('ai-dis').textContent='Số liệu do hệ thống tính — AI chỉ viết nhận định. Kết luận GMP do IPC/QA. Mô hình: '+(ai.model_dung||'—')+' · '+(ai.tao_luc||'—');
-    el('foot').innerHTML='Truy vết GMP: mã lần chạy <b>'+esc(meta.ma_lan_chay||'')+'</b> · Nguồn số liệu: <code>'+esc(bc.nguon||'rpc_bao_cao_tong_hop')+"('"+esc(bc.ky||'')+"', '"+esc(bc.tu_ngay||'')+"', '"+esc(bc.den_ngay||'')+"')</code> + rpc_tat_ca_phong_ky. Dashboard tương tác — bản ký duyệt chính thức là PDF đính kèm. Hệ thống BMS-GMP (CPC1HN).";
+    el('ai-dis').textContent='Số liệu do hệ thống tính — trí tuệ nhân tạo (AI) chỉ hỗ trợ sàng lọc và đề xuất. Kết luận theo Thực hành tốt sản xuất (GMP) do Kiểm soát trong quá trình (IPC) và Đảm bảo chất lượng (QA) xác nhận. Mô hình: '+(ai.model_dung||'—')+' · '+(ai.tao_luc||'—');
+    el('foot').innerHTML='Truy vết GMP: mã lần chạy <b>'+esc(meta.ma_lan_chay||'')+'</b> · Nguồn số liệu: <code>'+esc(bc.nguon||'rpc_bao_cao_tong_hop')+"('"+esc(bc.ky||'')+"', '"+esc(bc.tu_ngay||'')+"', '"+esc(bc.den_ngay||'')+"')</code> + rpc_tat_ca_phong_ky. Đây là bản tương tác phục vụ phân tích; trạng thái bản phát hành chính thức phải được xác nhận trong quy trình kiểm soát tài liệu. Hệ thống quản lý tòa nhà BMS (CPC1HN).";
   })();
   </script>
 </body>

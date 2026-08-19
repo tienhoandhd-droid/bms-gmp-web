@@ -1,14 +1,33 @@
-# report-templates — Báo cáo WF5 v2 (BMS-GMP)
+# report-templates — Báo cáo tuần, tháng và quý BMS–GMP
 
-Báo cáo tuần/tháng/quý — 1 nguồn số liệu duy nhất (`rpc_bao_cao_tong_hop`). **3 sản phẩm** mỗi kỳ
-(cập nhật 04/07/2026 theo yêu cầu: email chỉ text — bỏ ảnh nén; dashboard động đính kèm + link):
+Thiết kế nội dung và quy ước tiếng Việt được chốt tại
+[`THIET-KE-BAO-CAO-TUAN-THANG-QUY.md`](./THIET-KE-BAO-CAO-TUAN-THANG-QUY.md).
+Bộ mẫu dùng một hợp đồng dữ liệu nhưng đổi trọng tâm theo kỳ: tuần ưu tiên xử lý
+nhanh, tháng ưu tiên vấn đề lặp lại/hiệu lực hành động, quý ưu tiên trạng thái
+kiểm soát và quyết định nguồn lực.
+
+Báo cáo tuần/tháng/quý dùng 1 nguồn số liệu duy nhất (`rpc_bao_cao_tong_hop`). Bộ mẫu hỗ trợ
+3 đầu ra: email tóm tắt, dashboard tương tác và scorecard để chuyển PDF. Đầu ra nào đang được
+phát hành chính thức phụ thuộc cấu hình/workflow live và phải được xác nhận trước khi thay đổi.
 
 | File | Dùng cho |
 |---|---|
-| `email-bao-cao.html` | **Email TÓM TẮT — CHỈ TEXT, KHÔNG ẢNH** (KPI/top phòng/bất thường/AI dạng bảng) + nút "Mở dashboard tương tác". n8n interpolate `{{ }}` + `{{#each}}`. Nhẹ (~17KB). |
-| `dashboard-tuong-tac.html` | **Dashboard TƯƠNG TÁC tự chứa** — nhúng JSON kỳ vào `{{DATA_JSON}}`, vanilla JS + SVG. 13 mục: biểu đồ hover + lọc Nhà máy/Khu/AHU, heatmap, top phòng, **bảng TẤT CẢ phòng** (tìm/lọc/sắp/bấm-xem), Sự cố, DQ, SPC/MKT, Baseline, Giới hạn, AI. Danh sách DÀI để trong `<details>` — **thu gọn mặc định, bấm để mở**. Mở offline. Đính kèm email + lưu Drive. Cần `bc.tat_ca_phong` (từ `rpc_tat_ca_phong_ky`, gộp ở node query). |
-| `bao-cao-scorecard.html` | HTML → Gotenberg → **PDF ký duyệt GMP** (ALCOA+); ảnh biểu đồ nhúng **data URI base64** (chart-render/SVG). |
+| `email-bao-cao.html` | **Email tóm tắt — chỉ chữ, không ảnh**: trạng thái, chỉ số, phòng cần chú ý, bất thường, nhận định hỗ trợ và chú giải ngắn. n8n thay token `{{ }}` + `{{#each}}`. |
+| `email-bao-cao-khu.html` | Biến thể email riêng khu, cùng ngôn ngữ và hợp đồng dữ liệu với bản tổng. |
+| `dashboard-tuong-tac.html` | **Dashboard tương tác tự chứa** — nhúng JSON kỳ vào `{{DATA_JSON}}`, vanilla JS + SVG. Có trọng tâm riêng cho tuần/tháng/quý, danh sách ưu tiên tự sinh, biểu đồ, lọc Nhà máy/Khu/AHU, bảng phòng, sự cố, dữ liệu, SPC/MKT, mức nền, giới hạn, AI và chú giải. Mở offline. |
+| `bao-cao-scorecard.html` | Scorecard HTML A4 có thể chuyển PDF bằng Gotenberg; chứa trọng tâm theo kỳ, kiểm soát tài liệu, ký duyệt, truy vết và chú giải. |
 | `email-bao-cao.mjml` | ⚠ **Không dùng nữa** — email cũ (MJML/ảnh CID). Giữ để tham khảo; email hiện là `email-bao-cao.html` viết tay text-only. |
+
+## v4 (2026-07-11) — báo cáo tiếng Việt thân thiện theo từng kỳ
+
+- Không thêm khóa placeholder mới vào object `rep`; tương thích node `Ráp báo cáo` hiện có.
+- Scorecard dùng `body[data-ky="{{ky}}"]` để đổi trọng tâm cho `TUAN`, `THANG`, `QUY` mà không cần sửa workflow.
+- Dashboard tự tạo khối `Ưu tiên xử lý` từ sự cố đang mở, phòng xấu đi, tín hiệu thống kê và độ đầy đủ dữ liệu.
+- Mọi nhãn chính dùng tiếng Việt; từ viết tắt được viết đầy đủ ở lần đầu và có chú giải.
+- Loại bỏ các nhãn giao diện khó hiểu như `scope`, `baseline`, `excursion`, `W+C`, `Crit/Warn` và `Writer–Judge`.
+- Nhận định AI được trình bày là nội dung hỗ trợ; kết luận/phê duyệt vẫn thuộc người có thẩm quyền.
+- Email không tự gọi tệp HTML là bản phát hành chính thức. Trạng thái chính thức phải theo hồ sơ kiểm soát tài liệu và workflow live.
+- Chi tiết ma trận tuần/tháng/quý, thuật ngữ và dữ liệu giai đoạn sau nằm trong `THIET-KE-BAO-CAO-TUAN-THANG-QUY.md`.
 
 ---
 

@@ -1,24 +1,27 @@
 <!doctype html>
 <!--
-  bao-cao-scorecard.html — Báo cáo giám sát môi trường GMP (v3 — REDESIGN)
+  bao-cao-scorecard.html — Báo cáo BMS tuần/tháng/quý (v4 — tiếng Việt thân thiện)
   =========================================================================
   - Drop-in cho node "Ráp báo cáo" (WF5 v2): dùng token dạng ngoặc-nhọn + vòng lặp each đã có sẵn.
     Không cần đổi node cho bản này. Ảnh biểu đồ (chart_line_src / chart_heat_src / mini_src /
     spark_src) do node bơm data-URI base64 (hoặc SVG fallback) → file tự chứa.
   - Xuất PDF qua Gotenberg (Chromium): @page A4 portrait; print-color-adjust:exact.
-  - Bố cục v3: scan (gauge + KPI) → xu hướng → CHIỀU SÂU GMP (MKT/SPC/DQ) → TRỌNG TÂM & bất thường
-    → nhận định AI (+ slot CAPA Phase 2/WF7) → căn cứ chuẩn → ký duyệt ALCOA+ → phụ lục.
-  - Giữ nguyên MỌI phần bắt buộc GMP; chỉ nâng cấp thiết kế & dòng chảy thông tin.
+  - Bố cục v4: trạng thái → trọng tâm theo kỳ → chỉ số → vấn đề cần xử lý → xu hướng
+    → kiểm soát GMP → nhận định hỗ trợ → truy vết và ký duyệt.
+  - Không thêm khóa placeholder mới vào object rep; tái sử dụng các token node "Ráp báo cáo" đã cấp.
 -->
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
-<title>Báo cáo {{ky_bao_cao}} — BMS</title>
+<title>Báo cáo {{ky_hienthi}} — BMS</title>
 <style>
   @page { size: A4 portrait; margin: 13mm 12mm 15mm 12mm; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .avoid { break-inside: avoid; page-break-inside: avoid; }
+    .avoid { break-inside: auto; page-break-inside: auto; }
+    .keep,.kpi,.dcard,.mini,.hero,.period-focus,.signoff,.archive { break-inside: avoid; page-break-inside: avoid; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
     .page  { break-before: page; page-break-before: always; }
   }
   :root{
@@ -74,6 +77,20 @@
   .strip div{font-size:10.5px;color:var(--muted)}
   .strip b{display:block;font-size:15px;color:var(--ink);font-weight:700}
 
+  /* Trọng tâm khác nhau theo tuần / tháng / quý, chỉ dùng token ky hiện có. */
+  .period-focus{display:none;border:1px solid #CFE0E6;border-radius:10px;padding:12px 15px;margin-top:12px;
+                background:linear-gradient(135deg,#F3FAFB,#FFFFFF)}
+  .period-focus .eyebrow{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--accent)}
+  .period-focus h2{font-size:14px;margin:3px 0 4px}
+  .period-focus p{font-size:11.5px;color:var(--ink2)}
+  body[data-ky="TUAN"] .ky-tuan,body[data-ky="tuan"] .ky-tuan,body[data-ky="TUẦN"] .ky-tuan,
+  body[data-ky="THANG"] .ky-thang,body[data-ky="thang"] .ky-thang,body[data-ky="THÁNG"] .ky-thang,
+  body[data-ky="QUY"] .ky-quy,body[data-ky="quy"] .ky-quy,body[data-ky="QUÝ"] .ky-quy{display:block}
+
+  .glossary{display:grid;grid-template-columns:1fr 1fr;gap:5px 16px;margin-top:8px}
+  .glossary p{font-size:9.5px;color:var(--ink2);line-height:1.45}
+  .glossary b{color:var(--ink)}
+
   /* KPI cards */
   .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}
   .kpi{border:1px solid var(--line);border-radius:9px;padding:11px 11px 9px;background:#fff}
@@ -86,7 +103,7 @@
   .chart img{width:100%;height:auto;display:block;border:1px solid var(--line2);border-radius:8px}
   .chart .cap{font-size:10px;color:var(--faint);margin-top:5px}
 
-  /* Small multiples */
+  /* Biểu đồ nhỏ theo từng phạm vi */
   .mini-grid{display:flex;flex-wrap:wrap;gap:9px}
   .mini{flex:1 1 30%;min-width:30%;border:1px solid var(--line);border-radius:8px;padding:8px 9px}
   .mini .t{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;font-weight:700}
@@ -187,7 +204,7 @@
   .archive .meta2 code{font-family:var(--mono);font-size:8.5px;background:#EEF3F6;padding:1px 4px;border-radius:3px;color:var(--ink2)}
 </style>
 </head>
-<body>
+<body data-ky="{{ky}}">
 
   <!-- ===== Mảng 2 · CỔNG AN TOÀN: banner chế độ thử =====
        Node "Ráp báo cáo" bơm token "banner_thu_nghiem" (thay() chèn HTML thô, không escape):
@@ -201,14 +218,14 @@
     <div>
       <div class="brand">
         <div class="mark"><img class="logo" src="{{logo_src}}" alt="" onerror="this.style.display='none'"/></div>
-        <div><b>CPC1HN · BMS</b><span>Giám sát môi trường phòng sạch</span></div>
+        <div><b>CPC1HN · Hệ thống quản lý tòa nhà (BMS)</b><span>Giám sát môi trường theo Thực hành tốt sản xuất (GMP)</span></div>
       </div>
-      <h1>Báo cáo {{ky_bao_cao}} — Tuân thủ &amp; xu hướng môi trường</h1>
-      <div class="phu">Chỉ tiêu T° / RH / ΔP · giới hạn hành động theo từng phòng</div>
+      <h1>Báo cáo {{ky_hienthi}}</h1>
+      <div class="phu">Nhiệt độ (T) · độ ẩm tương đối (RH) · chênh áp (ΔP) · giới hạn theo từng phòng</div>
     </div>
     <div class="meta">
       <div class="kick" style="color:#8FBAC4">Kỳ</div><div><b>{{tu_ngay}} → {{den_ngay}}</b></div>
-      <div class="kick" style="color:#8FBAC4;margin-top:6px">Phát hành</div><div><b>{{tao_luc}}</b> (VN)</div>
+      <div class="kick" style="color:#8FBAC4;margin-top:6px">Phát hành</div><div><b>{{tao_luc}}</b> (giờ Việt Nam)</div>
       <div class="kick" style="color:#8FBAC4;margin-top:6px">Mã lần chạy</div><div>{{ma_lan_chay}}</div>
       <!-- Mảng 2 · Mã kiểm soát tài liệu (P0). Node bơm: ma_tai_lieu, phien_ban, ngay_hieu_luc.
            Quy tắc mã do QA cơ sở quyết (vd BMS-RP-<kỳ>-YYYYMM-rev). Số trang X/Y: xem footer Gotenberg. -->
@@ -228,48 +245,69 @@
           <div class="lb">thời gian trong ngưỡng</div></div>
       </div>
       <div>
-        <h2>Tóm tắt điều hành</h2>
+        <h2>Trạng thái kỳ báo cáo</h2>
+        <p style="font-size:15px;font-weight:800;color:{{trang_thai_mau}};margin:0 0 6px;">{{trang_thai_ky}}</p>
         <p>{{tom_tat_dieu_hanh}}</p>
-        <div class="concl"><b>Kết luận kiểm soát:</b> {{ket_luan_kiem_soat}}</div>
+        <div style="margin:8px 0 2px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6B7686;font-weight:700;">Vì sao kỳ này ở trạng thái đó</div>
+        {{ly_do_html}}
+        <div class="concl"><b>Dữ kiện cần người có thẩm quyền xác nhận:</b>
+          {{so_tin_hieu_spc}} tín hiệu kiểm soát thống kê và {{so_scope_ngoai_ks}} phạm vi ngoài kiểm soát.
+          Kết luận phát hành thuộc Kiểm soát trong quá trình (IPC) và Đảm bảo chất lượng (QA).</div>
         <div class="strip">
-          <div><b class="num">{{kpi_gio_oos}}</b>Giờ cảnh báo (W+C)</div>
-          <div><b class="num">{{so_su_co_mo}}/{{so_su_co_dong}}</b>Sự cố mở/đóng</div>
-          <div><b class="num">{{kpi_dq}}%</b>Đủ dữ liệu (DQ)</div>
-          <div><b class="num">{{mttr_gio}}h</b>MTTR khắc phục</div>
+          <div><b class="num">{{kpi_gio_critical}}</b>Giờ mức nghiêm trọng ({{ty_le_critical}} tổng)</div>
+          <div><b class="num">{{so_su_co_dang_mo}}</b>Sự cố còn mở · {{so_su_co_mo}} phát sinh / {{so_su_co_dong}} đã đóng</div>
+          <div><b class="num">{{kpi_dq}}%</b>Độ phủ dữ liệu · {{so_ngoai_le}} ngoại lệ</div>
+          <div><b class="num">{{khu_dau}} {{khu_dau_pct}}</b>Khu gánh nhiều tải cảnh báo nhất</div>
         </div>
       </div>
     </div>
+  </section>
+
+  <section class="period-focus ky-tuan keep">
+    <div class="eyebrow">Trọng tâm báo cáo tuần</div>
+    <h2>Xử lý sớm các vấn đề mới phát sinh</h2>
+    <p>Ưu tiên sự cố đang mở, phòng giảm nhanh, cảnh báo mới và khoảng thiếu dữ liệu. Chốt người phụ trách và việc cần hoàn thành trước kỳ tuần tiếp theo.</p>
+  </section>
+  <section class="period-focus ky-thang keep">
+    <div class="eyebrow">Trọng tâm báo cáo tháng</div>
+    <h2>Nhận diện vấn đề lặp lại và kiểm tra hiệu quả xử lý</h2>
+    <p>Ưu tiên xu hướng theo khu vực/tổ hợp xử lý không khí, sự cố tái diễn, độ tin cậy dữ liệu và hiệu quả hành động khắc phục, phòng ngừa.</p>
+  </section>
+  <section class="period-focus ky-quy keep">
+    <div class="eyebrow">Trọng tâm báo cáo quý</div>
+    <h2>Đánh giá trạng thái kiểm soát và quyết định nguồn lực</h2>
+    <p>Ưu tiên rủi ro mang tính hệ thống, hành động quá hạn hoặc tái diễn, độ bền vững của kiểm soát và các quyết định cải tiến cho quý tiếp theo.</p>
   </section>
 
   <!-- ===== VITAL SIGNS (6 KPI) ===== -->
   <section class="sec avoid">
     <div class="sec-h"><h2>Chỉ số cốt lõi</h2><span class="note">so kỳ liền trước</span></div>
     <div class="kpis">
-      <div class="kpi"><div class="lbl">Tuân thủ</div><div class="v num" style="color:{{kpi_tuan_thu_mau}}">{{kpi_tuan_thu}}<small>%</small></div>
-        <div class="d" style="color:{{delta_tuan_thu_mau}}">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}}</div></div>
-      <div class="kpi"><div class="lbl">Giờ cảnh báo</div><div class="v num">{{kpi_gio_oos}}</div>
-        <div class="d" style="color:{{delta_oos_mau}}">{{delta_oos_mui_ten}} {{delta_oos}}</div></div>
-      <div class="kpi"><div class="lbl">Sự cố mở/đóng</div><div class="v num">{{so_su_co_mo}}<small>/{{so_su_co_dong}}</small></div>
-        <div class="d" style="color:{{delta_su_co_mau}}">{{delta_su_co_mui_ten}} {{delta_su_co}} · MTTR {{mttr_gio}}h</div></div>
-      <div class="kpi"><div class="lbl">Tín hiệu SPC</div><div class="v num" style="color:{{kpi_spc_mau}}">{{so_tin_hieu_spc}}</div>
-        <div class="d" style="color:var(--muted)">{{so_scope_ngoai_ks}} scope ngoài KS</div></div>
-      <div class="kpi"><div class="lbl">Đủ dữ liệu</div><div class="v num" style="color:{{kpi_dq_mau}}">{{kpi_dq}}<small>%</small></div>
-        <div class="d" style="color:var(--muted)">{{so_ngay_thieu_dl}} ngày thiếu</div></div>
-      <div class="kpi"><div class="lbl">MKT cao nhất</div><div class="v num" style="color:{{kpi_mkt_mau}}">{{kpi_mkt_max}}<small>°C</small></div>
+      <div class="kpi"><div class="lbl">Thời gian trong ngưỡng</div><div class="v num" style="color:{{kpi_tuan_thu_mau}}">{{kpi_tuan_thu}}<small>%</small></div>
+        <div class="d" style="color:{{delta_tuan_thu_mau}}">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}} · mốc theo dõi quản trị 80%</div></div>
+      <div class="kpi"><div class="lbl">Giờ mức nghiêm trọng</div><div class="v num">{{kpi_gio_critical}}</div>
+        <div class="d" style="color:{{delta_critical_mau}}">{{delta_critical}} · chiếm {{ty_le_critical}} tổng {{kpi_gio_oos}}</div></div>
+      <div class="kpi"><div class="lbl">Sự cố còn mở</div><div class="v num">{{so_su_co_dang_mo}}</div>
+        <div class="d" style="color:var(--muted)">{{so_su_co_mo}} phát sinh · {{so_su_co_dong}} đã đóng · xử lý TB {{mttr_gio}} giờ</div></div>
+      <div class="kpi"><div class="lbl">Phạm vi cần rà (thống kê)</div><div class="v num" style="color:{{kpi_spc_mau}}">{{so_scope_ngoai_ks}}</div>
+        <div class="d" style="color:var(--muted)">từ {{so_tin_hieu_spc}} tín hiệu thô</div></div>
+      <div class="kpi"><div class="lbl">Độ tin cậy dữ liệu</div><div class="v num" style="color:{{kpi_dq_mau}}">{{kpi_dq}}<small>%</small></div>
+        <div class="d" style="color:var(--muted)">độ phủ · <b>{{so_ngoai_le}}</b> ngoại lệ · {{so_ngay_thieu_dl}} ngày thiếu</div></div>
+      <div class="kpi"><div class="lbl">Nhiệt độ động học trung bình (MKT)</div><div class="v num" style="color:{{kpi_mkt_mau}}">{{kpi_mkt_max}}<small>°C</small></div>
         <div class="d" style="color:var(--muted)">{{kpi_mkt_phong}}</div></div>
     </div>
   </section>
 
   <!-- ===== XU HƯỚNG ===== -->
   <section class="sec avoid">
-    <div class="sec-h"><h2>Xu hướng tuân thủ theo ngày</h2><span class="note">ngưỡng hành động 80% · toàn nhà máy</span></div>
+    <div class="sec-h"><h2>Xu hướng tuân thủ theo ngày</h2><span class="note">mốc theo dõi quản trị 80% · toàn nhà máy</span></div>
     <div class="chart"><img src="{{chart_line_src}}" alt="Tuân thủ theo ngày" />
       <div class="cap">Lịch tuân thủ trong kỳ ↓</div>
       <img src="{{chart_heat_src}}" alt="Lịch tuân thủ" style="margin-top:6px" /></div>
   </section>
 
   <section class="sec avoid">
-    <div class="sec-h"><h2>Xu hướng theo cấp</h2><span class="note">khu vực &amp; AHU · small multiples</span></div>
+    <div class="sec-h"><h2>Xu hướng theo cấp</h2><span class="note">khu vực &amp; tổ hợp xử lý không khí (AHU)</span></div>
     <div class="kick" style="margin-bottom:7px">Theo khu vực</div>
     <div class="mini-grid">
       {{#each xu_huong_khu}}
@@ -277,7 +315,7 @@
         <img src="{{mini_src}}" alt="khu {{khu_vuc}}" /></div>
       {{/each}}
     </div>
-    <div class="kick" style="margin:12px 0 7px">Theo AHU</div>
+    <div class="kick" style="margin:12px 0 7px">Theo tổ hợp xử lý không khí (AHU)</div>
     <div class="mini-grid">
       {{#each xu_huong_ahu}}
       <div class="mini"><div class="t"><span>{{ahu}}</span><span class="p num" style="color:{{mau}}">{{ty_le_tb}}%</span></div>
@@ -288,15 +326,15 @@
 
   <!-- ===== CHIỀU SÂU GMP ===== -->
   <section class="sec avoid">
-    <div class="sec-h"><h2>Phân tích chuyên sâu</h2><span class="note">nhiệt · kiểm soát thống kê · toàn vẹn dữ liệu</span></div>
+    <div class="sec-h"><h2>Phân tích chuyên sâu</h2><span class="note">nhiệt · biến động thống kê · độ tin cậy dữ liệu</span></div>
     <div class="depth">
-      <div class="dcard"><div class="t"><b>MKT cao nhất</b></div>
+      <div class="dcard"><div class="t"><b>Nhiệt độ động học trung bình (MKT)</b></div>
         <div class="m num" style="color:{{kpi_mkt_mau}}">{{kpi_mkt_max}}<small>°C</small></div>
         <div class="c">Phòng <b>{{kpi_mkt_phong}}</b> · nhiệt độ động học trung bình 30 ngày</div></div>
       <div class="dcard"><div class="t"><b>Kiểm soát thống kê</b></div>
         <div class="m num" style="color:{{kpi_spc_mau}}">{{so_scope_ngoai_ks}}</div>
-        <div class="c"><b>{{so_tin_hieu_spc}}</b> tín hiệu · scope ngoài kiểm soát (EWMA/CUSUM/Nelson)</div></div>
-      <div class="dcard"><div class="t"><b>Toàn vẹn dữ liệu</b></div>
+        <div class="c"><b>{{so_tin_hieu_spc}}</b> tín hiệu · {{so_scope_ngoai_ks}} phạm vi ngoài kiểm soát theo các quy tắc phát hiện lệch và trôi xu hướng</div></div>
+      <div class="dcard"><div class="t"><b>Độ đầy đủ dữ liệu (DQ)</b></div>
         <div class="m num" style="color:{{kpi_dq_mau}}">{{kpi_dq}}<small>%</small></div>
         <div class="c"><b>{{so_ngay_thieu_dl}}</b> ngày thiếu · nhiều nhất: {{phong_thieu_dl}}</div></div>
     </div>
@@ -346,7 +384,7 @@
         {{/each}}
       </tbody>
     </table>
-    <div class="kick" style="color:#B27272;margin:11px 0 6px">Sự cố tiêu biểu (excursion)</div>
+    <div class="kick" style="color:#B27272;margin:11px 0 6px">Sự kiện cận hoặc vượt giới hạn tiêu biểu</div>
     <table>
       <thead><tr><th>Sự cố</th><th>Phòng · chỉ tiêu</th><th>Bắt đầu</th><th class="r">Kéo dài</th><th>Trạng thái</th></tr></thead>
       <tbody>
@@ -368,15 +406,15 @@
   </div>
 
   <!-- ===== Mảng 2 · ĐÁNH GIÁ OOS/OOT 2 TẦNG + CAPA (Annex 1 §9.9–9.13) =====
-       BẮT BUỘC cho bản ghi GMP: mỗi excursion vượt giới hạn phải có mức (alert→
-       đánh giá / action→điều tra + đánh giá tác động lô + CAPA), nguyên nhân gốc,
+       BẮT BUỘC cho bản ghi GMP: mỗi sự kiện vượt giới hạn phải có mức (cảnh báo→
+       đánh giá / hành động→điều tra + đánh giá tác động lô + CAPA), nguyên nhân gốc,
        trạng thái CAPA. Node bơm mảng "oos_capa" (each) với các trường:
          muc ('alert'|'action'), muc_vi, phong, chi_tieu, gia_tri, gioi_han,
          bat_dau, nguyen_nhan, tac_dong_lo, capa_ma, capa_trang_thai
                                  ('open'|'doing'|'done'), capa_trang_thai_vi, capa_han.
        Nếu chưa có dữ liệu → mảng rỗng (section vẫn hợp lệ, bảng trống). -->
   <section class="sec avoid">
-    <div class="sec-h"><h2>Đánh giá excursion OOS/OOT &amp; CAPA</h2><span class="note">alert = đánh giá · action = điều tra + CAPA (Annex 1 §9.9–9.13)</span></div>
+    <div class="sec-h"><h2>Đánh giá ngoài giới hạn / ngoài xu hướng &amp; hành động</h2><span class="note">OOS/OOT · hành động khắc phục và phòng ngừa (CAPA)</span></div>
     <table>
       <thead><tr><th>Mức</th><th>Phòng · chỉ tiêu</th><th class="r">Giá trị / GH</th><th>Bắt đầu</th><th>Nguyên nhân gốc</th><th>Tác động lô</th><th>CAPA</th><th class="r">Hạn</th></tr></thead>
       <tbody>
@@ -394,14 +432,19 @@
         {{/each}}
       </tbody>
     </table>
-    <div class="note-box" style="margin-top:9px"><b style="color:var(--ink)">Quy ước 2 tầng:</b>
-      <b style="color:#8A5300">Alert</b> (chớm ngưỡng) → đánh giá, chưa bắt buộc CAPA ·
-      <b style="color:#A62E2E">Action</b> (vượt giới hạn hành động) → điều tra nguyên nhân gốc, đánh giá tác động lô/sản phẩm, mở CAPA & theo dõi tới khi đóng.</div>
+    <div class="note-box" style="margin-top:9px"><b style="color:var(--ink)">Đọc bảng này thế nào:</b>
+      bảng xếp theo <b>chỉ số quản trị</b> (tỉ lệ thời gian trong ngưỡng của cả phòng), không phải theo giới hạn cảm biến.
+      <b style="color:#8A5300">Theo dõi</b> = giảm dưới 5 điểm % so kỳ trước ·
+      <b style="color:#A62E2E">Cần rà soát</b> = giảm từ 5 điểm % trở lên.
+      <b style="color:var(--ink)">Mốc 80% là mốc theo dõi quản trị nội bộ, KHÔNG phải giới hạn hành động GMP</b> —
+      giới hạn hành động chỉ áp cho giá trị cảm biến đã được Đảm bảo chất lượng (QA) phê duyệt cho từng phòng
+      (xem mục Giới hạn cấu hình). Việc mở phiếu điều tra, đánh giá tác động lô và hành động khắc phục/phòng ngừa (CAPA)
+      do người có thẩm quyền quyết định, không suy ra tự động từ chỉ số quản trị.</div>
   </section>
 
   <!-- ===== NHẬN ĐỊNH AI ===== -->
   <section class="ai avoid">
-    <div class="hd"><b>Nhận định &amp; hành động</b><span class="ai-tag">◆ Phân tích AI</span></div>
+    <div class="hd"><b>Nhận định hỗ trợ &amp; gợi ý hành động</b><span class="ai-tag">Trí tuệ nhân tạo (AI)</span></div>
     <div class="body">{{nhan_dinh_ai}}</div>
 
     <!-- ============================================================
@@ -423,13 +466,13 @@
     </table>
     ============================================================ -->
 
-    <div class="disc">Số liệu do hệ thống tính — AI chỉ viết nhận định; kết luận do IPC/QA.
+    <div class="disc">Số liệu do hệ thống tính — trí tuệ nhân tạo chỉ hỗ trợ sàng lọc và đề xuất; kết luận do Kiểm soát trong quá trình (IPC) và Đảm bảo chất lượng (QA).
       Mô hình: {{ai_model_dung}} · {{ai_tao_luc}}</div>
   </section>
 
   <!-- ===== CĂN CỨ & GIỚI HẠN & KÝ DUYỆT (trang 2) ===== -->
   <section class="sec page avoid">
-    <div class="sec-h"><h2>Giới hạn cấu hình áp dụng trong kỳ</h2><span class="note">GHD–GHT theo phòng · cảnh báo 2 cấp alert→action</span></div>
+    <div class="sec-h"><h2>Giới hạn cấu hình áp dụng trong kỳ</h2><span class="note">giới hạn dưới (GHD) · giới hạn trên (GHT) theo phòng</span></div>
     <table>
       <thead><tr><th>Mức ưu tiên</th><th>Chỉ tiêu</th><th class="r">GHD</th><th class="r">GHT</th><th>Đơn vị</th><th class="r">Số phòng</th></tr></thead>
       <tbody>
@@ -438,9 +481,9 @@
         {{/each}}
       </tbody>
     </table>
-    <div class="kick" style="margin:14px 0 7px">MKT theo phòng (30 ngày · cao nhất trước)</div>
+    <div class="kick" style="margin:14px 0 7px">Nhiệt độ động học trung bình (MKT) theo phòng — cửa sổ 30 ngày</div>
     <table>
-      <thead><tr><th>Phòng</th><th>Khu</th><th class="r">MKT °C</th><th class="r">T TB</th><th class="r">T max</th></tr></thead>
+      <thead><tr><th>Phòng</th><th>Khu</th><th class="r">MKT °C</th><th class="r">Nhiệt độ trung bình</th><th class="r">Nhiệt độ cao nhất</th></tr></thead>
       <tbody>
         {{#each mkt_chi_tiet}}
         <tr><td class="room"><b>{{ma_phong}}</b> <span>{{ten_phong}}</span></td><td class="tag">{{khu_vuc}}</td>
@@ -450,6 +493,30 @@
     </table>
     <div class="note-box"><b style="color:var(--ink)">Phương pháp &amp; phạm vi:</b> Mọi so sánh dùng đúng giới hạn cấu hình của từng phòng tại thời điểm chạy báo cáo;
       cắt lát theo giờ. Khoảng thiếu dữ liệu được đánh dấu, không nội suy — kết luận chỉ áp dụng cho khoảng đủ dữ liệu.</div>
+
+    <div class="note-box">
+      <b style="color:var(--ink)">Chú giải thuật ngữ và từ viết tắt</b>
+      <div class="glossary">
+        <p><b>BMS</b> — Hệ thống quản lý tòa nhà.</p>
+        <p><b>GMP</b> — Thực hành tốt sản xuất.</p>
+        <p><b>FMS</b> — Hệ thống giám sát cơ sở, nguồn cấp dữ liệu cho BMS.</p>
+        <p><b>AHU</b> — Tổ hợp xử lý không khí.</p>
+        <p><b>T / RH / ΔP</b> — nhiệt độ / độ ẩm tương đối / chênh áp.</p>
+        <p><b>DQ</b> — độ đầy đủ, chất lượng dữ liệu.</p>
+        <p><b>MTTR</b> — thời gian xử lý trung bình.</p>
+        <p><b>SPC</b> — kiểm soát quá trình bằng thống kê.</p>
+        <p><b>MKT</b> — nhiệt độ động học trung bình.</p>
+        <p><b>OOS / OOT</b> — ngoài giới hạn / ngoài xu hướng dự kiến.</p>
+        <p><b>CAPA</b> — hành động khắc phục và phòng ngừa.</p>
+        <p><b>IPC / QA</b> — Kiểm soát trong quá trình / Đảm bảo chất lượng.</p>
+        <p><b>ALCOA+</b> — bộ nguyên tắc bảo đảm toàn vẹn dữ liệu.</p>
+        <p><b>AI</b> — trí tuệ nhân tạo; không thay thế người phê duyệt.</p>
+        <p><b>Δ</b> — mức chênh so với kỳ trước.</p>
+        <p><b>R² / σ</b> — mức độ phù hợp của đường xu hướng / độ lệch chuẩn.</p>
+        <p><b>SHA-256 / QR</b> — mã băm kiểm tra tính toàn vẹn / mã quét xác minh bản lưu.</p>
+        <p><b>WF5</b> — mã quy trình tự động tạo báo cáo.</p>
+      </div>
+    </div>
     <!-- Mảng 2 · Chữ ký điện tử (Part 11 §11.50): mỗi ô nêu HỌ TÊN · CHỨC DANH ·
          Ý NGHĨA ký (lập/soát xét/phê duyệt) · NGÀY-GIỜ. Node bơm: lap_ten/lap_chuc,
          soat_ten/soat_chuc/soat_luc, duyet_ten/duyet_chuc/duyet_luc. Bước 2 (e-sig có
@@ -457,13 +524,13 @@
     <div class="signoff">
       <div class="sbox"><div class="r">Người lập</div><div class="sign"></div>
         <div class="who">{{lap_ten}}</div><div class="role2">{{lap_chuc}}</div>
-        <div class="mean">Ý nghĩa: Lập báo cáo (hệ thống WF5)</div><div class="dt">{{tao_luc}} (VN)</div></div>
+        <div class="mean">Ý nghĩa: Lập báo cáo (hệ thống WF5)</div><div class="dt">{{tao_luc}} (giờ Việt Nam)</div></div>
       <div class="sbox"><div class="r">Soát xét</div><div class="sign"></div>
         <div class="who">{{soat_ten}}</div><div class="role2">{{soat_chuc}}</div>
-        <div class="mean">Ý nghĩa: Đã soát xét (IPC/Kỹ thuật)</div><div class="dt">{{soat_luc}}</div></div>
+        <div class="mean">Ý nghĩa: Đã soát xét (Kiểm soát trong quá trình/Kỹ thuật)</div><div class="dt">{{soat_luc}}</div></div>
       <div class="sbox"><div class="r">Phê duyệt</div><div class="sign"></div>
         <div class="who">{{duyet_ten}}</div><div class="role2">{{duyet_chuc}}</div>
-        <div class="mean">Ý nghĩa: Phê duyệt phát hành (QA)</div><div class="dt">{{duyet_luc}}</div></div>
+        <div class="mean">Ý nghĩa: Phê duyệt phát hành (Đảm bảo chất lượng)</div><div class="dt">{{duyet_luc}}</div></div>
     </div>
 
     <!-- Mảng 2 · Phân phối có kiểm soát (P0): node bơm mảng "noi_nhan" (each), mỗi phần tử có vai_tro. -->
