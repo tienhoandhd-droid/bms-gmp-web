@@ -96,6 +96,9 @@
   code{font-family:ui-monospace,'Courier New',monospace;font-size:11px;background:#f1f5f9;padding:1px 5px;border-radius:4px;}
   @media (max-width:820px){.kpis{grid-template-columns:repeat(3,1fr);}.grid2,.lead-grid{grid-template-columns:1fr;}}
   @media (max-width:480px){.kpis{grid-template-columns:repeat(2,1fr);}.wrap{padding:0 10px;}header.top h1{font-size:17px;}details.thu-gon>summary{font-size:13px;padding:12px;}}
+  .nav-nhom{font-size:12px;font-weight:600;color:#0F766E;background:#F0FDFA;border:1px solid #CCFBF1;border-radius:999px;padding:5px 11px;text-decoration:none;white-space:nowrap}
+  .nav-nhom:hover{background:#CCFBF1}
+  @media print{#dieu-huong{display:none}}
 </style>
 </head>
 <body>
@@ -107,7 +110,16 @@
   </header>
 
   <div class="wrap">
-    <section class="kpis" id="kpis"></section>
+    <nav id="dieu-huong" style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-bottom:1px solid #E3E9EF;padding:8px 16px;margin:0 -16px 14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+  <span style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#6B7686;font-weight:700;margin-right:4px">Đi tới</span>
+  <a href="#kpis"    class="nav-nhom">Tổng quan</a>
+  <a href="#dt-ss"   class="nav-nhom">Khu &amp; AHU</a>
+  <a href="#dt-phong" class="nav-nhom">Phòng</a>
+  <a href="#dt-sc"   class="nav-nhom">Sự cố &amp; bất thường</a>
+  <a href="#dt-spc"  class="nav-nhom">Thống kê &amp; mức nền</a>
+  <a href="#dt-dq"   class="nav-nhom">Dữ liệu &amp; giới hạn</a>
+</nav>
+<section class="kpis" id="kpis"></section>
 
     <div class="card" style="margin-top:16px;background:#f8fafc;border-left:4px solid var(--teal)">
       <strong style="color:var(--ink)">Tóm tắt điều hành:</strong> <span id="tom-tat">—</span>
@@ -153,6 +165,18 @@
     </div>
 
     <!-- 6. TẤT CẢ PHÒNG — thu gọn, bấm để mở -->
+    <!-- 13. SO SÁNH & XẾP HẠNG + XU HƯỚNG KỲ / KỲ SAU (bổ sung 08/07/2026) -->
+    <details class="thu-gon" id="dt-ss" open>
+      <summary><span class="tg">▸</span><span class="stt">13</span> So sánh khu vực/tổ hợp xử lý không khí — dữ liệu thiếu — xu hướng kỳ<span class="dem" id="dem-ss">—</span></summary>
+      <div class="noi-dung">
+        <div id="ss-thieudl"></div>
+        <div class="grid2" style="margin-top:10px">
+          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 2 — Xếp hạng khu vực theo tuân thủ</h3><div id="tb-ss-khu"></div></div>
+          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 3 — Xếp hạng tổ hợp xử lý không khí (AHU)</h3><div id="tb-ss-ahu"></div></div>
+        </div>
+        <div id="ss-xuhuong" style="margin-top:12px"></div>
+      </div>
+    </details>
     <details class="thu-gon" id="dt-phong">
       <summary><span class="tg">▸</span><span class="stt" style="background:var(--teal)">6</span> Tất cả phòng — bảng chi tiết (tìm · lọc · sắp xếp · bấm xem biểu đồ)<span class="dem" id="dem-phong">—</span></summary>
       <div class="noi-dung">
@@ -220,18 +244,6 @@
       <div class="noi-dung" id="gh-wrap"></div>
     </details>
 
-    <!-- 13. SO SÁNH & XẾP HẠNG + XU HƯỚNG KỲ / KỲ SAU (bổ sung 08/07/2026) -->
-    <details class="thu-gon" id="dt-ss" open>
-      <summary><span class="tg">▸</span><span class="stt">13</span> So sánh khu vực/tổ hợp xử lý không khí — dữ liệu thiếu — xu hướng kỳ<span class="dem" id="dem-ss">—</span></summary>
-      <div class="noi-dung">
-        <div id="ss-thieudl"></div>
-        <div class="grid2" style="margin-top:10px">
-          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 2 — Xếp hạng khu vực theo tuân thủ</h3><div id="tb-ss-khu"></div></div>
-          <div><h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Bảng 3 — Xếp hạng tổ hợp xử lý không khí (AHU)</h3><div id="tb-ss-ahu"></div></div>
-        </div>
-        <div id="ss-xuhuong" style="margin-top:12px"></div>
-      </div>
-    </details>
 
     <!-- CHÚ GIẢI THUẬT NGỮ (08/07/2026 — yêu cầu user: mọi viết tắt phải có chú thích) -->
     <details class="thu-gon" id="dt-cg">
@@ -596,5 +608,14 @@
     el('foot').innerHTML='Truy vết GMP: mã lần chạy <b>'+esc(meta.ma_lan_chay||'')+'</b> · Nguồn số liệu: <code>'+esc(bc.nguon||'rpc_bao_cao_tong_hop')+"('"+esc(bc.ky||'')+"', '"+esc(bc.tu_ngay||'')+"', '"+esc(bc.den_ngay||'')+"')</code> + rpc_tat_ca_phong_ky. Đây là bản tương tác phục vụ phân tích; trạng thái bản phát hành chính thức phải được xác nhận trong quy trình kiểm soát tài liệu. Hệ thống quản lý tòa nhà BMS (CPC1HN).";
   })();
   </script>
+<script>
+// Bấm điều hướng thì MỞ luôn mục đó — không bắt người đọc bấm hai lần.
+document.querySelectorAll('#dieu-huong a').forEach(function (a) {
+  a.addEventListener('click', function () {
+    var el = document.querySelector(a.getAttribute('href'));
+    if (el && el.tagName === 'DETAILS') el.open = true;
+  });
+});
+</script>
 </body>
 </html>
