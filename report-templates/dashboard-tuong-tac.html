@@ -99,6 +99,32 @@
   .nav-nhom{font-size:12px;font-weight:600;color:#0F766E;background:#F0FDFA;border:1px solid #CCFBF1;border-radius:999px;padding:5px 11px;text-decoration:none;white-space:nowrap}
   .nav-nhom:hover{background:#CCFBF1}
   @media print{#dieu-huong{display:none}}
+  /* E16 — bản đồ rủi ro + ngăn kéo chi tiết phòng */
+  #bd-wrap{margin:14px 0}
+  #bd-svg{width:100%;height:auto;display:block}
+  .bd-cham{cursor:pointer}
+  .bd-cham:hover{stroke:#0f172a;stroke-width:2}
+  .bd-chu{font-size:10px;fill:#64748b}
+  /* Ngăn kéo lúc đóng nằm ngoài mép phải — không được để nó kéo dài bề rộng trang.
+     Bảng rộng vẫn cuộn được vì đã cho cuộn TRONG bảng ở màn hình nhỏ. */
+  html,body{overflow-x:hidden}
+  #nk-nen{position:fixed;inset:0;background:rgba(15,23,42,.42);opacity:0;pointer-events:none;transition:opacity .18s;z-index:80}
+  #nk-nen.mo{opacity:1;pointer-events:auto}
+  #nk{position:fixed;top:0;right:0;height:100%;width:min(560px,94vw);background:#fff;box-shadow:-18px 0 46px -24px rgba(16,40,55,.55);
+      transform:translateX(102%);transition:transform .22s ease;z-index:81;overflow-y:auto;padding:18px 20px 40px}
+  #nk.mo{transform:none}
+  #nk h3{font-size:16px;margin:0 0 2px}
+  #nk .dong{font-size:12px;color:#64748b}
+  #nk-dong{position:absolute;top:12px;right:14px;border:1px solid #e2e8f0;background:#fff;border-radius:8px;
+           padding:4px 10px;font-size:13px;cursor:pointer}
+  .nk-cb{margin-top:14px;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px}
+  .nk-cb h4{margin:0 0 6px;font-size:12.5px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  @media print{#nk,#nk-nen{display:none}}
+  /* Bảng rộng trên màn hình nhỏ: cho cuộn ngang TRONG bảng, không đẩy cả trang */
+  @media (max-width:640px){
+    .noi-dung table, #nk table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    #dieu-huong{overflow-x:auto;flex-wrap:nowrap}
+  }
 </style>
 </head>
 <body>
@@ -110,7 +136,7 @@
   </header>
 
   <div class="wrap">
-    <nav id="dieu-huong" style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-bottom:1px solid #E3E9EF;padding:8px 16px;margin:0 -16px 14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    <nav id="dieu-huong" style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-bottom:1px solid #E3E9EF;padding:8px 12px;margin:0 0 14px;border-radius:0 0 12px 12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
   <span style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#6B7686;font-weight:700;margin-right:4px">Đi tới</span>
   <a href="#kpis"    class="nav-nhom">Tổng quan</a>
   <a href="#dt-ss"   class="nav-nhom">Khu &amp; AHU</a>
@@ -135,6 +161,14 @@
         <div class="priority-head"><h2>Ưu tiên xử lý</h2><span class="status-pill" id="muc-uu-tien">—</span></div>
         <div class="priority-list" id="uu-tien"></div>
       </section>
+
+<section class="card" id="bd-wrap">
+  <div class="sec-h"><h2>Bản đồ rủi ro phòng</h2><span class="note">bấm một chấm để mở chi tiết phòng</span></div>
+  <p class="note" style="margin:0 0 8px">Trục ngang: tỉ lệ thời gian trong ngưỡng. Trục dọc: số giờ ở mức nghiêm trọng.
+    Chấm càng to càng nhiều giờ cảnh báo. Viền đỏ đậm = đang có sự cố mở. Phòng nằm ở góc dưới–phải là tốt;
+    góc trên–trái là vừa thấp vừa nghiêm trọng lâu.</p>
+  <div id="bd-svg"></div>
+</section>
     </div>
 
     <h2><span class="stt">1</span> Tỉ lệ tuân thủ theo ngày <span style="font-weight:400;color:var(--muted);font-size:12px">(di chuột hoặc chạm để xem số · chọn phạm vi · bấm phòng để xem)</span></h2>
@@ -284,6 +318,11 @@
     <div class="foot" id="foot">—</div>
   </div>
 
+<div id="nk-nen"></div>
+<aside id="nk" aria-hidden="true">
+  <button id="nk-dong" type="button">Đóng ✕</button>
+  <div id="nk-noi-dung"></div>
+</aside>
   <script id="bms-du-lieu" type="application/json">{{DATA_JSON}}</script>
   <script>
   (function(){
@@ -301,7 +340,7 @@
     var muiTen=function(v){return v==null?'':v>0?'▲':v<0?'▼':'＝';};
     var TT_UT={P1:{bg:'#fee2e2',c:'#b91c1c'},P2:{bg:'#fef3c7',c:'#92400e'},P3:{bg:'#e0f2fe',c:'#075985'}};
 
-    el('tieu-de').textContent='Báo cáo '+(meta.ky_bao_cao||bc.ky||'')+' — Vận hành BMS & tuân thủ môi trường';
+    el('tieu-de').textContent='Báo cáo '+({TUAN:'tuần',THANG:'tháng',QUY:'quý'}[bc.ky]||'kỳ')+' '+esc(meta.tu_hienthi||bc.tu_ngay||'')+' – '+esc(meta.den_hienthi||bc.den_ngay||'')+'';
     el('phu-de').textContent='Hệ thống quản lý tòa nhà (BMS) · Thực hành tốt sản xuất (GMP) · Kỳ: '+(meta.tu_hienthi||bc.tu_ngay||'')+' → '+(meta.den_hienthi||bc.den_ngay||'')+(meta.tao_luc?' · Tạo lúc '+meta.tao_luc+' (giờ Việt Nam)':'');
     el('chip-nguon').textContent=(meta.ma_lan_chay||'tương tác');
 
@@ -312,12 +351,12 @@
       {nhan:'Thời gian trong ngưỡng',so:fmt(k1.ty_le_tuan_thu)+'%',mau:mau(k1.ty_le_tuan_thu),delta:(dTuan==null?'':muiTen(dTuan)+' '+(dTuan>0?'+':'')+dTuan+' điểm so kỳ trước'),dmau:(dTuan==null?C.muted:dTuan>=0?C.teal:C.red)},
       {nhan:'Giờ mức nghiêm trọng',so:(k1.so_gio_critical==null?'—':k1.so_gio_critical),mau:C.ink,delta:('trong tổng '+(k1.so_gio_oos==null?'—':k1.so_gio_oos)+' giờ cảnh báo · mức cảnh báo '+(k1.so_gio_warning||0)),dmau:C.muted},
       {nhan:'Sự cố còn mở',so:(sc.dang_mo==null?'—':sc.dang_mo),mau:C.ink,delta:((sc.mo_trong_ky==null?'—':sc.mo_trong_ky)+' phát sinh · '+(sc.dong_trong_ky==null?'—':sc.dong_trong_ky)+' đã đóng · xử lý TB '+fmt(sc.mttr_gio)+' giờ'),dmau:C.muted},
-      {nhan:'Kiểm soát thống kê (SPC)',so:tinHieu,mau:(tinHieu>0?C.sand:C.teal),delta:(spc.so_scope_ngoai_ks||0)+' phạm vi ngoài kiểm soát',dmau:C.muted},
+      {nhan:'Sự kiện biến động thống kê',so:((bc.spc_su_kien&&bc.spc_su_kien.so_su_kien)!=null?bc.spc_su_kien.so_su_kien:tinHieu),mau:(tinHieu>0?C.sand:C.teal),delta:(((bc.spc_su_kien&&bc.spc_su_kien.so_su_kien_tiep_dien)||0)+' đang tiếp diễn · gộp từ '+((bc.spc_su_kien&&bc.spc_su_kien.tin_hieu_trong_ky)||0)+' tín hiệu thuộc kỳ'),dmau:C.muted},
       {nhan:'Độ tin cậy dữ liệu',so:fmt(dq.dq_tb_pct)+'%',mau:mau(dq.dq_tb_pct),delta:('độ phủ · '+((bc.ngoai_le&&bc.ngoai_le.tong_so)||0)+' ngoại lệ · '+(dq.so_ngay_thieu==null?'—':dq.so_ngay_thieu)+' ngày thiếu'),dmau:C.muted},
       {nhan:'Nhiệt độ động học trung bình (MKT)',so:fmt(mkt.mkt_max,2)+'°C',mau:(mkt.mkt_max!=null&&+mkt.mkt_max>25?C.red:C.ink),delta:(mkt.mkt_max_phong||'—')+' · cửa sổ 30 ngày',dmau:C.muted}
     ];
     el('kpis').innerHTML=kpis.map(function(k){return '<div class="kpi"><div class="nhan">'+esc(k.nhan)+'</div><div class="so" style="color:'+k.mau+'">'+esc(k.so)+'</div><div class="delta" style="color:'+k.dmau+'">'+esc(k.delta)+'</div></div>';}).join('');
-    el('tom-tat').textContent='Kỳ '+(meta.ky_bao_cao||bc.ky)+': tuân thủ toàn nhà máy '+fmt(k1.ty_le_tuan_thu)+'% ('+(dTuan==null?'chưa đủ dữ liệu để so kỳ trước':(dTuan>=0?'tăng ':'giảm ')+Math.abs(dTuan)+' điểm so kỳ trước')+'), '+(k1.so_gio_oos==null?'—':k1.so_gio_oos)+' giờ cảnh báo (trong đó '+(k1.so_gio_critical||0)+' giờ mức nghiêm trọng). Sự cố: '+(sc.mo_trong_ky==null?0:sc.mo_trong_ky)+' phát sinh, '+(sc.dong_trong_ky==null?0:sc.dong_trong_ky)+' đã đóng, '+(sc.dang_mo==null?0:sc.dang_mo)+' còn mở. '+(batThuong.length?('Có '+batThuong.length+' phòng xấu đi bất thường (xem mục 7). '):'Không phát hiện phòng xấu đi bất thường. ')+(tinHieu>0?(tinHieu+' tín hiệu kiểm soát thống kê cần theo dõi.'):'Không có tín hiệu biến động thống kê bất thường.');
+    el('tom-tat').textContent='Kỳ '+(meta.ky_bao_cao||bc.ky)+': tuân thủ toàn nhà máy '+fmt(k1.ty_le_tuan_thu)+'% ('+(dTuan==null?'chưa đủ dữ liệu để so kỳ trước':(dTuan>=0?'tăng ':'giảm ')+Math.abs(dTuan)+' điểm so kỳ trước')+'), '+(k1.so_gio_oos==null?'—':k1.so_gio_oos)+' giờ cảnh báo (trong đó '+(k1.so_gio_critical||0)+' giờ mức nghiêm trọng). Sự cố: '+(sc.mo_trong_ky==null?0:sc.mo_trong_ky)+' phát sinh, '+(sc.dong_trong_ky==null?0:sc.dong_trong_ky)+' đã đóng, '+(sc.dang_mo==null?0:sc.dang_mo)+' còn mở. '+(batThuong.length?('Có '+batThuong.length+' phòng xấu đi bất thường (xem mục 7). '):'Không phát hiện phòng xấu đi bất thường. ')+((bc.spc_su_kien&&bc.spc_su_kien.so_su_kien)?(bc.spc_su_kien.so_su_kien+' sự kiện biến động thống kê trong kỳ ('+(bc.spc_su_kien.so_su_kien_tiep_dien||0)+' đang tiếp diễn).'):(tinHieu>0?(tinHieu+' tín hiệu kiểm soát thống kê cần theo dõi.'):'Không có tín hiệu biến động thống kê bất thường.'));
 
     var loaiKy=String(meta.ky||bc.ky||'').toUpperCase();
     var trongTam={
@@ -606,7 +645,162 @@
     el('ai-noi-dung').textContent=ai.noi_dung||'Chưa có nhận định AI trong kỳ.';
     el('ai-dis').textContent='Số liệu do hệ thống tính — trí tuệ nhân tạo (AI) chỉ hỗ trợ sàng lọc và đề xuất. Kết luận theo Thực hành tốt sản xuất (GMP) do Kiểm soát trong quá trình (IPC) và Đảm bảo chất lượng (QA) xác nhận. Mô hình: '+(ai.model_dung||'—')+' · '+(ai.tao_luc||'—');
     el('foot').innerHTML='Truy vết GMP: mã lần chạy <b>'+esc(meta.ma_lan_chay||'')+'</b> · Nguồn số liệu: <code>'+esc(bc.nguon||'rpc_bao_cao_tong_hop')+"('"+esc(bc.ky||'')+"', '"+esc(bc.tu_ngay||'')+"', '"+esc(bc.den_ngay||'')+"')</code> + rpc_tat_ca_phong_ky. Đây là bản tương tác phục vụ phân tích; trạng thái bản phát hành chính thức phải được xác nhận trong quy trình kiểm soát tài liệu. Hệ thống quản lý tòa nhà BMS (CPC1HN).";
+  /* ═══ E16 — BẢN ĐỒ RỦI RO + NGĂN KÉO CHI TIẾT PHÒNG ═══════════════════════
+     Trước: muốn biết một phòng hỏng ở chỉ tiêu nào phải tự nối 4 bảng.
+     Nay: nhìn bản đồ thấy ngay phòng nào vừa thấp vừa nghiêm trọng lâu, bấm vào
+     là mở ba biểu đồ chênh áp / độ ẩm / nhiệt độ RIÊNG kèm giới hạn thật.     */
+  (function () {
+    var dsPhong = bc.tat_ca_phong || [];
+    var chuoiCB = bc.chuoi_cam_bien || {};
+    var skAll   = (bc.su_kien_vuot_nguong && bc.su_kien_vuot_nguong.danh_sach) || [];
+    var hdAll   = (bc.hang_doi_uu_tien && bc.hang_doi_uu_tien.danh_sach) || [];
+    var moPhong = {};
+    ((bc.su_co && bc.su_co.danh_sach_dang_mo) || []).forEach(function (o) { moPhong[o.phong] = o; });
+    var diemPhong = {};
+    hdAll.forEach(function (r) { diemPhong[r.ma_phong] = Math.max(diemPhong[r.ma_phong] || 0, r.diem || 0); });
+
+    if (!dsPhong.length) { var w0 = el('bd-wrap'); if (w0) w0.style.display = 'none'; return; }
+
+    /* ---- Bản đồ rủi ro ---- */
+    var W = 900, H = 340, L = 46, R = 14, T = 14, B = 34;
+    var maxY = Math.max(10, Math.max.apply(null, dsPhong.map(function (p) { return +p.so_gio_critical || 0; })));
+    var maxR = Math.max(1, Math.max.apply(null, dsPhong.map(function (p) { return +p.so_gio_oos || 0; })));
+    var X = function (v) { return L + (W - L - R) * Math.max(0, Math.min(100, v == null ? 0 : v)) / 100; };
+    var Y = function (v) { return T + (H - T - B) * (1 - (v || 0) / maxY); };
+    var Rd = function (v) { return 3 + 9 * Math.sqrt((v || 0) / maxR); };
+    var MAU_KHU = { C1: '#2a78d6', C4: '#c98500', Q2: '#008300' };
+    var sv = ['<svg id="bd-svg" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bản đồ rủi ro phòng">'];
+    [0, 25, 50, 75, 100].forEach(function (g) {
+      sv.push('<line x1="' + X(g) + '" y1="' + T + '" x2="' + X(g) + '" y2="' + (H - B) + '" stroke="#f1f5f9"/>');
+      sv.push('<text class="bd-chu" x="' + X(g) + '" y="' + (H - B + 14) + '" text-anchor="middle">' + g + '%</text>');
+    });
+    [0, .5, 1].forEach(function (f) {
+      var v = maxY * f;
+      sv.push('<line x1="' + L + '" y1="' + Y(v) + '" x2="' + (W - R) + '" y2="' + Y(v) + '" stroke="#f1f5f9"/>');
+      sv.push('<text class="bd-chu" x="' + (L - 6) + '" y="' + (Y(v) + 3.5) + '" text-anchor="end">' + Math.round(v) + 'h</text>');
+    });
+    sv.push('<line x1="' + X(80) + '" y1="' + T + '" x2="' + X(80) + '" y2="' + (H - B) + '" stroke="#d97706" stroke-dasharray="5 4"/>');
+    sv.push('<text class="bd-chu" x="' + (X(80) + 4) + '" y="' + (T + 11) + '" fill="#d97706">mốc quản trị 80%</text>');
+    dsPhong.slice().sort(function (a, b) { return (b.so_gio_oos || 0) - (a.so_gio_oos || 0); }).forEach(function (p) {
+      var co = !!moPhong[p.ma_phong];
+      sv.push('<circle class="bd-cham" data-phong="' + esc(p.ma_phong) + '"'
+        + ' cx="' + X(p.ty_le_tuan_thu).toFixed(1) + '" cy="' + Y(p.so_gio_critical).toFixed(1) + '"'
+        + ' r="' + Rd(p.so_gio_oos).toFixed(1) + '"'
+        + ' fill="' + (MAU_KHU[p.khu_vuc] || '#64748b') + '" fill-opacity="' + (co ? .85 : .5) + '"'
+        + ' stroke="' + (co ? '#b91c1c' : '#ffffff') + '" stroke-width="' + (co ? 2.4 : 1) + '">'
+        + '<title>' + esc((p.ten_phong || p.ma_phong) + ' · ' + p.khu_vuc) + '\n'
+        + 'trong ngưỡng ' + fmt(p.ty_le_tuan_thu) + '% · nghiêm trọng ' + (p.so_gio_critical || 0) + 'h'
+        + ' · cảnh báo ' + (p.so_gio_oos || 0) + 'h' + (co ? '\nĐANG CÓ SỰ CỐ MỞ' : '') + '</title></circle>');
+    });
+    sv.push('<text class="bd-chu" x="' + (W / 2) + '" y="' + (H - 4) + '" text-anchor="middle">tỉ lệ thời gian trong ngưỡng →</text>');
+    sv.push('</svg>');
+    el('bd-svg').innerHTML = sv.join('');
+
+    /* ---- Ngăn kéo chi tiết phòng ---- */
+    function bieuDoCB(maPhong, loai, ten) {
+      var o = chuoiCB[maPhong + '|' + loai];
+      if (!o || !o.chuoi || !o.chuoi.length) return '';
+      var c = o.chuoi, w = 500, h = 132, l = 40, r = 10, t = 10, b = 22;
+      var vals = [];
+      c.forEach(function (x) { [x.min, x.max, x.tb].forEach(function (v) { if (v != null) vals.push(+v); }); });
+      if (o.ghd != null) vals.push(+o.ghd); if (o.ght != null) vals.push(+o.ght);
+      var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+      if (!(hi > lo)) { hi = lo + 1; }
+      var pad = (hi - lo) * .12; lo -= pad; hi += pad;
+      var X2 = function (i) { return l + (w - l - r) * (c.length <= 1 ? 0 : i / (c.length - 1)); };
+      var Y2 = function (v) { return t + (h - t - b) * (1 - (v - lo) / (hi - lo)); };
+      var g = ['<svg viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">'];
+      // dải giới hạn: vùng ĐẠT nằm giữa GHD và GHT
+      if (o.ghd != null && o.ght != null) {
+        g.push('<rect x="' + l + '" y="' + Y2(+o.ght) + '" width="' + (w - l - r) + '" height="' + Math.abs(Y2(+o.ghd) - Y2(+o.ght)) + '" fill="#0d9488" fill-opacity=".07"/>');
+        [['ghd', o.ghd], ['ght', o.ght]].forEach(function (q) {
+          g.push('<line x1="' + l + '" y1="' + Y2(+q[1]) + '" x2="' + (w - r) + '" y2="' + Y2(+q[1]) + '" stroke="#b91c1c" stroke-dasharray="5 4" stroke-width="1.2"/>');
+          g.push('<text x="' + (w - r) + '" y="' + (Y2(+q[1]) - 3) + '" text-anchor="end" font-size="9" fill="#b91c1c">' + q[0].toUpperCase() + ' ' + q[1] + '</text>');
+        });
+      }
+      // dải min–max từng ngày + đường trung bình
+      c.forEach(function (x, i) {
+        if (x.min == null || x.max == null) return;
+        g.push('<line x1="' + X2(i) + '" y1="' + Y2(+x.min) + '" x2="' + X2(i) + '" y2="' + Y2(+x.max) + '" stroke="#94a3b8" stroke-width="6" stroke-opacity=".35" stroke-linecap="round"/>');
+      });
+      var duong = '';
+      c.forEach(function (x, i) { if (x.tb == null) return; duong += (duong ? ' L' : 'M') + X2(i).toFixed(1) + ' ' + Y2(+x.tb).toFixed(1); });
+      g.push('<path d="' + duong + '" fill="none" stroke="#0f172a" stroke-width="2"/>');
+      // ngày thiếu dữ liệu: đánh dấu bằng gạch chéo, KHÔNG vẽ như bình thường
+      c.forEach(function (x, i) {
+        if ((x.gio_co_dl || 0) >= (x.gio_tong || 0)) return;
+        g.push('<text x="' + X2(i) + '" y="' + (h - b + 12) + '" text-anchor="middle" font-size="9" fill="#b45309">thiếu</text>');
+      });
+      g.push('<text x="' + l + '" y="' + (h - 4) + '" font-size="9" fill="#64748b">' + esc(String(c[0].ngay).slice(5)) + '</text>');
+      g.push('<text x="' + (w - r) + '" y="' + (h - 4) + '" text-anchor="end" font-size="9" fill="#64748b">' + esc(String(c[c.length - 1].ngay).slice(5)) + '</text>');
+      g.push('</svg>');
+      var tongNgh = c.reduce(function (a, x) { return a + (x.ngh || 0); }, 0);
+      var tongCb = c.reduce(function (a, x) { return a + (x.cb || 0); }, 0);
+      return '<div class="nk-cb"><h4><span>' + ten + ' <span style="color:#64748b;font-weight:400">(' + esc(o.don_vi || '') + ')</span></span>'
+        + '<span style="color:#64748b;font-weight:400">' + tongNgh + 'h nghiêm trọng · ' + tongCb + 'h cảnh báo</span></h4>' + g.join('') + '</div>';
+    }
+
+    function moNganKeo(maPhong) {
+      var p = null;
+      dsPhong.forEach(function (x) { if (x.ma_phong === maPhong) p = x; });
+      if (!p) return;
+      var sk = skAll.filter(function (x) { return x.ma_phong === maPhong; });
+      var peers = dsPhong.filter(function (x) { return x.ahu && x.ahu === p.ahu && x.ma_phong !== maPhong; })
+                         .sort(function (a, b) { return (a.ty_le_tuan_thu || 0) - (b.ty_le_tuan_thu || 0); });
+      var sc = moPhong[maPhong];
+      var h = ['<h3>' + esc(p.ten_phong || p.ma_phong) + '</h3>'
+        + '<div class="dong">' + esc(p.ma_phong) + ' · khu ' + esc(p.khu_vuc) + ' · ' + esc(p.ahu || 'chưa gán AHU')
+        + ' · ưu tiên ' + esc(p.muc_uu_tien || '—') + '</div>'];
+      h.push('<div style="margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;font-size:13px">'
+        + '<div><b style="font-size:19px;color:' + mau(p.ty_le_tuan_thu) + '">' + fmt(p.ty_le_tuan_thu) + '%</b><br><span class="dong">trong ngưỡng</span></div>'
+        + '<div><b style="font-size:19px">' + (p.so_gio_critical || 0) + 'h</b><br><span class="dong">mức nghiêm trọng</span></div>'
+        + '<div><b style="font-size:19px">' + (p.so_gio_warning || 0) + 'h</b><br><span class="dong">mức cảnh báo</span></div>'
+        + '<div><b style="font-size:19px">' + fmt(p.dq_pct) + '%</b><br><span class="dong">độ đầy đủ số đo</span></div></div>');
+      if (sc) h.push('<div style="margin-top:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:9px 11px;font-size:12.5px">'
+        + '<b style="color:#b91c1c">Đang có sự cố mở</b> — ' + esc(sc.ma_su_co || '') + ' · ' + esc(sc.muc_canh_bao || '')
+        + ' · đã ' + fmt(sc.keo_dai_gio) + ' giờ · trạng thái ' + esc(sc.trang_thai || '—') + '</div>');
+      var bd = bieuDoCB(maPhong, 'DP', 'Chênh áp (ΔP)') + bieuDoCB(maPhong, 'RH', 'Độ ẩm tương đối (RH)') + bieuDoCB(maPhong, 'T', 'Nhiệt độ (T)');
+      h.push(bd || '<p class="dong" style="margin-top:12px">Không có chuỗi số đo theo cảm biến cho phòng này.</p>');
+      if (sk.length) {
+        h.push('<div class="nk-cb"><h4>Sự kiện vượt ngưỡng trong kỳ (' + sk.length + ')</h4><table style="width:100%;font-size:11.5px"><tbody>');
+        sk.slice(0, 8).forEach(function (x) {
+          h.push('<tr><td><b>' + esc(x.loai_cam_bien) + '</b> ' + esc(x.huong === 'THAP' ? 'thấp' : x.huong === 'CAO' ? 'cao' : '') + '</td>'
+            + '<td>' + esc(String(x.bat_dau).replace('T', ' ').slice(5, 16)) + ' → ' + esc(String(x.ket_thuc).replace('T', ' ').slice(5, 16)) + '</td>'
+            + '<td class="num">' + x.so_gio + 'h</td>'
+            + '<td>' + esc({ HOI_PHUC: 'đã hồi phục', MAT_DU_LIEU: '⚠ mất dữ liệu', HET_KY: 'còn tiếp diễn' }[x.ket_thuc_do] || '—') + '</td></tr>');
+        });
+        h.push('</tbody></table></div>');
+      }
+      if (peers.length) {
+        h.push('<div class="nk-cb"><h4>Phòng cùng ' + esc(p.ahu || 'AHU') + ' (' + peers.length + ')</h4>'
+          + '<p class="dong" style="margin:0 0 6px">Nhiều phòng cùng tổ hợp cùng xấu ⇒ nghi vấn ở tổ hợp; chỉ một phòng xấu ⇒ nghiêng về nguyên nhân cục bộ. Đây là dấu hiệu để kiểm, chưa phải kết luận.</p>'
+          + '<table style="width:100%;font-size:11.5px"><tbody>');
+        peers.slice(0, 10).forEach(function (q) {
+          h.push('<tr><td>' + esc(q.ten_phong || q.ma_phong) + '</td><td class="num" style="color:' + mau(q.ty_le_tuan_thu) + ';font-weight:700">'
+            + fmt(q.ty_le_tuan_thu) + '%</td><td class="num">' + (q.so_gio_critical || 0) + 'h</td></tr>');
+        });
+        h.push('</tbody></table></div>');
+      }
+      el('nk-noi-dung').innerHTML = h.join('');
+      el('nk').classList.add('mo'); el('nk-nen').classList.add('mo');
+      el('nk').setAttribute('aria-hidden', 'false');
+    }
+    function dongNganKeo() {
+      el('nk').classList.remove('mo'); el('nk-nen').classList.remove('mo');
+      el('nk').setAttribute('aria-hidden', 'true');
+    }
+    el('bd-svg').addEventListener('click', function (e) {
+      var t = e.target.closest ? e.target.closest('[data-phong]') : null;
+      if (t) moNganKeo(t.getAttribute('data-phong'));
+    });
+    el('nk-dong').addEventListener('click', dongNganKeo);
+    el('nk-nen').addEventListener('click', dongNganKeo);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') dongNganKeo(); });
+    window.moNganKeo = moNganKeo;
   })();
+  })();
+
+
   </script>
 <script>
 // Bấm điều hướng thì MỞ luôn mục đó — không bắt người đọc bấm hai lần.
