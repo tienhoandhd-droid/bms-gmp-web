@@ -250,14 +250,16 @@
         <p>{{tom_tat_dieu_hanh}}</p>
         <div style="margin:8px 0 2px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6B7686;font-weight:700;">Vì sao kỳ này ở trạng thái đó</div>
         {{ly_do_html}}
+        <div class="note-box" style="margin-top:9px"><b style="color:var(--ink)">Đối chiếu sự cố:</b> {{su_co_cau_doi_chieu}}.
+          <span class="note">{{su_co_moc_do}}.</span> <span style="color:#B3261E">{{su_co_canh_bao}}</span></div>
         <div class="concl"><b>Dữ kiện cần người có thẩm quyền xác nhận:</b>
           {{so_tin_hieu_spc}} tín hiệu kiểm soát thống kê và {{so_scope_ngoai_ks}} phạm vi ngoài kiểm soát.
           Kết luận phát hành thuộc Kiểm soát trong quá trình (IPC) và Đảm bảo chất lượng (QA).</div>
         <div class="strip">
           <div><b class="num">{{kpi_gio_critical}}</b>Giờ mức nghiêm trọng ({{ty_le_critical}} tổng)</div>
-          <div><b class="num">{{so_su_co_dang_mo}}</b>Sự cố còn mở · {{so_su_co_mo}} phát sinh / {{so_su_co_dong}} đã đóng</div>
+          <div><b class="num">{{su_co_ton_cuoi}}</b>Sự cố còn mở cuối kỳ · {{su_co_ton_dau}} tồn đầu / {{su_co_phat_sinh}} phát sinh / {{su_co_da_dong}} đã đóng</div>
           <div><b class="num">{{kpi_dq}}%</b>Độ phủ dữ liệu · {{so_ngoai_le}} ngoại lệ</div>
-          <div><b class="num">{{khu_dau}} {{khu_dau_pct}}</b>Khu gánh nhiều tải cảnh báo nhất</div>
+          <div><b class="num">{{khu_dau}} {{khu_dau_pct}}</b>Khu phát sinh nhiều giờ cảnh báo nhất</div>
         </div>
       </div>
     </div>
@@ -414,16 +416,26 @@
                                  ('open'|'doing'|'done'), capa_trang_thai_vi, capa_han.
        Nếu chưa có dữ liệu → mảng rỗng (section vẫn hợp lệ, bảng trống). -->
   <section class="sec avoid">
+    <div class="sec-h"><h2>Từng chỉ tiêu môi trường</h2><span class="note">mỗi cảm biến có hướng nguy hiểm riêng</span></div>
+    <p class="note" style="margin:0 0 8px">Tỉ lệ gộp của cả phòng che mất bản chất từng biến: một phòng có thể chênh áp rất xấu trong khi độ ẩm và nhiệt độ hoàn toàn ổn. Ba bảng dưới tách riêng, và mỗi loại chỉ tính theo <b>hướng thực sự nguy hiểm</b> của nó. Không so trực tiếp giữa ba loại vì đơn vị khác nhau (Pa, %RH, °C).</p>
+    {{chi_so_cam_bien_html}}
+        </tbody>
+      </table>
+    </div>
+    {{/each}}
+  </section>
+
+  <section class="card">
     <div class="sec-h"><h2>Hàng đợi ưu tiên xử lý</h2><span class="note">xếp theo điểm rủi ro · {{so_muc_uu_tien}} mục</span></div>
-    <p class="note" style="margin:0 0 6px">Điểm rủi ro = {{cach_tinh_diem}}. Bảng này trả lời "xử lý cái nào trước", khác với bảng xếp theo tỉ lệ thấp nhất (chỉ mô tả).</p>
+    <p class="note" style="margin:0 0 6px">Xếp theo mức nghiêm trọng, thời lượng, mức ưu tiên phòng, còn tiếp diễn hay không và số đợt tái diễn. Bảng này trả lời "xử lý cái nào trước", khác với bảng xếp theo tỉ lệ thấp nhất (chỉ mô tả).</p>
     <table>
-      <thead><tr><th>Đối tượng</th><th>Cảm biến</th><th class="r">Điểm</th><th>Vì sao ưu tiên</th><th>Giới hạn</th><th>Đang ở đâu</th></tr></thead>
+      <thead><tr><th>Đối tượng</th><th>Cảm biến</th><th>Mức</th><th>Vì sao ưu tiên</th><th>Giới hạn</th><th>Đang ở đâu</th></tr></thead>
       <tbody>
         {{#each hang_doi_uu_tien}}
         <tr>
           <td><b>{{ten_phong}}</b><br><span class="note">{{ma_phong}} · {{khu_vuc}} · {{ahu}} · {{muc_uu_tien}}</span></td>
           <td style="color:{{mau_muc}};font-weight:700">{{loai_cam_bien}}<br><span class="note">{{muc}}</span></td>
-          <td class="r num" style="font-weight:800">{{diem}}</td>
+          <td style="font-weight:800;color:{{mau_uu_tien}};white-space:nowrap">{{muc_uu_tien_vi}}</td>
           <td style="font-size:11px">{{giai_thich}}</td>
           <td class="num" style="font-size:11px">{{gioi_han}}</td>
           <td style="font-size:11px">{{phu_trach}} {{cham}}</td>
@@ -454,7 +466,7 @@
   </section>
 
   <section class="card">
-    <div class="sec-h"><h2>Sự kiện biến động thống kê</h2><span class="note">{{so_su_kien_spc}} sự kiện · {{so_su_kien_spc_tiep_dien}} đang tiếp diễn</span></div>
+    <div class="sec-h"><h2>Đợt biến động cần theo dõi</h2><span class="note">{{so_su_kien_spc}} sự kiện · {{so_su_kien_spc_tiep_dien}} đang tiếp diễn</span></div>
     <p class="note" style="margin:0 0 6px">{{spc_ghi_chu_cua_so}} Trong {{tin_hieu_spc_cua_so}} tín hiệu của cửa sổ, <b>{{tin_hieu_spc_trong_ky}}</b> tín hiệu thuộc kỳ báo cáo và được gộp thành <b>{{so_su_kien_spc}}</b> sự kiện — nhiều thuật toán cùng bắt một hiện tượng chỉ tính một lần.</p>
     <table>
       <thead><tr><th>Phạm vi</th><th>Cấp</th><th>Chiều</th><th>Xu hướng</th><th>Từ</th><th>Đến</th><th class="r">Ngày</th><th class="r">Tín hiệu</th><th>Thuật toán</th><th>Trạng thái</th></tr></thead>
@@ -471,7 +483,7 @@
 
   <section class="card">
     <div class="sec-h"><h2>Độ tin cậy dữ liệu</h2><span class="note">{{tin_cay_ket_luan}}</span></div>
-    <p style="margin:0 0 8px">{{tin_cay_ly_do}} Kỳ này kỳ vọng <b>{{gio_ky_vong}}</b> giờ đo, trong đó <b>{{gio_rong}}</b> giờ không có số đo nào (độ phủ <b>{{kpi_do_phu}}%</b>). Các giờ rỗng đã bị loại khỏi mẫu số tính tỉ lệ, nên tỉ lệ trong ngưỡng không bị thổi lên — nhưng kết luận chỉ áp dụng cho khoảng có dữ liệu hợp lệ.</p>
+    <p style="margin:0 0 8px"><b>{{du_lieu_anh_huong}}</b><br>{{tin_cay_ly_do}} Kỳ này kỳ vọng <b>{{gio_ky_vong}}</b> giờ đo, trong đó <b>{{gio_rong}}</b> giờ không có số đo nào (độ phủ <b>{{kpi_do_phu}}%</b>). Các giờ rỗng đã bị loại khỏi mẫu số tính tỉ lệ, nên tỉ lệ trong ngưỡng không bị thổi lên — nhưng kết luận chỉ áp dụng cho khoảng có dữ liệu hợp lệ.</p>
     <table>
       <thead><tr><th>Mã lỗi</th><th class="r">Số lần</th><th>Diễn giải</th></tr></thead>
       <tbody>
