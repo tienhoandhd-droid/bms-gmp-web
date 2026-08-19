@@ -108,7 +108,7 @@
   .bd-hit{fill:transparent;cursor:pointer}
   .bd-hit:focus{outline:2px solid #0F766E;outline-offset:2px}
   #bd-svg{width:100%;height:auto;display:block}
-  #bd-svg svg{width:100%;height:clamp(360px,38vw,520px)}
+  #bd-svg svg{width:100%;height:auto;max-height:none}
   .bd-cham{cursor:pointer}
   .bd-cham:hover{stroke:#0f172a;stroke-width:2}
   .bd-chu{font-size:10px;fill:#64748b}
@@ -171,7 +171,7 @@
 
     </div>
 <section class="card" id="bd-wrap">
-  <div class="sec-h"><h2>Bản đồ rủi ro phòng</h2><span class="note">bấm một chấm hoặc dùng phím Tab để mở chi tiết phòng</span></div>
+  <div class="sec-h"><h2>Phòng cần chú ý theo từng chỉ tiêu</h2><span class="note">bấm một hàng hoặc dùng phím Tab để mở chi tiết phòng</span></div>
   <div id="bd-tab" role="tablist" aria-label="Chọn chỉ tiêu" style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px"></div>
   <p class="note" id="bd-mo-ta" style="margin:0 0 8px"></p>
   <div id="bd-svg"></div>
@@ -710,63 +710,86 @@
 
     var MAU_KHU = { C1: '#2a78d6', C4: '#c98500', Q2: '#008300' };
     function veBanDo(tab) {
-      var d = (tab.diem || []).filter(function (r) { return r.x != null; });
-      var W = 900, H = 380, L = 52, R = 16, T = 16, B = 40;
-      var maxY = Math.max(1, Math.max.apply(null, d.map(function (r) { return +r.y || 0; })));
-      var X = function (v) { return L + (W - L - R) * Math.max(0, Math.min(100, v)) / 100; };
-      var Y = function (v) { return T + (H - T - B) * (1 - (v || 0) / maxY); };
-      var Rd = function (v) { return 4 + 8 * Math.sqrt(Math.max(0, v || 0) / maxY); };
-      var sv = ['<svg id="bd-svg-el" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bản đồ rủi ro theo ' + esc(tab.ten) + '">'];
-      [0, 25, 50, 75, 100].forEach(function (g) {
-        sv.push('<line x1="' + X(g) + '" y1="' + T + '" x2="' + X(g) + '" y2="' + (H - B) + '" stroke="#f1f5f9"/>');
-        sv.push('<text class="bd-chu" x="' + X(g) + '" y="' + (H - B + 15) + '" text-anchor="middle">' + g + '%</text>');
+      /* THANH NGANG XẾP HẠNG thay cho biểu đồ phân tán.
+         Lý do đổi: hai trục cũ ("% trong ngưỡng" và "giờ lệch") là CÙNG một phép đo
+         viết hai kiểu — đo trên dữ liệu thật: tương quan r = -1,000 ở Độ ẩm và Nhiệt
+         độ, -0,637 ở Chênh áp. Biểu đồ phân tán cần hai chiều ĐỘC LẬP; ở đây các chấm
+         chỉ xếp thành một đường và 17/57 chấm chồng nhau, phải rê chuột mới biết phòng
+         nào. Thanh ngang hiện thẳng TÊN PHÒNG và độ dài đọc được ngay. */
+      var d = (tab.diem || []).filter(function (r) { return (r.y || 0) > 0; })
+                              .sort(function (a, b2) { return (b2.y || 0) - (a.y || 0); });
+      var TOI_DA = 15;
+      var hien = d.slice(0, TOI_DA), con = d.length - hien.length;
+      if (!hien.length) {
+        el('bd-svg').innerHTML = '<p class="note" style="padding:18px 0">Không phòng nào lệch theo chỉ tiêu này trong kỳ.</p>';
+        el('bd-bang-noi').innerHTML = ''; el('bd-mo-ta').textContent = '';
+        return;
+      }
+      var maxY = Math.max.apply(null, hien.map(function (r) { return +r.y || 0; }));
+      var W = 1000, hangH = 30, L = 210, R = 210, T = 26, B = 34;
+      var H = T + B + hien.length * hangH;
+      var BW = W - L - R;
+      var sv = ['<svg id="bd-svg-el" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg"'
+                + ' preserveAspectRatio="xMinYMin meet" role="img" aria-label="Xếp hạng phòng theo ' + esc(tab.ten) + '">'];
+      // Mốc "toàn kỳ": thanh chạm mốc này nghĩa là phòng lệch gần như suốt cả kỳ —
+      // không phải biểu đồ hỏng mà là sự thật cần thấy ngay.
+      var gioKy = null;
+      try {
+        var t1 = new Date(bc.tu_ngay + 'T00:00:00'), t2 = new Date(bc.den_ngay + 'T00:00:00');
+        gioKy = Math.round((t2 - t1) / 36e5) + 24;
+      } catch (e) { gioKy = null; }
+      // trục mốc
+      [0, .25, .5, .75, 1].forEach(function (f) {
+        var x = L + BW * f;
+        sv.push('<line x1="' + x + '" y1="' + (T - 6) + '" x2="' + x + '" y2="' + (H - B + 2) + '" stroke="#eef2f6"/>');
+        sv.push('<text class="bd-chu" x="' + x + '" y="' + (T - 11) + '" text-anchor="middle">' + Math.round(maxY * f) + 'h</text>');
       });
-      [0, .5, 1].forEach(function (f) {
-        var v = maxY * f;
-        sv.push('<line x1="' + L + '" y1="' + Y(v) + '" x2="' + (W - R) + '" y2="' + Y(v) + '" stroke="#f1f5f9"/>');
-        sv.push('<text class="bd-chu" x="' + (L - 7) + '" y="' + (Y(v) + 3.5) + '" text-anchor="end">' + Math.round(v) + 'h</text>');
+      hien.forEach(function (r, i) {
+        var y = T + i * hangH, w = Math.max(2, BW * ((r.y || 0) / maxY));
+        var mau = MAU_KHU[r.khu_vuc] || '#64748b';
+        var ten = (r.ten_phong || r.ma_phong);
+        if (ten.length > 26) ten = ten.slice(0, 25) + '…';
+        var nhan = (r.ten_phong || r.ma_phong) + ' · ' + r.khu_vuc + ' · lệch ' + fmt(r.y)
+                 + ' giờ · trong ngưỡng ' + fmt(r.x) + '%' + (r.con ? ' · CÒN LỆCH' : ' · đã về dải');
+        sv.push('<text x="' + (L - 10) + '" y="' + (y + 15) + '" text-anchor="end" font-size="12.5" fill="#102A3E">'
+                + esc(ten) + '</text>');
+        sv.push('<text x="' + (L - 10) + '" y="' + (y + 26) + '" text-anchor="end" font-size="9.5" fill="#94a3b8">'
+                + esc(r.ma_phong + ' · ' + r.khu_vuc) + '</text>');
+        sv.push('<rect x="' + L + '" y="' + (y + 5) + '" width="' + BW + '" height="15" rx="4" fill="#f4f7fa"/>');
+        sv.push('<rect x="' + L + '" y="' + (y + 5) + '" width="' + w.toFixed(1) + '" height="15" rx="4" fill="' + mau
+                + '" fill-opacity="' + (r.con ? '.95' : '.45') + '"'
+                + (r.con ? ' stroke="#b91c1c" stroke-width="1.6"' : '') + '/>');
+        sv.push('<text x="' + (L + BW + 10) + '" y="' + (y + 13) + '" font-size="12" fill="#102A3E" font-weight="700">'
+                + fmt(r.y) + ' giờ</text>');
+        sv.push('<text x="' + (L + BW + 10) + '" y="' + (y + 25) + '" font-size="10" fill="#6B7686">'
+                + 'trong ngưỡng ' + fmt(r.x) + '%' + (r.con ? ' · còn lệch' : '') + '</text>');
+        // vùng bấm phủ cả hàng, cao 30px — thoải mái so với mức tối thiểu 24px
+        sv.push('<rect class="bd-hit" data-phong="' + esc(r.ma_phong) + '" x="0" y="' + y + '" width="' + W
+                + '" height="' + hangH + '" tabindex="0" role="button" aria-label="' + esc(nhan) + '">'
+                + '<title>' + esc(nhan) + '</title></rect>');
       });
-      sv.push('<line x1="' + X(80) + '" y1="' + T + '" x2="' + X(80) + '" y2="' + (H - B) + '" stroke="#d97706" stroke-dasharray="5 4"/>');
-      sv.push('<text class="bd-chu" x="' + (X(80) + 5) + '" y="' + (T + 11) + '" fill="#d97706">mốc quản trị 80%</text>');
-      // Nhãn bốn góc phần tư bằng tiếng Việt tự nhiên — người đọc biết ngay góc nào
-      // là vấn đề mà không cần suy từ hai trục.
-      var gx = X(50), gy = Y(maxY / 2);
-      sv.push('<line x1="' + gx + '" y1="' + T + '" x2="' + gx + '" y2="' + (H - B) + '" stroke="#e2e8f0" stroke-dasharray="3 5"/>');
-      sv.push('<line x1="' + L + '" y1="' + gy + '" x2="' + (W - R) + '" y2="' + gy + '" stroke="#e2e8f0" stroke-dasharray="3 5"/>');
-      [[L + 10, T + 14, 'start', 'CẦN XỬ LÝ TRƯỚC'], [W - R - 10, T + 14, 'end', 'THEO DÕI'],
-       [L + 10, H - B - 8, 'start', 'CẦN RÀ SOÁT'], [W - R - 10, H - B - 8, 'end', 'ỔN ĐỊNH HƠN']]
-        .forEach(function (q) {
-          sv.push('<text x="' + q[0] + '" y="' + q[1] + '" text-anchor="' + q[2] + '" font-size="10.5"'
-            + ' fill="#c3ccd6" font-weight="700" letter-spacing=".6">' + q[3] + '</text>');
-        });
-      d.slice().sort(function (a, b2) { return (b2.y || 0) - (a.y || 0); }).forEach(function (r) {
-        var cx = X(r.x).toFixed(1), cy = Y(r.y).toFixed(1), rr = Rd(r.y).toFixed(1);
-        var nhan = (r.ten_phong || r.ma_phong) + ' · ' + r.khu_vuc + ' · trong ngưỡng ' + fmt(r.x)
-                 + '% · ' + fmt(r.y) + ' giờ' + (r.con ? ' · CÒN LỆCH' : '');
-        sv.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + rr + '"'
-          + ' fill="' + (MAU_KHU[r.khu_vuc] || '#64748b') + '" fill-opacity="' + (r.con ? .85 : .45) + '"'
-          + ' stroke="' + (r.con ? '#b91c1c' : '#ffffff') + '" stroke-width="' + (r.con ? 2.4 : 1) + '"/>');
-        // Vùng bấm riêng, tối thiểu 24px theo WCAG 2.2, và bấm được bằng bàn phím.
-        sv.push('<circle class="bd-hit" data-phong="' + esc(r.ma_phong) + '" cx="' + cx + '" cy="' + cy + '" r="13"'
-          + ' tabindex="0" role="button" aria-label="' + esc(nhan) + '"><title>' + esc(nhan) + '</title></circle>');
-      });
-      sv.push('<text class="bd-chu" x="' + (W / 2) + '" y="' + (H - 6) + '" text-anchor="middle">tỉ lệ thời gian trong ngưỡng → · trục dọc: ' + esc(tab.nhanY) + '</text>');
+      if (gioKy && maxY >= gioKy * 0.9) {
+        var xk = L + BW * Math.min(1, gioKy / maxY);
+        sv.push('<line x1="' + xk + '" y1="' + (T - 4) + '" x2="' + xk + '" y2="' + (H - B + 2)
+                + '" stroke="#B3261E" stroke-dasharray="4 3" stroke-width="1.2"/>');
+        sv.push('<text x="' + (xk - 5) + '" y="' + (H - B + 16) + '" text-anchor="end" font-size="10" fill="#B3261E">'
+                + 'toàn kỳ ' + gioKy + 'h</text>');
+      }
       sv.push('</svg>');
       el('bd-svg').innerHTML = sv.join('');
-      el('bd-mo-ta').innerHTML = 'Trục ngang: tỉ lệ thời gian trong ngưỡng. Trục dọc: <b>' + esc(tab.nhanY) + '</b>. '
-        + (tab.ma === 'ALL'
-            ? 'Bản gộp cả ba chỉ tiêu — dùng để nhìn tổng thể; viền đỏ đậm = đang có sự cố mở.'
-            : (esc(tab.ten) + ' chỉ tính theo hướng thực sự nguy hiểm của nó (' + esc(tab.huong)
-               + '); viền đỏ đậm = còn lệch tại giờ dữ liệu mới nhất.'))
-        + ' Chấm càng to càng nhiều giờ. Góc dưới–phải là tốt; góc trên–trái là vừa thấp vừa lệch lâu.'
-        + (tab.ma === 'ALL' ? '' : ' Không so trực tiếp giữa các tab vì đơn vị khác nhau.');
-      // Bảng tương đương — bắt buộc có để không phụ thuộc riêng biểu đồ.
-      var hang = d.slice().sort(function (a, b2) { return (b2.y || 0) - (a.y || 0); }).slice(0, 25).map(function (r) {
+      el('bd-mo-ta').innerHTML = 'Xếp theo <b>' + esc(tab.nhanY) + '</b>, phòng lệch nhiều nhất ở trên. '
+        + (tab.ma === 'ALL' ? 'Bản gộp cả ba chỉ tiêu; viền đỏ = đang có sự cố mở.'
+            : (esc(tab.ten) + ' chỉ tính theo hướng thực sự nguy hiểm (' + esc(tab.huong)
+               + '); viền đỏ = còn lệch tại giờ dữ liệu mới nhất.'))
+        + ' Màu theo khu. Bấm một hàng để mở chi tiết phòng.'
+        + (con > 0 ? ' <b>Còn ' + con + ' phòng nữa</b> có lệch nhưng ít hơn — xem đầy đủ ở bảng bên dưới.' : '');
+      var hang = d.map(function (r) {
         return '<tr><td>' + esc(r.ten_phong || r.ma_phong) + '</td><td>' + esc(r.khu_vuc) + '</td>'
-          + '<td class="num">' + fmt(r.x) + '%</td><td class="num">' + fmt(r.y) + 'h</td>'
+          + '<td class="num">' + fmt(r.y) + 'h</td><td class="num">' + fmt(r.x) + '%</td>'
           + '<td>' + (r.con ? 'còn lệch' : 'đã về dải') + '</td></tr>'; }).join('');
-      el('bd-bang-noi').innerHTML = '<table><thead><tr><th>Phòng</th><th>Khu</th><th class="num">Trong ngưỡng</th>'
-        + '<th class="num">' + esc(tab.nhanY) + '</th><th>Trạng thái</th></tr></thead><tbody>' + hang + '</tbody></table>';
+      el('bd-bang-noi').innerHTML = '<table><thead><tr><th>Phòng</th><th>Khu</th><th class="num">'
+        + esc(tab.nhanY) + '</th><th class="num">Trong ngưỡng</th><th>Trạng thái</th></tr></thead><tbody>'
+        + hang + '</tbody></table>';
     }
     function veTab(i) {
       el('bd-tab').innerHTML = TABS.map(function (t, n) {
