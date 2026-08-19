@@ -207,6 +207,7 @@
       <summary><span class="tg">▸</span><span class="stt">11</span> So sánh mức nền tham chiếu &amp; xu hướng đáng chú ý<span class="dem" id="dem-bl">—</span></summary>
       <div class="noi-dung">
         <h3 style="font-size:12px;color:var(--muted);margin-bottom:6px">Tệ hơn / tốt hơn mức nền tham chiếu</h3>
+        <p id="nen-ghi-chu" style="font-size:11.5px;color:#8A5300;background:#FFF8E6;border:1px solid #F5E3B3;border-radius:8px;padding:8px 10px;margin:0 0 8px;line-height:1.55"></p>
         <div id="tb-baseline"></div>
         <h3 style="font-size:12px;color:var(--muted);margin:14px 0 6px">Xu hướng hồi quy đáng chú ý (R² ≥ 0.5)</h3>
         <div id="tb-xuhuong"></div>
@@ -538,6 +539,7 @@
       var bl=(bc.so_sanh_baseline||[]),xhc=(bc.xu_huong_dang_chu_y||[]);
       el('dem-bl').textContent=bl.length+' mức nền · '+xhc.length+' xu hướng';
       var DG={worse_than_baseline:'Tệ hơn mức nền',better_than_baseline:'Tốt hơn mức nền',stable:'Ổn định'};
+      (function(){var dn=(bc.duong_nen||{}); var e=el('nen-ghi-chu'); if(e){ if(dn.ghi_chu){ e.textContent='Đang so với: '+dn.ghi_chu+(dn.kieu_duong_nen?(' Kiểu: '+dn.kieu_duong_nen+'.'):''); } else { e.style.display='none'; } }})();
       el('tb-baseline').innerHTML=bl.length?('<table><thead><tr><th>Phạm vi</th><th>Tên</th><th>Chỉ tiêu</th><th class="num">Hiện tại %</th><th class="num">Mức nền %</th><th class="num">Chênh lệch</th><th>Đánh giá</th></tr></thead><tbody>'+bl.map(function(b){var d=b.compliance_delta;return '<tr><td>'+esc(b.scope_type)+'</td><td>'+esc(b.ten_scope||b.scope_id)+'</td><td>'+esc(b.sensor_type)+'</td><td class="num">'+fmt(b.hien_tai_tb)+'</td><td class="num">'+fmt(b.baseline_tb)+'</td><td class="num" style="color:'+(d==null?C.muted:d>=0?C.teal:C.red)+';font-weight:700">'+(d==null?'—':(d>0?'+':'')+fmt(d))+'</td><td>'+esc(DG[b.danh_gia]||b.danh_gia||'—')+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có so sánh mức nền tham chiếu trong 2 ngày gần đây.</p>';
       el('tb-xuhuong').innerHTML=xhc.length?('<table><thead><tr><th>Phạm vi</th><th>Tên</th><th>Chỉ tiêu</th><th>Hướng</th><th class="num">Độ dốc %/ngày</th><th class="num">R²</th></tr></thead><tbody>'+xhc.map(function(x){var hg=x.huong==='worsening'?'Xấu đi':x.huong==='improving'?'Cải thiện':'Ổn định';return '<tr><td>'+esc(x.scope_type)+'</td><td>'+esc(x.ten_scope||x.scope_id)+'</td><td>'+esc(x.sensor_type)+'</td><td style="color:'+(x.huong==='worsening'?C.red:x.huong==='improving'?C.teal:C.muted)+'">'+hg+'</td><td class="num">'+fmt(x.slope,3)+'</td><td class="num">'+fmt(x.r2,2)+'</td></tr>';}).join('')+'</tbody></table>'):'<p style="color:#64748b">Không có xu hướng đáng chú ý.</p>';
     })();
