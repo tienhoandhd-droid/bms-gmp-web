@@ -34,7 +34,7 @@ import logoCpc1hn from "../assets/logo-cpc1hn.png";
 
 // ===== Đã tách move-only 17/08/2026 → lib/uiConst, lib/phanQuyen, lib/dinhDang, lib/moPhong, lib/nutThaoTac, components/ui/CpcLogo =====
 import { PAGE_BG, cardShadow, CARD, STATUS, PRIORITY, MUC, LEVELS, LEVEL_PRIORITY, LEVEL_GLYPH, levelGlyph, SENSOR_META, ICON_CANH_BAO } from "../lib/uiConst";
-import { ROLE_VI, TEN_VAI_KHU, khuCua, tenVaiTro, docTenVaiTro, FULL_ACCESS, canManageRooms, TAB_ROLES, roleCanSeeTab } from "../lib/phanQuyen";
+import { ROLE_VI, TEN_VAI_KHU, khuCua, tenVaiTro, FULL_ACCESS, canManageRooms, TAB_ROLES, roleCanSeeTab } from "../lib/phanQuyen";
 import { mulberry32, hashStr, fmtH, fmtDelta, deltaTone, pad, toLocalInput, vnNow } from "../lib/dinhDang";
 import { RAW, ROOM_BIAS, rawSeries, sensorStats, sensorLevel, roomLevel, roomCompliance, roomHourlyOOS, genDaily, genHourly, SCOPES, MASTER, byType, findScope, RANGES, SENSORS, SCOPE_LEVELS, applySensor, getSeries, AREAS, AHUS, defSensors, ROOM_SEED, INITIAL_ROOMS, INCIDENTS0, SYSTEM_ALERTS, SOP } from "../lib/moPhong";
 import { A_TEAL, A_AMBER, A_INFO, A_ROSE, A_SLATE, A_IPC, A_MEP_NHAN, A_MEP_XONG, A_MEP_KHONG, STATUS_ACTIONS, rolesOfStatus, firstActionFor, nutKhopTrangThai, nutChoVaiTro, STATUS_DOT } from "../lib/nutThaoTac";
@@ -1057,72 +1057,6 @@ export default function AppShell() {
                 );
               })()}</>)}</Card>
               <p className="text-[12px] text-muted text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
-              {/* Cụm điều tra — mục RIÊNG, đặt SAU danh sách sự cố: sự cố là thứ vận hành
-                  cần thấy trước; cụm là lớp điều tra/kết luận QA, tra cứu sau. */}
-              {isLive && cumHienThi.length > 0 && (
-                <Card className="p-4">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div>
-                      <h3 className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>Cụm điều tra · {cumHienThi.length} cụm / {cumHienThi.reduce((n, c) => n + (c.su_co_dang_mo || 0), 0)} sự cố</h3>
-                      <p className="mt-0.5 text-[12px] text-muted leading-relaxed max-w-2xl">Sự cố được gộp theo <b>AHU × loại cảm biến</b> — đơn vị mà Cơ điện can thiệp được và QA kết luận được. Cụm tự mở khi sự cố đầu tiên sinh ra, tự đóng khi sự cố cuối cùng đóng.</p>
-                    </div>
-                  </div>
-                  {/* MOBILE: thẻ cụm dọc — không kéo ngang */}
-                  <div className="md:hidden mt-3 space-y-2">
-                    {cumHienThi.map((c) => {
-                      const hh = c.chan_doan && c.chan_doan.startsWith("THIẾT BỊ ĐO");
-                      const honHop = c.chan_doan && c.chan_doan.startsWith("HỖN HỢP");
-                      const mauChanDoan = hh ? "text-body bg-subtle" : honHop ? "text-warning bg-warning-soft" : "text-danger bg-danger-soft";
-                      return (
-                        <div key={c.ma_cum} onClick={() => setCumChiTiet(c)} className="rounded-2xl ring-1 ring-line bg-surface p-3 cursor-pointer active:bg-info-soft/40">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{c.ma_hien_thi}</span>
-                            <span className="text-[12px] text-body">{c.ahu || "—"} · {c.loai_cam_bien} <span className="text-muted">· Khu {c.khu_vuc}</span></span>
-                          </div>
-                          <p className="mt-1 text-[12px] tabular-nums"><b className="text-body">{c.su_co_dang_mo}</b> sự cố mở{c.so_chua_tiep_nhan > 0 && <span className="text-danger"> · {c.so_chua_tiep_nhan} chưa tiếp nhận</span>} · mở {Math.round(c.gio_mo)}h</p>
-                          <p className="mt-1.5"><span className={`inline-block rounded-lg px-2 py-1 text-[12px] leading-tight ${mauChanDoan}`}>{docTenVaiTro(c.chan_doan, c.khu_vuc)}</span></p>
-                          <div className="mt-1.5 flex items-center justify-between gap-2 text-[12px]">
-                            {c.da_co_ket_luan_qa ? <span className="text-success">✓ Kết luận: {c.qa_boi}</span> : <span className="text-muted">chưa có kết luận</span>}
-                            {(role === "QA" || role === "ADMIN") && <button onClick={(e) => { e.stopPropagation(); ghiKetLuanCum(c); }} className="rounded-lg bg-surface px-2.5 py-1 font-medium text-body ring-1 ring-line">{c.da_co_ket_luan_qa ? "Sửa" : "Lưu kết luận"}</button>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* DESKTOP: bảng như cũ */}
-                  <div className="hidden md:block mt-3 overflow-x-auto">
-                    <table className="w-full text-[12px] min-w-[860px]">
-                      <thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Cụm", "AHU · Chỉ tiêu", "Sự cố", "Chẩn đoán", "Phòng", "Mở", "Kết luận QA"].map((h) => <th key={h} className="py-2 px-3 font-semibold">{h}</th>)}</tr></thead>
-                      <tbody>{cumHienThi.map((c) => {
-                        const hh = c.chan_doan && c.chan_doan.startsWith("THIẾT BỊ ĐO");
-                        const honHop = c.chan_doan && c.chan_doan.startsWith("HỖN HỢP");
-                        const mauChanDoan = hh ? "text-body bg-subtle" : honHop ? "text-warning bg-warning-soft" : "text-danger bg-danger-soft";
-                        return (
-                          <tr key={c.ma_cum} onClick={() => setCumChiTiet(c)} className="border-t border-line align-top cursor-pointer hover:bg-info-soft/40">
-                            <td className="py-2.5 px-3 font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{c.ma_hien_thi}</td>
-                            <td className="py-2.5 px-3"><span className="font-medium text-body">{c.ahu || "—"}</span><span className="text-muted"> · {c.loai_cam_bien}</span><div className="text-[12px] text-muted">Khu {c.khu_vuc}</div></td>
-                            <td className="py-2.5 px-3 tabular-nums">
-                              <span className="font-semibold text-body">{c.su_co_dang_mo}</span>
-                              {c.so_chua_tiep_nhan > 0 && <span className="ml-1.5 text-[12px] text-danger">{c.so_chua_tiep_nhan} chưa tiếp nhận</span>}
-                            </td>
-                            <td className="py-2.5 px-3"><span className={`inline-block rounded-lg px-2 py-1 text-[12px] leading-tight ${mauChanDoan}`}>{docTenVaiTro(c.chan_doan, c.khu_vuc)}</span></td>
-                            <td className="py-2.5 px-3 text-muted max-w-[190px]"><span className="line-clamp-2" title={c.cac_phong}>{c.cac_phong || "—"}</span></td>
-                            <td className="py-2.5 px-3 tabular-nums text-muted">{Math.round(c.gio_mo)} h</td>
-                            <td className="py-2.5 px-3">
-                              {c.da_co_ket_luan_qa
-                                ? <span className="text-[12px] text-success" title={`${c.nguyen_nhan_goc}\n\nKhắc phục: ${c.hanh_dong_khac_phuc}`}>✓ {c.qa_boi}</span>
-                                : <span className="text-[12px] text-muted">chưa có</span>}
-                              {(role === "QA" || role === "ADMIN") && (
-                                <button onClick={(e) => { e.stopPropagation(); ghiKetLuanCum(c); }} className="ml-2 rounded-lg bg-surface px-2 py-1 text-[12px] font-medium text-body ring-1 ring-line hover:bg-subtle">{c.da_co_ket_luan_qa ? "Sửa" : "Lưu kết luận"}</button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}</tbody>
-                    </table>
-                  </div>
-                </Card>
-              )}
               {isLive && suCoDongXem.length > 0 && (
                 <Card className="p-4">
                   <button onClick={() => setKhungDongMo(!khungDongMo)} className="w-full flex items-center justify-between gap-3 text-left">
