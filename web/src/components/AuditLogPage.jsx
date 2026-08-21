@@ -381,14 +381,23 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
     if (!applied) return ''
     return `${formatVn(applied.tu).slice(0, 16)} → ${formatVn(applied.den).slice(0, 16)}`
   }, [applied])
+  const filterSummary = useMemo(() => {
+    if (!applied) return []
+    const chips = []
+    if (applied.tuKhoa) chips.push(`Từ khóa: ${applied.tuKhoa}`)
+    if (applied.nguoi) chips.push(`Người thực hiện: ${applied.nguoi}`)
+    if (applied.hanhDong) chips.push(`Hành động: ${AUDIT_ACTION_OPTIONS.find((o) => o.value === applied.hanhDong)?.label || applied.hanhDong}`)
+    if (applied.nguon) chips.push(`Nguồn: ${SOURCE_META[applied.nguon]?.label || applied.nguon}`)
+    return chips
+  }, [applied])
 
   return (
     <div className="space-y-4">
-      <div className="rounded-3xl bg-surface/95 p-5 ring-1 ring-line sm:p-6">
+      <div className="rounded-2xl bg-surface/95 p-4 ring-1 ring-line sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2"><FileText className="h-4 w-4" style={{ color: "var(--primary)" }} /><h3 className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>Nhật ký audit</h3><span className="text-[12px] uppercase tracking-wider text-muted">thao tác sự cố</span></div>
-            <p className="mt-1.5 max-w-3xl text-[12px] leading-relaxed text-muted">Tra cứu thao tác web, email và sự kiện hệ thống đã ghi tại máy chủ. Dữ liệu nguồn là audit trail append-only theo ALCOA+.</p>
+            <div className="flex items-center gap-2"><FileText className="h-4 w-4" style={{ color: "var(--primary)" }} /><h3 className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>Nhật ký thao tác</h3><span className="text-[12px] uppercase text-muted">ALCOA+</span></div>
+            <p className="mt-1.5 max-w-3xl text-[12.5px] leading-relaxed text-muted">Tra cứu thao tác web, email và sự kiện hệ thống đã ghi tại máy chủ. Mỗi bản ghi là vết truy xuất hồ sơ, chỉ ghi thêm và không sửa xóa.</p>
           </div>
           <div className="text-right text-[12px] text-muted"><p>Khoảng đang áp dụng</p><p className="mt-0.5 font-medium tabular-nums text-body">{appliedSummary}</p></div>
         </div>
@@ -404,7 +413,7 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
         </div>}
 
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label className="relative"><span className="sr-only">Từ khóa</span><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted" /><input value={draft.tuKhoa} onChange={(e) => setDraft((old) => ({ ...old, tuKhoa: e.target.value }))} onKeyDown={(e) => { if (e.key === 'Enter') applyFilter() }} placeholder="Mã sự cố, phòng, lý do…" className="w-full rounded-xl bg-surface py-2 pl-9 pr-3 text-[12px] text-body ring-1 ring-line" /></label>
+          <label className="relative"><span className="sr-only">Từ khóa</span><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted" /><input value={draft.tuKhoa} onChange={(e) => setDraft((old) => ({ ...old, tuKhoa: e.target.value }))} onKeyDown={(e) => { if (e.key === 'Enter') applyFilter() }} placeholder="Mã sự cố, phòng, AHU, lý do…" className="w-full rounded-xl bg-surface py-2 pl-9 pr-3 text-[12px] text-body ring-1 ring-line" /></label>
           <label><span className="sr-only">Người thực hiện</span><input value={draft.nguoi} onChange={(e) => setDraft((old) => ({ ...old, nguoi: e.target.value }))} onKeyDown={(e) => { if (e.key === 'Enter') applyFilter() }} placeholder="Tên hoặc email người thực hiện" className="w-full rounded-xl bg-surface px-3 py-2 text-[12px] text-body ring-1 ring-line" /></label>
           <label><span className="sr-only">Hành động</span><select value={draft.hanhDong} onChange={(e) => setDraft((old) => ({ ...old, hanhDong: e.target.value }))} className="w-full rounded-xl bg-surface px-3 py-2 text-[12px] text-body ring-1 ring-line"><option value="">Tất cả hành động</option>{AUDIT_ACTION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
           <label><span className="sr-only">Nguồn</span><select value={draft.nguon} onChange={(e) => setDraft((old) => ({ ...old, nguon: e.target.value }))} className="w-full rounded-xl bg-surface px-3 py-2 text-[12px] text-body ring-1 ring-line"><option value="">Tất cả nguồn</option>{SOURCE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
@@ -417,11 +426,17 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
           <button onClick={exportCsv} disabled={exporting || loading || forbidden} className="inline-flex items-center gap-1.5 rounded-xl bg-surface px-3.5 py-2 text-[12px] font-medium text-body ring-1 ring-line hover:bg-subtle disabled:opacity-50"><Download className="h-3.5 w-3.5" />{exporting ? 'Đang xuất…' : 'Xuất CSV'}</button>
           <span className="ml-auto text-[12px] tabular-nums text-muted">Trang {pageIndex + 1} · tối đa {PAGE_SIZE} dòng/trang</span>
         </div>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-[12px] font-semibold text-muted">Đang lọc:</span>
+          {filterSummary.length === 0
+            ? <span className="rounded-lg bg-subtle px-2 py-1 text-[12px] text-muted ring-1 ring-line">chưa thêm điều kiện</span>
+            : filterSummary.map((item) => <span key={item} className="rounded-lg bg-subtle px-2 py-1 text-[12px] text-body ring-1 ring-line">{item}</span>)}
+        </div>
 
         {(validationError || exportError) && <p className="mt-3 text-[12px] text-danger">{validationError || exportError}</p>}
       </div>
 
-      <div className="overflow-hidden rounded-3xl bg-surface/95 ring-1 ring-line">
+      <div className="overflow-hidden rounded-2xl bg-surface/95 ring-1 ring-line">
         {error ? <div className="px-6 py-12 text-center"><p className="text-[13px] font-medium text-danger">{error}</p>{!forbidden && <button onClick={refresh} className="mt-3 rounded-xl bg-surface px-3 py-1.5 text-[12px] text-body ring-1 ring-line">Thử lại</button>}</div>
           : loading && rows.length === 0 ? <div className="space-y-2 p-6">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-subtle" />)}</div>
             : rows.length === 0 ? <div className="px-6 py-12 text-center"><FileText className="mx-auto h-7 w-7 text-muted" /><p className="mt-3 text-[13px] font-medium text-body">Không có bản ghi audit khớp bộ lọc.</p><p className="mt-1 text-[12px] text-muted">Thử mở rộng khoảng thời gian hoặc đặt lại điều kiện tra cứu.</p></div>

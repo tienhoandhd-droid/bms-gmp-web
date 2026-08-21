@@ -20,6 +20,7 @@ const ChenhApTheoAhu = React.lazy(() => import("../features/pressure/ChenhApTheo
 const CauHinhNguoiNhan = React.lazy(() => import("../features/recipients/RecipientsPage"));
 const LuatPhanTuyenCard = React.lazy(() => import("../features/recipients/RecipientsPage").then((m) => ({ default: m.LuatPhanTuyenCard })));
 import { moHoSoCumBanIn } from "../lib/hoSoCum";
+import { useTheme } from "./providers/ThemeProvider";
 import {
   Droplets, Thermometer, ShieldCheck, ShieldAlert, Activity,
   AlertTriangle, CheckCircle2, HelpCircle, Clock, ChevronRight, X, FileText,
@@ -27,7 +28,7 @@ import {
   Wind, FileBarChart, LayoutDashboard, AlertOctagon, Building2, LineChart as LineIcon,
   ScrollText, Settings as Cog, Wifi, Printer, Plus, Trash2, Search, LogIn, LogOut,
   User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus, Save, GitBranch, Power,
-  Radio, RefreshCw, ClipboardList
+  Radio, RefreshCw, ClipboardList, Sun, Moon
 } from "lucide-react";
 import logoCpc1hn from "../assets/logo-cpc1hn.png";
 
@@ -121,6 +122,11 @@ const HIEN_VIEC_CUA_BAN = false;   // 16/07: user tạm ẩn — chưa cần thi
 
 
 export default function AppShell() {
+  const { preference, setPreference } = useTheme();
+  const resolvedTheme = preference === "dark" || preference === "light"
+    ? preference
+    : (typeof document !== "undefined" && document.documentElement.dataset.theme) || "light";
+  const toggleTheme = () => setPreference(resolvedTheme === "dark" ? "light" : "dark");
   const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return NAV_ITEMS.some((x) => x.k === t) || t === "tasks" ? t : "home"; } catch { return "home"; } });
   const [sheetThem, setSheetThem] = useState(false);   // sheet "Thêm" của bottom-nav mobile
   const [incChiTiet, setIncChiTiet] = useState(null);  // drawer chi tiết sự cố (bảng 7 cột — báo cáo 10)
@@ -133,6 +139,9 @@ export default function AppShell() {
     if (tab === "trend" || tab === "recent") { try { requestAnimationFrame(() => window.dispatchEvent(new Event("resize"))); } catch { /* không chặn render */ } }
   }, [tab]);
   const [auditTab, setAuditTab] = useState("audit");   // tab con Nhật ký & SOP: audit | config | sop
+  const [auditConfigSearch, setAuditConfigSearch] = useState("");
+  const [auditSopSearch, setAuditSopSearch] = useState("");
+  const [auditSopFilter, setAuditSopFilter] = useState("ALL");
   const [cfgTab, setCfgTab] = useState("canhbao");     // tab con Cài đặt: canhbao | phong | phantuyen | hethong
   const [dataSource, setDataSource] = useState(DEFAULT_DATA_SOURCE);   // 'demo' | 'live'
   const LIVE_MAC_DINH = DEFAULT_DATA_SOURCE === "live";   // LIVE → KHÔNG nhồi dữ liệu demo (tránh "thông tin không khớp")
@@ -738,6 +747,12 @@ export default function AppShell() {
           <div className="flex items-center gap-2.5 flex-wrap justify-end ml-auto">
             <div className="hidden md:block"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} /></div>
             {isLive && <SucKhoeWidget sk={live.sucKhoe} dangTai={live.dangTai} />}
+            <button onClick={toggleTheme}
+              className="flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-surface text-muted ring-1 ring-line hover:bg-subtle hover:text-body"
+              title={resolvedTheme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
+              aria-label={resolvedTheme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}>
+              {resolvedTheme === "dark" ? <Sun className="h-4 w-4" strokeWidth={1.9} /> : <Moon className="h-4 w-4" strokeWidth={1.9} />}
+            </button>
             {user ? <div className="flex items-center gap-2.5 rounded-2xl bg-surface pl-2 pr-2 ring-1 ring-line h-[50px]" style={cardShadow}><div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: "var(--primary-solid)" }}>{user.name[0]}</div><div className="leading-tight"><p className="text-xs font-semibold" style={{ color: "var(--text-default)" }}>{user.name}</p><p className="text-[12px] font-medium" style={{ color: "var(--primary)" }}>{ROLE_VI[user.role] || user.role}</p></div><button onClick={() => setPwOpen(true)} className="ml-1 rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đổi mật khẩu"><KeyRound className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => { setUser(null); if (isLive) authDangXuat(); }} className="rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đăng xuất"><LogOut className="w-4 h-4" strokeWidth={1.8} /></button></div>
               : <button onClick={() => setLoginOpen(true)} className="flex items-center gap-2 rounded-2xl px-4 text-sm font-semibold text-white h-[50px]" style={{ background: "var(--primary-solid)", ...cardShadow }}><LogIn className="w-4 h-4" strokeWidth={1.8} /> Đăng nhập</button>}
           </div>
@@ -1120,9 +1135,31 @@ export default function AppShell() {
               { k: "config", label: "Lịch sử cấu hình", icon: History },
               { k: "sop", label: "SOP & CAPA", icon: ShieldCheck },
             ];
+            const norm = (v) => String(v || "").toLocaleLowerCase("vi");
+            const cfgNeedle = norm(auditConfigSearch);
+            const cfgRows = (configHistory || []).filter((r) => !cfgNeedle || [r.t, r.who, r.change].some((v) => norm(v).includes(cfgNeedle)));
+            const sopNeedle = norm(auditSopSearch);
+            const sopList = Array.isArray(sopRows) ? sopRows : [];
+            const sopVisible = sopList.filter((r) => {
+              const matchesText = !sopNeedle || [r.sop, r.apply, r.dev, r.capa].some((v) => norm(v).includes(sopNeedle));
+              const hasDeviation = norm(r.dev).includes("dev") || norm(r.dev).includes("sai lệch") || !["", "—", "không"].includes(norm(r.dev));
+              const hasCapa = norm(r.capa).includes("capa") || !["", "—", "không"].includes(norm(r.capa));
+              const matchesFilter = auditSopFilter === "ALL" || (auditSopFilter === "DEV" && hasDeviation) || (auditSopFilter === "CAPA" && hasCapa);
+              return matchesText && matchesFilter;
+            });
             return (
             <div className="space-y-5">
-              <SectionTitle icon={ScrollText} hint="ALCOA+">Nhật ký truy vết & SOP</SectionTitle>
+              <div className="flex flex-wrap items-start justify-between gap-3 px-1">
+                <div>
+                  <SectionTitle icon={ScrollText} hint="audit trail · SOP · CAPA">Hồ sơ truy vết GMP</SectionTitle>
+                  <p className="mt-1.5 max-w-3xl text-[12.5px] leading-relaxed text-muted">Tra cứu thao tác, thay đổi cấu hình và hồ sơ SOP/CAPA phục vụ rà soát QA. Ưu tiên tìm nhanh theo mã sự cố, phòng, người thực hiện, SOP hoặc nội dung thay đổi.</p>
+                </div>
+                <div className="rounded-xl bg-subtle px-3 py-2 text-[12px] text-muted ring-1 ring-line">
+                  <span className="font-semibold text-body">{subTabs.find((s) => s.k === auditTab)?.label}</span>
+                  <span className="mx-1.5">·</span>
+                  nguồn hồ sơ hệ thống
+                </div>
+              </div>
               {/* Thanh tab con trên cùng — đỡ phải cuộn để chuyển mục */}
               <div className="flex flex-wrap gap-2 sticky top-0 z-10 bg-surface/80 backdrop-blur rounded-2xl ring-1 ring-line p-1.5">
                 {subTabs.map((s) => { const Ic = s.icon; const on = auditTab === s.k; return (
@@ -1136,10 +1173,73 @@ export default function AppShell() {
               </React.Suspense>
               )}
               {auditTab === "config" && (
-              <Card className="p-6"><SectionTitle icon={History} hint="cấu hình ngưỡng · phòng · cảm biến">Thay đổi cấu hình & dữ liệu gốc</SectionTitle><p className="text-[12px] text-muted mt-1.5">Mọi thay đổi cấu hình (sửa ngưỡng cảnh báo, thêm/bớt phòng & cảm biến, chỉnh giới hạn) — kể cả khi sửa trực tiếp trên cơ sở dữ liệu — đều hiển thị tại đây.</p><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Thời gian", "Người thực hiện", "Thay đổi"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{configHistory.length === 0 ? <tr><td colSpan={3} className="py-6 text-center text-muted text-[12px]">Chưa có thay đổi cấu hình.</td></tr> : configHistory.map((c, i) => <tr key={i} className="border-t border-line"><td className="py-2.5 pr-4 text-muted tabular-nums">{c.t}</td><td className="py-2.5 pr-4 text-body">{c.who}</td><td className="py-2.5 pr-4 text-body">{c.change}</td></tr>)}</tbody></table></div></Card>
+              <Card className="p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <SectionTitle icon={History} hint="ngưỡng cảnh báo · phòng · cảm biến">Lịch sử cấu hình</SectionTitle>
+                    <p className="mt-1.5 max-w-3xl text-[12.5px] leading-relaxed text-muted">Ghi nhận thay đổi cấu hình có ảnh hưởng tới kết luận giám sát: ngưỡng cảnh báo, phòng sạch, cảm biến và giới hạn vận hành.</p>
+                  </div>
+                  <span className="rounded-xl bg-subtle px-3 py-2 text-[12px] font-semibold text-body ring-1 ring-line">{cfgRows.length}/{configHistory.length} bản ghi</span>
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <label className="relative flex-1 min-w-[240px]">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" strokeWidth={1.8} />
+                    <input value={auditConfigSearch} onChange={(e) => setAuditConfigSearch(e.target.value)} placeholder="Tìm người thực hiện, thời gian hoặc nội dung thay đổi…" className="w-full rounded-xl bg-subtle py-2.5 pl-9 pr-3 text-[13px] text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line" />
+                  </label>
+                  {auditConfigSearch && <button onClick={() => setAuditConfigSearch("")} className="rounded-xl bg-surface px-3 py-2 text-[12px] font-medium text-body ring-1 ring-line hover:bg-subtle">Xóa tìm kiếm</button>}
+                </div>
+                <div className="mt-4 space-y-2">
+                  {cfgRows.length === 0 ? (
+                    <div className="rounded-xl bg-subtle px-4 py-8 text-center ring-1 ring-line"><History className="mx-auto h-6 w-6 text-muted" /><p className="mt-2 text-[13px] font-medium text-body">{configHistory.length === 0 ? "Chưa có thay đổi cấu hình." : "Không có bản ghi khớp tìm kiếm."}</p></div>
+                  ) : cfgRows.map((c, i) => (
+                    <div key={`${c.t}-${i}`} className="grid gap-2 rounded-xl bg-subtle px-3.5 py-3 ring-1 ring-line md:grid-cols-[150px_190px_1fr] md:items-start">
+                      <div className="text-[12px] font-semibold tabular-nums text-muted">{c.t}</div>
+                      <div className="text-[13px] font-medium text-body">{c.who}</div>
+                      <div className="text-[13px] leading-relaxed text-body">{c.change}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
               )}
               {auditTab === "sop" && (
-              <Card className="p-6"><SectionTitle icon={ShieldCheck} hint="phục vụ thanh tra">SOP & Deviation / CAPA</SectionTitle><div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["SOP", "Áp dụng cho", "Deviation", "CAPA"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead><tbody>{(sopRows || []).map((s, i) => <tr key={i} className="border-t border-line"><td className="py-2.5 pr-4 font-semibold" style={{ color: "var(--text-strong)" }}>{s.sop}</td><td className="py-2.5 pr-4 text-body">{s.apply}</td><td className="py-2.5 pr-4 text-body">{s.dev}</td><td className="py-2.5 pr-4 text-body">{s.capa}</td></tr>)}</tbody></table>{isLive && sopRows === null && <div className="h-10 rounded-xl bg-subtle animate-pulse mt-2" />}{isLive && Array.isArray(sopRows) && sopRows.length === 0 && <p className="text-[12px] text-muted mt-2">Chưa có hồ sơ SOP/CAPA nào trong cơ sở dữ liệu.</p>}</div></Card>
+              <Card className="p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <SectionTitle icon={ShieldCheck} hint="SOP · sai lệch · CAPA">SOP & CAPA</SectionTitle>
+                    <p className="mt-1.5 max-w-3xl text-[12.5px] leading-relaxed text-muted">Danh mục quy trình liên quan tới giám sát HVAC phòng sạch, sai lệch và hành động khắc phục/phòng ngừa. Dùng để đối chiếu nhanh khi rà hồ sơ hoặc chuẩn bị thanh tra.</p>
+                  </div>
+                  <span className="rounded-xl bg-subtle px-3 py-2 text-[12px] font-semibold text-body ring-1 ring-line">{sopVisible.length}/{sopList.length} hồ sơ</span>
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <label className="relative flex-1 min-w-[240px]">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" strokeWidth={1.8} />
+                    <input value={auditSopSearch} onChange={(e) => setAuditSopSearch(e.target.value)} placeholder="Tìm SOP, phạm vi áp dụng, sai lệch hoặc CAPA…" className="w-full rounded-xl bg-subtle py-2.5 pl-9 pr-3 text-[13px] text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line" />
+                  </label>
+                  {[["ALL", "Tất cả"], ["DEV", "Có sai lệch"], ["CAPA", "Có CAPA"]].map(([k, label]) => (
+                    <button key={k} onClick={() => setAuditSopFilter(k)} className={`rounded-xl px-3 py-2 text-[12px] font-medium ring-1 transition ${auditSopFilter === k ? "text-white ring-transparent" : "bg-surface text-body ring-line hover:bg-subtle"}`} style={auditSopFilter === k ? { backgroundColor: "var(--primary-solid)" } : {}}>{label}</button>
+                  ))}
+                </div>
+                {isLive && sopRows === null ? (
+                  <div className="mt-4 space-y-2">{Array.from({ length: 3 }, (_, i) => <div key={i} className="h-20 rounded-xl bg-subtle animate-pulse" />)}</div>
+                ) : sopVisible.length === 0 ? (
+                  <div className="mt-4 rounded-xl bg-subtle px-4 py-8 text-center ring-1 ring-line"><ShieldCheck className="mx-auto h-6 w-6 text-muted" /><p className="mt-2 text-[13px] font-medium text-body">{sopList.length === 0 ? "Chưa có hồ sơ SOP/CAPA nào trong cơ sở dữ liệu." : "Không có hồ sơ khớp điều kiện lọc."}</p></div>
+                ) : (
+                  <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    {sopVisible.map((s, i) => (
+                      <div key={`${s.sop}-${i}`} className="rounded-xl bg-subtle p-4 ring-1 ring-line">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h3 className="text-[14px] font-semibold text-strong">{s.sop}</h3>
+                          <span className={`rounded-lg px-2 py-1 text-[12px] font-semibold ring-1 ${norm(s.capa).includes("đang mở") ? "bg-warning-soft text-warning ring-warning-line" : norm(s.capa) === "không" || norm(s.capa) === "—" ? "bg-success-soft text-success ring-success-line" : "bg-info-soft text-info ring-info-line"}`}>CAPA: {s.capa || "—"}</span>
+                        </div>
+                        <dl className="mt-3 grid gap-2 text-[13px]">
+                          <div><dt className="text-[12px] font-semibold uppercase text-muted">Áp dụng cho</dt><dd className="mt-0.5 text-body">{s.apply || "—"}</dd></div>
+                          <div><dt className="text-[12px] font-semibold uppercase text-muted">Sai lệch liên quan</dt><dd className="mt-0.5 text-body">{s.dev || "—"}</dd></div>
+                        </dl>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
               )}
             </div>
             );
