@@ -2,7 +2,7 @@
 import React from "react";
 import { Gauge, Activity, FileBarChart, CheckCircle2, ClipboardCheck } from "lucide-react";
 
-export // Hiển thị kết quả AI theo MỤC: tách theo "## TÊN MỤC", mỗi mục là 1 khối có tiêu đề + màu.
+export // Hiển thị kết quả nhận định theo MỤC: tách theo "## TÊN MỤC", mỗi mục là 1 khối có tiêu đề + màu.
 // Nếu văn bản không có marker "##" → hiển thị nguyên văn (tương thích kết quả cũ).
 function AiSections({ text }) {
   if (!text) return null;
@@ -20,9 +20,10 @@ function AiSections({ text }) {
     const title = (nl < 0 ? b : b.slice(0, nl)).trim();
     const body = (nl < 0 ? "" : b.slice(nl + 1)).trim();
     const hienTitle = (t) => t
-      .replace("PHÂN TÍCH", "NHẬN XÉT GMP")
-      .replace("DỮ LIỆU", "SỐ LIỆU CHÍNH")
-      .replace("BÁO CÁO", "TÓM TẮT KẾT LUẬN")
+      .replace("PHÂN TÍCH", "RÀ SOÁT GMP")
+      .replace("DỮ LIỆU THÔ", "BẰNG CHỨNG DỮ LIỆU")
+      .replace("DỮ LIỆU", "BẰNG CHỨNG DỮ LIỆU")
+      .replace("BÁO CÁO", "KẾT LUẬN GMP")
       .replace("KHUYẾN NGHỊ", "THEO DÕI");
     const m = META.find((x) => title.toUpperCase().includes(x.kw)) || { icon: ClipboardCheck, c: "var(--primary)", bg: "bg-subtle", ring: "ring-line" };
     const Icon = m.icon;
@@ -39,8 +40,8 @@ function AiSections({ text }) {
     const parseRow = (r) => r.slice(1, -1).split("|").map((c) => c.trim());
     const laNgan = (cells) => cells.every((c) => /^[-: ]*$/.test(c));
     return (
-      <div key={idx} className={`rounded-2xl ring-1 ${m.ring} ${m.bg} p-3.5`}>
-        <div className="flex items-center gap-2 mb-1.5"><Icon className="w-4 h-4 shrink-0" style={{ color: m.c }} strokeWidth={1.9} /><h5 className="text-[12px] font-bold uppercase tracking-wide" style={{ color: m.c }}>{hienTitle(title)}</h5></div>
+      <div key={idx} className={`rounded-xl ring-1 ${m.ring} ${m.bg} p-3.5`}>
+        <div className="flex items-center gap-2 mb-1.5"><Icon className="w-4 h-4 shrink-0" style={{ color: m.c }} strokeWidth={1.9} /><h5 className="text-[12px] font-bold uppercase" style={{ color: m.c }}>{hienTitle(title)}</h5></div>
         <div className="space-y-1.5">{khoi.map((k, j) => {
           if (k.kind === "table") {
             const rows = k.rows.map(parseRow).filter((cells) => !laNgan(cells));
@@ -49,7 +50,7 @@ function AiSections({ text }) {
             return (
               <div key={j} className="overflow-x-auto rounded-lg ring-1 ring-line/80 bg-surface/70 my-1">
                 <table className="w-full text-[12px]">
-                  <thead><tr className="text-left text-[12px] uppercase tracking-wide text-muted bg-subtle/80">{head.map((c, i) => <th key={i} className="py-1.5 px-2.5 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
+                  <thead><tr className="text-left text-[12px] uppercase text-muted bg-subtle/80">{head.map((c, i) => <th key={i} className="py-1.5 px-2.5 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
                   <tbody>{than.map((r, ri) => <tr key={ri} className="border-t border-line">{r.map((c, ci) => <td key={ci} className={`py-1.5 px-2.5 ${ci === 0 ? "font-medium text-body" : "text-body tabular-nums"}`}>{c}</td>)}</tr>)}</tbody>
                 </table>
               </div>

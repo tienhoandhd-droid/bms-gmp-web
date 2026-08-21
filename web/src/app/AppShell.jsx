@@ -21,9 +21,9 @@ const CauHinhNguoiNhan = React.lazy(() => import("../features/recipients/Recipie
 const LuatPhanTuyenCard = React.lazy(() => import("../features/recipients/RecipientsPage").then((m) => ({ default: m.LuatPhanTuyenCard })));
 import { moHoSoCumBanIn } from "../lib/hoSoCum";
 import {
-  Droplets, Thermometer, Sparkles, ShieldCheck, ShieldAlert, Activity,
+  Droplets, Thermometer, ShieldCheck, ShieldAlert, Activity,
   AlertTriangle, CheckCircle2, HelpCircle, Clock, ChevronRight, X, FileText,
-  TrendingDown, TrendingUp, Gauge, CircleDot, Check, ChevronDown, Bell, BellOff, Mail, Cpu,
+  TrendingUp, Gauge, CircleDot, Check, ChevronDown, Bell, BellOff, Mail, Cpu,
   Wind, FileBarChart, LayoutDashboard, AlertOctagon, Building2, LineChart as LineIcon,
   ScrollText, Settings as Cog, Wifi, Printer, Plus, Trash2, Search, LogIn, LogOut,
   User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus, Save, GitBranch, Power,
@@ -784,10 +784,13 @@ export default function AppShell() {
                 <KpiCard icon={HelpCircle} label="Thiếu dữ liệu" value={kpis.thieuDL} total={kpis.tong} sub="không coi là đạt" accent={{ txt: "text-warning", bg: "bg-warning-soft", glow: "bg-warning-soft" }} onClick={() => setKpiModal("thieu")} loading={kpiLoading} />
                 <KpiCard icon={Activity} label="Sự cố Nghiêm trọng mở" value={p12Open} sub="phòng trọng yếu & quan trọng" accent={{ txt: "text-info", bg: "bg-info-soft", glow: "bg-info-soft" }} onClick={() => setKpiModal("p1")} loading={kpiLoading} />
               </div>
-              {/* Chú thích cách tính — tránh hiểu nhầm "phòng nhìn đẹp mà vẫn không đạt" */}
-              <p className="text-[13px] text-muted px-1 leading-relaxed -mt-2">
-                <b className="text-muted">Cách tính:</b> tỷ lệ đạt của phòng = 100% − %thời gian ngoài khoảng (OOS) của <b className="text-muted">cảm biến kém nhất</b> (DP/RH/T) trong <b className="text-muted">khung giờ chốt gần nhất</b> — chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt, dù các chỉ tiêu khác vẫn đẹp. Phòng <b className="text-muted">đạt</b> khi tỷ lệ đạt ≥ 80% <b className="text-muted">và</b> dữ liệu còn tươi (chốt giờ cách hiện tại ≤ {Math.round(FRESH_MIN / 60)}h); phòng thiếu dữ liệu/dữ liệu quá cũ không được tính là đạt.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-muted">khu {khuChoPhep.join(", ")}</b>.</> : null}
-              </p>
+              {/* Chú thích cách tính — đặt gọn để màn vận hành ưu tiên kết luận trước. */}
+              <details className="rounded-xl bg-subtle px-3.5 py-2.5 ring-1 ring-line -mt-1">
+                <summary className="cursor-pointer select-none text-[12px] font-semibold text-muted">Cách tính tỉ lệ đạt phòng</summary>
+                <p className="mt-2 text-[13px] text-muted leading-relaxed">
+                  Tỉ lệ đạt của phòng = 100% − %thời gian ngoài khoảng (OOS) của <b className="text-muted">cảm biến kém nhất</b> (DP/RH/T) trong <b className="text-muted">khung giờ chốt gần nhất</b>. Chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt, dù các chỉ tiêu khác vẫn đẹp. Phòng <b className="text-muted">đạt</b> khi tỉ lệ đạt ≥ 80% <b className="text-muted">và</b> dữ liệu còn tươi (chốt giờ cách hiện tại ≤ {Math.round(FRESH_MIN / 60)}h); phòng thiếu dữ liệu/dữ liệu quá cũ không được tính là đạt.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-muted">khu {khuChoPhep.join(", ")}</b>.</> : null}
+                </p>
+              </details>
               <TheDungHinhTongQuan isLive={isLive} khuChoPhep={khuChoPhep} onXemChiTiet={roleCanSeeTab(role, "sensors") ? () => setTab("sensors") : null} />
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
                 <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-line overflow-hidden text-[12px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={!xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Tất cả</button></div><span className="text-[12px] text-muted">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-muted">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : (() => {
@@ -802,11 +805,6 @@ export default function AppShell() {
                   </>);
                 })()}</div>
                 <aside className="space-y-5">
-                  {isLive ? (
-                  <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Tóm tắt hệ thống</SectionTitle>{live.capNhatLuc && !live.loi && <span className="text-[12px] text-muted">Cập nhật {live.capNhatLuc.toLocaleTimeString("vi-VN")}</span>}</div><p className="mt-3 text-[13px] leading-relaxed text-body">{matNguon ? <><b className="text-danger">Mất kết nối dữ liệu.</b> {skTomTat || ""} Không kết luận đạt/không đạt cho {kpis.tong} phòng cho tới khi nguồn trở lại.{p12Open > 0 && <> Còn <b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở.</>}</> : live.kpis ? <>Đang giám sát <b style={{ color: "var(--text-strong)" }}>{kpis.tong}</b> phòng: <span className="text-success font-semibold">{kpis.dat} đạt</span> · <span className="text-danger font-semibold">{kpis.khongDat} không đạt</span> · <span className="text-warning font-semibold">{kpis.thieuDL} thiếu dữ liệu</span>. {p12Open > 0 ? <><b className="text-danger">{p12Open}</b> sự cố Nghiêm trọng đang mở — ưu tiên xử lý.</> : "Không có sự cố Nghiêm trọng đang mở."}</> : (live.loi ? "Không tải được dữ liệu — kiểm tra kết nối/đăng nhập." : "Đang tải dữ liệu…")}</p><p className="mt-2 text-[12px] text-muted">Xem nhận định chi tiết tại tab Xu hướng hoặc Báo cáo.</p></Card>
-                  ) : (
-                  <Card className="p-5" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center justify-between"><SectionTitle icon={Sparkles}>Nhận định xu hướng</SectionTitle><span className="inline-flex items-center gap-1 text-[12px] font-semibold text-danger bg-danger-soft px-2 py-1 rounded-full"><TrendingDown className="w-3 h-3" strokeWidth={2} /> Δ 7 ngày −6%</span></div><p className="mt-3 text-[13px] leading-relaxed text-body"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>AHU-K01</span> cần kiểm tra ưu tiên — C4.R7, C4.R1 có tỉ lệ đạt thấp; rà soát quạt, lọc và lưu lượng.</p></Card>
-                  )}
                   <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{duLieuLoi ? <div className="rounded-2xl bg-danger-soft ring-1 ring-danger-line px-3 py-3 text-[12px] text-danger"><b>Không xác minh được trạng thái hệ thống.</b><p className="text-[12px] text-danger/80 mt-1">Máy chủ không trả lời. Đây KHÔNG có nghĩa là hệ thống đang bình thường — hãy kiểm tra nguồn dữ liệu và máy chủ (chi tiết ở Cài đặt → Hệ thống).</p></div> : systemAlerts === null ? <div className="h-20 rounded-2xl bg-subtle animate-pulse" />  : systemAlerts.length === 0 ? <p className="text-[12px] text-muted py-2">Không có cảnh báo hệ thống nào.</p>  : systemAlerts.map((a, i) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={i} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-line/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-body font-medium">{a.text}</p><p className="text-[12px] text-muted mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
                 </aside>
               </div>

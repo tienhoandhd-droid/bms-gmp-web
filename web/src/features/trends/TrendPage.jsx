@@ -3,7 +3,7 @@ import { AiSections } from "./AiSections";
 import InspectorDrawer from "../../components/layout/InspectorDrawer";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Activity, AlertOctagon, AlertTriangle, Check, CheckCircle2, ChevronDown, CircleDot, FileBarChart, Gauge, LineChart as LineIcon, Mail, Minus, Printer, Save, Search, Sparkles, TrendingDown, TrendingUp, Wifi } from "lucide-react";
+import { Activity, AlertOctagon, AlertTriangle, Check, CheckCircle2, ChevronDown, CircleDot, ClipboardCheck, FileBarChart, Gauge, LineChart as LineIcon, Mail, Minus, Printer, Save, Search, TrendingDown, TrendingUp, Wifi } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
 import Chart from "../../components/ui/Chart";
 import { KpiCard } from "../../components/ui/KpiCard";
@@ -850,8 +850,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <span className="text-[12px] text-body">Đang chọn: <b style={{ color: "var(--text-strong)" }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {RANGES.find((r) => r.k === range).label}{(dtFrom || dtTo) ? ` · ${view[0]?.label}→${view[view.length - 1]?.label}` : ""}</span>
         <div className="flex gap-2">
           <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo…" : "In báo cáo A4 (kèm nhận định)"}</button>
-          <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "Đang lập nhận định…" : "Lập nhận định"}</button>
-          {isLive && aiWebhookSau && <button onClick={() => runAI(true)} disabled={aiBusy} title="Rà soát chi tiết: nguyên nhân khả dĩ, CAPA theo bộ phận và đề nghị phòng ngừa; thường mất 1-3 phút" className={`text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ background: "var(--info-solid)" }}><Sparkles className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={2} /> {aiBusy ? "Đang rà soát chi tiết…" : "Rà soát CAPA"}</button>}
+          <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><ClipboardCheck className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "Đang lập nhận định…" : "Lập nhận định"}</button>
+          {isLive && aiWebhookSau && <button onClick={() => runAI(true)} disabled={aiBusy} title="Rà soát chi tiết: nguyên nhân khả dĩ, CAPA theo bộ phận và đề nghị phòng ngừa; thường mất 1-3 phút" className={`text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ background: "var(--info-solid)" }}><ClipboardCheck className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={2} /> {aiBusy ? "Đang rà soát chi tiết…" : "Rà soát CAPA"}</button>}
         </div>
       </Card>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -861,7 +861,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <KpiCard icon={CheckCircle2} label="Tỉ lệ đạt — mốc mới nhất" value={fmtPct(latest.comp)} sub={`${latest.label ? latest.label + " · " : ""}${activeScope.name} · ${SENSORS.find((s) => s.k === sensor).label}`} accent={{ txt: "text-success", bg: "bg-success-soft", glow: "bg-success-soft" }} />
         <KpiCard icon={Wifi} label="Độ đầy đủ dữ liệu" value={`${latest.dq || "—"}%`} sub="dùng để kết luận" accent={{ txt: "text-info", bg: "bg-info-soft", glow: "bg-info-soft" }} />
         <KpiCard icon={delta7 != null && delta7 < 0 ? TrendingDown : TrendingUp} label="Delta ngày / 7 ngày" value={fmtDelta(deltaDay)} sub={`7 ngày: ${fmtDelta(delta7)}`} accent={{ txt: deltaTone(delta7), bg: "bg-warning-soft", glow: "bg-warning-soft" }} />
-        <KpiCard icon={AlertTriangle} label="Giờ cảnh báo (kỳ)" value={fmtH(totalAlert)} sub="Warning + Critical" accent={{ txt: "text-danger", bg: "bg-danger-soft", glow: "bg-danger-soft" }} />
+        <KpiCard icon={AlertTriangle} label="Giờ cảnh báo (kỳ)" value={fmtH(totalAlert)} sub="Cảnh báo + nguy cấp" accent={{ txt: "text-danger", bg: "bg-danger-soft", glow: "bg-danger-soft" }} />
       </div>
 
       <Card className="p-6"><SectionTitle icon={FileBarChart} hint="1 / 7 / 30 / 90 ngày">Báo cáo xu hướng nhanh</SectionTitle>
@@ -871,7 +871,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       <div id="trendPrintArea" className="space-y-5">
         {aiBusy && (
           <Card className="p-5 ring-1 ring-success-line">
-            <div className="flex items-center gap-3"><Sparkles className="w-5 h-5 animate-pulse" style={{ color: "var(--primary)" }} strokeWidth={1.9} /><div><p className="text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>Đang lập nhận định…</p><p className="text-[12px] text-muted">Hệ thống đang rà soát số liệu biểu đồ. Thường mất 10-30 giây.</p></div></div>
+            <div className="flex items-center gap-3"><ClipboardCheck className="w-5 h-5 animate-pulse" style={{ color: "var(--primary)" }} strokeWidth={1.9} /><div><p className="text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>Đang lập nhận định…</p><p className="text-[12px] text-muted">Hệ thống đang rà soát số liệu biểu đồ. Thường mất 10-30 giây.</p></div></div>
           </Card>
         )}
         {/* ============ PHÒNG: phân tích chi tiết khi có lỗi ============ */}
@@ -903,7 +903,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted">{showMulti ? sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: SENSOR_COLOR[k] }} /> {SENSOR_META[k]?.label || k}</span>) : (<><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_OK }} /> ≥ 80% đạt</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: COMPLY_BAD }} /> &lt; 80% (điểm đỏ)</span></>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: "var(--warning-line)" }} /> Ngưỡng 80%</span></div>
           </Card>
           {/* (3) SPC — Levey-Jennings quanh nền 30 ngày (A2) */}
-          <details className="rounded-2xl ring-1 ring-line px-1 py-1"><summary className="cursor-pointer px-4 py-2.5 text-[13px] font-medium text-muted select-none">Phân tích nâng cao — kiểm soát thống kê (SPC) ▾</summary>
+          <details className="rounded-2xl ring-1 ring-line px-1 py-1"><summary className="cursor-pointer px-4 py-2.5 text-[13px] font-medium text-muted select-none">Rà soát nâng cao — kiểm soát thống kê (SPC) ▾</summary>
           <Card className="p-6"><SectionTitle icon={Activity} hint={`${activeScope.name} · vùng ±1/2/3σ quanh nền 30 ngày · tín hiệu Nelson`}>③ Kiểm soát thống kê (SPC — Levey-Jennings)</SectionTitle>
             <p className="text-[12px] text-muted mt-1">Phát hiện <b>dịch chuyển/xu hướng trước khi vượt ngưỡng OOS</b>: điểm cam = tín hiệu Nelson R2 (9 điểm cùng phía) / R3 (6 điểm đơn điệu), điểm đỏ = vượt 3σ (R1). Nền TB±σ do job đêm tính (tất định) — kết luận chính thức theo bảng SPC bên dưới trang.</p>
             {(() => {
@@ -947,7 +947,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             (17/08: vỏ điều kiện cũ từng bọc một object literal rỗng → React #31 khi LIVE — đã gỡ trọn khối.) */}
 
         {/* ============ CHUNG: số liệu kỹ thuật phục vụ rà soát xu hướng ============ */}
-        <details className="rounded-2xl ring-1 ring-line px-1 py-1"><summary className="cursor-pointer px-4 py-2.5 text-[13px] font-medium text-muted select-none">Số liệu nâng cao — thống kê &amp; dữ liệu thô ▾</summary>
+        <details className="rounded-2xl ring-1 ring-line px-1 py-1"><summary className="cursor-pointer px-4 py-2.5 text-[13px] font-medium text-muted select-none">Bằng chứng dữ liệu — thống kê &amp; dữ liệu gốc ▾</summary>
         <Card className="p-6"><SectionTitle icon={CircleDot} hint="số liệu nền để rà soát xu hướng">Thống kê xu hướng</SectionTitle>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4">{[
             ["Số điểm", tech.n ? `${tech.n}` : "—", "text-body"],
@@ -1075,7 +1075,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         {/* G3: Nhận định xu hướng đặt SAU toàn bộ dữ liệu tất định (thứ tự theo báo cáo nâng cấp) */}
         {!aiBusy && aiResult && (() => { const al = [{ l: "Kiểm soát tốt", c: "text-success", bg: "bg-success-soft", ring: "ring-success-line" }, { l: "Cần chú ý", c: "text-info", bg: "bg-info-soft", ring: "ring-info-line" }, { l: "Cảnh báo", c: "text-warning", bg: "bg-warning-soft", ring: "ring-warning-line" }, { l: "Hành động", c: "text-danger", bg: "bg-danger-soft", ring: "ring-danger-line" }][aiResult.level]; return (
           <Card className={`p-5 ring-1 ${al.ring}`}>
-            <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={Sparkles}>Nhận định xu hướng</SectionTitle><div className="flex items-center gap-2">{aiResult.nguon === "openai" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-success-soft text-success ring-1 ring-success-line">Bản hỗ trợ</span>}{aiResult.nguon === "cuc_bo" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-subtle text-muted">Bản tính tại chỗ</span>}<span className={`text-[12px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Mức theo dõi: {al.l}</span></div></div>
+            <div className="flex items-center justify-between flex-wrap gap-2"><SectionTitle icon={ClipboardCheck}>Nhận định hỗ trợ</SectionTitle><div className="flex items-center gap-2">{aiResult.nguon === "openai" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-success-soft text-success ring-1 ring-success-line">Bản hỗ trợ</span>}{aiResult.nguon === "cuc_bo" && <span className="text-[12px] font-semibold px-2 py-1 rounded-full bg-subtle text-muted">Bản tính tại chỗ</span>}<span className={`text-[12px] font-semibold px-2.5 py-1 rounded-full ${al.bg} ${al.c}`}>Mức theo dõi: {al.l}</span></div></div>
             <p className="mt-1 mb-2 text-[12px] text-muted bg-subtle ring-1 ring-line/70 rounded-lg px-3 py-1.5">Bản nhận định chỉ phục vụ rà soát xu hướng. Số liệu đo và phép tính do hệ thống BMS tổng hợp; kết luận GMP do IPC/QA phê duyệt.</p>
             <AiSections text={aiResult.text} />
             {aiNote && <p className="mt-3 text-[12px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-3 py-2">⚠ {aiNote}</p>}
@@ -1083,8 +1083,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
               <div className="mt-4 border-t border-line pt-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <button onClick={() => { setEmailOpen((v) => !v); setSendMsg(null); }} disabled={!!sendBusy} className="text-xs font-medium rounded-xl px-3.5 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 disabled:opacity-60"><Mail className="w-3.5 h-3.5" strokeWidth={1.8} /> Gửi email (tuỳ chọn)</button>
-                  <button onClick={luuDriveNhanDinh} disabled={!!sendBusy} className="text-xs font-medium rounded-xl px-3.5 py-2 text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: "var(--primary-solid)" }}><Save className={`w-3.5 h-3.5 ${sendBusy === "drive" ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {sendBusy === "drive" ? "Đang lưu…" : "Lưu vào Drive"}</button>
-                  <span className="text-[12px] text-muted">Lưu bản nhận định này (.html) vào Google Drive; email là tuỳ chọn.</span>
+                  <button onClick={luuDriveNhanDinh} disabled={!!sendBusy} className="text-xs font-medium rounded-xl px-3.5 py-2 text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: "var(--primary-solid)" }}><Save className={`w-3.5 h-3.5 ${sendBusy === "drive" ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {sendBusy === "drive" ? "Đang lưu…" : "Lưu hồ sơ"}</button>
+                  <span className="text-[12px] text-muted">Lưu bản nhận định này vào hồ sơ nội bộ; email là tuỳ chọn.</span>
                 </div>
                 {emailOpen && (
                   <div className="mt-2 flex items-center gap-2 flex-wrap">

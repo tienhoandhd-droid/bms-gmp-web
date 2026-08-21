@@ -65,6 +65,11 @@ const chartWrap = "rounded-xl bg-surface ring-1 ring-line p-2";
 const TT_CSS = "border-radius:12px;box-shadow:0 10px 30px -8px rgba(35,80,110,0.4);padding:8px 12px;"; // chart-color-exception: tooltip DOM shadow
 const tooltipBase = () => ({ backgroundColor: T().surface, borderColor: T().border, borderWidth: 1, textStyle: { fontSize: 11, color: T().textStrong }, extraCssText: TT_CSS });
 const gradient = (c, top = 0.30, bot = 0.02) => new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: echarts.color.modifyAlpha(c, top) }, { offset: 1, color: echarts.color.modifyAlpha(c, bot) }]);
+const tooltipEvidence = ({ title, verdict, tone = CHEX.teal, rows = [], notes = [] }) => {
+  const rowHtml = rows.filter(Boolean).map(([k, v, c]) => `<div style="display:flex;justify-content:space-between;gap:18px;margin-top:3px"><span style="color:${T().textMuted}">${k}</span><b style="color:${c || T().textStrong};font-weight:700">${v}</b></div>`).join("");
+  const noteHtml = notes.filter(Boolean).map((n) => `<div style="margin-top:5px;color:${n.color || T().textMuted}">${n.text || n}</div>`).join("");
+  return `<div style="min-width:190px"><div style="font-weight:700;color:${T().textStrong};margin-bottom:4px">${title}</div><div style="display:inline-block;border-radius:999px;padding:2px 8px;background:${echarts.color.modifyAlpha(tone, 0.12)};color:${tone};font-weight:700;margin-bottom:4px">${verdict}</div>${rowHtml}${noteHtml}</div>`;
+};
 
 // ---- Wrapper React quanh ECharts: init 1 lần, cập nhật option, tự resize ----
 function EChart({ option, height = 200, width = "100%", className = "", group = null, onPointClick = null }) {
@@ -188,7 +193,7 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
   const [ymin, ymax] = complyDomain([...data.map((d) => d.comp), ...prevVals]);
   // Overlay SỰ CỐ: vạch dọc ⚑ tại thời điểm mở sự cố — incidents = [{idx, name}]
   const markLineData = [
-    { yAxis: 80, lineStyle: { color: CHEX.sand, type: "dashed", width: 1.4 }, label: { formatter: "ngưỡng 80%", fontSize: 9, color: CHEX.sand, position: "insideEndTop" } },
+    { yAxis: 80, lineStyle: { color: CHEX.sand, type: "dashed", width: 1.5 }, label: { formatter: "Ngưỡng GMP 80%", fontSize: 10, color: CHEX.sand, position: "insideEndTop" } },
     ...(incidents || []).filter((sc) => sc.idx >= 0 && sc.idx < data.length).map((sc) => ({
       xAxis: sc.idx,
       lineStyle: { color: CHEX.coral, type: "solid", width: 1.1, opacity: 0.65 },
@@ -199,7 +204,7 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
   (incidents || []).forEach((sc) => { (incByIdx[sc.idx] = incByIdx[sc.idx] || []).push(sc.name); });
   const option = {
     animation: false,
-    grid: { top: 18, right: 16, bottom: 34, left: 8, containLabel: true },
+    grid: { top: 22, right: 16, bottom: 34, left: 8, containLabel: true },
     toolbox: toolboxLuuAnh("ty-le-dat" + (idSuffix ? "-" + idSuffix : "")),
     dataZoom: dataZoomTruot(6),
     tooltip: {
@@ -209,9 +214,19 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
         const prv = ps.find((x) => x.seriesName === "Kỳ trước");
         const v = cur && cur.data != null ? (cur.data.value != null ? cur.data.value : cur.data) : null;
         const i = cur ? cur.dataIndex : -1;
-        const sc = incByIdx[i] ? `<div style="color:${CHEX.coralDeep}">⚑ ${incByIdx[i].join("<br/>⚑ ")}</div>` : "";
-        const pv = prv && prv.data != null ? `<div style="color:${T().textMuted}">Kỳ trước: ${fmtPct(prv.data)}</div>` : "";
-        return `${cur ? cur.axisValue : ""}<br/>${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}${pv}${sc}`;
+        const bad = v != null && v < 80;
+        return tooltipEvidence({
+          title: cur ? cur.axisValue : "",
+          verdict: v == null ? "Chưa đủ dữ liệu" : bad ? "Dưới ngưỡng GMP" : "Trong kiểm soát",
+          tone: v == null ? T().textMuted : bad ? CHEX.coralDeep : CHEX.teal,
+          rows: [
+            ["Tỉ lệ đạt", fmtPct(v), bad ? CHEX.coralDeep : CHEX.teal],
+            ["OOS", v == null ? "—" : `${(100 - v).toFixed(1)}%`, bad ? CHEX.coralDeep : T().textStrong],
+            ["Ngưỡng GMP", "80%", CHEX.sand],
+            prv && prv.data != null ? ["Kỳ trước", fmtPct(prv.data), T().textMuted] : null,
+          ],
+          notes: incByIdx[i] ? incByIdx[i].map((x) => ({ text: `⚑ ${x}`, color: CHEX.coralDeep })) : [],
+        });
       },
     },
     xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
@@ -225,8 +240,9 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
       }] : []),
       {
         name: "Kỳ này", type: "line", smooth: true, connectNulls: false, showSymbol: true, symbolSize: 5, z: 3,
-        data: data.map((d) => ({ value: d.comp, itemStyle: { color: d.comp != null && d.comp < 80 ? COMPLY_BAD : COMPLY_OK, borderColor: T().surface, borderWidth: 1 } })),
-        lineStyle: { color: COMPLY_OK, width: 2.6 }, areaStyle: { color: gradient(COMPLY_OK, 0.30, 0.02) },
+        data: data.map((d) => ({ value: d.comp, symbol: d.comp != null && d.comp < 80 ? "diamond" : "circle", symbolSize: d.comp != null && d.comp < 80 ? 8 : 5, itemStyle: { color: d.comp != null && d.comp < 80 ? COMPLY_BAD : COMPLY_OK, borderColor: T().surface, borderWidth: 1.2 } })),
+        lineStyle: { color: COMPLY_OK, width: 2.4 },
+        markArea: ymin < 80 ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(CHEX.coralDeep, 0.055) }, data: [[{ yAxis: ymin }, { yAxis: 80 }]] } : undefined,
         markLine: { silent: true, symbol: "none", data: markLineData },
       },
     ],
@@ -249,17 +265,20 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
     tooltip: {
       trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
-        const head = `<div style="font-weight:600;color:${CHEX.navy};margin-bottom:4px">${ps[0].axisValue}</div>`;
-        return head + ps.map((p) => { const v = p.data; return `<div style="display:flex;justify-content:space-between;gap:16px"><span style="color:${p.color}">● ${p.seriesName}</span><span>${fmtPct(v)} · OOS ${v == null ? "—" : (100 - v).toFixed(1) + "%"}</span></div>`; }).join("");
+        const rows = ps.map((p) => {
+          const v = p.data;
+          const bad = v != null && v < 80;
+          return [`● ${p.seriesName}`, `${fmtPct(v)} · OOS ${v == null ? "—" : `${(100 - v).toFixed(1)}%`}`, bad ? CHEX.coralDeep : p.color];
+        });
+        return tooltipEvidence({ title: ps[0].axisValue, verdict: "Theo từng chỉ tiêu", tone: CHEX.sky, rows: [...rows, ["Ngưỡng GMP", "80%", CHEX.sand]] });
       },
     },
     xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
     yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" } },
     series: ks.map((k) => ({
       name: SENSOR_META[k].label, type: "line", smooth: true, connectNulls: false, showSymbol: false,
-      data: data.map((d) => d[`comp_${k}`]), lineStyle: { color: SENSOR_COLOR[k], width: 2.4 }, itemStyle: { color: SENSOR_COLOR[k] },
-      areaStyle: { color: gradient(SENSOR_COLOR[k], 0.16, 0.01) },
-      ...(k === ks[0] ? { markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1.4 }, label: { formatter: "80%", fontSize: 9, color: CHEX.sand, position: "insideEndTop" } } } : {}),
+      data: data.map((d) => d[`comp_${k}`]), lineStyle: { color: SENSOR_COLOR[k], width: 2.3 }, itemStyle: { color: SENSOR_COLOR[k] },
+      ...(k === ks[0] ? { markArea: ymin < 80 ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(CHEX.coralDeep, 0.04) }, data: [[{ yAxis: ymin }, { yAxis: 80 }]] } : undefined, markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1.4 }, label: { formatter: "Ngưỡng GMP 80%", fontSize: 10, color: CHEX.sand, position: "insideEndTop" } } } : {}),
     })),
   };
   return <div className={chartWrap} style={{ height: height + 16 }}><EChart option={option} height={height} /></div>;
