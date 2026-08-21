@@ -1,150 +1,148 @@
 <!doctype html>
-<!--
-  email-bao-cao.html — Email tóm tắt báo cáo BMS tuần/tháng/quý (v4)
-  =============================================================================
-  - Thân email = tóm tắt số liệu (chỉ số, phòng cần chú ý, bất thường, nhận định hỗ trợ) dạng
-    bảng/chữ. KHÔNG nhúng biểu đồ ảnh (tránh mờ/nén + để email nhẹ, không phụ thuộc
-    tải ảnh ngoài).
-  - Báo cáo chi tiết + bảng phân tích tương tác được đính kèm và lưu Google Drive.
-    Không dùng {{link_dashboard}} làm hành động chính cho tới khi web xử lý đúng tham số kỳ.
-  - Placeholder {{ten}} do Code node n8n thay từ JSON rpc_bao_cao_tong_hop.
-    Khối lặp {{#each ...}}…{{/each}} — Code node nhân bản phần thân.
--->
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Báo cáo {{ky_bao_cao}} - BMS GMP</title>
 <style>
-  /* A7: dưới 600px cho hai ô chỉ số xếp dọc, thay vì bóp còn 158px mỗi ô. */
   @media screen and (max-width:600px){
-    .o-chi-so{display:block !important;width:100% !important;box-sizing:border-box;}
+    .metric{display:block !important;width:100% !important;box-sizing:border-box;}
+    .pad{padding-left:16px !important;padding-right:16px !important;}
   }
 </style>
-<title>Báo cáo {{ky_hienthi}} — Hệ thống BMS</title>
 </head>
-<body style="margin:0;padding:0;background:#f1f5f9;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{{trang_thai_ky}} · Trong ngưỡng {{kpi_tuan_thu}}% ({{delta_tuan_thu_mui_ten}}{{delta_tuan_thu}}) · {{kpi_gio_critical}} giờ mức nghiêm trọng · {{so_su_co_dang_mo}} sự cố còn mở · {{so_phong_bat_thuong}} phòng xấu đi</div>
+<body style="margin:0;padding:0;background:#eef3f6;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
+    {{ky_bao_cao}}: trong ngưỡng {{kpi_tuan_thu}}%, {{kpi_gio_oos}} cảnh báo, {{so_su_co_mo}} sự cố phát sinh, {{so_phong_bat_thuong}} phòng cần rà.
+  </div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;">
-    <tr><td align="center" style="padding:20px 12px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:700px;font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;color:#334155;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef3f6;">
+    <tr>
+      <td align="center" style="padding:22px 12px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:700px;font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;color:#25313f;">
+          <tr>
+            <td class="pad" style="background:#12313a;border-radius:12px 12px 0 0;padding:22px 26px;">
+              <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#a9c7ce;font-weight:700;">BMS GMP - báo cáo định kỳ</div>
+              <div style="font-size:21px;line-height:1.35;color:#ffffff;font-weight:800;margin-top:5px;">Báo cáo {{ky_bao_cao}}</div>
+              <div style="font-size:12px;color:#c8d9de;margin-top:5px;">Kỳ theo dõi: {{tu_ngay}} đến {{den_ngay}} · Tạo lúc {{tao_luc}} (giờ Việt Nam)</div>
+            </td>
+          </tr>
 
-        <!-- HEADER -->
-        <tr><td style="background:#0f172a;border-radius:10px 10px 0 0;padding:20px 24px;">
-          <div style="color:#ffffff;font-size:18px;font-weight:700;line-height:1.4;">Báo cáo {{ky_hienthi}}</div>
-          <div style="color:#cbd5e1;font-size:12px;margin-top:3px;">Hệ thống quản lý tòa nhà (BMS) · Thực hành tốt sản xuất (GMP)</div>
-          <div style="color:#94a3b8;font-size:12px;margin-top:3px;">Kỳ: {{tu_ngay}} → {{den_ngay}} · Tạo lúc {{tao_luc}} (giờ Việt Nam) · CPC1HN</div>
-        </td></tr>
+          <tr>
+            <td class="pad" style="background:#ffffff;border-left:1px solid #dbe5ea;border-right:1px solid #dbe5ea;padding:20px 26px 10px;">
+              <div style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#6b7d89;font-weight:800;">Tóm tắt cần đọc trước</div>
+              <div style="font-size:14px;line-height:1.72;color:#25313f;margin-top:8px;">{{tom_tat_dieu_hanh}}</div>
+              <div style="font-size:13px;line-height:1.65;color:#3f4f5d;background:#f5f8fa;border:1px solid #dfe8ed;border-left:4px solid #0e7490;border-radius:8px;padding:11px 13px;margin-top:12px;">
+                <b style="color:#12313a;">Kết luận kiểm soát:</b> {{ket_luan_kiem_soat}}
+              </div>
+            </td>
+          </tr>
 
-        <!-- TRẠNG THÁI KỲ + VÌ SAO -->
-        <tr><td style="background:{{trang_thai_nen}};border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:18px 24px 4px;">
-          <div style="font-size:22px;font-weight:800;color:{{trang_thai_mau}};letter-spacing:.3px;">{{trang_thai_ky}}</div>
-          <div style="font-size:13px;line-height:1.65;color:#334155;margin-top:8px;">{{tom_tat_dieu_hanh}}</div>
-        </td></tr>
+          <tr>
+            <td class="pad" style="background:#ffffff;border-left:1px solid #dbe5ea;border-right:1px solid #dbe5ea;padding:10px 26px 6px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
+                <tr>
+                  <td class="metric" width="50%" style="padding:10px 11px;border:1px solid #e6edf1;background:#fbfcfd;">
+                    <span style="font-size:11px;color:#6b7d89;font-weight:700;">Thời gian trong ngưỡng</span><br>
+                    <span style="font-size:24px;font-weight:800;color:{{kpi_tuan_thu_mau}};">{{kpi_tuan_thu}}%</span>
+                    <span style="font-size:12px;color:{{delta_tuan_thu_mau}};">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}}</span><br>
+                    <span style="font-size:11px;color:#7d8d98;">Mốc quản trị đang dùng: 80%</span>
+                  </td>
+                  <td class="metric" width="50%" style="padding:10px 11px;border:1px solid #e6edf1;background:#fbfcfd;">
+                    <span style="font-size:11px;color:#6b7d89;font-weight:700;">Giờ cảnh báo</span><br>
+                    <span style="font-size:24px;font-weight:800;color:#25313f;">{{kpi_gio_oos}}</span>
+                    <span style="font-size:12px;color:{{delta_oos_mau}};">{{delta_oos_mui_ten}} {{delta_oos}}</span><br>
+                    <span style="font-size:11px;color:#7d8d98;">Bao gồm WARNING/CRITICAL trong kỳ</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="metric" style="padding:10px 11px;border:1px solid #e6edf1;background:#fbfcfd;">
+                    <span style="font-size:11px;color:#6b7d89;font-weight:700;">Sự cố</span><br>
+                    <span style="font-size:24px;font-weight:800;color:#25313f;">{{so_su_co_mo}}</span>
+                    <span style="font-size:12px;color:#6b7d89;">phát sinh · {{so_su_co_dong}} đã đóng</span><br>
+                    <span style="font-size:11px;color:#7d8d98;">Thời gian xử lý trung bình: {{mttr_gio}} giờ</span>
+                  </td>
+                  <td class="metric" style="padding:10px 11px;border:1px solid #e6edf1;background:#fbfcfd;">
+                    <span style="font-size:11px;color:#6b7d89;font-weight:700;">Độ phủ dữ liệu</span><br>
+                    <span style="font-size:24px;font-weight:800;color:{{kpi_dq_mau}};">{{kpi_dq}}%</span>
+                    <span style="font-size:12px;color:#6b7d89;">· {{so_ngay_thieu_dl}} ngày thiếu</span><br>
+                    <span style="font-size:11px;color:#7d8d98;">Phòng thiếu nhiều: {{phong_thieu_dl}}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-        <tr><td style="background:{{trang_thai_nen}};border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:2px 24px 16px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#64748b;font-weight:700;margin-bottom:6px;">Vì sao kỳ này ở trạng thái đó</div>
-          <div style="font-size:13px;color:#334155;">{{ly_do_html}}</div>
-        </td></tr>
+          <tr>
+            <td class="pad" style="background:#ffffff;border-left:1px solid #dbe5ea;border-right:1px solid #dbe5ea;padding:17px 26px 6px;">
+              <div style="font-size:14px;font-weight:800;color:#12313a;margin-bottom:3px;">Việc cần xử lý trước</div>
+              <div style="font-size:11px;color:#6b7d89;margin-bottom:8px;">Ưu tiên các phòng có tỷ lệ trong ngưỡng thấp và nhiều giờ cảnh báo. Danh sách đầy đủ nằm trong báo cáo chi tiết.</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12.5px;">
+                <tr>
+                  <th align="left" style="padding:6px 8px;border-bottom:2px solid #dfe8ed;color:#6b7d89;font-size:10px;text-transform:uppercase;">Phòng</th>
+                  <th align="left" style="padding:6px 8px;border-bottom:2px solid #dfe8ed;color:#6b7d89;font-size:10px;text-transform:uppercase;">Khu</th>
+                  <th align="right" style="padding:6px 8px;border-bottom:2px solid #dfe8ed;color:#6b7d89;font-size:10px;text-transform:uppercase;">Trong ngưỡng</th>
+                  <th align="right" style="padding:6px 8px;border-bottom:2px solid #dfe8ed;color:#6b7d89;font-size:10px;text-transform:uppercase;">Cảnh báo</th>
+                </tr>
+                {{#each top_phong_xau}}
+                <tr>
+                  <td style="padding:7px 8px;border-bottom:1px solid #eef3f6;"><b>{{ten_phong}}</b><br><span style="font-size:10px;color:#8a98a3;">{{ma_phong}}</span></td>
+                  <td style="padding:7px 8px;border-bottom:1px solid #eef3f6;color:#3f4f5d;">{{khu_vuc}}</td>
+                  <td align="right" style="padding:7px 8px;border-bottom:1px solid #eef3f6;color:{{mau}};font-weight:800;">{{ty_le_tuan_thu}}%</td>
+                  <td align="right" style="padding:7px 8px;border-bottom:1px solid #eef3f6;color:#25313f;">{{so_gio_oos}}h</td>
+                </tr>
+                {{/each}}
+              </table>
+            </td>
+          </tr>
 
-        <!-- CHỈ SỐ CHÍNH -->
-        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:14px 24px 4px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
-            <tr>
-              <td class="o-chi-so" width="50%" style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Thời gian trong ngưỡng</span><br><span style="font-size:20px;font-weight:700;color:{{kpi_tuan_thu_mau}};">{{kpi_tuan_thu}}%</span> <span style="font-size:12px;color:{{delta_tuan_thu_mau}};">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}}</span><br><span style="font-size:11px;color:#64748b;">mốc theo dõi quản trị 80%</span></td>
-              <td class="o-chi-so" width="50%" style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Giờ mức NGHIÊM TRỌNG</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{kpi_gio_critical}}</span> <span style="font-size:12px;color:{{delta_critical_mau}};">{{delta_critical}}</span><br><span style="font-size:11px;color:#64748b;">chiếm {{ty_le_critical}} tổng giờ cảnh báo · mức cảnh báo {{kpi_gio_warning}} giờ</span></td>
-            </tr>
-            <tr>
-              <td class="o-chi-so" style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Sự cố cuối kỳ</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{su_co_ton_cuoi}}</span> <span style="font-size:12px;color:#64748b;">còn mở</span><br><span style="font-size:11px;color:#64748b;">{{su_co_ton_dau}} tồn đầu kỳ · {{su_co_phat_sinh}} phát sinh · {{su_co_da_dong}} đã đóng</span></td>
-              <td class="o-chi-so" style="padding:9px 10px;border:1px solid #eef2f6;"><span style="font-size:11px;color:#64748b;">Độ tin cậy dữ liệu</span><br><span style="font-size:20px;font-weight:700;color:#0f172a;">{{kpi_do_phu}}%</span> <span style="font-size:12px;color:#64748b;">độ phủ giờ</span><br><span style="font-size:11px;color:#64748b;">{{tin_cay_ket_luan}} · <b>{{so_dot_chua_hoi_phuc}}</b> đợt chưa xác nhận hồi phục</span></td>
-            </tr>
-          </table>
-        </td></tr>
+          <tr>
+            <td class="pad" style="background:#ffffff;border-left:1px solid #dbe5ea;border-right:1px solid #dbe5ea;padding:14px 26px 6px;">
+              <div style="font-size:14px;font-weight:800;color:#8a2f2f;margin-bottom:3px;">Diễn biến xấu hơn kỳ trước</div>
+              <div style="font-size:11px;color:#6b7d89;margin-bottom:8px;">Chỉ dùng để sàng lọc. QA/Cơ điện đối chiếu lại hồ sơ sự cố và điều kiện vận hành trước khi kết luận nguyên nhân.</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12.5px;">
+                <tr>
+                  <th align="left" style="padding:6px 8px;border-bottom:2px solid #f0d5d5;color:#8a2f2f;font-size:10px;text-transform:uppercase;">Phòng</th>
+                  <th align="right" style="padding:6px 8px;border-bottom:2px solid #f0d5d5;color:#8a2f2f;font-size:10px;text-transform:uppercase;">Kỳ này</th>
+                  <th align="right" style="padding:6px 8px;border-bottom:2px solid #f0d5d5;color:#8a2f2f;font-size:10px;text-transform:uppercase;">Chênh lệch</th>
+                  <th align="left" style="padding:6px 8px;border-bottom:2px solid #f0d5d5;color:#8a2f2f;font-size:10px;text-transform:uppercase;">Gợi ý rà soát</th>
+                </tr>
+                {{#each bat_thuong_tom_tat}}
+                <tr>
+                  <td style="padding:7px 8px;border-bottom:1px solid #faeeee;"><b>{{ten_phong}}</b><br><span style="font-size:10px;color:#a98a8a;">{{ma_phong}} · {{khu_vuc}}</span></td>
+                  <td align="right" style="padding:7px 8px;border-bottom:1px solid #faeeee;">{{tuan_thu_ky_nay}}%</td>
+                  <td align="right" style="padding:7px 8px;border-bottom:1px solid #faeeee;color:#b91c1c;font-weight:800;">{{delta}}</td>
+                  <td style="padding:7px 8px;border-bottom:1px solid #faeeee;font-size:11px;color:#5f4a4a;">{{ly_do}}</td>
+                </tr>
+                {{/each}}
+              </table>
+            </td>
+          </tr>
 
-        <!-- TRỌNG TÂM XỬ LÝ -->
-        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:16px 24px 4px;">
-          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:2px;">Trọng tâm xử lý — xếp theo rủi ro</div>
-          <div style="font-size:10.5px;color:#64748b;margin-bottom:8px;">Xếp theo mức nghiêm trọng, thời lượng, mức ưu tiên phòng, còn tiếp diễn hay không và số đợt tái diễn.</div>
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12.5px;">
-            <tr>
-              <th align="left"  style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Đối tượng</th>
-              <th align="left" style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Mức</th>
-              <th align="left"  style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Vì sao ưu tiên</th>
-              <th align="left"  style="color:#64748b;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Đang ở đâu</th>
-            </tr>
-            {{#each trong_tam_xu_ly}}
-            <tr>
-              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;"><strong>{{ten_phong}}</strong><br><span style="color:#94a3b8;font-size:10px;">{{ma_phong}} · {{khu_vuc}} · {{loai_cam_bien}}</span></td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;color:{{mau_uu_tien}};font-weight:700;white-space:nowrap;">{{muc_uu_tien_vi}}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#475569;">{{giai_thich}}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;font-size:11px;">{{phu_trach}}</td>
-            </tr>
-            {{/each}}
-          </table>
-          <div style="font-size:10.5px;color:#64748b;margin-top:6px;">{{ghi_chu_pham_vi_phieu}}</div>
-        </td></tr>
+          <tr>
+            <td class="pad" style="background:#ffffff;border-left:1px solid #dbe5ea;border-right:1px solid #dbe5ea;padding:16px 26px;">
+              <div style="font-size:14px;font-weight:800;color:#12313a;margin-bottom:7px;">Mở báo cáo chi tiết</div>
+              <div style="font-size:12px;color:#4f5f6c;line-height:1.65;margin-bottom:12px;">
+                Báo cáo chi tiết và bảng phân tích tương tác đã được đính kèm trong email. Khi Gmail hiển thị file HTML thành chữ, hãy tải tệp xuống rồi mở bằng Chrome, Edge hoặc Cốc Cốc.
+              </div>
+              <a href="{{link_dashboard}}" style="display:inline-block;background:#0e7490;color:#ffffff;text-decoration:none;font-size:14px;font-weight:800;padding:12px 24px;border-radius:8px;">Mở bảng phân tích</a>
+              <a href="{{link_drive}}" style="display:inline-block;margin-left:8px;color:#0e7490;text-decoration:none;font-size:13px;font-weight:700;padding:11px 0;">Thư mục lưu trữ</a>
+            </td>
+          </tr>
 
-
-
-        <!-- NÚT MỞ BÁO CÁO -->
-        <tr><td align="center" style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:14px 24px 4px;">
-          <a href="{{link_dashboard}}" style="display:inline-block;background:#0F766E;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:12px 26px;border-radius:10px;">Mở báo cáo tuần</a>
-          <div style="font-size:11px;color:#64748b;margin-top:7px;">Hoặc mở tệp đính kèm ở cuối thư nếu không truy cập được.</div>
-        </td></tr>
-
-        <!-- ĐỐI CHIẾU & DỮ LIỆU -->
-        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:6px 24px 14px;">
-          <div style="font-size:12px;color:#475569;line-height:1.7;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;">
-            <b style="color:#0f172a;">Đối chiếu sự cố:</b> {{su_co_cau_doi_chieu}}<br>
-            <span style="color:#64748b;">{{su_co_moc_do}}</span><br>
-            <b style="color:#0f172a;">Dữ liệu:</b> {{du_lieu_anh_huong}}<br>
-            <span style="color:#64748b;">{{so_phong_bat_thuong}} phòng có diễn biến xấu hơn kỳ trước — chi tiết trong báo cáo đính kèm.</span>
-          </div>
-          <div style="font-size:12px;color:#b91c1c;margin-top:8px;">{{su_co_canh_bao}}</div>
-        </td></tr>
-
-        <!-- NHẬN ĐỊNH (node tự dựng; RỖNG khi chưa qua đối chiếu) -->
-{{khoi_nhan_dinh_html}}
-
-        <!-- CHÚ GIẢI NGẮN -->
-        <tr><td style="background:#ffffff;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;padding:10px 24px 14px;">
-          <div style="font-size:10.5px;color:#64748b;line-height:1.7;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:9px 11px;">
-            <strong style="color:#334155;">Chú giải:</strong> BMS = Hệ thống quản lý tòa nhà · GMP = Thực hành tốt sản xuất ·
-            AHU = Tổ hợp xử lý không khí · SPC = Kiểm soát quá trình bằng thống kê · OOS = Ngoài giới hạn quy định ·
-            IPC = Kiểm soát trong quá trình · QA = Đảm bảo chất lượng · R² = mức độ phù hợp của xu hướng (0–1) · WF5 = quy trình tự động tạo báo cáo.
-          </div>
-        </td></tr>
-
-        <!-- ĐÍNH KÈM & LƯU TRỮ -->
-        <tr><td style="background:#f0f9ff;border-left:1px solid #bae6fd;border-right:1px solid #bae6fd;padding:16px 24px;">
-          <div style="font-size:13px;color:#0f172a;line-height:1.7;">
-            📎 <strong>Tệp chi tiết của kỳ báo cáo</strong> (cũng được lưu trên Google&nbsp;Drive):
-            <div style="margin-top:8px;">
-              • <strong>Báo cáo chi tiết (.html)</strong> — số liệu, biểu đồ, phương pháp và thông tin truy vết.<br>
-              • <strong>Bảng phân tích tương tác (.html)</strong> — lọc theo khu/tổ hợp xử lý không khí (AHU), xem từng phòng.
-            </div>
-            <div style="margin-top:6px;color:#475569;">Trạng thái bản phát hành chính thức được xác nhận trong hồ sơ kiểm soát tài liệu; không suy ra chỉ từ tên tệp đính kèm.</div>
-          </div>
-          <div style="font-size:12px;color:#0369a1;background:#e0f2fe;border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.65;">
-            ⬇ <strong>Cách xem:</strong> ở thẻ tệp đính kèm, bấm <strong>Tải xuống</strong> rồi <strong>mở bằng trình duyệt</strong> (Chrome / Edge / Cốc Cốc).
-            <span style="color:#b45309;">Lưu ý: đừng bấm “Xem trực tiếp” trong Gmail — Gmail hiện tệp .html thành chữ; hãy tải về rồi mở.</span>
-          </div>
-        </td></tr>
-
-        <!-- FOOTER -->
-        <tr><td style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;padding:14px 24px;">
-          <div style="font-size:11px;color:#94a3b8;line-height:1.6;">
-            Đính kèm &amp; lưu trữ: <b>báo cáo chi tiết (.html)</b> + <b>bảng phân tích tương tác (.html)</b> — bản lưu trên <a href="{{link_drive}}" style="color:#0d9488;">Google Drive (thư mục báo cáo)</a>.<br>
-            {{truy_vet_ai}}.<br>
-            Truy vết GMP: mã lần chạy <b>{{ma_lan_chay}}</b> · Nguồn: <span style="font-family:monospace;">rpc_bao_cao_tong_hop('{{ky}}','{{tu_ngay_iso}}','{{den_ngay_iso}}')</span>.
-            Nhận định hỗ trợ: {{trang_thai_tham_dinh_vi}}.<br>
-            Báo cáo tự động WF5 — Hệ thống quản lý tòa nhà BMS (CPC1HN).
-          </div>
-        </td></tr>
-
-      </table>
-    </td></tr>
+          <tr>
+            <td class="pad" style="background:#f6f9fb;border:1px solid #dbe5ea;border-top:none;border-radius:0 0 12px 12px;padding:14px 26px;">
+              <div style="font-size:11px;color:#74838e;line-height:1.65;">
+                Nhận định hỗ trợ: {{nhan_dinh_ai}}<br>
+                Truy vết GMP: mã lần chạy <b>{{ma_lan_chay}}</b> · nguồn dữ liệu BMS/Supabase · khoảng dữ liệu {{tu_ngay_iso}} đến {{den_ngay_iso}}.<br>
+                Tệp đính kèm: báo cáo chi tiết HTML và bảng phân tích tương tác HTML. Kết luận GMP cuối cùng do QA/IPC xác nhận theo SOP hiện hành.
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
   </table>
 </body>
 </html>

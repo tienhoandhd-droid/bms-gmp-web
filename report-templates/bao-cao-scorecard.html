@@ -1,671 +1,290 @@
 <!doctype html>
-<!--
-  bao-cao-scorecard.html — Báo cáo BMS tuần/tháng/quý (v4 — tiếng Việt thân thiện)
-  =========================================================================
-  - Drop-in cho node "Ráp báo cáo" (WF5 v2): dùng token dạng ngoặc-nhọn + vòng lặp each đã có sẵn.
-    Không cần đổi node cho bản này. Ảnh biểu đồ (chart_line_src / chart_heat_src / mini_src /
-    spark_src) do node bơm data-URI base64 (hoặc SVG fallback) → file tự chứa.
-  - Xuất PDF qua Gotenberg (Chromium): @page A4 portrait; print-color-adjust:exact.
-  - Bố cục v4: trạng thái → trọng tâm theo kỳ → chỉ số → vấn đề cần xử lý → xu hướng
-    → kiểm soát GMP → nhận định hỗ trợ → truy vết và ký duyệt.
-  - Không thêm khóa placeholder mới vào object rep; tái sử dụng các token node "Ráp báo cáo" đã cấp.
--->
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
-<title>Báo cáo {{ky_hienthi}} — BMS</title>
+<title>Báo cáo {{ky_bao_cao}} - BMS GMP</title>
 <style>
   @page { size: A4 portrait; margin: 13mm 12mm 15mm 12mm; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .avoid { break-inside: auto; page-break-inside: auto; }
-    .keep,.kpi,.dcard,.mini,.hero,.period-focus,.signoff,.archive { break-inside: avoid; page-break-inside: avoid; }
+    .keep, .metric, .panel, .chart { break-inside: avoid; page-break-inside: avoid; }
     thead { display: table-header-group; }
     tr { break-inside: avoid; page-break-inside: avoid; }
-    .page  { break-before: page; page-break-before: always; }
   }
   :root{
-    --ink:#111820; --ink2:#3B4652; --muted:#6B7686; --faint:#9AA6B2;
-    --line:#E4E9EF; --line2:#EFF3F7; --paper:#FFFFFF;
-    --accent:#0E7490; --accent-deep:#0B5566; --accent-wash:#E4F0F3;
-    --ok:#1FA06A; --ok-wash:#E5F5EC; --warn:#CF9310; --warn-wash:#FAF1D9;
-    --crit:#D24545; --crit-wash:#FBE7E7;
-    --mono: ui-monospace,'SF Mono','Cascadia Code',Consolas,'Courier New',monospace;
+    --ink:#18242f; --text:#32424f; --muted:#6e7f8b; --soft:#edf3f6;
+    --line:#dde7ec; --line2:#edf2f5; --brand:#0e7490; --brand2:#12313a;
+    --ok:#0d9488; --warn:#d97706; --crit:#b91c1c;
+    --mono:ui-monospace,'SF Mono',Consolas,'Liberation Mono',monospace;
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Be Vietnam Pro','Noto Sans','Segoe UI',Roboto,Arial,sans-serif;
-       color:var(--ink);font-size:12px;line-height:1.5;background:#fff;
-       max-width:186mm;margin:0 auto;padding:2px 0 6px}
-  /* TRÊN MÀN HÌNH: dùng gần hết bề rộng thay vì bó trong khổ A4 703px — ở màn 2560
-     nội dung chỉ chiếm 27%, rất khó đọc. KHI IN vẫn giữ nguyên A4 nhờ @media print. */
-  @media screen and (min-width:900px){
-    /* Bỏ trần cứng: BẢNG được chạy hết bề rộng màn hình (đó là phần chiếm chỗ nhất),
-       chỉ giữ ĐOẠN VĂN ở bề rộng dễ đọc để dòng chữ không dài lê thê. */
-    body{max-width:95vw !important; padding-left:18px; padding-right:18px}
-    p, .note-box, .concl, .disc, .body{max-width:105ch}
-  }
-  @media print{ body{max-width:186mm !important; padding-left:0; padding-right:0} }
+  *{box-sizing:border-box}
+  body{margin:0 auto;padding:0;max-width:186mm;background:#fff;color:var(--ink);
+    font-family:'Be Vietnam Pro','Noto Sans','Segoe UI',Arial,sans-serif;font-size:12px;line-height:1.52}
+  @media screen and (min-width:900px){body{max-width:1180px;padding:18px}}
   .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
-  .kick{font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--faint)}
-  h2{font-size:13px;font-weight:800;letter-spacing:-.01em;color:var(--ink);margin:0}
-  .sec{border:1px solid var(--line);border-radius:10px;padding:15px 17px;margin-top:12px;background:#fff}
-  .sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
-  .sec-h .note{font-size:10px;color:var(--faint)}
-
-  /* Masthead */
-  .mast{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
-        border-radius:10px;padding:15px 18px;color:#fff;
-        background:linear-gradient(120deg,#0B2A33,var(--accent-deep) 60%,#0E6E82)}
-  .brand{display:flex;align-items:center;gap:11px}
-  .mark{width:38px;height:38px;border-radius:9px;background:rgba(255,255,255,.12);
-        display:grid;place-items:center;font-weight:800;font-size:13px;
-        box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
-  .brand b{font-size:14px;display:block;line-height:1.2}
-  .brand span{font-size:10.5px;color:#B9D6DD}
-  .mast h1{font-size:19px;font-weight:800;letter-spacing:-.02em;margin-top:12px;text-wrap:balance}
-  .mast .phu{font-size:11px;color:#AFD0D8;margin-top:3px}
-  .mast .meta{text-align:right;font-size:10.5px;color:#AFD0D8;white-space:nowrap;line-height:1.75}
-  .mast .meta b{color:#fff;font-weight:600}
-  .mast .logo{width:44px;height:44px;object-fit:contain}
-
-  /* Hero */
-  .hero{display:grid;grid-template-columns:150px 1fr;gap:22px;align-items:center}
-  .gauge{position:relative;width:150px;height:150px}
-  .gring{width:150px;height:150px;border-radius:50%;
-         background:conic-gradient(var(--gc,var(--ok)) calc(var(--p,0)*1%), #E9EEF3 0)}
-  .ghole{position:absolute;inset:14px;border-radius:50%;background:#fff}
-  .gval{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
-  .gval .big{font-size:34px;font-weight:800;letter-spacing:-.03em;line-height:1}
-  .gval .big span{font-size:15px}
-  .gval .lb{font-size:9.5px;color:var(--muted);margin-top:3px}
-  .hero h2{margin-bottom:6px;font-size:15.5px}
-  .hero p{font-size:12px;color:var(--ink2);max-width:60ch}
-  .hero-2cot{display:block}
-  @media screen and (min-width:1200px){
-    /* Màn rộng: tóm tắt+lý do bên trái, các khối đối chiếu bên phải — hết khoảng
-       trống nửa phải mà vẫn giữ dòng chữ ở bề rộng dễ đọc. */
-    .hero-2cot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
-    .hero p{max-width:none}
-  }
-  .concl{margin-top:9px;padding:8px 11px;border-radius:8px;background:var(--accent-wash);
-         border-left:3px solid var(--accent);font-size:11.5px;color:var(--accent-deep)}
-  .strip{display:flex;gap:22px;margin-top:12px;padding-top:11px;border-top:1px dashed var(--line);flex-wrap:wrap}
-  .strip div{font-size:10.5px;color:var(--muted)}
-  .strip b{display:block;font-size:15px;color:var(--ink);font-weight:700}
-
-  /* Trọng tâm khác nhau theo tuần / tháng / quý, chỉ dùng token ky hiện có. */
-  .period-focus{display:none;border:1px solid #CFE0E6;border-radius:10px;padding:12px 15px;margin-top:12px;
-                background:linear-gradient(135deg,#F3FAFB,#FFFFFF)}
-  .period-focus .eyebrow{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--accent)}
-  .period-focus h2{font-size:14px;margin:3px 0 4px}
-  .period-focus p{font-size:11.5px;color:var(--ink2)}
-  body[data-ky="TUAN"] .ky-tuan,body[data-ky="tuan"] .ky-tuan,body[data-ky="TUẦN"] .ky-tuan,
-  body[data-ky="THANG"] .ky-thang,body[data-ky="thang"] .ky-thang,body[data-ky="THÁNG"] .ky-thang,
-  body[data-ky="QUY"] .ky-quy,body[data-ky="quy"] .ky-quy,body[data-ky="QUÝ"] .ky-quy{display:block}
-
-  .glossary{display:grid;grid-template-columns:1fr 1fr;gap:5px 16px;margin-top:8px}
-  .glossary p{font-size:9.5px;color:var(--ink2);line-height:1.45}
-  .glossary b{color:var(--ink)}
-
-  /* KPI cards */
-  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}
-  .kpi{border:1px solid var(--line);border-radius:9px;padding:11px 11px 9px;background:#fff}
-  .kpi .lbl{font-size:9.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px}
-  .kpi .v{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1}
-  .kpi .v small{font-size:11px;font-weight:700;color:var(--faint)}
-  .kpi .d{font-size:10px;font-weight:700;margin-top:6px}
-
-  /* Charts */
-  .chart img{width:100%;height:auto;display:block;border:1px solid var(--line2);border-radius:8px}
-  .chart .cap{font-size:10px;color:var(--faint);margin-top:5px}
-
-  /* Biểu đồ nhỏ theo từng phạm vi */
-  .mini-grid{display:flex;flex-wrap:wrap;gap:9px}
-  .mini{flex:1 1 30%;min-width:30%;border:1px solid var(--line);border-radius:8px;padding:8px 9px}
-  .mini .t{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;font-weight:700}
-  .mini .t .p{font-weight:800}
-  .mini img{width:100%;height:auto;display:block;margin-top:5px}
-
-  /* Depth cards */
-  .depth{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .dcard{border:1px solid var(--line);border-radius:9px;padding:13px 14px}
-  .dcard .t{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
-  .dcard .t b{font-size:11px;font-weight:700}
-  .std{font-size:8.5px;font-weight:700;letter-spacing:.04em;color:var(--accent-deep);
-       background:var(--accent-wash);padding:2px 6px;border-radius:5px}
-  .dcard .m{font-size:23px;font-weight:800;letter-spacing:-.03em;line-height:1}
-  .dcard .m small{font-size:12px;color:var(--faint);font-weight:700}
-  .dcard .c{font-size:10.5px;color:var(--muted);margin-top:6px}
-  .dcard .c b{color:var(--ink2)}
-
-  /* Heatmap phòng × ngày */
-  .hm{display:grid;grid-template-columns:66px repeat(7,1fr);gap:4px;align-items:center}
-  .hm .hd{font-size:9px;color:var(--faint);text-align:center;font-weight:700;font-family:var(--mono)}
-  .hm .rl{font-size:10.5px;font-weight:700;font-family:var(--mono)}
-  .hm i{height:22px;border-radius:4px;display:grid;place-items:center;font-size:8.5px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
-  .v5{background:#178A55}.v4{background:#43A46F}.v3{background:#8FC79E;color:#215237}
-  .v2{background:#E6C877;color:#6B5115}.v1{background:#DD9A5A}.v0{background:#CF5A50}
-  .hmleg{display:flex;gap:10px;align-items:center;margin-top:9px;font-size:9.5px;color:var(--muted);flex-wrap:wrap}
-  .hmleg i{width:13px;height:9px;border-radius:2px;display:inline-block;margin-right:3px}
-  /* Dự báo */
-  .fcchart{width:100%}.fcchart svg{width:100%;height:auto;display:block}
-  .fc{margin-top:9px;font-size:10.5px;color:var(--accent-deep);background:var(--accent-wash);border-radius:7px;padding:8px 11px}.fc b{font-weight:800}
-
-  /* Tables */
+  .mast{background:linear-gradient(135deg,#102f38,#0e7490);color:#fff;border-radius:12px;padding:22px 24px;display:flex;justify-content:space-between;gap:18px}
+  .mast .eyebrow{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#b8d7df;font-weight:800}
+  .mast h1{margin:5px 0 3px;font-size:25px;line-height:1.2;letter-spacing:-.02em}
+  .mast p{margin:0;color:#d3e6eb;font-size:12px}
+  .mast .meta{text-align:right;color:#d3e6eb;font-size:11px;line-height:1.75;white-space:nowrap}
+  .mast b{color:#fff}
+  .summary{display:grid;grid-template-columns:180px 1fr;gap:22px;margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:18px;background:#fbfcfd}
+  .gauge{width:170px;height:170px;border-radius:50%;background:conic-gradient({{kpi_tuan_thu_mau}} calc({{kpi_tuan_thu}} * 1%),#e7eef2 0);position:relative}
+  .gauge:after{content:"";position:absolute;inset:15px;border-radius:50%;background:#fff}
+  .gauge .value{position:absolute;inset:0;z-index:1;display:grid;place-content:center;text-align:center}
+  .gauge strong{font-size:38px;line-height:1;letter-spacing:-.03em}
+  .gauge span{font-size:12px;color:var(--muted);font-weight:700}
+  h2{font-size:15px;margin:0 0 8px;color:var(--ink)}
+  .summary p{margin:0;color:var(--text);font-size:13px;max-width:78ch}
+  .conclusion{margin-top:10px;border-left:4px solid var(--brand);background:#e7f4f7;border-radius:8px;padding:10px 12px;color:#164e63;font-size:12px}
+  .quick{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+  .quick div{color:var(--muted);font-size:10.5px}.quick b{display:block;color:var(--ink);font-size:16px}
+  .metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-top:14px}
+  .metric{border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+  .metric .label{font-size:9.5px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+  .metric .value{font-size:23px;font-weight:850;line-height:1.05;margin-top:7px}
+  .metric .note{font-size:10.5px;color:var(--muted);margin-top:6px}
+  .section{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fff}
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .section-head .note{font-size:10px;color:var(--muted)}
+  .chart img{display:block;width:100%;height:auto;border:1px solid var(--line2);border-radius:9px;background:#fff}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   table{width:100%;border-collapse:collapse}
-  thead th{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
-           font-weight:700;text-align:left;padding:0 9px 8px}
-  thead th.r,tbody td.r{text-align:right}
-  tbody td{padding:8px 9px;border-top:1px solid var(--line2);font-size:12px;vertical-align:middle}
-  tbody td.num{font-variant-numeric:tabular-nums}
-  tbody tr td:first-child{border-left:3px solid transparent;padding-left:11px}
-  .room b{font-weight:700}.room span{color:var(--faint);font-size:10px}
-  td img.spark{width:110px;height:30px;display:block}
-  .tag{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted)}
-  .neg{color:var(--crit);font-weight:800}
-
-  /* Anomaly block */
-  .warnbox{border:1px solid #F2C9C9;background:#FDF4F4;border-radius:10px;padding:14px 16px;margin-top:12px}
-  .warnbox h2{color:#A62E2E}
-  .ly{display:inline-block;background:var(--crit-wash);color:#A62E2E;border-radius:5px;
-      font-size:9px;font-weight:700;padding:1px 6px;margin:1px 2px 1px 0}
-
-  /* AI */
-  .ai{border:1px solid #CFEBE9;background:linear-gradient(180deg,#F4FBFB,#fff);border-radius:10px;padding:15px 17px;margin-top:12px}
-  .ai .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
-  .ai .hd b{color:var(--accent-deep);font-weight:800;font-size:12.5px}
-  .ai-tag{font-size:9px;font-weight:700;color:var(--accent-deep);background:var(--accent-wash);padding:3px 8px;border-radius:999px}
-  .ai .body{font-size:12px;color:var(--ink2);line-height:1.6}
-  .ai .disc{color:var(--faint);font-size:9.5px;font-style:italic;margin-top:9px}
-  .stdrow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-  .stdrow span{font-size:8.5px;font-weight:700;letter-spacing:.03em;color:var(--muted);
-      background:var(--line2);border:1px solid var(--line);padding:2px 7px;border-radius:5px}
-
-  /* Standards / limits / signoff */
-  .note-box{background:#F7F9FB;border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:10.5px;color:var(--ink2);margin-top:12px}
-  .signoff{display:flex;gap:10px;margin-top:12px}
-  .sbox{flex:1;border:1px solid var(--line);border-radius:9px;padding:11px;text-align:center}
-  .sbox .r{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
-  .sbox .sign{height:44px;border-bottom:1px dashed #C6D0DA;margin:9px 6px}
-  .sbox .g{font-size:9px;color:var(--faint)}
-  .foot{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);color:var(--faint);font-size:9.5px}
-  .foot code{font-family:var(--mono);font-size:9px;background:#F5F8FA;padding:1px 5px;border-radius:4px;color:var(--ink2)}
-
-  /* ===== Mảng 2 (GMP) — bổ sung chuẩn phát hành ===== */
-  /* Banner chế độ thử: node bơm {{{banner_thu_nghiem}}} = khối .banner-test khi che_do_thu_nghiem=true */
-  .banner-test{background:repeating-linear-gradient(45deg,#B3261E,#B3261E 14px,#8E1B1B 14px,#8E1B1B 28px);
-       color:#fff;font-weight:800;text-align:center;padding:9px 12px;border-radius:8px;margin-bottom:10px;
-       font-size:12px;letter-spacing:.03em;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35)}
-  /* Khối mã kiểm soát tài liệu trong masthead */
-  .docctrl{margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.18);font-size:9.5px;color:#AFD0D8;line-height:1.7}
-  .docctrl b{color:#fff;font-weight:700}
-  /* Bảng OOS/OOT 2 tầng — tô mức alert/action */
-  .lvl{font-size:8.5px;font-weight:800;letter-spacing:.03em;padding:2px 7px;border-radius:5px;white-space:nowrap}
-  .lvl-alert{background:var(--warn-wash);color:#8A5300}
-  .lvl-action{background:var(--crit-wash);color:#A62E2E}
-  .capa-st{font-size:8.5px;font-weight:700;padding:2px 7px;border-radius:5px}
-  .capa-open{background:var(--crit-wash);color:#A62E2E}.capa-doing{background:var(--warn-wash);color:#8A5300}.capa-done{background:var(--ok-wash);color:#166A48}
-  /* Chữ ký điện tử — metadata Part 11 */
-  .sbox .who{font-size:10px;font-weight:700;color:var(--ink);margin-top:8px}
-  .sbox .role2{font-size:9px;color:var(--muted)}
-  .sbox .mean{font-size:8.5px;color:var(--accent-deep);font-style:italic;margin-top:2px}
-  .sbox .dt{font-size:8.5px;color:var(--faint);font-family:var(--mono);margin-top:2px}
-  /* Nơi nhận + lưu trữ bất biến */
-  .dist{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-  .dist span{font-size:9px;color:var(--ink2);background:var(--line2);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
-  .archive{display:flex;align-items:center;gap:12px;margin-top:10px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#F7F9FB}
-  .archive .qr{width:58px;height:58px;flex:none}
-  .archive .qr img,.archive .qr svg{width:58px;height:58px;display:block}
-  .archive .meta2{font-size:9px;color:var(--muted);line-height:1.7;word-break:break-all}
-  .archive .meta2 code{font-family:var(--mono);font-size:8.5px;background:#EEF3F6;padding:1px 4px;border-radius:3px;color:var(--ink2)}
-  /* Bảng rộng trên điện thoại: cuộn TRONG bảng, không đẩy cả trang. Không áp
-     cho bản in vì bản in là khổ A4. */
-  @media screen and (max-width:640px){
-    table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
-    .kpis{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
-    .strip{grid-template-columns:1fr !important}
+  th{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#7a8994;text-align:left;padding:0 8px 7px;border-bottom:2px solid var(--line)}
+  th.r,td.r{text-align:right}
+  td{padding:8px;border-bottom:1px solid var(--line2);vertical-align:middle;color:var(--text)}
+  .room b{color:var(--ink)}.room span{display:block;color:#82909b;font-size:10px}
+  .tag{font-family:var(--mono);font-size:10px;color:var(--muted);font-weight:700}
+  .spark{width:120px;height:34px;display:block}
+  .mini{border:1px solid var(--line);border-radius:9px;padding:10px}
+  .mini .top{display:flex;justify-content:space-between;gap:12px;font-weight:800;font-size:11px}
+  .mini img{width:100%;height:auto;display:block;margin-top:6px}
+  .callout{background:#f7fafb;border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--text);font-size:11.5px}
+  .warning{border-color:#f2c7c7;background:#fff7f7}
+  .warning h2{color:var(--crit)}
+  .pill{display:inline-block;border-radius:999px;background:var(--soft);border:1px solid var(--line);padding:2px 7px;color:var(--muted);font-size:9.5px;font-weight:700}
+  .ai{background:linear-gradient(180deg,#eef9f8,#fff);border:1px solid #cce8e5}
+  .ai-body{white-space:pre-wrap;color:var(--text);font-size:12px;line-height:1.65}
+  .footer{margin-top:14px;border-top:1px solid var(--line);padding-top:11px;color:#83919c;font-size:9.5px;line-height:1.65}
+  .footer code{font-family:var(--mono);background:#f4f7f9;border-radius:4px;padding:1px 4px;color:#455562}
+  @media screen and (max-width:900px){
+    .summary,.grid2,.grid3{grid-template-columns:1fr}
+    .metrics{grid-template-columns:repeat(2,1fr)}
+    .mast{display:block}.mast .meta{text-align:left;margin-top:12px}
   }
 </style>
 </head>
 <body data-ky="{{ky}}">
-
-  <!-- ===== Mảng 2 · CỔNG AN TOÀN: banner chế độ thử =====
-       Node "Ráp báo cáo" bơm token "banner_thu_nghiem" (thay() chèn HTML thô, không escape):
-         • che_do_thu_nghiem=true  → '<div class="banner-test">⚠ CHẾ ĐỘ THỬ NGHIỆM …</div>'
-         • che_do_thu_nghiem=false → '' (rỗng)
-       Node cũng NÊN chặn GỬI khi true (chỉ lưu nháp). (Hiện production = false.) -->
-  {{banner_thu_nghiem}}
-
-  <!-- ===== MASTHEAD ===== -->
-  <header class="mast avoid">
+  <header class="mast">
     <div>
-      <div class="brand">
-        <div class="mark"><img class="logo" src="{{logo_src}}" alt="" onerror="this.style.display='none'"/></div>
-        <div><b>CPC1HN · Hệ thống quản lý tòa nhà (BMS)</b><span>Giám sát môi trường theo Thực hành tốt sản xuất (GMP)</span></div>
-      </div>
-      <h1>Báo cáo {{ky_hienthi}}</h1>
-      <div class="phu">Nhiệt độ (T) · độ ẩm tương đối (RH) · chênh áp (ΔP) · giới hạn theo từng phòng</div>
+      <div class="eyebrow">BMS GMP - báo cáo định kỳ</div>
+      <h1>Báo cáo {{ky_bao_cao}}</h1>
+      <p>Giám sát môi trường phòng sạch qua hệ thống BMS · CPC1HN</p>
     </div>
     <div class="meta">
-      <div class="kick" style="color:#8FBAC4">Kỳ</div><div><b>{{tu_ngay}} → {{den_ngay}}</b></div>
-      <div class="kick" style="color:#8FBAC4;margin-top:6px">Phát hành</div><div><b>{{tao_luc}}</b> (giờ Việt Nam)</div>
-      <div class="kick" style="color:#8FBAC4;margin-top:6px">Mã lần chạy</div><div>{{ma_lan_chay}}</div>
-      <!-- Mảng 2 · Mã kiểm soát tài liệu (P0). Node bơm: ma_tai_lieu, phien_ban, ngay_hieu_luc.
-           Quy tắc mã do QA cơ sở quyết (vd BMS-RP-<kỳ>-YYYYMM-rev). Số trang X/Y: xem footer Gotenberg. -->
-      <div class="docctrl">
-        <div>Mã tài liệu: <b>{{ma_tai_lieu}}</b></div>
-        <div>Phiên bản: <b>{{phien_ban}}</b> · Hiệu lực: <b>{{ngay_hieu_luc}}</b></div>
-      </div>
+      <div>Kỳ: <b>{{tu_ngay}}</b> đến <b>{{den_ngay}}</b></div>
+      <div>Tạo lúc: <b>{{tao_luc}}</b></div>
+      <div>Mã lần chạy: <b>{{ma_lan_chay}}</b></div>
     </div>
   </header>
 
-  <!-- ===== HERO ===== -->
-  <section class="sec avoid">
-    <div class="hero">
-      <div class="gauge" style="--p:{{kpi_tuan_thu}};--gc:{{kpi_tuan_thu_mau}}">
-        <div class="gring"></div><div class="ghole"></div>
-        <div class="gval"><div class="big num">{{kpi_tuan_thu}}<span>%</span></div>
-          <div class="lb">thời gian trong ngưỡng</div></div>
+  <section class="summary keep">
+    <div class="gauge">
+      <div class="value"><strong class="num">{{kpi_tuan_thu}}%</strong><span>trong ngưỡng</span></div>
+    </div>
+    <div>
+      <h2>Tóm tắt quản trị</h2>
+      <p>{{tom_tat_dieu_hanh}}</p>
+      <div class="conclusion"><b>Kết luận kiểm soát:</b> {{ket_luan_kiem_soat}}</div>
+      <div class="quick">
+        <div><b class="num">{{kpi_gio_oos}}</b>Giờ cảnh báo</div>
+        <div><b class="num">{{so_su_co_mo}}</b>Sự cố phát sinh</div>
+        <div><b class="num">{{so_tin_hieu_spc}}</b>Tín hiệu SPC</div>
+        <div><b class="num">{{kpi_dq}}%</b>Độ phủ dữ liệu</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="metrics">
+    <div class="metric"><div class="label">Thời gian trong ngưỡng</div><div class="value num" style="color:{{kpi_tuan_thu_mau}}">{{kpi_tuan_thu}}%</div><div class="note" style="color:{{delta_tuan_thu_mau}}">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}} so kỳ trước</div></div>
+    <div class="metric"><div class="label">Giờ cảnh báo</div><div class="value num">{{kpi_gio_oos}}</div><div class="note" style="color:{{delta_oos_mau}}">{{delta_oos_mui_ten}} {{delta_oos}} so kỳ trước</div></div>
+    <div class="metric"><div class="label">Sự cố phát sinh</div><div class="value num">{{so_su_co_mo}}</div><div class="note">{{so_su_co_dong}} đã đóng · MTTR {{mttr_gio}}h</div></div>
+    <div class="metric"><div class="label">Tín hiệu SPC</div><div class="value num" style="color:{{kpi_spc_mau}}">{{so_tin_hieu_spc}}</div><div class="note">{{so_scope_ngoai_ks}} phạm vi ngoài kiểm soát</div></div>
+    <div class="metric"><div class="label">Độ phủ dữ liệu</div><div class="value num" style="color:{{kpi_dq_mau}}">{{kpi_dq}}%</div><div class="note">{{so_ngay_thieu_dl}} ngày thiếu dữ liệu</div></div>
+    <div class="metric"><div class="label">MKT cao nhất</div><div class="value num" style="color:{{kpi_mkt_mau}}">{{kpi_mkt_max}}°C</div><div class="note">{{kpi_mkt_phong}}</div></div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>Xu hướng chung</h2><span class="note">tỷ lệ trong ngưỡng theo ngày và lịch kỳ báo cáo</span></div>
+    <div class="grid2">
+      <div class="chart"><img src="{{chart_line_src}}" alt="Xu hướng tỷ lệ trong ngưỡng theo ngày"></div>
+      <div class="chart"><img src="{{chart_heat_src}}" alt="Lịch tỷ lệ trong ngưỡng"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>Khu vực và AHU cần theo dõi</h2><span class="note">đọc theo cụm vận hành để khoanh vùng kiểm tra</span></div>
+    <div class="grid2">
+      <div>
+        <div class="callout" style="margin-bottom:8px;"><b>Theo khu vực:</b> dùng để nhận diện khu có xu hướng giảm hoặc độ ổn định thấp.</div>
+        {{#each xu_huong_khu}}
+        <div class="mini">
+          <div class="top"><span>Khu {{khu_vuc}}</span><span class="num" style="color:{{mau}}">{{ty_le_tb}}%</span></div>
+          <img src="{{mini_src}}" alt="Xu hướng khu {{khu_vuc}}">
+        </div>
+        {{/each}}
       </div>
       <div>
-        <h2>Trạng thái kỳ báo cáo</h2>
-        <p style="font-size:15px;font-weight:800;color:{{trang_thai_mau}};margin:0 0 6px;">{{trang_thai_ky}}</p>
-        <div class="hero-2cot">
-          <div>
-            <p>{{tom_tat_dieu_hanh}}</p>
-            <div style="margin:8px 0 2px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6B7686;font-weight:700;">Vì sao kỳ này ở trạng thái đó</div>
-            {{ly_do_html}}
-          </div>
-          <div>
-        <div class="note-box" style="margin-top:0"><b style="color:var(--ink)">Đối chiếu sự cố:</b> {{su_co_cau_doi_chieu}}.
-          <span class="note">{{su_co_moc_do}}.</span> <span style="color:#B3261E">{{su_co_canh_bao}}</span></div>
-        <div class="concl"><b>Dữ kiện cần người có thẩm quyền xác nhận:</b>
-          {{so_su_kien_spc}} đợt biến động cần theo dõi ({{so_su_kien_spc_tiep_dien}} đang tiếp diễn), gộp từ {{tin_hieu_spc_trong_ky}} tín hiệu thuộc kỳ.
-          Kết luận phát hành thuộc Kiểm soát trong quá trình (IPC) và Đảm bảo chất lượng (QA).</div>
-          </div>
+        <div class="callout" style="margin-bottom:8px;"><b>Theo AHU:</b> hỗ trợ Cơ điện chọn cụm xử lý không khí cần kiểm tra trước.</div>
+        {{#each xu_huong_ahu}}
+        <div class="mini">
+          <div class="top"><span>{{ahu}}</span><span class="num" style="color:{{mau}}">{{ty_le_tb}}%</span></div>
+          <img src="{{mini_src}}" alt="Xu hướng {{ahu}}">
         </div>
-        <div class="strip">
-          <div><b class="num">{{kpi_gio_critical}}</b>Giờ mức nghiêm trọng ({{ty_le_critical}} tổng)</div>
-          <div><b class="num">{{su_co_ton_cuoi}}</b>Sự cố còn mở cuối kỳ · {{su_co_ton_dau}} tồn đầu / {{su_co_phat_sinh}} phát sinh / {{su_co_da_dong}} đã đóng</div>
-          <div><b class="num">{{kpi_dq}}%</b>Độ phủ dữ liệu · {{so_ngoai_le}} ngoại lệ</div>
-          <div><b class="num">{{khu_dau}} {{khu_dau_pct}}</b>Khu phát sinh nhiều giờ cảnh báo nhất</div>
-        </div>
+        {{/each}}
       </div>
     </div>
   </section>
 
-  <section class="period-focus ky-tuan keep">
-    <div class="eyebrow">Trọng tâm báo cáo tuần</div>
-    <h2>Xử lý sớm các vấn đề mới phát sinh</h2>
-    <p>Ưu tiên sự cố đang mở, phòng giảm nhanh, cảnh báo mới và khoảng thiếu dữ liệu. Chốt người phụ trách và việc cần hoàn thành trước kỳ tuần tiếp theo. <b>Kỳ này: {{so_su_co_dang_mo}} sự cố còn mở · {{so_muc_uu_tien}} mục trong hàng đợi ưu tiên.</b></p>
-  </section>
-  <section class="period-focus ky-thang keep">
-    <div class="eyebrow">Trọng tâm báo cáo tháng</div>
-    <h2>Nhận diện vấn đề lặp lại và kiểm tra hiệu quả xử lý</h2>
-    <p>Ưu tiên xu hướng theo khu vực/tổ hợp xử lý không khí, sự cố tái diễn, độ tin cậy dữ liệu và hiệu quả hành động khắc phục, phòng ngừa. <b>Kỳ này: {{so_doi_tuong_tai_dien}} đối tượng tái diễn từ 3 đợt trở lên — cần chú ý nhất là {{tai_dien_dau}}.</b></p>
-  </section>
-  <section class="period-focus ky-quy keep">
-    <div class="eyebrow">Trọng tâm báo cáo quý</div>
-    <h2>Đánh giá trạng thái kiểm soát và quyết định nguồn lực</h2>
-    <p>Ưu tiên rủi ro mang tính hệ thống, vấn đề tái diễn nhiều kỳ, độ bền vững của kiểm soát và các quyết định cải tiến cho quý tiếp theo. <b>Kỳ này: {{so_doi_tuong_tai_dien}} đối tượng tái diễn · độ tin cậy dữ liệu {{tin_cay_ket_luan}}.</b></p>
-  </section>
-
-  <!-- ===== VITAL SIGNS (6 KPI) ===== -->
-  <section class="sec avoid">
-    <div class="sec-h"><h2>Chỉ số cốt lõi</h2><span class="note">so kỳ liền trước</span></div>
-    <div class="kpis">
-      <div class="kpi"><div class="lbl">Thời gian trong ngưỡng</div><div class="v num" style="color:{{kpi_tuan_thu_mau}}">{{kpi_tuan_thu}}<small>%</small></div>
-        <div class="d" style="color:{{delta_tuan_thu_mau}}">{{delta_tuan_thu_mui_ten}} {{delta_tuan_thu}} · mốc theo dõi quản trị 80%</div></div>
-      <div class="kpi"><div class="lbl">Giờ mức nghiêm trọng</div><div class="v num">{{kpi_gio_critical}}</div>
-        <div class="d" style="color:{{delta_critical_mau}}">{{delta_critical}} · chiếm {{ty_le_critical}} tổng {{kpi_gio_oos}}</div></div>
-      <div class="kpi"><div class="lbl">Sự cố còn mở</div><div class="v num">{{so_su_co_dang_mo}}</div>
-        <div class="d" style="color:var(--muted)">{{so_su_co_mo}} phát sinh · {{so_su_co_dong}} đã đóng · xử lý TB {{mttr_gio}} giờ</div></div>
-      <div class="kpi"><div class="lbl">Đợt biến động cần theo dõi</div><div class="v num" style="color:{{kpi_spc_mau}}">{{so_su_kien_spc}}</div>
-        <div class="d" style="color:var(--muted)">{{so_su_kien_spc_tiep_dien}} đang tiếp diễn · gộp từ {{tin_hieu_spc_trong_ky}} tín hiệu thuộc kỳ</div></div>
-      <div class="kpi"><div class="lbl">Độ tin cậy dữ liệu</div><div class="v num" style="color:{{kpi_dq_mau}}">{{kpi_dq}}<small>%</small></div>
-        <div class="d" style="color:var(--muted)">độ phủ · <b>{{so_ngoai_le}}</b> ngoại lệ · {{so_ngay_thieu_dl}} ngày thiếu</div></div>
-      <div class="kpi"><div class="lbl">Nhiệt độ động học trung bình (MKT)</div><div class="v num" style="color:{{kpi_mkt_mau}}">{{kpi_mkt_max}}<small>°C</small></div>
-        <div class="d" style="color:var(--muted)">{{kpi_mkt_phong}}</div></div>
-    </div>
-  </section>
-
-  <!-- ===== XU HƯỚNG ===== -->
-  <section class="sec avoid">
-    <div class="sec-h"><h2>Xu hướng tuân thủ theo ngày</h2><span class="note">mốc theo dõi quản trị 80% · toàn nhà máy</span></div>
-    <div class="chart"><img src="{{chart_line_src}}" alt="Tuân thủ theo ngày" />
-      <div class="cap">Lịch tuân thủ trong kỳ ↓</div>
-      <img src="{{chart_heat_src}}" alt="Lịch tuân thủ" style="margin-top:6px" /></div>
-  </section>
-
-  <section class="sec avoid">
-    <div class="sec-h"><h2>Xu hướng theo cấp</h2><span class="note">khu vực &amp; tổ hợp xử lý không khí (AHU)</span></div>
-    <div class="kick" style="margin-bottom:7px">Theo khu vực</div>
-    <div class="mini-grid">
-      {{#each xu_huong_khu}}
-      <div class="mini"><div class="t"><span>Khu {{khu_vuc}}</span><span class="p num" style="color:{{mau}}">{{ty_le_tb}}%</span></div>
-        <img src="{{mini_src}}" alt="khu {{khu_vuc}}" /></div>
-      {{/each}}
-    </div>
-    <div class="kick" style="margin:12px 0 7px">Theo tổ hợp xử lý không khí (AHU)</div>
-    <div class="mini-grid">
-      {{#each xu_huong_ahu}}
-      <div class="mini"><div class="t"><span>{{ahu}}</span><span class="p num" style="color:{{mau}}">{{ty_le_tb}}%</span></div>
-        <img src="{{mini_src}}" alt="{{ahu}}" /></div>
-      {{/each}}
-    </div>
-  </section>
-
-  <!-- ===== CHIỀU SÂU GMP ===== -->
-  <section class="sec avoid">
-    <div class="sec-h"><h2>Phân tích chuyên sâu</h2><span class="note">nhiệt · biến động thống kê · độ tin cậy dữ liệu</span></div>
-    <div class="depth">
-      <div class="dcard"><div class="t"><b>Nhiệt độ động học trung bình (MKT)</b></div>
-        <div class="m num" style="color:{{kpi_mkt_mau}}">{{kpi_mkt_max}}<small>°C</small></div>
-        <div class="c">Phòng <b>{{kpi_mkt_phong}}</b> · nhiệt độ động học trung bình 30 ngày</div></div>
-      <div class="dcard"><div class="t"><b>Đợt biến động cần theo dõi</b></div>
-        <div class="m num" style="color:{{kpi_spc_mau}}">{{so_su_kien_spc}}</div>
-        <div class="c"><b>{{so_su_kien_spc_tiep_dien}}</b> đang tiếp diễn · gộp từ {{tin_hieu_spc_trong_ky}} tín hiệu thuộc kỳ (toàn cửa sổ {{spc_cua_so_ngay}} ngày có {{tin_hieu_spc_cua_so}}) theo các quy tắc phát hiện lệch và trôi xu hướng</div></div>
-      <div class="dcard"><div class="t"><b>Độ đầy đủ dữ liệu (DQ)</b></div>
-        <div class="m num" style="color:{{kpi_dq_mau}}">{{kpi_dq}}<small>%</small></div>
-        <div class="c"><b>{{so_ngay_thieu_dl}}</b> ngày thiếu · nhiều nhất: {{phong_thieu_dl}}</div></div>
-    </div>
-  </section>
-
-  <!-- ===== BẢN ĐỒ NHIỆT PHÒNG × NGÀY (node bơm {{heatmap_html}}) ===== -->
-  <section class="sec avoid">
-    <div class="sec-h"><h2>Bản đồ tuân thủ phòng × ngày</h2><span class="note">% điểm trong ngưỡng mỗi ngày · phòng rủi ro cao</span></div>
-    {{heatmap_html}}
-    <div class="hmleg"><span><i class="v5"></i><i class="v4"></i> ≥99%</span><span><i class="v3"></i> 97–99%</span><span><i class="v2"></i> 96–97%</span><span><i class="v1"></i> 94–96%</span><span><i class="v0"></i> &lt;94%</span><span style="margin-left:auto;color:var(--faint)">{{heatmap_ghi_chu}}</span></div>
-  </section>
-
-  <!-- ===== DỰ BÁO XU HƯỚNG (node bơm {{du_bao_svg}} + {{du_bao_text}}) ===== -->
-  <section class="sec avoid">
-    <div class="sec-h"><h2>Dự báo xu hướng</h2><span class="note">hồi quy tuyến tính chuỗi ngày · dải ±1σ</span></div>
-    <div class="fcchart">{{du_bao_svg}}</div>
-    <div class="fc">▸ {{du_bao_text}}</div>
-  </section>
-
-  <!-- ===== TRỌNG TÂM & BẤT THƯỜNG ===== -->
-  <section class="sec avoid">
-    <div class="sec-h"><h2>Trọng tâm cần xử lý</h2><span class="note">phòng rủi ro cao nhất kỳ</span></div>
+  <section class="section">
+    <div class="section-head"><h2>Phòng cần xử lý trước</h2><span class="note">xếp theo tỷ lệ trong ngưỡng thấp nhất</span></div>
     <table>
-      <thead><tr><th>Phòng</th><th>Khu</th><th class="r">Tuân thủ</th><th class="r">Giờ C.báo</th><th>Diễn biến</th></tr></thead>
+      <thead><tr><th>Phòng</th><th>Khu</th><th class="r">Trong ngưỡng</th><th class="r">Giờ cảnh báo</th><th>Xu hướng</th></tr></thead>
       <tbody>
         {{#each top_phong_xau}}
-        <tr style="--s:{{mau}}"><td class="room" style="border-left-color:{{mau}}"><b>{{ten_phong}}</b> <span>{{ma_phong}}</span></td>
-          <td class="tag">{{khu_vuc}}</td>
+        <tr>
+          <td class="room"><b>{{ten_phong}}</b><span>{{ma_phong}}</span></td>
+          <td><span class="tag">{{khu_vuc}}</span></td>
           <td class="r num" style="color:{{mau}};font-weight:800">{{ty_le_tuan_thu}}%</td>
-          <td class="r num">{{so_gio_oos}}</td>
-          <td><img class="spark" src="{{spark_src}}" alt="{{ma_phong}}" /></td></tr>
+          <td class="r num">{{so_gio_oos}}h</td>
+          <td><img class="spark" src="{{spark_src}}" alt="{{ma_phong}}"></td>
+        </tr>
         {{/each}}
       </tbody>
     </table>
   </section>
 
-  <div class="warnbox avoid">
-    <div class="sec-h"><h2>⚠ Bất thường trong kỳ</h2><span class="note" style="color:#C98A8A">cảnh báo sớm trước khi vượt ngưỡng</span></div>
-    <div class="kick" style="color:#B27272;margin-bottom:6px">Phòng có diễn biến xấu hơn kỳ trước (so kỳ trước)</div>
+  <section class="section">
+    <div class="section-head"><h2>Phòng ổn định nhất</h2><span class="note">tham chiếu tốt để so sánh vận hành</span></div>
     <table>
-      <thead><tr><th>Phòng</th><th class="r">Kỳ này</th><th class="r">Kỳ trước</th><th class="r">Δ</th><th>Lý do phát hiện</th></tr></thead>
+      <thead><tr><th>Phòng</th><th>Khu</th><th class="r">Trong ngưỡng</th><th class="r">Giờ cảnh báo</th><th>Xu hướng</th></tr></thead>
+      <tbody>
+        {{#each top_phong_tot}}
+        <tr>
+          <td class="room"><b>{{ten_phong}}</b><span>{{ma_phong}}</span></td>
+          <td><span class="tag">{{khu_vuc}}</span></td>
+          <td class="r num" style="font-weight:800">{{ty_le_tuan_thu}}%</td>
+          <td class="r num">{{so_gio_oos}}h</td>
+          <td><img class="spark" src="{{spark_src}}" alt="{{ma_phong}}"></td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section warning">
+    <div class="section-head"><h2>Diễn biến xấu hơn kỳ trước</h2><span class="note">{{so_phong_bat_thuong}} phòng cần rà soát</span></div>
+    <table>
+      <thead><tr><th>Phòng</th><th class="r">Kỳ này</th><th class="r">Kỳ trước</th><th class="r">Chênh lệch</th><th>Gợi ý rà soát</th></tr></thead>
       <tbody>
         {{#each phong_xau_bat_thuong}}
-        <tr><td class="room"><b>{{ten_phong}}</b> <span>{{ma_phong}} · {{khu_vuc}}</span></td>
-          <td class="r num">{{tuan_thu_ky_nay}}%</td><td class="r num">{{tuan_thu_ky_truoc}}%</td>
-          <td class="r num neg">{{delta}}</td><td>{{ly_do_html}}</td></tr>
+        <tr>
+          <td class="room"><b>{{ten_phong}}</b><span>{{ma_phong}} · {{khu_vuc}}</span></td>
+          <td class="r num">{{tuan_thu_ky_nay}}%</td>
+          <td class="r num">{{tuan_thu_ky_truoc}}%</td>
+          <td class="r num" style="color:#b91c1c;font-weight:800">{{delta}}</td>
+          <td>{{ly_do_html}}</td>
+        </tr>
         {{/each}}
       </tbody>
     </table>
-    <div class="kick" style="color:#B27272;margin:11px 0 6px">Sự kiện cận hoặc vượt giới hạn tiêu biểu</div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>Sự cố tiêu biểu</h2><span class="note">đối chiếu với hồ sơ xử lý sự cố</span></div>
     <table>
-      <thead><tr><th>Sự cố</th><th>Phòng · chỉ tiêu</th><th>Bắt đầu</th><th class="r">Kéo dài</th><th>Trạng thái</th></tr></thead>
+      <thead><tr><th>Mã sự cố</th><th>Phòng / chỉ tiêu</th><th>Bắt đầu</th><th class="r">Kéo dài</th><th>Trạng thái</th></tr></thead>
       <tbody>
         {{#each su_co_tieu_bieu}}
-        <tr><td><b>{{ma_su_co}}</b></td><td>{{phong}} · {{chi_tieu}}</td><td class="num">{{bat_dau}}</td>
-          <td class="r num">{{keo_dai_gio}}h</td><td>{{trang_thai}}</td></tr>
+        <tr>
+          <td><b>{{ma_su_co}}</b></td>
+          <td>{{phong}} · {{chi_tieu}}</td>
+          <td class="num">{{bat_dau}}</td>
+          <td class="r num">{{keo_dai_gio}}h</td>
+          <td>{{trang_thai}}</td>
+        </tr>
         {{/each}}
       </tbody>
     </table>
-    <div class="kick" style="color:#B27272;margin:11px 0 6px">Ngoại lệ dữ liệu &amp; thiết bị</div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>Kiểm soát quá trình và dữ liệu</h2><span class="note">SPC, ngoại lệ dữ liệu, MKT</span></div>
+    <div class="grid3">
+      <div class="callout"><b>SPC:</b> {{so_tin_hieu_spc}} tín hiệu, {{so_scope_ngoai_ks}} phạm vi ngoài kiểm soát. Dùng để chọn điểm cần theo dõi sâu, không tự thay thế kết luận QA.</div>
+      <div class="callout"><b>Dữ liệu:</b> độ phủ {{kpi_dq}}%, {{so_ngay_thieu_dl}} ngày thiếu. Phòng thiếu nhiều: {{phong_thieu_dl}}.</div>
+      <div class="callout"><b>MKT:</b> giá trị cao nhất {{kpi_mkt_max}}°C tại {{kpi_mkt_phong}}.</div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>Chi tiết SPC</h2><span class="note">các phạm vi có tín hiệu thống kê</span></div>
     <table>
-      <thead><tr><th>Loại</th><th class="r">Số lần</th><th>Diễn giải</th></tr></thead>
+      <thead><tr><th>Phạm vi</th><th>Cảm biến</th><th class="r">Số tín hiệu</th><th>Loại tín hiệu</th></tr></thead>
+      <tbody>
+        {{#each spc_chi_tiet}}
+        <tr><td><b>{{ten_scope}}</b></td><td>{{sensor_type}}</td><td class="r num">{{so_tin_hieu}}</td><td>{{cac_loai}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>Ngoại lệ dữ liệu</h2><span class="note">{{so_ngoai_le}} ngoại lệ được phân nhóm</span></div>
+    <table>
+      <thead><tr><th>Loại ngoại lệ</th><th class="r">Số lần</th><th>Diễn giải</th></tr></thead>
       <tbody>
         {{#each ngoai_le_theo_loai}}
-        <tr><td><b>{{loai_vi}}</b></td><td class="r num">{{so_lan}}</td><td style="color:var(--muted)">{{dien_giai}}</td></tr>
+        <tr><td><b>{{loai_vi}}</b></td><td class="r num">{{so_lan}}</td><td>{{dien_giai}}</td></tr>
         {{/each}}
       </tbody>
     </table>
-  </div>
-
-  <!-- ===== Mảng 2 · ĐÁNH GIÁ OOS/OOT 2 TẦNG + CAPA (Annex 1 §9.9–9.13) =====
-       BẮT BUỘC cho bản ghi GMP: mỗi sự kiện vượt giới hạn phải có mức (cảnh báo→
-       đánh giá / hành động→điều tra + đánh giá tác động lô + CAPA), nguyên nhân gốc,
-       trạng thái CAPA. Node bơm mảng "oos_capa" (each) với các trường:
-         muc ('alert'|'action'), muc_vi, phong, chi_tieu, gia_tri, gioi_han,
-         bat_dau, nguyen_nhan, tac_dong_lo, capa_ma, capa_trang_thai
-                                 ('open'|'doing'|'done'), capa_trang_thai_vi, capa_han.
-       Nếu chưa có dữ liệu → mảng rỗng (section vẫn hợp lệ, bảng trống). -->
-  <section class="sec avoid">
-    <div class="sec-h"><h2>Từng chỉ tiêu môi trường</h2><span class="note">mỗi cảm biến có hướng nguy hiểm riêng</span></div>
-    <p class="note" style="margin:0 0 8px">Tỉ lệ gộp của cả phòng che mất bản chất từng biến: một phòng có thể chênh áp rất xấu trong khi độ ẩm và nhiệt độ hoàn toàn ổn. Ba bảng dưới tách riêng, và mỗi loại chỉ tính theo <b>hướng thực sự nguy hiểm</b> của nó. Không so trực tiếp giữa ba loại vì đơn vị khác nhau (Pa, %RH, °C).</p>
-    {{chi_so_cam_bien_html}}
-        </tbody>
-      </table>
-    </div>
-    {{/each}}
   </section>
 
-  <section class="card">
-    <div class="sec-h"><h2>Hàng đợi ưu tiên xử lý</h2><span class="note">xếp theo điểm rủi ro · {{so_muc_uu_tien}} mục</span></div>
-    <p class="note" style="margin:0 0 6px">Xếp theo mức nghiêm trọng, thời lượng, mức ưu tiên phòng, còn tiếp diễn hay không và số đợt tái diễn. Bảng này trả lời "xử lý cái nào trước", khác với bảng xếp theo tỉ lệ thấp nhất (chỉ mô tả).</p>
+  <section class="section">
+    <div class="section-head"><h2>MKT theo phòng</h2><span class="note">nhiệt độ động học trung bình</span></div>
     <table>
-      <thead><tr><th>Đối tượng</th><th>Cảm biến</th><th>Mức</th><th>Vì sao ưu tiên</th><th>Giới hạn</th><th>Đang ở đâu</th></tr></thead>
+      <thead><tr><th>Phòng</th><th>Khu</th><th class="r">MKT</th><th class="r">Trung bình</th><th class="r">Cao nhất</th></tr></thead>
       <tbody>
-        {{#each hang_doi_uu_tien}}
-        <tr>
-          <td><b>{{ten_phong}}</b><br><span class="note">{{ma_phong}} · {{khu_vuc}} · {{ahu}} · {{muc_uu_tien}}</span></td>
-          <td style="color:{{mau_muc}};font-weight:700">{{loai_cam_bien}}<br><span class="note">{{muc}}</span></td>
-          <td style="font-weight:800;color:{{mau_uu_tien}};white-space:nowrap">{{muc_uu_tien_vi}}</td>
-          <td style="font-size:11px">{{giai_thich}}</td>
-          <td class="num" style="font-size:11px">{{gioi_han}}</td>
-          <td style="font-size:11px">{{phu_trach}} {{cham}}</td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-    <div class="note-box" style="margin-top:9px">{{ghi_chu_pham_vi_phieu}}</div>
-  </section>
-
-  <section class="card">
-    <div class="sec-h"><h2>Sổ sự kiện vượt ngưỡng</h2><span class="note">cấp cảm biến · {{so_su_kien_vuot}} sự kiện · {{so_su_kien_vuot_nghiem_trong}} nghiêm trọng · {{gio_su_kien_vuot}} giờ</span></div>
-    <p class="note" style="margin:0 0 6px">Các giờ cảnh báo LIỀN NHAU của cùng một cảm biến được gộp thành một sự kiện; cách nhau quá một giờ thì tách sự kiện mới. Cột "kết thúc do" phân biệt <b>hồi phục thật</b> với <b>mất dữ liệu</b> — giờ không có số đo vẫn được hệ ghi nhãn bình thường, nếu không xét sẽ tưởng đã hết.</p>
-    <table>
-      <thead><tr><th>Phòng</th><th>Cảm biến</th><th>Lệch</th><th>Bắt đầu</th><th>Kết thúc</th><th class="r">Giờ</th><th class="r">Nhỏ nhất</th><th class="r">Lớn nhất</th><th>Giới hạn</th><th>Kết thúc do</th><th>Phiếu</th></tr></thead>
-      <tbody>
-        {{#each so_su_kien_vuot}}
-        <tr>
-          <td><b>{{ten_phong}}</b><br><span class="note">{{ma_phong}} · {{khu_vuc}}</span></td>
-          <td style="color:{{mau_muc}};font-weight:700">{{loai_cam_bien}}<br><span class="note">{{muc}}</span></td>
-          <td>{{huong}}</td><td class="num">{{bat_dau}}</td><td class="num">{{ket_thuc}}</td>
-          <td class="r num">{{so_gio}}</td><td class="r num">{{gia_tri_min}}</td><td class="r num">{{gia_tri_max}}</td>
-          <td class="num">{{gioi_han}}</td><td style="font-size:11px">{{ket_thuc_do}}</td><td class="num">{{ma_su_co}}</td>
-        </tr>
+        {{#each mkt_chi_tiet}}
+        <tr><td class="room"><b>{{ma_phong}}</b><span>{{ten_phong}}</span></td><td><span class="tag">{{khu_vuc}}</span></td><td class="r num"><b>{{mkt}}</b></td><td class="r num">{{t_tb}}</td><td class="r num">{{t_max}}</td></tr>
         {{/each}}
       </tbody>
     </table>
   </section>
 
-  <section class="card">
-    <div class="sec-h"><h2>Đợt biến động cần theo dõi</h2><span class="note">{{so_su_kien_spc}} sự kiện · {{so_su_kien_spc_tiep_dien}} đang tiếp diễn</span></div>
-    <p class="note" style="margin:0 0 6px">{{spc_ghi_chu_cua_so}} Trong {{tin_hieu_spc_cua_so}} tín hiệu của cửa sổ, <b>{{tin_hieu_spc_trong_ky}}</b> tín hiệu thuộc kỳ báo cáo và được gộp thành <b>{{so_su_kien_spc}}</b> sự kiện — nhiều thuật toán cùng bắt một hiện tượng chỉ tính một lần.</p>
+  <section class="section">
+    <div class="section-head"><h2>Giới hạn tham chiếu</h2><span class="note">theo cấu hình phòng và chỉ tiêu</span></div>
     <table>
-      <thead><tr><th>Phạm vi</th><th>Cấp</th><th>Chiều</th><th>Xu hướng</th><th>Từ</th><th>Đến</th><th class="r">Ngày</th><th class="r">Tín hiệu</th><th>Thuật toán</th><th>Trạng thái</th></tr></thead>
-      <tbody>
-        {{#each spc_su_kien}}
-        <tr><td><b>{{ten_scope}}</b></td><td>{{scope_type}}</td><td>{{huong}}</td><td>{{xu_huong}}</td>
-          <td class="num">{{bat_dau}}</td><td class="num">{{ket_thuc}}</td>
-          <td class="r num">{{so_ngay}}</td><td class="r num">{{so_tin_hieu}}</td>
-          <td style="font-size:11px">{{cac_thuat_toan}}</td><td style="font-size:11px">{{tiep_dien}}</td></tr>
-        {{/each}}
-      </tbody>
-    </table>
-  </section>
-
-  <section class="card">
-    <div class="sec-h"><h2>Độ tin cậy dữ liệu</h2><span class="note">{{tin_cay_ket_luan}}</span></div>
-    <p style="margin:0 0 8px"><b>{{du_lieu_anh_huong}}</b><br>{{tin_cay_ly_do}} Kỳ này kỳ vọng <b>{{gio_ky_vong}}</b> giờ đo, trong đó <b>{{gio_rong}}</b> giờ không có số đo nào (độ phủ <b>{{kpi_do_phu}}%</b>). Các giờ rỗng đã bị loại khỏi mẫu số tính tỉ lệ, nên tỉ lệ trong ngưỡng không bị thổi lên — nhưng kết luận chỉ áp dụng cho khoảng có dữ liệu hợp lệ.</p>
-    <table>
-      <thead><tr><th>Mã lỗi</th><th class="r">Số lần</th><th>Diễn giải</th></tr></thead>
-      <tbody>
-        {{#each ngoai_le_chi_tiet}}
-        <tr><td><b>{{ma_loi}}</b></td><td class="r num">{{so_lan}}</td><td style="font-size:11px">{{dien_giai}}</td></tr>
-        {{/each}}
-      </tbody>
-    </table>
-    <div class="note-box" style="margin-top:9px">Cảm biến đứng hình: <b>{{so_cam_bien_dung_hinh}}</b> — theo chính sách 13/07, đứng hình được theo dõi riêng, KHÔNG mở phiếu sự cố và không trộn vào tỉ lệ tuân thủ.</div>
-  </section>
-
-  <section class="card">
-    <div class="sec-h"><h2>Tổng hợp theo phòng &amp; hành động</h2><span class="note">mức phòng — chi tiết cấp cảm biến xem Sổ sự kiện vượt ngưỡng ở trên</span></div>
-    <table>
-      <thead><tr><th>Mức</th><th>Phòng · chỉ tiêu</th><th class="r">Giá trị / GH</th><th>Bắt đầu</th><th>Nguyên nhân gốc</th><th>Tác động lô</th><th>CAPA</th><th class="r">Hạn</th></tr></thead>
-      <tbody>
-        {{#each oos_capa}}
-        <tr>
-          <td><span class="lvl lvl-{{muc}}">{{muc_vi}}</span></td>
-          <td class="room"><b>{{phong}}</b> <span>{{chi_tieu}}</span></td>
-          <td class="r num">{{gia_tri}} / {{gioi_han}}</td>
-          <td class="num">{{bat_dau}}</td>
-          <td style="color:var(--ink2)">{{nguyen_nhan}}</td>
-          <td style="color:var(--muted)">{{tac_dong_lo}}</td>
-          <td><b>{{capa_ma}}</b> <span class="capa-st capa-{{capa_trang_thai}}">{{capa_trang_thai_vi}}</span></td>
-          <td class="r num">{{capa_han}}</td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-    <div class="note-box" style="margin-top:9px"><b style="color:var(--ink)">Đọc bảng này thế nào:</b>
-      bảng xếp theo <b>chỉ số quản trị</b> (tỉ lệ thời gian trong ngưỡng của cả phòng), không phải theo giới hạn cảm biến.
-      <b style="color:#8A5300">Theo dõi</b> = giảm dưới 5 điểm % so kỳ trước ·
-      <b style="color:#A62E2E">Cần rà soát</b> = giảm từ 5 điểm % trở lên.
-      <b style="color:var(--ink)">Mốc 80% là mốc theo dõi quản trị nội bộ, KHÔNG phải giới hạn hành động GMP</b> —
-      giới hạn hành động chỉ áp cho giá trị cảm biến đã được Đảm bảo chất lượng (QA) phê duyệt cho từng phòng
-      (xem mục Giới hạn cấu hình). Việc mở phiếu điều tra, đánh giá tác động lô và hành động khắc phục/phòng ngừa (CAPA)
-      do người có thẩm quyền quyết định, không suy ra tự động từ chỉ số quản trị.</div>
-  </section>
-
-  <!-- ===== NHẬN ĐỊNH AI ===== -->
-  <section class="ai avoid">
-    <div class="hd"><b>Nhận định hỗ trợ &amp; gợi ý hành động</b><span class="ai-tag">Trí tuệ nhân tạo (AI)</span></div>
-    <div class="note-box" style="margin:0 0 8px"><b style="color:var(--ink)">Tình trạng đối chiếu:</b> {{trang_thai_tham_dinh_vi}}</div>
-    <div class="body">{{nhan_dinh_ai}}</div>
-
-    <!-- ============================================================
-         PHASE 2 — CAPA & KHUYẾN NGHỊ (từ WF7 "Phân tích xu hướng").
-         Kích hoạt khi node "Ráp báo cáo" bơm thêm các token:
-           phan_tich_chuyen_gia  và vòng lặp "capa" (each) với
-           {{hanh_dong}} {{bo_phan}} {{uu_tien}} {{uu_tien_mau}} {{han}}.
-         Cần: (a) WF5 gọi webhook WF7 phan-tich-xu-huong, (b) WF7 xuất CAPA
-         có cấu trúc. Bỏ comment khối dưới sau khi wiring xong.
-    <div class="hd" style="margin-top:14px"><b>CAPA &amp; khuyến nghị</b><span class="note">phân vai IPC · Cơ điện · QA</span></div>
-    <table>
-      <thead><tr><th>Hành động khắc phục / phòng ngừa</th><th>Bộ phận</th><th class="r">Ưu tiên</th><th class="r">Thời hạn</th></tr></thead>
-      <tbody>
-        {{#each capa}}
-        <tr><td>{{hanh_dong}}</td><td><b>{{bo_phan}}</b></td>
-          <td class="r" style="color:{{uu_tien_mau}};font-weight:800">{{uu_tien}}</td><td class="r num">{{han}}</td></tr>
-        {{/each}}
-      </tbody>
-    </table>
-    ============================================================ -->
-
-    <div class="disc">Số liệu do hệ thống tính — trí tuệ nhân tạo chỉ hỗ trợ sàng lọc và đề xuất; kết luận do Kiểm soát trong quá trình (IPC) và Đảm bảo chất lượng (QA).
-      Mô hình: {{ai_model_dung}} · {{ai_tao_luc}}</div>
-  </section>
-
-  <!-- ===== CĂN CỨ & GIỚI HẠN & KÝ DUYỆT (trang 2) ===== -->
-  <section class="sec page avoid">
-    <div class="sec-h"><h2>Giới hạn cấu hình áp dụng trong kỳ</h2><span class="note">giới hạn dưới (GHD) · giới hạn trên (GHT) theo phòng</span></div>
-    <table>
-      <thead><tr><th>Mức ưu tiên</th><th>Chỉ tiêu</th><th class="r">GHD</th><th class="r">GHT</th><th>Đơn vị</th><th class="r">Số phòng</th></tr></thead>
+      <thead><tr><th>Mức ưu tiên</th><th>Chỉ tiêu</th><th class="r">Giới hạn dưới</th><th class="r">Giới hạn trên</th><th>Đơn vị</th><th class="r">Số phòng</th></tr></thead>
       <tbody>
         {{#each gioi_han_tham_chieu}}
         <tr><td>{{muc_uu_tien}}</td><td>{{chi_tieu}}</td><td class="r num">{{ghd}}</td><td class="r num">{{ght}}</td><td>{{don_vi}}</td><td class="r num">{{so_phong}}</td></tr>
         {{/each}}
       </tbody>
     </table>
-    <div class="kick" style="margin:14px 0 7px">Nhiệt độ động học trung bình (MKT) theo phòng — cửa sổ 30 ngày</div>
-    <table>
-      <thead><tr><th>Phòng</th><th>Khu</th><th class="r">MKT °C</th><th class="r">Nhiệt độ trung bình</th><th class="r">Nhiệt độ cao nhất</th></tr></thead>
-      <tbody>
-        {{#each mkt_chi_tiet}}
-        <tr><td class="room"><b>{{ma_phong}}</b> <span>{{ten_phong}}</span></td><td class="tag">{{khu_vuc}}</td>
-          <td class="r num" style="font-weight:700">{{mkt}}</td><td class="r num">{{t_tb}}</td><td class="r num">{{t_max}}</td></tr>
-        {{/each}}
-      </tbody>
-    </table>
-    <div class="note-box"><b style="color:var(--ink)">Phương pháp &amp; phạm vi:</b> Mọi so sánh dùng đúng giới hạn cấu hình của từng phòng tại thời điểm chạy báo cáo;
-      cắt lát theo giờ. Khoảng thiếu dữ liệu được đánh dấu, không nội suy — kết luận chỉ áp dụng cho khoảng đủ dữ liệu.</div>
-
-    <div class="note-box">
-      <b style="color:var(--ink)">Chú giải thuật ngữ và từ viết tắt</b>
-      <div class="glossary">
-        <p><b>BMS</b> — Hệ thống quản lý tòa nhà.</p>
-        <p><b>GMP</b> — Thực hành tốt sản xuất.</p>
-        <p><b>FMS</b> — Hệ thống giám sát cơ sở, nguồn cấp dữ liệu cho BMS.</p>
-        <p><b>AHU</b> — Tổ hợp xử lý không khí.</p>
-        <p><b>T / RH / ΔP</b> — nhiệt độ / độ ẩm tương đối / chênh áp.</p>
-        <p><b>DQ</b> — độ đầy đủ, chất lượng dữ liệu.</p>
-        <p><b>MTTR</b> — thời gian xử lý trung bình.</p>
-        <p><b>SPC</b> — kiểm soát quá trình bằng thống kê.</p>
-        <p><b>MKT</b> — nhiệt độ động học trung bình.</p>
-        <p><b>OOS / OOT</b> — ngoài giới hạn / ngoài xu hướng dự kiến.</p>
-        <p><b>CAPA</b> — hành động khắc phục và phòng ngừa.</p>
-        <p><b>IPC / QA</b> — Kiểm soát trong quá trình / Đảm bảo chất lượng.</p>
-        <p><b>ALCOA+</b> — bộ nguyên tắc bảo đảm toàn vẹn dữ liệu.</p>
-        <p><b>AI</b> — trí tuệ nhân tạo; không thay thế người phê duyệt.</p>
-        <p><b>Δ</b> — mức chênh so với kỳ trước.</p>
-        <p><b>R² / σ</b> — mức độ phù hợp của đường xu hướng / độ lệch chuẩn.</p>
-        <p><b>SHA-256 / QR</b> — mã băm kiểm tra tính toàn vẹn / mã quét xác minh bản lưu.</p>
-        <p><b>WF5</b> — mã quy trình tự động tạo báo cáo.</p>
-      </div>
-    </div>
-    <!-- Mảng 2 · Chữ ký điện tử (Part 11 §11.50): mỗi ô nêu HỌ TÊN · CHỨC DANH ·
-         Ý NGHĨA ký (lập/soát xét/phê duyệt) · NGÀY-GIỜ. Node bơm: lap_ten/lap_chuc,
-         soat_ten/soat_chuc/soat_luc, duyet_ten/duyet_chuc/duyet_luc. Bước 2 (e-sig có
-         audit trail chống chối bỏ) chỉ cần khi xuất khẩu — xem ghi chú kế hoạch §3. -->
-    <div class="signoff">
-      <div class="sbox"><div class="r">Người lập</div><div class="sign"></div>
-        <div class="who">{{lap_ten}}</div><div class="role2">{{lap_chuc}}</div>
-        <div class="mean">Ý nghĩa: Lập báo cáo (hệ thống WF5)</div><div class="dt">{{tao_luc}} (giờ Việt Nam)</div></div>
-      <div class="sbox"><div class="r">Soát xét</div><div class="sign"></div>
-        <div class="who">{{soat_ten}}</div><div class="role2">{{soat_chuc}}</div>
-        <div class="mean">Ý nghĩa: Đã soát xét (Kiểm soát trong quá trình/Kỹ thuật)</div><div class="dt">{{soat_luc}}</div></div>
-      <div class="sbox"><div class="r">Phê duyệt</div><div class="sign"></div>
-        <div class="who">{{duyet_ten}}</div><div class="role2">{{duyet_chuc}}</div>
-        <div class="mean">Ý nghĩa: Phê duyệt phát hành (Đảm bảo chất lượng)</div><div class="dt">{{duyet_luc}}</div></div>
-    </div>
-
-    <!-- Mảng 2 · Phân phối có kiểm soát (P0): node bơm mảng "noi_nhan" (each), mỗi phần tử có vai_tro. -->
-    <div class="kick" style="margin:14px 0 6px">Nơi nhận (phân phối có kiểm soát)</div>
-    <div class="dist">
-      {{#each noi_nhan}}<span>{{vai_tro}}</span>{{/each}}
-    </div>
-
-    <!-- Mảng 2 · Bản lưu trữ bất biến (ALCOA+ Enduring, P1): tên file có phiên bản +
-         SHA-256 (của snapshot dữ liệu bao_cao) + QR xác minh. Node bơm: ten_file, sha256, qr_svg (HTML thô). -->
-    <div class="archive">
-      <div class="qr">{{qr_svg}}</div>
-      <div class="meta2">
-        <div>Tên file lưu trữ: <code>{{ten_file}}</code></div>
-        <div>SHA-256: <code>{{sha256}}</code></div>
-        <div>Quét QR để xác minh bản gốc trên Google Drive · bản PDF là bản lưu trữ chính thức.</div>
-      </div>
-    </div>
-
-    <div class="foot">Truy vết GMP · mã lần chạy <b>{{ma_lan_chay}}</b> · mã tài liệu <b>{{ma_tai_lieu}}</b> ·
-      tạo lúc {{tao_luc}} · nguồn <code>rpc_bao_cao_tong_hop('{{ky}}','{{tu_ngay_iso}}','{{den_ngay_iso}}')</code> ·
-      BMS-GMP (CPC1HN). Bản PDF trên Google Drive là bản lưu trữ chính thức.</div>
   </section>
 
+  <section class="section ai">
+    <div class="section-head"><h2>Nhận định hỗ trợ</h2><span class="note">QA/IPC xác nhận trước khi kết luận GMP</span></div>
+    <div class="ai-body">{{nhan_dinh_ai}}</div>
+    <div class="callout" style="margin-top:10px;">Mô hình: {{ai_model_dung}} · Tạo lúc {{ai_tao_luc}}. Nội dung này dùng để hỗ trợ sàng lọc và chuẩn bị rà soát, không tự thay thế đánh giá của QA.</div>
+  </section>
+
+  <div class="footer">
+    Truy vết GMP · mã lần chạy <b>{{ma_lan_chay}}</b> · tạo lúc {{tao_luc}} · nguồn <code>rpc_bao_cao_tong_hop('{{ky}}','{{tu_ngay_iso}}','{{den_ngay_iso}}')</code>.<br>
+    Tệp PDF/HTML này được sinh tự động bởi WF5 từ dữ liệu BMS. Khi dùng trong hồ sơ chất lượng, cần đối chiếu SOP, hồ sơ sự cố và phê duyệt của bộ phận phụ trách.
+  </div>
 </body>
 </html>
