@@ -13,7 +13,7 @@ export const NAV_GROUPS = [
     { k: "sensors", label: VI.nav.sensors, icon: Radio },
     { k: "tasks", label: VI.nav.tasks, icon: ClipboardList },
   ] },
-  { label: "Phân tích", items: [
+  { label: "Theo dõi xu hướng", items: [
     { k: "trend", label: VI.nav.trend, icon: LineChart },
     { k: "reports", label: VI.nav.reports, icon: FileBarChart },
   ] },

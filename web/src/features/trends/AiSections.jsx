@@ -1,6 +1,6 @@
 // AiSections.jsx — khối trình bày văn bản phân tích (tách khỏi TrendPage 17/08/2026 để ReportsPage không kéo cả trang trends).
 import React from "react";
-import { Gauge, Activity, FileBarChart, CheckCircle2, Sparkles } from "lucide-react";
+import { Gauge, Activity, FileBarChart, CheckCircle2, ClipboardCheck } from "lucide-react";
 
 export // Hiển thị kết quả AI theo MỤC: tách theo "## TÊN MỤC", mỗi mục là 1 khối có tiêu đề + màu.
 // Nếu văn bản không có marker "##" → hiển thị nguyên văn (tương thích kết quả cũ).
@@ -19,8 +19,12 @@ function AiSections({ text }) {
     const nl = b.indexOf("\n");
     const title = (nl < 0 ? b : b.slice(0, nl)).trim();
     const body = (nl < 0 ? "" : b.slice(nl + 1)).trim();
-    const hienTitle = (t) => t.replace("PHÂN TÍCH", "NHẬN ĐỊNH").replace("DỮ LIỆU", "SỐ LIỆU CHÍNH").replace("BÁO CÁO", "TÓM TẮT");
-    const m = META.find((x) => title.toUpperCase().includes(x.kw)) || { icon: Sparkles, c: "var(--primary)", bg: "bg-subtle", ring: "ring-line" };
+    const hienTitle = (t) => t
+      .replace("PHÂN TÍCH", "NHẬN XÉT GMP")
+      .replace("DỮ LIỆU", "SỐ LIỆU CHÍNH")
+      .replace("BÁO CÁO", "TÓM TẮT KẾT LUẬN")
+      .replace("KHUYẾN NGHỊ", "THEO DÕI");
+    const m = META.find((x) => title.toUpperCase().includes(x.kw)) || { icon: ClipboardCheck, c: "var(--primary)", bg: "bg-subtle", ring: "ring-line" };
     const Icon = m.icon;
     const lines = body.split("\n").map((l) => l.replace(/\s+$/, "")).filter((l) => l.trim());
     // Gom các dòng BẢNG markdown (| a | b |) liền kề thành 1 khối bảng; còn lại là dòng chữ.

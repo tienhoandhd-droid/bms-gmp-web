@@ -1,6 +1,6 @@
 // IncidentsParts.jsx — tiến trình phiếu, kiểm soát xử lý, đánh giá hiệu quả cảnh báo (tách move-only từ App.jsx 17/08/2026).
 import React, { useState } from "react";
-import { Check, Eye, FileText, ShieldAlert, ShieldCheck, User, X } from "lucide-react";
+import { Activity, BellRing, Check, ClipboardCheck, Clock3, Eye, FileText, ShieldAlert, ShieldCheck, User, X } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
 import Chart from "../../components/ui/Chart";
 import { moTaLoi } from "../../lib/bmsClient";
@@ -315,8 +315,27 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
   const luat = bc?.luat, tk = bc?.tong_ket;
   const tuan = Array.isArray(tuanBc?.tuan) ? tuanBc.tuan : [];
   const khu = Array.isArray(tuanBc?.khu) ? tuanBc.khu : [];
+  const dsBoPhan = sapBoPhan(bc?.bo_phan || []);
+  const dsBoPhanCham = dsBoPhan.filter((b) => !b.vai_giam_sat);
+  const tongMauPhanHoi = dsBoPhanCham.reduce((a, b) => a + (mauSo(b) || 0), 0);
+  const tongTuPhanHoi = dsBoPhanCham.reduce((a, b) => a + (tuSo(b) || 0), 0);
+  const tyLeChung = tongMauPhanHoi > 0 ? Math.round((tongTuPhanHoi / tongMauPhanHoi) * 1000) / 10 : null;
+  const soCanLuuY = dsBoPhanCham.filter((b) => {
+    const t = pct(b);
+    return t != null && (mauSo(b) || 0) > 0 && t < 50;
+  }).length;
+  const gioPhanHoi = dsBoPhanCham.map((b) => b.gio_phan_hoi_tb).filter((v) => v != null);
+  const gioPhanHoiTb = gioPhanHoi.length ? Math.round((gioPhanHoi.reduce((a, b) => a + Number(b), 0) / gioPhanHoi.length) * 10) / 10 : null;
   const ngoaiPv = (Array.isArray(bc?.phong) ? bc.phong : []).filter((r) => !r.trong_pham_vi);
   const muP1P2 = ngoaiPv.filter((r) => r.pct_dat != null && r.pct_dat < 90 && (r.muc_uu_tien === "P1" || r.muc_uu_tien === "P2"));
+  const pctDuoiSanTb = tuanBc?.tong_ket?.pct_duoi_san_tb;
+  const mucKetLuan = pctDuoiSanTb == null
+    ? { nhan: "Chờ dữ liệu", cls: "text-muted bg-subtle ring-line", mo: "Chưa đủ số liệu để kết luận kỳ báo cáo." }
+    : pctDuoiSanTb >= 25 || muP1P2.length > 0
+    ? { nhan: "Cần điều tra", cls: "text-danger bg-danger-soft ring-danger-line", mo: "Có sai lệch đáng chú ý hoặc phòng ngoài phạm vi cần xem xét." }
+    : pctDuoiSanTb >= 10 || soCanLuuY > 0
+    ? { nhan: "Cần theo dõi", cls: "text-warning bg-warning-soft ring-warning-line", mo: "Có điểm cần theo dõi về sai lệch hoặc phản hồi bộ phận." }
+    : { nhan: "Trong kiểm soát", cls: "text-success bg-success-soft ring-success-line", mo: "Sai lệch và phản hồi trong kỳ ở mức chấp nhận được." };
   const oTuan = (r, t) => (r.tuan || []).find((w) => w.tuan === t);
   const DU = 84;   // nửa tuần — dưới mức này không đủ tin cậy để so sánh
   // Xu hướng = tuần CUỐI so tuần ĐẦU, và chỉ tính khi cả hai đầu mút đủ dữ liệu.
@@ -355,6 +374,45 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           Phần <b>vượt trần</b> để riêng ở cột cuối — không sinh phiếu nhưng vẫn là sai lệch.
         </div>
 
+        <div className="mt-3 rounded-2xl bg-surface p-3.5 ring-1 ring-line">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Tóm tắt kết luận GMP</p>
+              <h4 className="mt-1 text-base font-semibold" style={{ color: "var(--text-strong)" }}>{mucKetLuan.nhan}</h4>
+              <p className="mt-0.5 text-[12.5px] text-muted">{mucKetLuan.mo}</p>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-[12px] font-semibold ring-1 ${mucKetLuan.cls}`}>Kỳ {soTuan} tuần</span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <div className="rounded-xl bg-subtle px-3 py-2 ring-1 ring-line">
+              <p className="text-[11px] font-semibold uppercase text-muted">Phiếu mở</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums" style={{ color: "var(--text-strong)" }}>{tk.ve_mo_trong_ky}</p>
+              <p className="text-[12px] text-muted">{tk.ve_he_thong_dong} phiếu hệ thống tự đóng</p>
+            </div>
+            <div className="rounded-xl bg-subtle px-3 py-2 ring-1 ring-line">
+              <p className="text-[11px] font-semibold uppercase text-muted">Dưới sàn TB</p>
+              <p className={`mt-0.5 text-lg font-bold tabular-nums ${mauKhongDat(pctDuoiSanTb)}`}>{pctDuoiSanTb == null ? "—" : `${pctDuoiSanTb}%`}</p>
+              <p className="text-[12px] text-muted">theo giờ có dữ liệu</p>
+            </div>
+            <div className="rounded-xl bg-subtle px-3 py-2 ring-1 ring-line">
+              <p className="text-[11px] font-semibold uppercase text-muted">Phản hồi chung</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-success">{tyLeChung == null ? "—" : `${tyLeChung}%`}</p>
+              <p className="text-[12px] text-muted">{soCanLuuY} bộ phận cần theo dõi</p>
+            </div>
+            <div className="rounded-xl bg-subtle px-3 py-2 ring-1 ring-line">
+              <p className="text-[11px] font-semibold uppercase text-muted">Phòng ngoài phạm vi</p>
+              <p className={`mt-0.5 text-lg font-bold tabular-nums ${muP1P2.length ? "text-danger" : "text-success"}`}>{muP1P2.length}</p>
+              <p className="text-[12px] text-muted">P1/P2 đạt dưới 90%</p>
+            </div>
+          </div>
+          <ul className="mt-3 space-y-1 text-[12.5px] text-body list-disc pl-4">
+            <li>Đã gửi <b>{tk.email_digest}</b> email cảnh báo trong kỳ.</li>
+            {muP1P2.length > 0 && (
+              <li className="text-danger">Có <b>{muP1P2.length}</b> phòng P1/P2 ngoài danh sách sự cố đạt dưới 90%; cần rà soát phạm vi cảnh báo.</li>
+            )}
+          </ul>
+        </div>
+
         {/* ── Luật cảnh báo ── */}
         <div className="mt-3 rounded-xl bg-subtle p-3.5 ring-1 ring-line">
           <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Luật cảnh báo đang áp</p>
@@ -373,83 +431,162 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
         </div>
 
         {/* ── Tỉ lệ phản hồi ── */}
-        <p className="mt-4 text-[12px] font-semibold uppercase tracking-wider text-muted">Tỉ lệ phản hồi của các bộ phận</p>
-        <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-          {sapBoPhan(bc.bo_phan || []).map((b) => {
-            // QA là vai GIÁM SÁT — không có hàng đợi nên không chấm %. Trước 11/08
-            // thẻ này ra "0% — 0/94 phiếu", đọc như thể QA bỏ sót 94 lần.
-            if (b.vai_giam_sat) return (
-              <div key={khoaBoPhan(b)} className="rounded-xl bg-subtle p-3 ring-1 ring-line">
-                <p className="text-[12px] font-semibold text-muted">{ROLE[b.vai_tro] || b.vai_tro} <span className="font-normal">· giám sát</span></p>
-                <p className="text-[22px] font-bold tabular-nums leading-tight text-body">{b.ve_da_thao_tac}</p>
-                <p className="text-[12px] text-muted leading-snug">phiếu đã can thiệp · {b.tong_thao_tac} thao tác</p>
-                <p className="text-[12px] text-muted leading-snug">Không có hàng đợi — chỉ vào khi xác nhận khắc phục hoặc mở lại phiếu, nên không tính tỉ lệ.</p>
-              </div>
-            );
-            const tCoBao = coBao(b);        // trên phiếu bộ phận thực sự được báo
-            const tTong = b.ty_le_phan_hoi; // trên MỌI phiếu, kể cả phiếu ngoài giờ
-            const t = tCoBao ?? tTong;
-            const mau = t == null ? "text-muted" : t < 20 ? "text-danger" : t < 50 ? "text-warning" : "text-success";
-            const boSot = b.ve_co_bao != null && b.ve_can_xu_ly != null ? b.ve_can_xu_ly - b.ve_co_bao : 0;
-            return (
-              <div key={khoaBoPhan(b)} className="rounded-xl bg-surface p-3 ring-1 ring-line">
-                <p className="text-[12px] font-semibold text-muted">{nhanBoPhan(b)}</p>
-                <p className={`text-[22px] font-bold tabular-nums leading-tight ${mau}`}>{t == null ? "—" : `${t}%`}</p>
-                <p className="text-[12px] text-muted leading-snug">
-                  động vào <b>{tCoBao != null ? b.ve_da_thao_tac_co_bao : b.ve_da_thao_tac}</b>/{tCoBao != null ? b.ve_co_bao : b.ve_can_xu_ly} phiếu
-                  {tCoBao != null && <span className="text-muted"> có báo</span>} · {b.tong_thao_tac} thao tác
+        <div className="mt-4 overflow-hidden rounded-2xl bg-surface ring-1 ring-line">
+          <div className="border-b border-line bg-subtle px-3.5 py-3 sm:px-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-[12px] font-semibold uppercase text-muted">
+                  <ClipboardCheck className="h-3.5 w-3.5 text-success" strokeWidth={2} />
+                  Xác nhận tỉ lệ phản hồi
                 </p>
-                {boSot > 0 && (
-                  <p className="text-[12px] text-muted leading-snug">
-                    tính cả <b>{boSot}</b> phiếu ngoài khung giờ báo: <b>{tTong}%</b> ({b.ve_da_thao_tac}/{b.ve_can_xu_ly})
-                  </p>
-                )}
-                <p className="text-[12px] text-muted">{b.gio_phan_hoi_tb == null ? "chưa có phản hồi nào" : `phản hồi sau TB ${b.gio_phan_hoi_tb} giờ`}</p>
-                {b.gio_ipc_giu_tb != null && (
-                  <p className="text-[12px] text-warning">IPC giữ TB <b>{b.gio_ipc_giu_tb} giờ</b> trước khi chuyển</p>
-                )}
+                <h4 className="mt-1 text-base font-semibold leading-snug" style={{ color: "var(--text-strong)" }}>
+                  Tình trạng tiếp nhận và xử lý phiếu đã gửi thông báo
+                </h4>
               </div>
-            );
-          })}
-        </div>
-        {khungGio && (
-          <p className="mt-1.5 text-[12px] text-muted leading-snug">
-            <b>"Phiếu có báo"</b> = phiếu còn đang mở trong khung giờ cảnh báo ({khungGio}) nên bộ phận mới có email để biết.
-            Phiếu mở rồi tự tan gọn trong đêm/Chủ nhật không ai được báo — để trong mẫu số là chấm điểm người ta trên việc họ không thể biết.
-            Số cũ (trên MỌI phiếu) vẫn để ở dòng dưới để truy vết.
-            Riêng <b>Cơ điện</b> tính từ lúc phiếu được <b>chuyển sang</b>, không phải từ lúc mở phiếu.
-          </p>
-        )}
-
-        {/* ── Phản hồi theo NGÀY (đường) ── */}
-        {Array.isArray(bc.bo_phan_ngay) && bc.bo_phan_ngay.length > 0 && (() => {
-          const dsNgay = [...new Set(bc.bo_phan_ngay.map((x) => x.ngay))].sort();
-          const MAU = { "IPC·C1": COLOR.teal, "IPC·Q2": COLOR.navy, IPC: COLOR.teal, MEP: COLOR.softCoral, LOT: COLOR.sand, QA: COLOR.sky };
-          const nhom = sapBoPhan(bc.bo_phan || []).filter((b) => !b.vai_giam_sat);
-          const chuoi = nhom.map((b) => {
-            const k = khoaBoPhan(b);
-            const theoNgay = new Map(bc.bo_phan_ngay
-              .filter((x) => x.vai_tro === b.vai_tro && (x.khu_vuc || null) === (b.khu_vuc || null))
-              .map((x) => [x.ngay, x]));
-            return {
-              vai_tro: k, nhan: nhanBoPhan(b), mau: MAU[k] || COLOR.ink,
-              diem: dsNgay.map((n) => {
-                const o = theoNgay.get(n);
-                return o ? { pct: pct(o), can: mauSo(o), da: tuSo(o) } : {};
-              }),
-            };
-          });
-          return (
-            <div className="mt-3">
-              <Chart type="phanHoiNgay" h={260} ngay={dsNgay.map((n) => n.slice(5))} series={chuoi} />
-              <p className="mt-1.5 text-[12px] text-muted leading-snug">
-                Mỗi điểm = lứa phiếu <b>mở trong ngày đó</b> mà bộ phận ấy <b>có được báo</b>, tính xem bao nhiêu % được động vào (bất kỳ lúc nào sau đó).
-                Ngày <b>không có phiếu nào</b> để trống nên đường bị đứt — cố ý: "không có phiếu" khác hẳn "có phiếu mà không ai đụng".
-                Cơ điện chỉ tính trên các phiếu đã được chuyển sang Cơ điện, và xếp theo <b>ngày được chuyển</b> chứ không phải ngày mở phiếu.
-              </p>
+              <div className="grid grid-cols-3 gap-2 text-right">
+                <div className="rounded-xl bg-surface px-3 py-2 ring-1 ring-line">
+                  <p className="text-[11px] font-semibold uppercase text-muted">Chung</p>
+                  <p className="text-lg font-bold tabular-nums text-success">{tyLeChung == null ? "—" : `${tyLeChung}%`}</p>
+                </div>
+                <div className="rounded-xl bg-surface px-3 py-2 ring-1 ring-line">
+                  <p className="text-[11px] font-semibold uppercase text-muted">Đã xử lý</p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: "var(--text-strong)" }}>{tongTuPhanHoi}/{tongMauPhanHoi}</p>
+                </div>
+                <div className="rounded-xl bg-surface px-3 py-2 ring-1 ring-line">
+                  <p className="text-[11px] font-semibold uppercase text-muted">Cần lưu ý</p>
+                  <p className={`text-lg font-bold tabular-nums ${soCanLuuY ? "text-danger" : "text-success"}`}>{soCanLuuY}</p>
+                </div>
+              </div>
             </div>
-          );
-        })()}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-muted">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 ring-1 ring-line">
+                <BellRing className="h-3.5 w-3.5 text-success" strokeWidth={1.8} />
+                {khungGio ? `Phiếu có báo: ${khungGio}` : "Chưa có cấu hình khung giờ báo"}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 ring-1 ring-line">
+                <Clock3 className="h-3.5 w-3.5 text-warning" strokeWidth={1.8} />
+                {gioPhanHoiTb == null ? "Chưa có thời gian phản hồi TB" : `Phản hồi TB ${gioPhanHoiTb} giờ`}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-3.5 sm:p-4">
+            {dsBoPhan.length === 0 ? (
+              <div className="rounded-xl bg-subtle px-3.5 py-4 text-[13px] text-muted ring-1 ring-line">
+                Chưa có dữ liệu phản hồi theo bộ phận trong kỳ này. Khi RPC trả `bo_phan`, thẻ IPC/Cơ điện/Trực HSL/QA sẽ hiện tại đây.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                {dsBoPhan.map((b) => {
+                  // QA là vai GIÁM SÁT — không có hàng đợi nên không chấm %. Trước 11/08
+                  // thẻ này ra "0% — 0/94 phiếu", đọc như thể QA bỏ sót 94 lần.
+                  if (b.vai_giam_sat) return (
+                    <div key={khoaBoPhan(b)} className="min-h-[172px] rounded-xl bg-subtle p-3.5 ring-1 ring-line">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>{ROLE[b.vai_tro] || b.vai_tro}</p>
+                          <p className="text-[12px] text-muted">Vai trò giám sát</p>
+                        </div>
+                        <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-muted ring-1 ring-line">không chấm %</span>
+                      </div>
+                      <p className="mt-3 text-3xl font-bold tabular-nums leading-none text-body">{b.ve_da_thao_tac}</p>
+                      <p className="mt-1 text-[12px] text-muted leading-snug">phiếu đã ghi nhận xử lý · {b.tong_thao_tac} thao tác</p>
+                      <p className="mt-2 text-[12px] text-muted leading-snug">Chỉ vào khi xác nhận khắc phục hoặc mở lại phiếu, nên không có mẫu số hàng đợi để tính tỉ lệ.</p>
+                    </div>
+                  );
+                  const tCoBao = coBao(b);        // trên phiếu bộ phận thực sự được báo
+                  const tTong = b.ty_le_phan_hoi; // trên MỌI phiếu, kể cả phiếu ngoài giờ
+                  const t = tCoBao ?? tTong;
+                  const mau = t == null ? "text-muted" : t < 20 ? "text-danger" : t < 50 ? "text-warning" : "text-success";
+                  const nen = t == null ? "var(--border)" : t < 20 ? "var(--danger-solid)" : t < 50 ? "var(--warning-solid)" : "var(--success-solid)";
+                  const nhanMuc = t == null ? "chưa có mẫu" : t < 20 ? "cần ưu tiên" : t < 50 ? "cần theo dõi" : "đạt yêu cầu";
+                  const boSot = b.ve_co_bao != null && b.ve_can_xu_ly != null ? b.ve_can_xu_ly - b.ve_co_bao : 0;
+                  const mauHien = tCoBao != null ? b.ve_co_bao : b.ve_can_xu_ly;
+                  const tuHien = tCoBao != null ? b.ve_da_thao_tac_co_bao : b.ve_da_thao_tac;
+                  return (
+                    <div key={khoaBoPhan(b)} className="min-h-[172px] rounded-xl bg-surface p-3.5 ring-1 ring-line">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>{nhanBoPhan(b)}</p>
+                          <p className="text-[12px] text-muted">{mauHien || 0} phiếu có trong mẫu</p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${t == null ? "bg-subtle text-muted ring-line" : t < 50 ? "bg-warning-soft text-warning ring-warning-line" : "bg-success-soft text-success ring-success-line"}`}>{nhanMuc}</span>
+                      </div>
+                      <div className="mt-3 flex items-end justify-between gap-3">
+                        <p className={`text-3xl font-bold tabular-nums leading-none ${mau}`}>{t == null ? "—" : `${t}%`}</p>
+                        <p className="pb-0.5 text-right text-[12px] text-muted leading-tight">
+                          <b>{tuHien}</b>/{mauHien || 0} phiếu<br />{b.tong_thao_tac} thao tác
+                        </p>
+                      </div>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-subtle">
+                        <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, Number(t) || 0))}%`, backgroundColor: nen }} />
+                      </div>
+                      <p className="mt-2 text-[12px] text-muted">{b.gio_phan_hoi_tb == null ? "chưa có phản hồi nào" : `phản hồi sau TB ${b.gio_phan_hoi_tb} giờ`}</p>
+                      {boSot > 0 && (
+                        <p className="mt-1 text-[12px] text-muted leading-snug">
+                          ngoài khung giờ báo: <b>{boSot}</b> phiếu · số cũ <b>{tTong}%</b> ({b.ve_da_thao_tac}/{b.ve_can_xu_ly})
+                        </p>
+                      )}
+                      {b.gio_ipc_giu_tb != null && (
+                        <p className="mt-1 text-[12px] text-warning">IPC giữ TB <b>{b.gio_ipc_giu_tb} giờ</b> trước khi chuyển</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <p className="mt-2.5 text-[12px] text-muted leading-snug">
+              <b>"Phiếu có báo"</b> = phiếu còn mở trong khung giờ cảnh báo, đã có thông báo để bộ phận phụ trách tiếp nhận.
+              Phiếu phát sinh ngoài khung giờ và tự đóng trước khi có thông báo được tách riêng, không đưa vào mẫu số đánh giá phản hồi.
+              Số tính trên toàn bộ phiếu vẫn được giữ ở dòng phụ để phục vụ truy vết. Riêng <b>Cơ điện</b> tính từ thời điểm phiếu được <b>chuyển sang</b>, không tính từ lúc mở phiếu.
+            </p>
+
+            {/* ── Phản hồi theo NGÀY (đường) ── */}
+            {(() => {
+              const coNgay = Array.isArray(bc.bo_phan_ngay) && bc.bo_phan_ngay.length > 0;
+              const dsNgay = coNgay ? [...new Set(bc.bo_phan_ngay.map((x) => x.ngay))].sort() : [];
+              const MAU = { "IPC·C1": COLOR.teal, "IPC·Q2": COLOR.navy, IPC: COLOR.teal, MEP: COLOR.softCoral, LOT: COLOR.sand, QA: COLOR.sky };
+              const chuoi = dsBoPhanCham.map((b) => {
+                const k = khoaBoPhan(b);
+                const theoNgay = new Map((bc.bo_phan_ngay || [])
+                  .filter((x) => x.vai_tro === b.vai_tro && (x.khu_vuc || null) === (b.khu_vuc || null))
+                  .map((x) => [x.ngay, x]));
+                return {
+                  vai_tro: k, nhan: nhanBoPhan(b), mau: MAU[k] || COLOR.ink,
+                  diem: dsNgay.map((n) => {
+                    const o = theoNgay.get(n);
+                    return o ? { pct: pct(o), can: mauSo(o), da: tuSo(o) } : {};
+                  }),
+                };
+              });
+              return (
+                <div className="mt-4 rounded-xl bg-subtle p-3 ring-1 ring-line">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="flex items-center gap-2 text-[12px] font-semibold uppercase text-muted">
+                      <Activity className="h-3.5 w-3.5 text-success" strokeWidth={2} />
+                      Diễn biến theo ngày
+                    </p>
+                    {coNgay && <span className="text-[12px] text-muted tabular-nums">{dsNgay.length} ngày có dữ liệu</span>}
+                  </div>
+                  {coNgay && chuoi.length > 0 ? (
+                    <>
+                      <Chart type="phanHoiNgay" h={270} ngay={dsNgay.map((n) => n.slice(5))} series={chuoi} />
+                      <p className="mt-1.5 text-[12px] text-muted leading-snug">
+                        Mỗi điểm = nhóm phiếu <b>mở trong ngày đó</b> và đã <b>gửi thông báo</b> cho bộ phận phụ trách, tính tỉ lệ có thao tác xử lý.
+                        Ngày <b>không có phiếu</b> được để trống để phân biệt với ngày có phiếu nhưng chưa phản hồi. Cơ điện xếp theo <b>ngày được chuyển</b>.
+                      </p>
+                    </>
+                  ) : (
+                    <div className="mt-2 rounded-lg bg-surface px-3.5 py-4 text-[13px] text-muted ring-1 ring-line">
+                      Chưa có dữ liệu phản hồi theo ngày trong kỳ này. Các thẻ tổng theo bộ phận phía trên vẫn là căn cứ xác nhận tỉ lệ hiện tại.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
 
         {/* ── Bảng phản hồi theo TUẦN (có tiến bộ không) ── */}
         {Array.isArray(bc.bo_phan_tuan) && bc.bo_phan_tuan.length > 0 && (() => {
@@ -466,12 +603,12 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
             if (ds.length < 2) return { ma: "?", nhan: "chưa đủ tuần có phiếu", mau: "text-muted", d: null };
             const d = Math.round((pct(ds[ds.length - 1]) - pct(ds[0])) * 10) / 10;
             if (Math.abs(d) < 5) return { ma: "→", nhan: "đi ngang", mau: "text-muted", d };
-            return d > 0 ? { ma: "▲", nhan: "tiến bộ", mau: "text-success font-semibold", d }
-                         : { ma: "▼", nhan: "kém đi", mau: "text-danger font-semibold", d };
+            return d > 0 ? { ma: "▲", nhan: "cải thiện", mau: "text-success font-semibold", d }
+                         : { ma: "▼", nhan: "giảm", mau: "text-danger font-semibold", d };
           };
           return (
             <div className="mt-4">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Tình trạng phản hồi từng tuần — có tiến bộ không</p>
+              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Tình trạng phản hồi từng tuần</p>
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-[12px]">
                   <thead>
@@ -522,10 +659,10 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                 </table>
               </div>
               <p className="mt-1.5 text-[12px] text-muted leading-snug">
-                Số nhỏ = <b>phiếu đã động vào / phiếu có báo</b> và thời gian phản hồi trung bình; phiếu mở ngoài khung giờ cảnh báo
+                Số nhỏ = <b>phiếu có thao tác / phiếu có báo</b> và thời gian phản hồi trung bình; phiếu mở ngoài khung giờ cảnh báo
                 được đếm riêng chứ không nằm trong mẫu số. Cột <b>Tiến bộ</b> so tuần có phiếu cuối với tuần có phiếu đầu; tuần
                 <b> không có phiếu</b> nào để bộ phận ấy xử lý thì không tính là thành tích cũng không tính là lỗi.
-                Lưu ý đọc: tỉ lệ tụt còn có thể vì <b>phiếu tự tan nhanh hơn</b> — xem tuổi thọ phiếu ở phễu bên dưới trước khi kết luận người kém đi.
+                Khi tỉ lệ giảm, cần đối chiếu thêm tuổi thọ phiếu ở phễu bên dưới trước khi kết luận về hiệu quả phản hồi.
               </p>
             </div>
           );
@@ -536,31 +673,10 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           <PhieuVongDoiVe chang={bc.phieu_vong_doi} tuanMoc={bc.tuan_moc} soTuan={soTuan} dmy={dmy} />
         )}
 
-        {/* ── Kết luận ── */}
-        <div className="mt-4 rounded-xl bg-warning-soft p-3.5 ring-1 ring-warning-line">
-          <p className="text-[12.5px] font-bold text-strong">Kết luận kỳ {soTuan} tuần (từ {dmy(tuan[0]?.tu)} đến {dmy(tuan[tuan.length - 1]?.den)})</p>
-          <ul className="mt-1.5 space-y-1 text-[12.5px] text-body list-disc pl-4">
-            <li><b>{tk.ve_mo_trong_ky}</b> phiếu mở, trong đó <b className={tk.ve_he_thong_dong / Math.max(1, tk.ve_mo_trong_ky) > 0.5 ? "text-danger" : ""}>{tk.ve_he_thong_dong}</b> phiếu <b>hệ thống tự đóng</b> — chênh áp tự về dải trước khi có người xử lý.</li>
-            {(() => {
-              const ds = khu.flatMap((k) => k.phong || []).map(xuHuong);
-              const xau = ds.filter((x) => x.ma === "▲").length;
-              const tot = ds.filter((x) => x.ma === "▼").length;
-              const ngang = ds.filter((x) => x.ma === "→").length;
-              const thieu = ds.filter((x) => x.ma === "?").length;
-              return (
-                <li>
-                  Xu hướng qua {soTuan} tuần: <b className="text-success">{tot} phòng tốt lên</b> ·{" "}
-                  <b className="text-danger">{xau} phòng xấu đi</b> · {ngang} đi ngang
-                  {thieu > 0 && <> · {thieu} chưa đủ dữ liệu để kết luận</>}.
-                </li>
-              );
-            })()}
-            <li>Đã gửi <b>{tk.email_digest}</b> email cảnh báo trong kỳ.</li>
-            {muP1P2.length > 0 && (
-              <li className="text-danger">Ngoài danh sách: <b>{muP1P2.length}</b> phòng <b>P1/P2</b> đạt dưới 90% mà không được cảnh báo. Cân nhắc có nên đưa vào danh sách không.</li>
-            )}
-          </ul>
-        </div>
+        <details className="mt-4 rounded-2xl bg-surface px-3.5 py-3 ring-1 ring-line">
+        <summary className="cursor-pointer select-none text-[12px] font-semibold uppercase tracking-wider text-muted">
+          Bằng chứng chi tiết — sai lệch theo khu, phòng và tuần
+        </summary>
 
         {/* ── Trung bình TOÀN KHU theo tuần ── */}
         {Array.isArray(tuanBc.toan_bo_tuan) && tuanBc.toan_bo_tuan.length > 0 && (() => {
@@ -573,13 +689,13 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
             if (ds.length < 2) return { ma: "?", nhan: "chưa đủ", mau: "text-muted", d: null };
             const d = Math.round((ds[ds.length - 1].pct_duoi_san_tb - ds[0].pct_duoi_san_tb) * 10) / 10;
             if (Math.abs(d) < 5) return { ma: "→", nhan: "đi ngang", mau: "text-muted", d };
-            return d < 0 ? { ma: "▼", nhan: "tiến bộ", mau: "text-success font-semibold", d }
-                         : { ma: "▲", nhan: "kém đi", mau: "text-danger font-semibold", d };
+            return d < 0 ? { ma: "▼", nhan: "cải thiện", mau: "text-success font-semibold", d }
+                         : { ma: "▲", nhan: "suy giảm", mau: "text-danger font-semibold", d };
           };
           const o = (sl, t) => sl.find((x) => x.tuan === t);
           return (
             <div className="mt-4">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Trung bình toàn khu theo tuần — có tiến bộ không</p>
+              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Trung bình toàn khu theo tuần</p>
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-[12px]">
                   <thead>
@@ -631,10 +747,9 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                 </table>
               </div>
               <p className="mt-1.5 text-[12px] text-muted leading-snug">
-                Trung bình <b>cân theo số giờ</b>, không phải trung bình cộng các phòng — phòng ít dữ liệu tự động
-                ảnh hưởng ít, đúng với mức bằng chứng nó mang lại. Cột <b>vượt trần</b> để cạnh có chủ đích:
-                chênh áp rời khỏi sàn có thể là do <b>đã về dải</b>, mà cũng có thể là do <b>bị đẩy quá lên trên</b> —
-                nhìn một cột dễ mừng nhầm.
+                Trung bình được <b>cân theo số giờ có dữ liệu</b>, không phải trung bình cộng các phòng. Phòng ít dữ liệu
+                có trọng số thấp hơn, phù hợp với mức bằng chứng hiện có. Cột <b>vượt trần</b> giúp phân biệt chênh áp
+                đã về dải kiểm soát hay đang vượt giới hạn trên.
               </p>
             </div>
           );
@@ -703,12 +818,13 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           </div>
         ))}
         <p className="mt-2.5 text-[12px] text-muted leading-snug">
-          Số trong ô = % số giờ chênh áp nằm DƯỚI giới hạn dưới. <b>Càng cao càng xấu</b> (0% = luôn đạt).
+          Số trong ô = % số giờ chênh áp nằm DƯỚI giới hạn dưới. <b>Càng cao càng cần chú ý</b> (0% = luôn đạt).
           Số nhỏ bên dưới là <b>số giờ có dữ liệu</b> làm cơ sở tính — một tuần trọn vẹn là 168 giờ.
           Cột <b>Xu hướng</b> so tuần cuối với tuần đầu, và chỉ tính khi cả hai tuần đó đủ dữ liệu.
           Ô có dấu <b>†</b> nghĩa là dưới 84 giờ (chưa tới nửa tuần): số đó <b>không đủ tin cậy để so sánh</b>, nên không tô màu.
-          Giờ thiếu dữ liệu và giờ cảm biến đứng tín hiệu bị loại khỏi phép tính — không tính là đạt cũng không tính là hỏng.
+          Giờ thiếu dữ liệu và giờ cảm biến đứng tín hiệu bị loại khỏi phép tính — không tính là đạt và cũng không tính là sai lệch.
         </p>
+        </details>
 
         {/* ── Mục phụ: phòng ngoài danh sách ── */}
         {ngoaiPv.length > 0 && (
@@ -740,7 +856,7 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                     ))}
                   </tbody>
                 </table>
-                <p className="mt-1.5 text-[12px] text-muted">Các phòng này không sinh phiếu nên không được chấm ở phần trên. Cột % đạt ở đây tính CẢ HAI hướng lệch (nguồn rollup ngày), khác thước đo của bảng chính.</p>
+                <p className="mt-1.5 text-[12px] text-muted">Các phòng này không sinh phiếu nên không nằm trong phần đánh giá phản hồi ở trên. Cột % đạt ở đây tính CẢ HAI hướng lệch (nguồn rollup ngày), khác thước đo của bảng chính.</p>
               </div>
             )}
           </div>

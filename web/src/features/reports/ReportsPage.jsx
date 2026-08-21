@@ -1,7 +1,7 @@
 // ReportsPage.jsx — trang Báo cáo + hướng dẫn email + modal phiếu email (tách move-only từ App.jsx 17/08/2026).
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { FileBarChart, History, Mail, Printer, Sparkles } from "lucide-react";
+import { ClipboardCheck, FileBarChart, History, Mail, Printer } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
 import { COLOR } from "../../lib/designTokens";
 import { guiBaoCaoBu, layWebhookBaoCaoBu } from "../../lib/supabaseData";
@@ -27,18 +27,18 @@ function ReportsPage({ ai, aiRows = null }) {
     setGuiTT(r);
   };
   const sel = "rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[13px] text-body outline-none";
-  const AI_LV = ["text-success bg-success-soft ring-success-line", "text-info bg-info-soft ring-info-line", "text-warning bg-warning-soft ring-warning-line", "text-danger bg-danger-soft ring-danger-line"];
+  const NHAN_DINH_LV = ["text-success bg-success-soft ring-success-line", "text-info bg-info-soft ring-info-line", "text-warning bg-warning-soft ring-warning-line", "text-danger bg-danger-soft ring-danger-line"];
   return (
     <div className="space-y-5">
       <SectionTitle icon={FileBarChart}>Báo cáo</SectionTitle>
-      <Card className="p-6"><SectionTitle icon={Sparkles} hint="tích hợp từ tab Xu hướng">Nhận định xu hướng</SectionTitle>
-        {ai ? <div className="rounded-2xl ring-1 ring-success-line p-5 text-sm leading-relaxed text-body mt-4" style={{ background: "var(--bg-subtle)" }}><p className="text-[12px] text-muted mb-2">{ai.scope} · {ai.sensor} · {ai.range} · lập lúc {ai.time}</p><AiSections text={ai.text} /></div> : <div className="rounded-2xl ring-1 ring-warning-line bg-warning-soft/50 p-5 text-sm text-body mt-4">Chưa có nhận định. Vào tab <b>Xu hướng</b>, chọn đối tượng/khoảng thời gian rồi bấm <b>Tạo nhận định</b>.</div>}
+      <Card className="p-6"><SectionTitle icon={ClipboardCheck} hint="tổng hợp từ tab Xu hướng">Nhận định xu hướng</SectionTitle>
+        {ai ? <div className="rounded-2xl ring-1 ring-success-line p-5 text-sm leading-relaxed text-body mt-4" style={{ background: "var(--bg-subtle)" }}><p className="text-[12px] text-muted mb-2">{ai.scope} · {ai.sensor} · {ai.range} · lập lúc {ai.time}</p><AiSections text={ai.text} /></div> : <div className="rounded-2xl ring-1 ring-warning-line bg-warning-soft/50 p-5 text-sm text-body mt-4">Chưa có nhận định. Vào tab <b>Xu hướng</b>, chọn đối tượng/khoảng thời gian rồi bấm <b>Lập nhận định</b>.</div>}
         {aiRows && aiRows.length > 0 && (
           <div className="mt-5">
             <p className="text-[12px] uppercase tracking-wider text-muted font-semibold mb-2 flex items-center gap-1.5"><History className="w-3 h-3" strokeWidth={1.8} /> Nhận định gần đây</p>
             <div className="space-y-2 max-h-72 overflow-y-auto pr-1">{aiRows.map((r, i) => (
               <div key={i} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3.5">
-                <div className="flex items-center justify-between gap-2 mb-1"><span className="text-[12px] font-semibold" style={{ color: "var(--text-strong)" }}>{r.scope}<span className="text-muted font-normal"> · {r.sensor} · {r.range}</span></span><span className={`text-[12px] font-semibold px-2 py-0.5 rounded-full ring-1 ${AI_LV[r.level] || AI_LV[0]}`}>{r.time}</span></div>
+                <div className="flex items-center justify-between gap-2 mb-1"><span className="text-[12px] font-semibold" style={{ color: "var(--text-strong)" }}>{r.scope}<span className="text-muted font-normal"> · {r.sensor} · {r.range}</span></span><span className={`text-[12px] font-semibold px-2 py-0.5 rounded-full ring-1 ${NHAN_DINH_LV[r.level] || NHAN_DINH_LV[0]}`}>{r.time}</span></div>
                 <p className="text-[12px] leading-relaxed text-body">{r.text}</p>
               </div>
             ))}</div>
@@ -46,7 +46,7 @@ function ReportsPage({ ai, aiRows = null }) {
         )}
       </Card>
       <Card className="p-6"><SectionTitle icon={Mail} hint="báo cáo quản trị — kỳ liền trước">Gửi lại báo cáo (email)</SectionTitle>
-        <p className="text-[12px] text-muted mt-3">Dùng khi cần gửi lại báo cáo của kỳ đã qua (ví dụ lịch tự động bị lỡ). Hệ thống tổng hợp số liệu thật, ráp scorecard + PDF rồi gửi email trong nền (~1 phút).</p>
+        <p className="text-[12px] text-muted mt-3">Dùng khi cần gửi lại báo cáo của kỳ đã qua. Hệ thống tổng hợp số liệu đo, lập scorecard/PDF và gửi email theo danh sách người nhận đã cấu hình.</p>
         <div className="mt-4 flex items-center gap-3 flex-wrap">
           <label className="text-[12px] uppercase text-muted font-semibold">Kỳ báo cáo</label>
           <select value={kyBu} onChange={(e) => setKyBu(e.target.value)} className={sel}>
