@@ -8,6 +8,72 @@ import { COLOR } from "../../lib/designTokens";
 import { fmtPhut } from "../../lib/dinhDang";
 import { TEN_VAI_KHU, docTenVaiTro } from "../../lib/phanQuyen";
 import { TRANG_THAI_CODE_TO_LABEL, layDanhGiaCanhBaoTuan, layDanhGiaHieuQuaCanhBao } from "../../lib/supabaseData";
+
+const DGCB_TTL_MS = 30 * 60 * 1000;
+const DGCB_KY = [2, 3, 6];
+const dgcbCache = new Map();
+
+function isoNgay(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function congNgay(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function chuKyTuanGmp(soTuan, moc = new Date()) {
+  const homNay = new Date(moc.getFullYear(), moc.getMonth(), moc.getDate());
+  const thu = homNay.getDay() || 7; // T2=1 ... CN=7
+  const thuHai = congNgay(homNay, 1 - thu);
+  const thuBay = congNgay(thuHai, 5);
+  const tu = congNgay(thuHai, -7 * (Math.max(1, soTuan) - 1));
+  const denThucTe = homNay < thuBay ? homNay : thuBay;
+  return {
+    tu: isoNgay(tu),
+    den: isoNgay(denThucTe),
+    denKeHoach: isoNgay(thuBay),
+    chuaChot: homNay < thuBay,
+    khoa: `${isoNgay(tu)}:${isoNgay(thuBay)}`,
+  };
+}
+
+function khoaDanhGiaCanhBao(soTuan, chuKy = chuKyTuanGmp(soTuan)) {
+  return `bms:danh-gia-canh-bao:${soTuan}:${chuKy.khoa}`;
+}
+
+function docCacheDanhGiaCanhBao(soTuan, chuKy = chuKyTuanGmp(soTuan)) {
+  const key = khoaDanhGiaCanhBao(soTuan, chuKy);
+  const mem = dgcbCache.get(key);
+  if (mem && Date.now() - mem.luc < DGCB_TTL_MS) return mem;
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return null;
+    const item = JSON.parse(raw);
+    if (!item || Date.now() - item.luc >= DGCB_TTL_MS) return null;
+    dgcbCache.set(key, item);
+    return item;
+  } catch {
+    return null;
+  }
+}
+
+function luuCacheDanhGiaCanhBao(soTuan, payload, chuKy = chuKyTuanGmp(soTuan)) {
+  const key = khoaDanhGiaCanhBao(soTuan, chuKy);
+  const item = { ...payload, chuKy, luc: Date.now() };
+  dgcbCache.set(key, item);
+  if (typeof window === "undefined") return item;
+  try { window.sessionStorage.setItem(key, JSON.stringify(item)); } catch { /* bỏ qua khi trình duyệt chặn storage */ }
+  return item;
+}
+
+async function taiDanhGiaCanhBao(soTuan) {
+  const [a, b] = await Promise.all([layDanhGiaHieuQuaCanhBao(soTuan * 7), layDanhGiaCanhBaoTuan(soTuan)]);
+  if (a.error || b.error) return { error: a.error || b.error, bc: null, tuanBc: null };
+  return { error: null, bc: a.bc, tuanBc: b.bc };
+}
 // Thanh tiến trình 4 bước của MỘT phiếu (17/07 — user: "cần biết 1 sự cố thực sự
 // đang ở đâu, tới bước nào rồi"). Bước xong = teal ✓, bước hiện tại = vàng
 // (chờ điều kiện = đỏ), bước chưa tới = xám.
@@ -258,17 +324,46 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
   const [dangTai, setDangTai] = React.useState(false);
   const [loi, setLoi] = React.useState(null);
   const [xemHet, setXemHet] = React.useState(false);
+  const chuKy = React.useMemo(() => chuKyTuanGmp(soTuan), [soTuan]);
   React.useEffect(() => {
     if (!isLive) return;
     let huy = false;
-    setDangTai(true); setLoi(null);
-    Promise.all([layDanhGiaHieuQuaCanhBao(soTuan * 7), layDanhGiaCanhBaoTuan(soTuan)])
-      .then(([a, b]) => {
+    const cached = docCacheDanhGiaCanhBao(soTuan, chuKy);
+    if (cached) {
+      setBc(cached.bc);
+      setTuanBc(cached.tuanBc);
+    }
+    setDangTai(!cached); setLoi(null);
+    taiDanhGiaCanhBao(soTuan)
+      .then((kq) => {
         if (huy) return;
-        setDangTai(false);
-        if (a.error || b.error) { setLoi(moTaLoi(a.error || b.error)); setBc(null); setTuanBc(null); }
-        else { setBc(a.bc); setTuanBc(b.bc); }
-      });
+        if (kq.error) {
+          setLoi(moTaLoi(kq.error));
+          if (!cached) { setBc(null); setTuanBc(null); }
+        } else {
+          luuCacheDanhGiaCanhBao(soTuan, { bc: kq.bc, tuanBc: kq.tuanBc }, chuKy);
+          setBc(kq.bc);
+          setTuanBc(kq.tuanBc);
+        }
+      })
+      .catch((err) => {
+        if (huy) return;
+        setLoi(moTaLoi(err));
+        if (!cached) { setBc(null); setTuanBc(null); }
+      })
+      .finally(() => { if (!huy) setDangTai(false); });
+    return () => { huy = true; };
+  }, [isLive, soTuan, chuKy]);
+
+  React.useEffect(() => {
+    if (!isLive) return;
+    let huy = false;
+    DGCB_KY.filter((ky) => ky !== soTuan && !docCacheDanhGiaCanhBao(ky, chuKyTuanGmp(ky))).forEach((ky) => {
+      const ck = chuKyTuanGmp(ky);
+      taiDanhGiaCanhBao(ky).then((kq) => {
+        if (!huy && !kq.error) luuCacheDanhGiaCanhBao(ky, { bc: kq.bc, tuanBc: kq.tuanBc }, ck);
+      }).catch(() => {});
+    });
     return () => { huy = true; };
   }, [isLive, soTuan]);
 
@@ -352,18 +447,18 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
 
   return (
     <Card className="p-4 sm:p-5">
-      <SectionTitle icon={ShieldAlert} hint="chỉ tính lệch phía DƯỚI SÀN — đúng hướng mà cảnh báo đang canh">
+      <SectionTitle icon={ShieldAlert} hint="tự động theo tuần GMP Thứ 2-Thứ 7 · chỉ tính lệch phía DƯỚI SÀN">
         Đánh giá hiệu quả cảnh báo
       </SectionTitle>
       <div className="flex flex-wrap items-center gap-2 mt-3">
         <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Kỳ đánh giá</span>
         {chip(2, "2 tuần")}{chip(3, "3 tuần")}{chip(6, "6 tuần")}
-        {tuan.length > 0 && (
-          <span className="text-[12px] text-muted">
-            từ <b className="text-body">{dmy(tuan[0]?.tu)}</b> đến <b className="text-body">{dmy(tuan[tuan.length - 1]?.den)}</b>
-          </span>
-        )}
-        {dangTai && <span className="text-[12px] text-success">đang tính…</span>}
+        <span className="text-[12px] text-muted">
+          T2-T7 · từ <b className="text-body">{dmy(chuKy.tu)}</b> đến <b className="text-body">{dmy(chuKy.denKeHoach)}</b>
+          {chuKy.chuaChot ? <span> · đang trong tuần, chốt T7</span> : null}
+        </span>
+        {dangTai && !bc && !tuanBc && <span className="text-[12px] text-info">đang nạp số liệu lần đầu…</span>}
+        {dangTai && (bc || tuanBc) && <span className="text-[12px] text-muted">đang cập nhật nền</span>}
       </div>
       {loi && <p className="mt-3 text-[12.5px] text-danger">Không đọc được báo cáo: {loi}</p>}
 
