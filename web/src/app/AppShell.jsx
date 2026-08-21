@@ -760,7 +760,7 @@ export default function AppShell() {
           {HIEN_VIEC_CUA_BAN && isLive && user && role && <ViecCuaBan viecCuaToi={viecCuaToi} cumChoToi={cumChoToi} onXuLy={openApproval} onGhiKetLuan={ghiKetLuanCum} />}
           {tab === "home" && (
             <div className="space-y-5">
-              <StatusAnchor p12Open={p12Open} kpis={kpis} matNguon={matNguon} isLive={isLive} capNhatLuc={live && live.capNhatLuc} khuChoPhep={khuChoPhep} onXemSuCo={() => setTab("events")} />
+              <StatusAnchor p12Open={p12Open} matNguon={matNguon} isLive={isLive} capNhatLuc={live && live.capNhatLuc} khuChoPhep={khuChoPhep} onXemSuCo={() => setTab("events")} />
               {!user && <div className="inline-flex items-center gap-2 text-xs text-warning bg-warning-soft ring-1 ring-warning-line px-3 py-1.5 rounded-xl font-medium"><LogIn className="w-3.5 h-3.5" strokeWidth={1.8} /> Đăng nhập để thao tác theo phân quyền.</div>}
               {/* 12/08 — BĂNG MẤT NGUỒN ĐẦU TRANG. Sự cố 09:39 (FMS + n8n cùng câm) cho thấy
                   người trực mở trang ra là thấy ngay các ô KPI đầy số, phải cuộn xuống thẻ
@@ -777,12 +777,11 @@ export default function AppShell() {
                   </p>
                 </div>
               )}
-              <div className="flex items-center justify-between px-1"><SectionTitle icon={Clock} hint="khung giờ chốt gần nhất · cập nhật theo giờ">Tổng quan trạng thái — 1 giờ gần nhất</SectionTitle></div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="flex items-center justify-between px-1"><SectionTitle icon={Clock} hint="khung giờ chốt gần nhất · bấm vào từng nhóm để xem danh sách phòng">Cơ cấu phòng theo trạng thái — 1 giờ gần nhất</SectionTitle></div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <KpiCard icon={CheckCircle2} label="Phòng đạt" value={matNguon ? "—" : kpis.dat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tỷ lệ đạt ≥ 80% (1h)"} accent={{ txt: "text-success", bg: "bg-success-soft", glow: "bg-success-soft" }} onClick={() => setKpiModal("dat")} loading={kpiLoading} />
                 <KpiCard icon={AlertTriangle} label="Phòng không đạt" value={matNguon ? "—" : kpis.khongDat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tỷ lệ đạt < 80%"} accent={{ txt: "text-danger", bg: "bg-danger-soft", glow: "bg-danger-soft" }} onClick={() => setKpiModal("khong")} loading={kpiLoading} />
                 <KpiCard icon={HelpCircle} label="Thiếu dữ liệu" value={kpis.thieuDL} total={kpis.tong} sub="không coi là đạt" accent={{ txt: "text-warning", bg: "bg-warning-soft", glow: "bg-warning-soft" }} onClick={() => setKpiModal("thieu")} loading={kpiLoading} />
-                <KpiCard icon={Activity} label="Sự cố Nghiêm trọng mở" value={p12Open} sub="phòng trọng yếu & quan trọng" accent={{ txt: "text-info", bg: "bg-info-soft", glow: "bg-info-soft" }} onClick={() => setKpiModal("p1")} loading={kpiLoading} />
               </div>
               {/* Chú thích cách tính — đặt gọn để màn vận hành ưu tiên kết luận trước. */}
               <details className="rounded-xl bg-subtle px-3.5 py-2.5 ring-1 ring-line -mt-1">
