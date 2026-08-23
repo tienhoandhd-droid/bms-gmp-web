@@ -3,13 +3,22 @@
 // Nguyên tắc HMI: bình thường = im lặng (1 dòng mảnh); bất thường = nổi rõ.
 import React from "react";
 
-export default function SystemHealthStrip({ isLive, matNguon, dangTai, capNhatLuc, thieuDL = 0, suCoCanXuLy = 0, loi = null, inline = false }) {
+export default function SystemHealthStrip({ isLive, matNguon, dangTai, capNhatLuc, thieuDL = 0, suCoCanXuLy = 0, loi = null, inline = false, sucKhoe = null }) {
   const gio = capNhatLuc ? capNhatLuc.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : null;
+  const maTrangThai = sucKhoe?.maTrangThai || null;
+  const tomTat = sucKhoe?.tomTat || null;
+  const nhanLoi = maTrangThai === "WF1_PIPELINE_ERROR"
+    ? "Workflow thu dữ liệu lỗi"
+    : maTrangThai === "FMS_DATA_LOSS"
+      ? "FMS mất dữ liệu"
+      : maTrangThai === "FMS_UNREACHABLE"
+        ? "Không kết nối được FMS"
+        : "Mất dữ liệu";
 
   // inline: chip gọn nằm trong header (báo cáo 10 — bình thường không chiếm hàng riêng)
   if (inline) {
     if (!isLive) return <span className="inline-flex items-center gap-1.5 text-[13px] text-muted"><span className="w-2 h-2 rounded-full bg-muted/60" /> Dữ liệu mẫu</span>;
-    if (matNguon || loi) return <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-danger"><span className="w-2 h-2 rounded-full bg-danger-solid" /> Mất kết nối{gio ? ` · ${gio}` : ""}</span>;
+    if (matNguon || loi) return <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-danger"><span className="w-2 h-2 rounded-full bg-danger-solid" /> {loi ? "Không xác minh được" : nhanLoi}{gio ? ` · ${gio}` : ""}</span>;
     const canh = [];
     if (thieuDL > 0) canh.push(`${thieuDL} thiếu dữ liệu`);
     if (suCoCanXuLy > 0) canh.push(`${suCoCanXuLy} sự cố`);
@@ -33,8 +42,8 @@ export default function SystemHealthStrip({ isLive, matNguon, dangTai, capNhatLu
       <div className="flex items-start gap-2 rounded-xl bg-danger-soft ring-1 ring-danger-line px-3.5 py-2.5 text-[13px] font-semibold text-danger" role="alert">
         <span aria-hidden>⚠</span>
         <span>
-          Mất kết nối dữ liệu{gio ? ` · lần cập nhật cuối ${gio}` : ""}{suCoCanXuLy > 0 ? ` · ${suCoCanXuLy} sự cố cần xử lý` : ""}
-          <span className="block font-normal text-[12px] mt-0.5">Số liệu hiển thị dựa trên lần cập nhật trước khi mất kết nối.</span>
+          {loi ? "Không xác minh được trạng thái dữ liệu" : nhanLoi}{gio ? ` · lần cập nhật cuối ${gio}` : ""}{suCoCanXuLy > 0 ? ` · ${suCoCanXuLy} sự cố cần xử lý` : ""}
+          <span className="block font-normal text-[12px] mt-0.5">{tomTat || "Tạm dừng kết luận đạt/không đạt cho tới khi nguồn dữ liệu ổn định."}</span>
         </span>
       </div>
     );

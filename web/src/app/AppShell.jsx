@@ -386,6 +386,14 @@ export default function AppShell() {
   // "0 đạt" đọc như "đo được 0 phòng đạt", trong khi sự thật là KHÔNG ĐO ĐƯỢC GÌ.
   const matNguon = isLive && live.sucKhoe?.matDuLieu === true;
   const skTomTat = live.sucKhoe?.tomTat || null;
+  const skMaTrangThai = live.sucKhoe?.maTrangThai || null;
+  const skNhan = skMaTrangThai === "WF1_PIPELINE_ERROR"
+    ? "Workflow thu dữ liệu lỗi"
+    : skMaTrangThai === "FMS_DATA_LOSS"
+      ? "FMS mất dữ liệu"
+      : skMaTrangThai === "FMS_UNREACHABLE"
+        ? "Không kết nối được FMS"
+        : "Mất dữ liệu";
   const phanLoaiPhong = (r) => {
     const comp = roomCompliance(r);
     if (r.noData || comp == null || (r.agePhut != null && r.agePhut > FRESH_MIN)) return "thieu";
@@ -745,7 +753,7 @@ export default function AppShell() {
             <div className="flex flex-col justify-center min-w-0"><h1 className="text-lg sm:text-xl font-semibold tracking-tight leading-tight truncate" style={{ color: "var(--text-strong)" }}>{(NAV_ITEMS.find((t) => t.k === tab) || {}).label || "Giám sát HVAC phòng sạch"}</h1><p className="text-[12px] font-medium tracking-wide mt-0.5 text-muted">Giám sát HVAC phòng sạch · Phòng Quản lý chất lượng</p></div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap justify-end ml-auto">
-            <div className="hidden md:block"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} /></div>
+            <div className="hidden md:block"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} /></div>
             {isLive && <SucKhoeWidget sk={live.sucKhoe} dangTai={live.dangTai} />}
             <button onClick={toggleTheme}
               className="flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-surface text-muted ring-1 ring-line hover:bg-subtle hover:text-body"
@@ -761,10 +769,10 @@ export default function AppShell() {
         {/* Báo cáo (10): bình thường nằm GỌN trong header; chỉ bất thường mới có ribbon riêng */}
         {(matNguon || (isLive && live.loi)) && (
           <div className="mt-3">
-            <SystemHealthStrip isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} />
+            <SystemHealthStrip isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} />
           </div>
         )}
-        <div className="mt-2 md:hidden"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} /></div>
+        <div className="mt-2 md:hidden"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} /></div>
 
         <MobileBottomNav tab={tab} setTab={setTab} role={role} badges={{ events: p12Open }} onMoThem={() => setSheetThem(true)} />
         <MoreNavigationSheet open={sheetThem} onClose={() => setSheetThem(false)} tab={tab} setTab={setTab} role={role} />
@@ -775,7 +783,7 @@ export default function AppShell() {
           {HIEN_VIEC_CUA_BAN && isLive && user && role && <ViecCuaBan viecCuaToi={viecCuaToi} cumChoToi={cumChoToi} onXuLy={openApproval} onGhiKetLuan={ghiKetLuanCum} />}
           {tab === "home" && (
             <div className="space-y-5">
-              <StatusAnchor p12Open={p12Open} matNguon={matNguon} isLive={isLive} capNhatLuc={live && live.capNhatLuc} khuChoPhep={khuChoPhep} onXemSuCo={() => setTab("events")} />
+              <StatusAnchor p12Open={p12Open} matNguon={matNguon} isLive={isLive} capNhatLuc={live && live.capNhatLuc} khuChoPhep={khuChoPhep} onXemSuCo={() => setTab("events")} sucKhoe={live.sucKhoe} />
               {!user && <div className="inline-flex items-center gap-2 text-xs text-warning bg-warning-soft ring-1 ring-warning-line px-3 py-1.5 rounded-xl font-medium"><LogIn className="w-3.5 h-3.5" strokeWidth={1.8} /> Đăng nhập để thao tác theo phân quyền.</div>}
               {/* 12/08 — BĂNG MẤT NGUỒN ĐẦU TRANG. Sự cố 09:39 (FMS + n8n cùng câm) cho thấy
                   người trực mở trang ra là thấy ngay các ô KPI đầy số, phải cuộn xuống thẻ
@@ -784,10 +792,10 @@ export default function AppShell() {
               {matNguon && (
                 <div className="rounded-2xl bg-danger-soft px-4 sm:px-5 py-3.5 ring-1 ring-danger-line">
                   <p className="text-[13px] font-bold text-danger flex items-center gap-2">
-                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> Mất kết nối dữ liệu — số bên dưới không phản ánh hiện tại
+                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> {skNhan} — số bên dưới không phản ánh hiện tại
                   </p>
                   <p className="mt-1 text-[12px] leading-snug text-danger">
-                    {skTomTat || "Nguồn dữ liệu không cập nhật."} Hệ <b>không kết luận đạt/không đạt</b> trên số đã cũ — mọi phòng chuyển sang ô “Thiếu dữ liệu”.
+                    {skTomTat || "Nguồn dữ liệu không cập nhật."} Hệ <b>không kết luận đạt/không đạt</b> trên dữ liệu thiếu hoặc đã cũ — mọi phòng chuyển sang ô “Thiếu dữ liệu”.
                     Kiểm nguồn dữ liệu ngay (chi tiết ở Cấu hình → Hệ thống): nguồn treo thì phải có người khởi động lại, hệ không tự khỏi.
                   </p>
                 </div>
@@ -933,7 +941,7 @@ export default function AppShell() {
               {matNguon && (
                 <div className="rounded-2xl bg-danger-soft px-4 sm:px-5 py-3.5 ring-1 ring-danger-line">
                   <p className="text-[13px] font-bold text-danger flex items-center gap-2">
-                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> Mất kết nối dữ liệu — mức hiển thị dựa trên số liệu trước khi mất kết nối
+                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> {skNhan} — mức hiển thị dựa trên số liệu hợp lệ cuối cùng
                   </p>
                   <p className="mt-1 text-[12px] leading-snug text-danger">
                     {skTomTat || "Nguồn dữ liệu không cập nhật."} Phiếu đang mở <b>vẫn giữ nguyên</b> (sự cố đã xảy ra là có thật, hệ không tự đóng khi thiếu dữ liệu),

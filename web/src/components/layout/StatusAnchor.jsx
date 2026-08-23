@@ -5,11 +5,17 @@
 import React from "react";
 import { AlertOctagon, Clock3, ShieldCheck } from "lucide-react";
 
-export default function StatusAnchor({ p12Open, matNguon, isLive, capNhatLuc, khuChoPhep, onXemSuCo }) {
+export default function StatusAnchor({ p12Open, matNguon, isLive, capNhatLuc, khuChoPhep, onXemSuCo, sucKhoe = null }) {
   const coViec = (p12Open || 0) > 0;
   const gioCapNhat = capNhatLuc ? new Date(capNhatLuc).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : null;
-  const trangThaiDuLieu = matNguon ? "Nguồn dữ liệu gián đoạn" : isLive ? "Dữ liệu đang cập nhật" : "Dữ liệu mô phỏng";
-  const ghiChuDuLieu = matNguon ? "Tạm dừng kết luận đạt/không đạt cho tới khi nguồn ổn định." : gioCapNhat ? `Cập nhật gần nhất lúc ${gioCapNhat}.` : "Theo khung giờ chốt gần nhất.";
+  const maTrangThai = sucKhoe?.maTrangThai || null;
+  const trangThaiDuLieu = matNguon
+    ? (maTrangThai === "WF1_PIPELINE_ERROR" ? "Workflow thu dữ liệu lỗi"
+      : maTrangThai === "FMS_DATA_LOSS" ? "FMS mất dữ liệu"
+      : maTrangThai === "FMS_UNREACHABLE" ? "Không kết nối được FMS"
+      : "Nguồn dữ liệu gián đoạn")
+    : isLive ? "Dữ liệu đang cập nhật" : "Dữ liệu mô phỏng";
+  const ghiChuDuLieu = matNguon ? (sucKhoe?.tomTat || "Tạm dừng kết luận đạt/không đạt cho tới khi nguồn ổn định.") : gioCapNhat ? `Cập nhật gần nhất lúc ${gioCapNhat}.` : "Theo khung giờ chốt gần nhất.";
   const phamVi = khuChoPhep ? `Khu ${khuChoPhep.join(", ")} theo phân quyền tài khoản.` : "Toàn bộ phòng sạch trong hệ thống BMS.";
   return (
     <section aria-label="Ưu tiên vận hành" className={`rounded-2xl bg-surface px-4 sm:px-5 py-4 ring-1 ${coViec ? "ring-danger-line" : "ring-line"}`}

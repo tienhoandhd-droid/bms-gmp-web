@@ -885,6 +885,12 @@ export async function laySucKhoeHeThong(nguongGio, signal) {
       // thay vi chi mot co "mat du lieu" chung chung. Web cu thieu 2 truong nay van chay.
       lyDo: Array.isArray(data.ly_do) ? data.ly_do : [],
       tomTat: data.tom_tat || null,
+      maTrangThai: data.ma_trang_thai || null,
+      mucDo: data.muc_do || null,
+      wf1GanNhat: data.wf1_gan_nhat || null,
+      bucket: data.bucket || null,
+      ngoaiLe6h: data.ngoai_le_6h || null,
+      webDaToXam: data.web_da_to_xam === true,
       machPhutPhut: data.mach_phut_phut != null ? Number(data.mach_phut_phut) : null,
       trongKhungEdge: data.trong_khung_edge === true,
       suCoDangMo: data.so_su_co_dang_mo ?? 0,
