@@ -57,19 +57,26 @@ const wf1ChiTiet = kq.wf1_gan_nhat || ng.wf1_gan_nhat || {};
 const bucketChiTiet = kq.bucket || ng.bucket || {};
 const ngoaiLe6h = kq.ngoai_le_6h || ng.ngoai_le_6h || {};
 const nhanNguyenNhan = maTrangThai === 'WF1_PIPELINE_ERROR'
-  ? 'workflow thu dữ liệu lỗi'
+  ? 'n8n bị lỗi nên không có dữ liệu'
   : maTrangThai === 'FMS_DATA_LOSS'
-    ? 'mất dữ liệu trên hệ FMS'
+    ? 'hệ BMS lỗi nên FMS dữ liệu trống'
     : maTrangThai === 'FMS_UNREACHABLE'
-      ? 'không kết nối được FMS'
+      ? 'hệ thống FMS bị lỗi nên mất dữ liệu'
       : 'mất dữ liệu giám sát HVAC';
-const huongDanDL = maTrangThai === 'WF1_PIPELINE_ERROR'
-  ? 'Kiểm workflow WF1 trên n8n: trạng thái Active, execution gần nhất và Error Workflow. Chênh áp trực tiếp vẫn có thể dùng nếu mạch dữ liệu phút còn tươi.'
+const truongHop = maTrangThai === 'WF1_PIPELINE_ERROR'
+  ? 'Nguyên nhân 1 — Do n8n bị lỗi nên không có dữ liệu'
   : maTrangThai === 'FMS_DATA_LOSS'
-    ? 'WF1 vẫn chạy và vẫn xử lý phòng, nhưng FMS trả 0 điểm đo. Kiểm dịch vụ history/trend của FMS và quyền tài khoản đọc dữ liệu lịch sử.'
+    ? 'Nguyên nhân 3 — Do hệ BMS lỗi nên FMS dữ liệu trống'
     : maTrangThai === 'FMS_UNREACHABLE'
-      ? 'Kiểm tài khoản FMS, mạng tới FMS, endpoint/API và execution WF1 gần nhất.'
-      : 'Kiểm WF1, FMS và bảng ngoại lệ dữ liệu.';
+      ? 'Nguyên nhân 2 — Do hệ thống FMS bị lỗi nên mất dữ liệu'
+      : 'Nguyên nhân chưa phân loại — cần kiểm n8n, FMS và BMS';
+const huongDanDL = maTrangThai === 'WF1_PIPELINE_ERROR'
+  ? 'Kiểm n8n và workflow WF1: trạng thái Active, execution gần nhất và Error Workflow. Nếu toàn bộ n8n dừng, WF6 cũng không thể tự gửi mail; cần kênh giám sát ngoài n8n.'
+  : maTrangThai === 'FMS_DATA_LOSS'
+    ? 'WF1 vẫn chạy và vẫn xử lý phòng, nhưng dữ liệu trả về rỗng/0 điểm đo. Kiểm luồng đọc dữ liệu BMS, mapping điểm đo và dịch vụ history/trend.'
+    : maTrangThai === 'FMS_UNREACHABLE'
+      ? 'Kiểm hệ thống FMS, tài khoản FMS, mạng tới FMS, endpoint/API và execution WF1 gần nhất.'
+      : 'Kiểm n8n, FMS, BMS và bảng ngoại lệ dữ liệu.';
 const tomTatNguon = kq.tom_tat || ng.tom_tat || huongDanDL;
 
 // ---- Khối MẤT NGUỒN: chỉ liệt kê tín hiệu đang có vấn đề -----------------------
@@ -97,6 +104,7 @@ const cauWeb = ng.web_da_to_xam
 const khoiNG = matNguon ? `
   <div style="background:#fff1f2;border:1px solid #fda4af;border-radius:10px;padding:12px 14px;margin:8px 0">
     <p style="margin:0 0 6px;font-weight:700;color:#9f1239">⚠ ${nhanNguyenNhan.toUpperCase()}</p>
+    <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#9f1239">${truongHop}</p>
     <p style="margin:0;font-size:13px">${tomTatNguon}</p>
     <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0 0">${hang.join('')}</table>
     ${khoe.length ? `<p style="margin:6px 0 0;font-size:12px;color:#64748b">Còn bình thường: ${khoe.join(' · ')}.</p>` : ''}
@@ -104,7 +112,9 @@ const khoiNG = matNguon ? `
   </div>` : '';
 
 const khoiDL = matDuLieu ? `
-  <p>Hệ thống đang ở trạng thái <b>${nhanNguyenNhan}</b>. ${tomTatNguon}</p>
+  <p>Hệ thống đang ở trạng thái <b>${nhanNguyenNhan}</b>.</p>
+  <p style="margin:6px 0 0;font-weight:700;color:#9f1239">${truongHop}</p>
+  <p style="margin:6px 0 0;color:#33506e">${tomTatNguon}</p>
   <table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0">
     <tr><td style="padding:6px 0;color:#90a8bd">Bucket mới nhất</td><td style="padding:6px 0;font-weight:600">${bucket}</td></tr>
     <tr><td style="padding:6px 0;color:#90a8bd">Bucket có giá trị cuối</td><td style="padding:6px 0;font-weight:600">${bucketChiTiet.bucket_co_giatri_cuoi ? new Date(bucketChiTiet.bucket_co_giatri_cuoi).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '(không rõ)'}</td></tr>
@@ -123,7 +133,7 @@ const khoiAL = alertStalled ? `
 
 // Tiêu đề nói đúng nguyên nhân vận hành; mã kiểm soát vẫn giữ trong loai_loi.
 const lyDoArr = Array.isArray(ng.ly_do) ? ng.ly_do : [];
-const phan = [(matNguon || matDuLieu) ? nhanNguyenNhan.toUpperCase() : null, alertStalled ? 'CẢNH BÁO ĐÌNH TRỆ' : null].filter(Boolean);
+const phan = [(matNguon || matDuLieu) ? truongHop.toUpperCase() : null, alertStalled ? 'CẢNH BÁO ĐÌNH TRỆ' : null].filter(Boolean);
 const tieuDe = '🔴 ' + phan.join(' + ');
 
 const html = `<!doctype html><html><body style="margin:0;background:#fdf2ef;font-family:Inter,'Segoe UI',Arial,sans-serif">
@@ -137,7 +147,7 @@ const html = `<!doctype html><html><body style="margin:0;background:#fdf2ef;font
     </div></div></body></html>`;
 
 const moTa = [matNguon ? ('Mất nguồn [' + lyDoArr.join(',') + ']: ' + (ng.tom_tat || '')) : null,
-              matDuLieu ? `Mất dữ liệu (trễ ${treTxt}/ngưỡng ${nguong}h, bucket ${bucket})` : null,
+              matDuLieu ? `${truongHop} (trễ ${treTxt}/ngưỡng ${nguong}h, bucket ${bucket})` : null,
               alertStalled ? `Cảnh báo đình trệ: ${soKhongNhac} sự cố mở không nhắc >2h (nghi WF8 ngừng)` : null]
              .filter(Boolean).join(' · ');
 
