@@ -57,6 +57,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   const [dsAhu, setDsAhu] = useState([]);      // {ma_ahu:'C1/AHU03', khu_vuc, ahu, so_phong, co_p1_p2}
   const [dbMoi, setDbMoi] = useState(DB_MOI_MAC_DINH());   // hàng "thêm mới" cuối bảng danh bạ
   const [tai, setTai] = useState(true);
+  const [dangLuuEmail, setDangLuuEmail] = useState({});
   const [tb, setTb] = useState(null);          // {ok, text}
   const [form, setForm] = useState(null);      // form thêm/sửa người nhận báo cáo
   const goc = useRef({});                       // giá trị email đã lưu (so sánh khi blur)
@@ -129,7 +130,9 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   const huyDongHo = () => setDongHo(JSON.parse(JSON.stringify(gocDongHo.current || [])));
   const luuEmail = async (key, value) => {
     if (!canManage) return;
+    setDangLuuEmail((m) => ({ ...m, [key]: true }));
     const { error } = await datCauHinhEmail(key, value, actor);
+    setDangLuuEmail((m) => ({ ...m, [key]: false }));
     if (error) flash(false, error.thong_bao || "Không lưu được");
     else { const v = (value || "").trim(); goc.current = { ...goc.current, [key]: v }; setEmailCfg((m) => ({ ...m, [key]: v })); flash(true, "Đã lưu " + (NHAN_EMAIL_LABEL[key] || key)); }
   };
@@ -159,13 +162,25 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   };
   const emailFields = (keys) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">{keys.map((k) => (
-      <div key={k} className="rounded-2xl bg-subtle ring-1 ring-line p-4">
+      <div key={k} className={`rounded-2xl ring-1 p-4 ${k === "email_mat_nguon" ? "md:col-span-2 bg-danger-soft/45 ring-danger-line" : "bg-subtle ring-line"}`}>
         <label className="text-[12px] uppercase text-muted font-semibold">{NHAN_EMAIL_LABEL[k] || k}</label>
-        <input type="email" value={emailCfg[k] || ""} disabled={!canManage} placeholder="email@cpc1hn.vn"
+        <input type="text" value={emailCfg[k] || ""} disabled={!canManage} placeholder={k === "email_mat_nguon" ? "email1@cpc1hn.vn,email2@cpc1hn.vn" : "email@cpc1hn.vn"}
           onChange={(e) => setEmailCfg((m) => ({ ...m, [k]: e.target.value }))}
-          onBlur={(e) => { if ((e.target.value || "").trim() !== (goc.current[k] || "")) luuEmail(k, e.target.value); }}
           className="w-full mt-2 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm disabled:bg-subtle" />
-        <p className="text-[12px] text-muted mt-1 font-mono">{k}</p>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <p className="text-[12px] text-muted font-mono truncate">{k}</p>
+          {(() => {
+            const daDoi = (emailCfg[k] || "").trim() !== (goc.current[k] || "");
+            return (
+              <button disabled={!canManage || !daDoi || !!dangLuuEmail[k]} onClick={() => luuEmail(k, emailCfg[k] || "")}
+                className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-40"
+                style={{ backgroundColor: "var(--primary-solid)" }}>
+                <Save className="w-3.5 h-3.5" strokeWidth={2} />
+                {dangLuuEmail[k] ? "Đang lưu" : "Lưu"}
+              </button>
+            );
+          })()}
+        </div>
       </div>))}</div>
   );
   if (!isLive) return <Card className="p-6"><p className="text-sm text-warning">Cần chế độ dữ liệu thật để cấu hình người nhận.</p></Card>;
@@ -261,9 +276,10 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
         <p className="text-[12px] text-muted mt-1">Lưu ý: đồng hồ leo thang (IPC 20′ · Cơ điện chưa nhận việc 15′ · đang/chờ xử lý 1 giờ) vẫn chạy ngoài giờ — sáng vào khung giờ, phiếu tồn qua đêm sẽ hiện đã leo thang lên Trực.</p>
       </Card>
 
-      <Card className="p-6"><SectionTitle icon={Cog} hint="địa chỉ gửi đi + nhận khi ở chế độ thử + fallback báo cáo">Địa chỉ hệ thống & fallback</SectionTitle>
+      <Card className="p-6"><SectionTitle icon={Cog} hint="địa chỉ gửi đi + nhận khi ở chế độ thử + dự phòng báo cáo">Địa chỉ hệ thống & dự phòng</SectionTitle>
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> : emailFields([...EMAIL_KEYS_HE_THONG, ...EMAIL_KEYS_BAO_CAO])}
         <p className="text-[12px] text-muted mt-3"><b>Lỗi hệ thống / mất dữ liệu</b> là nơi nhận email khi hệ thống giám sát phát hiện mất dữ liệu hoặc lỗi nguồn. Có thể nhập nhiều email, ngăn cách bằng dấu phẩy.</p>
+        <p className="text-[12px] text-muted mt-1">Sau khi bấm <b>Lưu</b>, địa chỉ được ghi vào cấu hình chung; lần quét tiếp theo của hệ thống sẽ dùng ngay, không cần chỉnh thêm ở nơi khác.</p>
         <p className="text-[12px] text-muted mt-1">Các key cảnh báo cũ (email_ipc, email_co_dien, email_qa, email_truc_hsl, email_it_gmp) trong Cài đặt chỉ còn là <b>dự phòng tầng 3</b> — hệ thống chỉ dùng khi danh bạ cảnh báo phía trên trống hoàn toàn.</p>
       </Card>
 
