@@ -27,9 +27,17 @@ const coVanDe      = matDuLieu || alertStalled || matNguon;
 
 const reGuiGio = Math.max(0.5, Number(cfg.giam_sat_re_gui_gio || 2));
 const daDuGio = (moc) => !moc || (Date.now() - new Date(moc).getTime()) >= reGuiGio * 3600 * 1000;
-const guiDL = matDuLieu    && daDuGio(row.lan_canh_bao_mat_dl);
+// Trường hợp 2/3 vừa là "mất dữ liệu" vừa là "lỗi nguồn dữ liệu". Dùng chung mốc
+// gần nhất của hai nhóm để không gửi lặp 30 phút/lần khi mã nguyên nhân đổi.
+const mocNguonDuLieu = [row.lan_canh_bao_mat_dl, row.lan_canh_bao_nguon]
+  .filter(Boolean)
+  .map((moc) => new Date(moc).getTime())
+  .filter(Number.isFinite)
+  .sort((a, b) => b - a)[0];
+const lanCanhBaoNguonDuLieu = mocNguonDuLieu ? new Date(mocNguonDuLieu).toISOString() : null;
+const guiDL = matDuLieu    && daDuGio(matNguon ? lanCanhBaoNguonDuLieu : row.lan_canh_bao_mat_dl);
 const guiAL = alertStalled && daDuGio(row.lan_canh_bao_dinh_tre);
-const guiNG = matNguon     && daDuGio(row.lan_canh_bao_nguon);
+const guiNG = matNguon     && daDuGio(lanCanhBaoNguonDuLieu || row.lan_canh_bao_nguon);
 const nenGui = guiDL || guiAL || guiNG;
 
 // Người nhận theo LOẠI. Mất nguồn dùng email_mat_nguon (11/08: chủ hệ thống không
@@ -172,11 +180,11 @@ const moTa = [matNguon ? ('Mất nguồn [' + lyDoArr.join(',') + ']: ' + (ng.to
 // Tên loại ghép bằng _VA_ — giữ tiền tố MAT_DU_LIEU/MAT_NGUON để throttle cũ vẫn bắt,
 // đồng thời gắn mã kiểm soát để lọc nguyên nhân dễ hơn trong nhật ký.
 const loaiNguon = laBmsKhongCoDuLieu
-  ? 'MAT_DU_LIEU_BMS_SOURCE_EMPTY'
+  ? 'MAT_DU_LIEU_MAT_NGUON_BMS_SOURCE_EMPTY'
   : laApiItKhongKetNoi
-    ? 'MAT_NGUON_IT_API_UNREACHABLE'
+    ? 'MAT_DU_LIEU_MAT_NGUON_IT_API_UNREACHABLE'
     : laLoiN8n
-      ? 'MAT_DU_LIEU_N8N_PIPELINE_ERROR'
+      ? 'MAT_DU_LIEU_MAT_NGUON_N8N_PIPELINE_ERROR'
       : matNguon ? 'MAT_NGUON' : matDuLieu ? 'MAT_DU_LIEU' : null;
 const loai = [loaiNguon, alertStalled ? 'DINH_TRE' : null]
              .filter(Boolean).join('_VA_') || 'BINH_THUONG';
