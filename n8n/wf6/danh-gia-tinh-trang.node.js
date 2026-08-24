@@ -25,6 +25,12 @@ const alertStalled = soKhongNhac > 0;
 const matNguon     = ng.mat_nguon === true;
 const coVanDe      = matDuLieu || alertStalled || matNguon;
 
+const hienTai = row._now_test ? new Date(row._now_test) : new Date();
+const hienTaiVN = new Date(hienTai.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+const thuVN = hienTaiVN.getDay();
+const phutVN = hienTaiVN.getHours() * 60 + hienTaiVN.getMinutes();
+const trongGioHanhChinh = thuVN >= 1 && thuVN <= 6 && phutVN >= 7 * 60 + 45 && phutVN < 16 * 60 + 45;
+
 const reGuiGio = Math.max(0.5, Number(cfg.giam_sat_re_gui_gio || 2));
 const daDuGio = (moc) => !moc || (Date.now() - new Date(moc).getTime()) >= reGuiGio * 3600 * 1000;
 // Trường hợp 2/3 vừa là "mất dữ liệu" vừa là "lỗi nguồn dữ liệu". Dùng chung mốc
@@ -35,9 +41,9 @@ const mocNguonDuLieu = [row.lan_canh_bao_mat_dl, row.lan_canh_bao_nguon]
   .filter(Number.isFinite)
   .sort((a, b) => b - a)[0];
 const lanCanhBaoNguonDuLieu = mocNguonDuLieu ? new Date(mocNguonDuLieu).toISOString() : null;
-const guiDL = matDuLieu    && daDuGio(matNguon ? lanCanhBaoNguonDuLieu : row.lan_canh_bao_mat_dl);
+const guiDL = matDuLieu    && trongGioHanhChinh && daDuGio(matNguon ? lanCanhBaoNguonDuLieu : row.lan_canh_bao_mat_dl);
 const guiAL = alertStalled && daDuGio(row.lan_canh_bao_dinh_tre);
-const guiNG = matNguon     && daDuGio(lanCanhBaoNguonDuLieu || row.lan_canh_bao_nguon);
+const guiNG = matNguon     && trongGioHanhChinh && daDuGio(lanCanhBaoNguonDuLieu || row.lan_canh_bao_nguon);
 const nenGui = guiDL || guiAL || guiNG;
 
 // Người nhận theo LOẠI. Mất nguồn dùng email_mat_nguon (11/08: chủ hệ thống không
@@ -197,5 +203,7 @@ return [{ json: {
   loai_loi: loai,
   mo_ta: moTa,
   kq_json: JSON.stringify(Object.assign({}, kq, { so_su_co_khong_nhac: soKhongNhac, nguon: ng })),
-  thuoc_thu_nghiem: TEST
+  thuoc_thu_nghiem: TEST,
+  trong_gio_hanh_chinh: trongGioHanhChinh,
+  khung_gio_gui: 'Thứ 2-Thứ 7 07:45-16:45'
 }}];
