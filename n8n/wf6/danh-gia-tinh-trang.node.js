@@ -64,25 +64,28 @@ const maTrangThai = kq.ma_trang_thai || ng.ma_trang_thai || null;
 const wf1ChiTiet = kq.wf1_gan_nhat || ng.wf1_gan_nhat || {};
 const bucketChiTiet = kq.bucket || ng.bucket || {};
 const ngoaiLe6h = kq.ngoai_le_6h || ng.ngoai_le_6h || {};
-const nhanNguyenNhan = maTrangThai === 'WF1_PIPELINE_ERROR'
+const laLoiN8n = maTrangThai === 'N8N_PIPELINE_ERROR' || maTrangThai === 'WF1_PIPELINE_ERROR';
+const laApiItKhongKetNoi = maTrangThai === 'IT_API_UNREACHABLE' || maTrangThai === 'FMS_UNREACHABLE';
+const laBmsKhongCoDuLieu = maTrangThai === 'BMS_SOURCE_EMPTY' || maTrangThai === 'FMS_DATA_LOSS';
+const nhanNguyenNhan = laLoiN8n
   ? 'luồng lấy dữ liệu trên n8n bị lỗi'
-  : maTrangThai === 'FMS_DATA_LOSS'
+  : laBmsKhongCoDuLieu
     ? 'vẫn kết nối được API nguồn của IT, tuy nhiên không có dữ liệu BMS'
-    : maTrangThai === 'FMS_UNREACHABLE'
+    : laApiItKhongKetNoi
       ? 'không kết nối được API nguồn của IT để lấy dữ liệu BMS'
       : 'mất dữ liệu giám sát HVAC';
-const truongHop = maTrangThai === 'WF1_PIPELINE_ERROR'
+const truongHop = laLoiN8n
   ? 'Nguyên nhân 1 - Luồng lấy dữ liệu trên n8n bị lỗi'
-  : maTrangThai === 'FMS_DATA_LOSS'
+  : laBmsKhongCoDuLieu
     ? 'Nguyên nhân 3 - Vẫn kết nối được API nguồn của IT, tuy nhiên không có dữ liệu BMS'
-    : maTrangThai === 'FMS_UNREACHABLE'
+    : laApiItKhongKetNoi
       ? 'Nguyên nhân 2 - Không kết nối được API nguồn của IT để lấy dữ liệu BMS'
       : 'Nguyên nhân chưa phân loại - cần kiểm n8n, API nguồn của IT và máy BMS';
-const huongDanDL = maTrangThai === 'WF1_PIPELINE_ERROR'
+const huongDanDL = laLoiN8n
   ? 'Người cần tác động: quản trị n8n hoặc IT hệ thống. Kiểm tra n8n và luồng lấy dữ liệu từ API nguồn của IT.'
-  : maTrangThai === 'FMS_DATA_LOSS'
+  : laBmsKhongCoDuLieu
     ? 'Người cần tác động: Cơ điện kiểm tra máy BMS có đang ghi dữ liệu thực tế không. Nếu máy BMS vẫn ghi dữ liệu, chuyển IT kiểm tra bước lưu dữ liệu và API nguồn.'
-    : maTrangThai === 'FMS_UNREACHABLE'
+    : laApiItKhongKetNoi
       ? 'Người cần tác động: liên hệ Ánh IT để kiểm tra API nguồn, tài khoản kết nối và đường truyền từ hệ thống giám sát tới API.'
       : 'Kiểm n8n, API nguồn của IT, máy BMS và bảng ngoại lệ dữ liệu.';
 const tomTatNguon = huongDanDL || kq.tom_tat || ng.tom_tat;
@@ -108,7 +111,7 @@ if (wf1.do) {
         : wf1.trang_thai_ghi;
   hang.push(dong('Luồng thu dữ liệu gần nhất', 'xử lý ' + (wf1.phong_hop_le ?? '?') + ' phòng' + diem + rong + (trangThaiGhi ? ' (nhật ký ghi “' + trangThaiGhi + '”)' : '')));
 } else if (wf1.phong_hop_le != null) khoe.push('luồng thu dữ liệu thu ' + wf1.phong_hop_le + ' phòng');
-if (maTrangThai === 'FMS_DATA_LOSS') {
+if (laBmsKhongCoDuLieu) {
   hang.push(dong('Dữ liệu FMS', '0 điểm đo · ' + (ngoaiLe6h.fms_rong ?? 0) + ' lượt dữ liệu trống trong 6 giờ · ' + (ngoaiLe6h.phong_fms_rong ?? '?') + ' phòng ảnh hưởng'));
 }
 
@@ -168,12 +171,12 @@ const moTa = [matNguon ? ('Mất nguồn [' + lyDoArr.join(',') + ']: ' + (ng.to
 
 // Tên loại ghép bằng _VA_ — giữ tiền tố MAT_DU_LIEU/MAT_NGUON để throttle cũ vẫn bắt,
 // đồng thời gắn mã kiểm soát để lọc nguyên nhân dễ hơn trong nhật ký.
-const loaiNguon = maTrangThai === 'FMS_DATA_LOSS'
-  ? 'MAT_DU_LIEU_FMS_DATA_LOSS'
-  : maTrangThai === 'FMS_UNREACHABLE'
-    ? 'MAT_NGUON_FMS_UNREACHABLE'
-    : maTrangThai === 'WF1_PIPELINE_ERROR'
-      ? 'MAT_DU_LIEU_WF1_PIPELINE_ERROR'
+const loaiNguon = laBmsKhongCoDuLieu
+  ? 'MAT_DU_LIEU_BMS_SOURCE_EMPTY'
+  : laApiItKhongKetNoi
+    ? 'MAT_NGUON_IT_API_UNREACHABLE'
+    : laLoiN8n
+      ? 'MAT_DU_LIEU_N8N_PIPELINE_ERROR'
       : matNguon ? 'MAT_NGUON' : matDuLieu ? 'MAT_DU_LIEU' : null;
 const loai = [loaiNguon, alertStalled ? 'DINH_TRE' : null]
              .filter(Boolean).join('_VA_') || 'BINH_THUONG';

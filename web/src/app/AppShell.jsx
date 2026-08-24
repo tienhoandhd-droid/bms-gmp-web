@@ -387,12 +387,15 @@ export default function AppShell() {
   const matNguon = isLive && live.sucKhoe?.matDuLieu === true;
   const skTomTat = live.sucKhoe?.tomTat || null;
   const skMaTrangThai = live.sucKhoe?.maTrangThai || null;
-  const skNhan = skMaTrangThai === "WF1_PIPELINE_ERROR"
-    ? "Workflow thu dữ liệu lỗi"
-    : skMaTrangThai === "FMS_DATA_LOSS"
-      ? "FMS mất dữ liệu"
-      : skMaTrangThai === "FMS_UNREACHABLE"
-        ? "Không kết nối được FMS"
+  const skLoiN8n = skMaTrangThai === "N8N_PIPELINE_ERROR" || skMaTrangThai === "WF1_PIPELINE_ERROR";
+  const skApiItKhongKetNoi = skMaTrangThai === "IT_API_UNREACHABLE" || skMaTrangThai === "FMS_UNREACHABLE";
+  const skBmsKhongCoDuLieu = skMaTrangThai === "BMS_SOURCE_EMPTY" || skMaTrangThai === "FMS_DATA_LOSS";
+  const skNhan = skLoiN8n
+    ? "Luồng lấy dữ liệu lỗi"
+    : skBmsKhongCoDuLieu
+      ? "API có kết nối, không có dữ liệu BMS"
+      : skApiItKhongKetNoi
+        ? "Không kết nối được API nguồn"
         : "Mất dữ liệu";
   const phanLoaiPhong = (r) => {
     const comp = roomCompliance(r);

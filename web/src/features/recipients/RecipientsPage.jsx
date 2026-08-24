@@ -10,7 +10,7 @@ import { EMAIL_KEYS_BAO_CAO, EMAIL_KEYS_HE_THONG, datCauHinhEmail, datCongTacPha
 const NHAN_EMAIL_LABEL = {
   email_ipc: "IPC (Hiện trường)", email_co_dien: "Cơ điện", email_qa: "QA",
   email_truc_hsl: "Trực hồ sơ lô", email_it_gmp: "IT / Kỹ thuật",
-  email_gui_tu: "Địa chỉ gửi", email_test: "Địa chỉ nhận thử",
+  email_gui_tu: "Địa chỉ gửi", email_mat_nguon: "Lỗi hệ thống / mất dữ liệu", email_test: "Địa chỉ nhận thử",
   email_bao_cao_tuan: "Dự phòng báo cáo tuần", email_bao_cao_thang: "Dự phòng báo cáo tháng", email_bao_cao_ngay: "Dự phòng báo cáo ngày",
 };
 const DS_VAI_TRO_CB = [["IPC", "IPC hiện trường"], ["MEP", "Cơ điện"], ["QA", "QA"], ["LOT", "Trực HSL"], ["IT", "IT"]];
@@ -263,7 +263,8 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
 
       <Card className="p-6"><SectionTitle icon={Cog} hint="địa chỉ gửi đi + nhận khi ở chế độ thử + fallback báo cáo">Địa chỉ hệ thống & fallback</SectionTitle>
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> : emailFields([...EMAIL_KEYS_HE_THONG, ...EMAIL_KEYS_BAO_CAO])}
-        <p className="text-[12px] text-muted mt-3">Các key cảnh báo cũ (email_ipc, email_co_dien, email_qa, email_truc_hsl, email_it_gmp) trong Cài đặt chỉ còn là <b>dự phòng tầng 3</b> — hệ thống chỉ dùng khi danh bạ cảnh báo phía trên trống hoàn toàn.</p>
+        <p className="text-[12px] text-muted mt-3"><b>Lỗi hệ thống / mất dữ liệu</b> là nơi nhận email khi hệ thống giám sát phát hiện mất dữ liệu hoặc lỗi nguồn. Có thể nhập nhiều email, ngăn cách bằng dấu phẩy.</p>
+        <p className="text-[12px] text-muted mt-1">Các key cảnh báo cũ (email_ipc, email_co_dien, email_qa, email_truc_hsl, email_it_gmp) trong Cài đặt chỉ còn là <b>dự phòng tầng 3</b> — hệ thống chỉ dùng khi danh bạ cảnh báo phía trên trống hoàn toàn.</p>
       </Card>
 
       <Card className="p-6">
@@ -396,7 +397,7 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
         </div>
       )}
       {!canManage && <p className="text-[12px] text-warning mt-3">Cần quyền QA/Quản trị để chỉnh luật.</p>}
-      <p className="text-[12px] text-muted mt-3">Tuyến hiện hỗ trợ: sự cố → <b>Cơ điện</b> (qua đúng máy trạng thái duyệt sự cố, có nhật ký người thao tác “hệ thống”). Sự cố hạ tầng cảm biến (đứng tín hiệu, mất FMS) đã có nhánh cảnh báo Cơ điện riêng.</p>
+      <p className="text-[12px] text-muted mt-3">Tuyến hiện hỗ trợ: sự cố → <b>Cơ điện</b> (qua đúng máy trạng thái duyệt sự cố, có nhật ký người thao tác “hệ thống”). Sự cố hạ tầng cảm biến như đứng tín hiệu hoặc lỗi nguồn dữ liệu đã có nhánh cảnh báo Cơ điện riêng.</p>
     </Card>
   );
 }

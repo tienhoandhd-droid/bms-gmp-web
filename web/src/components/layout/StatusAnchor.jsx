@@ -9,10 +9,13 @@ export default function StatusAnchor({ p12Open, matNguon, isLive, capNhatLuc, kh
   const coViec = (p12Open || 0) > 0;
   const gioCapNhat = capNhatLuc ? new Date(capNhatLuc).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : null;
   const maTrangThai = sucKhoe?.maTrangThai || null;
+  const loiN8n = maTrangThai === "N8N_PIPELINE_ERROR" || maTrangThai === "WF1_PIPELINE_ERROR";
+  const apiItKhongKetNoi = maTrangThai === "IT_API_UNREACHABLE" || maTrangThai === "FMS_UNREACHABLE";
+  const bmsKhongCoDuLieu = maTrangThai === "BMS_SOURCE_EMPTY" || maTrangThai === "FMS_DATA_LOSS";
   const trangThaiDuLieu = matNguon
-    ? (maTrangThai === "WF1_PIPELINE_ERROR" ? "Workflow thu dữ liệu lỗi"
-      : maTrangThai === "FMS_DATA_LOSS" ? "FMS mất dữ liệu"
-      : maTrangThai === "FMS_UNREACHABLE" ? "Không kết nối được FMS"
+    ? (loiN8n ? "Luồng lấy dữ liệu lỗi"
+      : bmsKhongCoDuLieu ? "API có kết nối, không có dữ liệu BMS"
+      : apiItKhongKetNoi ? "Không kết nối được API nguồn"
       : "Nguồn dữ liệu gián đoạn")
     : isLive ? "Dữ liệu đang cập nhật" : "Dữ liệu mô phỏng";
   const ghiChuDuLieu = matNguon ? (sucKhoe?.tomTat || "Tạm dừng kết luận đạt/không đạt cho tới khi nguồn ổn định.") : gioCapNhat ? `Cập nhật gần nhất lúc ${gioCapNhat}.` : "Theo khung giờ chốt gần nhất.";

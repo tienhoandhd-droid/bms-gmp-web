@@ -7,12 +7,15 @@ export default function SystemHealthStrip({ isLive, matNguon, dangTai, capNhatLu
   const gio = capNhatLuc ? capNhatLuc.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : null;
   const maTrangThai = sucKhoe?.maTrangThai || null;
   const tomTat = sucKhoe?.tomTat || null;
-  const nhanLoi = maTrangThai === "WF1_PIPELINE_ERROR"
-    ? "Workflow thu dữ liệu lỗi"
-    : maTrangThai === "FMS_DATA_LOSS"
-      ? "FMS mất dữ liệu"
-      : maTrangThai === "FMS_UNREACHABLE"
-        ? "Không kết nối được FMS"
+  const loiN8n = maTrangThai === "N8N_PIPELINE_ERROR" || maTrangThai === "WF1_PIPELINE_ERROR";
+  const apiItKhongKetNoi = maTrangThai === "IT_API_UNREACHABLE" || maTrangThai === "FMS_UNREACHABLE";
+  const bmsKhongCoDuLieu = maTrangThai === "BMS_SOURCE_EMPTY" || maTrangThai === "FMS_DATA_LOSS";
+  const nhanLoi = loiN8n
+    ? "Luồng lấy dữ liệu lỗi"
+    : bmsKhongCoDuLieu
+      ? "API có kết nối, không có dữ liệu BMS"
+      : apiItKhongKetNoi
+        ? "Không kết nối được API nguồn"
         : "Mất dữ liệu";
 
   // inline: chip gọn nằm trong header (báo cáo 10 — bình thường không chiếm hàng riêng)

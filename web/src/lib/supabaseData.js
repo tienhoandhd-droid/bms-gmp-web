@@ -1009,7 +1009,7 @@ export async function luuPhanTichAi(p, signal){ return goiRPC('rpc_luu_phan_tich
 // Lưu ý: các key email_ipc/email_co_dien/… chỉ còn là DỰ PHÒNG tầng 3 của định tuyến.
 // ============================================================
 export const EMAIL_KEYS_CANH_BAO = ['email_ipc', 'email_co_dien', 'email_qa', 'email_truc_hsl', 'email_it_gmp']
-export const EMAIL_KEYS_HE_THONG = ['email_gui_tu', 'email_test']
+export const EMAIL_KEYS_HE_THONG = ['email_gui_tu', 'email_mat_nguon', 'email_test']
 export const EMAIL_KEYS_BAO_CAO = ['email_bao_cao_tuan', 'email_bao_cao_thang', 'email_bao_cao_ngay']
 
 export async function layCauHinhEmail(signal) {
