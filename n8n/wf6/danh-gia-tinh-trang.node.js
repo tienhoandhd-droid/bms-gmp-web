@@ -51,31 +51,39 @@ const lc = kq.lan_chay_cuoi || null;
 const treGio = kq.tre_gio;
 const nguong = kq.nguong_gio ?? 2;
 const treTxt = (treGio == null) ? 'chưa có dữ liệu giờ nào' : (treGio + ' giờ');
-const lcTxt  = lc ? ((lc.ten_workflow || 'WF1') + ' · ' + (lc.trang_thai || '?')) : '(không rõ)';
+const lcTrangThaiRaw = lc?.trang_thai || null;
+const lcTrangThai = lcTrangThaiRaw === 'ok'
+  ? 'thành công'
+  : lcTrangThaiRaw === 'failed'
+    ? 'lỗi'
+    : lcTrangThaiRaw === 'partial'
+      ? 'chưa đầy đủ'
+      : (lcTrangThaiRaw || 'không rõ');
+const lcTxt  = lc ? ('Luồng thu dữ liệu · ' + lcTrangThai) : '(không rõ)';
 const maTrangThai = kq.ma_trang_thai || ng.ma_trang_thai || null;
 const wf1ChiTiet = kq.wf1_gan_nhat || ng.wf1_gan_nhat || {};
 const bucketChiTiet = kq.bucket || ng.bucket || {};
 const ngoaiLe6h = kq.ngoai_le_6h || ng.ngoai_le_6h || {};
 const nhanNguyenNhan = maTrangThai === 'WF1_PIPELINE_ERROR'
-  ? 'n8n bị lỗi nên không có dữ liệu'
+  ? 'hệ thống n8n bị lỗi nên không có dữ liệu'
   : maTrangThai === 'FMS_DATA_LOSS'
-    ? 'hệ BMS lỗi nên FMS dữ liệu trống'
+    ? 'hệ thống BMS lỗi nên dữ liệu FMS bị trống'
     : maTrangThai === 'FMS_UNREACHABLE'
       ? 'hệ thống FMS bị lỗi nên mất dữ liệu'
       : 'mất dữ liệu giám sát HVAC';
 const truongHop = maTrangThai === 'WF1_PIPELINE_ERROR'
-  ? 'Nguyên nhân 1 — Do n8n bị lỗi nên không có dữ liệu'
+  ? 'Nguyên nhân 1 — Do hệ thống n8n bị lỗi nên không có dữ liệu'
   : maTrangThai === 'FMS_DATA_LOSS'
-    ? 'Nguyên nhân 3 — Do hệ BMS lỗi nên FMS dữ liệu trống'
+    ? 'Nguyên nhân 3 — Do hệ thống BMS lỗi nên dữ liệu FMS bị trống'
     : maTrangThai === 'FMS_UNREACHABLE'
       ? 'Nguyên nhân 2 — Do hệ thống FMS bị lỗi nên mất dữ liệu'
       : 'Nguyên nhân chưa phân loại — cần kiểm n8n, FMS và BMS';
 const huongDanDL = maTrangThai === 'WF1_PIPELINE_ERROR'
-  ? 'Kiểm n8n và workflow WF1: trạng thái Active, execution gần nhất và Error Workflow. Nếu toàn bộ n8n dừng, WF6 cũng không thể tự gửi mail; cần kênh giám sát ngoài n8n.'
+  ? 'Kiểm tra n8n và luồng thu dữ liệu chính. Nếu toàn bộ n8n dừng, email này cũng có thể không gửi được; cần kiểm tra thêm bằng kênh giám sát ngoài n8n.'
   : maTrangThai === 'FMS_DATA_LOSS'
-    ? 'WF1 vẫn chạy và vẫn xử lý phòng, nhưng dữ liệu trả về rỗng/0 điểm đo. Kiểm luồng đọc dữ liệu BMS, mapping điểm đo và dịch vụ history/trend.'
+    ? 'Luồng thu dữ liệu vẫn chạy nhưng nhận về 0 điểm đo. Kiểm tra cấu hình đọc dữ liệu BMS, danh sách điểm đo và dữ liệu lịch sử trên FMS.'
     : maTrangThai === 'FMS_UNREACHABLE'
-      ? 'Kiểm hệ thống FMS, tài khoản FMS, mạng tới FMS, endpoint/API và execution WF1 gần nhất.'
+      ? 'Kiểm tra hệ thống FMS, tài khoản FMS, đường truyền tới FMS và lần chạy gần nhất của luồng thu dữ liệu.'
       : 'Kiểm n8n, FMS, BMS và bảng ngoại lệ dữ liệu.';
 const tomTatNguon = kq.tom_tat || ng.tom_tat || huongDanDL;
 
@@ -86,20 +94,27 @@ const khoe = [];
 const dong = (nhan, gt) => `<tr><td style="padding:4px 0;color:#90a8bd">${nhan}</td><td style="padding:4px 0;font-weight:600;color:#9f1239">${gt}</td></tr>`;
 if (mp.do) hang.push(dong('Mạch phút', (mp.tuoi_phut == null ? 'không có điểm nào' : 'đứng ' + mp.tuoi_phut + ' phút') + ' · ngưỡng ' + (mp.nguong ?? '?') + "'"));
 else if (mp.tuoi_phut != null) khoe.push('mạch phút ' + mp.tuoi_phut + "' trước");
-if (mg.do) hang.push(dong('Rollup giờ', (mg.tuoi_phut == null ? 'chưa có bucket nào' : 'đứng ' + mg.tuoi_phut + ' phút') + ' · ngưỡng ' + (mg.nguong_gio ?? '?') + 'h'));
-else if (mg.tuoi_phut != null) khoe.push('rollup giờ ' + mg.tuoi_phut + "' trước");
+if (mg.do) hang.push(dong('Dữ liệu giờ', (mg.tuoi_phut == null ? 'chưa có mốc dữ liệu nào' : 'đứng ' + mg.tuoi_phut + ' phút') + ' · ngưỡng ' + (mg.nguong_gio ?? '?') + 'h'));
+else if (mg.tuoi_phut != null) khoe.push('dữ liệu giờ ' + mg.tuoi_phut + "' trước");
 if (wf1.do) {
   const diem = wf1.diem_thu_duoc != null ? ' · ' + wf1.diem_thu_duoc + ' điểm đo' : '';
   const rong = wf1.phong_rong != null ? ' · ' + wf1.phong_rong + ' phòng rỗng' : '';
-  hang.push(dong('WF1 lượt gần nhất', 'xử lý ' + (wf1.phong_hop_le ?? '?') + ' phòng' + diem + rong + (wf1.trang_thai_ghi ? ' (nhật ký ghi “' + wf1.trang_thai_ghi + '”)' : '')));
-} else if (wf1.phong_hop_le != null) khoe.push('WF1 thu ' + wf1.phong_hop_le + ' phòng');
+  const trangThaiGhi = wf1.trang_thai_ghi === 'ok'
+    ? 'thành công'
+    : wf1.trang_thai_ghi === 'failed'
+      ? 'lỗi'
+      : wf1.trang_thai_ghi === 'partial'
+        ? 'chưa đầy đủ'
+        : wf1.trang_thai_ghi;
+  hang.push(dong('Luồng thu dữ liệu gần nhất', 'xử lý ' + (wf1.phong_hop_le ?? '?') + ' phòng' + diem + rong + (trangThaiGhi ? ' (nhật ký ghi “' + trangThaiGhi + '”)' : '')));
+} else if (wf1.phong_hop_le != null) khoe.push('luồng thu dữ liệu thu ' + wf1.phong_hop_le + ' phòng');
 if (maTrangThai === 'FMS_DATA_LOSS') {
-  hang.push(dong('FMS trả dữ liệu', '0 điểm đo · ' + (ngoaiLe6h.fms_rong ?? 0) + ' FMS_RONG trong 6 giờ · ' + (ngoaiLe6h.phong_fms_rong ?? '?') + ' phòng ảnh hưởng'));
+  hang.push(dong('Dữ liệu FMS', '0 điểm đo · ' + (ngoaiLe6h.fms_rong ?? 0) + ' lượt dữ liệu trống trong 6 giờ · ' + (ngoaiLe6h.phong_fms_rong ?? '?') + ' phòng ảnh hưởng'));
 }
 
 const cauWeb = ng.web_da_to_xam
-  ? 'Web ĐÃ ngừng chấm đạt/không đạt và tô xám “mất dữ liệu” cho các phòng liên quan.'
-  : 'Web VẪN đang chấm đạt/không đạt bình thường (chỉ tô xám khi số liệu quá ' + (ng.nguong_xam_phut ?? 150) + ' phút).';
+  ? 'Web đã tạm dừng kết luận đạt/không đạt cho các phòng liên quan.'
+  : 'Web vẫn hiển thị theo dữ liệu hiện có và chỉ tạm dừng kết luận khi số liệu quá ' + (ng.nguong_xam_phut ?? 150) + ' phút.';
 
 const khoiNG = matNguon ? `
   <div style="background:#fff1f2;border:1px solid #fda4af;border-radius:10px;padding:12px 14px;margin:8px 0">
@@ -116,19 +131,19 @@ const khoiDL = matDuLieu ? `
   <p style="margin:6px 0 0;font-weight:700;color:#9f1239">${truongHop}</p>
   <p style="margin:6px 0 0;color:#33506e">${tomTatNguon}</p>
   <table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0">
-    <tr><td style="padding:6px 0;color:#90a8bd">Bucket mới nhất</td><td style="padding:6px 0;font-weight:600">${bucket}</td></tr>
-    <tr><td style="padding:6px 0;color:#90a8bd">Bucket có giá trị cuối</td><td style="padding:6px 0;font-weight:600">${bucketChiTiet.bucket_co_giatri_cuoi ? new Date(bucketChiTiet.bucket_co_giatri_cuoi).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '(không rõ)'}</td></tr>
+    <tr><td style="padding:6px 0;color:#90a8bd">Mốc dữ liệu mới nhất</td><td style="padding:6px 0;font-weight:600">${bucket}</td></tr>
+    <tr><td style="padding:6px 0;color:#90a8bd">Mốc cuối có số đo</td><td style="padding:6px 0;font-weight:600">${bucketChiTiet.bucket_co_giatri_cuoi ? new Date(bucketChiTiet.bucket_co_giatri_cuoi).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '(không rõ)'}</td></tr>
     <tr><td style="padding:6px 0;color:#90a8bd">Trễ</td><td style="padding:6px 0;font-weight:600;color:#cf583f">${treTxt} (ngưỡng ${nguong}h)</td></tr>
-    <tr><td style="padding:6px 0;color:#90a8bd">WF1 lần chạy cuối</td><td style="padding:6px 0;font-weight:600">${lcTxt}</td></tr>
-    <tr><td style="padding:6px 0;color:#90a8bd">WF1 thu được</td><td style="padding:6px 0;font-weight:600">${wf1ChiTiet.phong_hop_le ?? '?'} phòng · ${wf1ChiTiet.diem_thu_duoc ?? '?'} điểm đo · ${wf1ChiTiet.phong_rong ?? '?'} phòng rỗng</td></tr>
-    <tr><td style="padding:6px 0;color:#90a8bd">Ngoại lệ 6 giờ</td><td style="padding:6px 0;font-weight:600">${ngoaiLe6h.fms_rong ?? 0} FMS_RONG · ${ngoaiLe6h.fms_login_loi ?? 0} FMS_LOGIN_LOI</td></tr>
+    <tr><td style="padding:6px 0;color:#90a8bd">Luồng thu dữ liệu lần cuối</td><td style="padding:6px 0;font-weight:600">${lcTxt}</td></tr>
+    <tr><td style="padding:6px 0;color:#90a8bd">Dữ liệu thu được</td><td style="padding:6px 0;font-weight:600">${wf1ChiTiet.phong_hop_le ?? '?'} phòng · ${wf1ChiTiet.diem_thu_duoc ?? '?'} điểm đo · ${wf1ChiTiet.phong_rong ?? '?'} phòng rỗng</td></tr>
+    <tr><td style="padding:6px 0;color:#90a8bd">Dữ liệu bất thường 6 giờ</td><td style="padding:6px 0;font-weight:600">${ngoaiLe6h.fms_rong ?? 0} lượt trống · ${ngoaiLe6h.fms_login_loi ?? 0} lỗi đăng nhập FMS</td></tr>
   </table>` : '';
 
 const khoiAL = alertStalled ? `
   <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;margin:8px 0">
     <p style="margin:0 0 6px;font-weight:700;color:#a3161b">⚠ CẢNH BÁO ĐANG ĐÌNH TRỆ — sự cố không tới người xử lý</p>
     <p style="margin:0;font-size:13px">Có <b>${soKhongNhac}</b> sự cố CRITICAL đang mở nhưng <b>không được nhắc quá 2 giờ</b>. Nguy cơ: WF8 (email cảnh báo) ngừng chạy, bị tắt, hoặc lỗi — sự cố phòng sạch đang KHÔNG có ai được báo.</p>
-    <p style="margin:6px 0 0;font-size:12px;color:#7f1d1d">Kiểm ngay: n8n → WF8 (Active?) + Executions gần nhất.</p>
+    <p style="margin:6px 0 0;font-size:12px;color:#7f1d1d">Kiểm ngay luồng gửi email cảnh báo trên n8n.</p>
   </div>` : '';
 
 // Tiêu đề nói đúng nguyên nhân vận hành; mã kiểm soát vẫn giữ trong loai_loi.
@@ -147,7 +162,7 @@ const html = `<!doctype html><html><body style="margin:0;background:#fdf2ef;font
     </div></div></body></html>`;
 
 const moTa = [matNguon ? ('Mất nguồn [' + lyDoArr.join(',') + ']: ' + (ng.tom_tat || '')) : null,
-              matDuLieu ? `${truongHop} (trễ ${treTxt}/ngưỡng ${nguong}h, bucket ${bucket})` : null,
+              matDuLieu ? `${truongHop} (trễ ${treTxt}/ngưỡng ${nguong}h, mốc dữ liệu ${bucket})` : null,
               alertStalled ? `Cảnh báo đình trệ: ${soKhongNhac} sự cố mở không nhắc >2h (nghi WF8 ngừng)` : null]
              .filter(Boolean).join(' · ');
 
