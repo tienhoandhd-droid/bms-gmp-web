@@ -65,27 +65,27 @@ const wf1ChiTiet = kq.wf1_gan_nhat || ng.wf1_gan_nhat || {};
 const bucketChiTiet = kq.bucket || ng.bucket || {};
 const ngoaiLe6h = kq.ngoai_le_6h || ng.ngoai_le_6h || {};
 const nhanNguyenNhan = maTrangThai === 'WF1_PIPELINE_ERROR'
-  ? 'hệ thống n8n bị lỗi nên không có dữ liệu'
+  ? 'luồng lấy dữ liệu trên n8n bị lỗi'
   : maTrangThai === 'FMS_DATA_LOSS'
-    ? 'vẫn kết nối được FMS, tuy nhiên không có dữ liệu'
+    ? 'vẫn kết nối được API nguồn của IT, tuy nhiên không có dữ liệu BMS'
     : maTrangThai === 'FMS_UNREACHABLE'
-      ? 'hệ thống FMS bị lỗi, không kết nối được FMS để lấy dữ liệu'
+      ? 'không kết nối được API nguồn của IT để lấy dữ liệu BMS'
       : 'mất dữ liệu giám sát HVAC';
 const truongHop = maTrangThai === 'WF1_PIPELINE_ERROR'
-  ? 'Nguyên nhân 1 — Do hệ thống n8n bị lỗi nên không có dữ liệu'
+  ? 'Nguyên nhân 1 - Luồng lấy dữ liệu trên n8n bị lỗi'
   : maTrangThai === 'FMS_DATA_LOSS'
-    ? 'Nguyên nhân 3 — Vẫn kết nối được FMS, tuy nhiên không có dữ liệu'
+    ? 'Nguyên nhân 3 - Vẫn kết nối được API nguồn của IT, tuy nhiên không có dữ liệu BMS'
     : maTrangThai === 'FMS_UNREACHABLE'
-      ? 'Nguyên nhân 2 — Do hệ thống FMS bị lỗi, không kết nối được FMS để lấy dữ liệu'
-      : 'Nguyên nhân chưa phân loại — cần kiểm n8n, FMS và BMS';
+      ? 'Nguyên nhân 2 - Không kết nối được API nguồn của IT để lấy dữ liệu BMS'
+      : 'Nguyên nhân chưa phân loại - cần kiểm n8n, API nguồn của IT và máy BMS';
 const huongDanDL = maTrangThai === 'WF1_PIPELINE_ERROR'
-  ? 'Kiểm tra n8n và luồng thu dữ liệu chính. Nếu toàn bộ n8n dừng, email này cũng có thể không gửi được; cần kiểm tra thêm bằng kênh giám sát ngoài n8n.'
+  ? 'Người cần tác động: quản trị n8n hoặc IT hệ thống. Kiểm tra n8n và luồng lấy dữ liệu từ API nguồn của IT.'
   : maTrangThai === 'FMS_DATA_LOSS'
-    ? 'Báo Cơ điện kiểm tra lại máy BMS có đang ghi dữ liệu không.'
+    ? 'Người cần tác động: Cơ điện kiểm tra máy BMS có đang ghi dữ liệu thực tế không. Nếu máy BMS vẫn ghi dữ liệu, chuyển IT kiểm tra bước lưu dữ liệu và API nguồn.'
     : maTrangThai === 'FMS_UNREACHABLE'
-      ? 'Liên hệ Ánh IT để kiểm tra lại FMS API, tài khoản FMS và đường truyền tới FMS.'
-      : 'Kiểm n8n, FMS, BMS và bảng ngoại lệ dữ liệu.';
-const tomTatNguon = kq.tom_tat || ng.tom_tat || huongDanDL;
+      ? 'Người cần tác động: liên hệ Ánh IT để kiểm tra API nguồn, tài khoản kết nối và đường truyền từ hệ thống giám sát tới API.'
+      : 'Kiểm n8n, API nguồn của IT, máy BMS và bảng ngoại lệ dữ liệu.';
+const tomTatNguon = huongDanDL || kq.tom_tat || ng.tom_tat;
 
 // ---- Khối MẤT NGUỒN: chỉ liệt kê tín hiệu đang có vấn đề -----------------------
 const mp = ng.mach_phut || {}; const mg = ng.mach_gio || {}; const wf1 = wf1ChiTiet;
