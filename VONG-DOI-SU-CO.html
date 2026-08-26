@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vòng đời sự cố BMS — Hành trình một tấm vé, từ cảm biến đến khi đóng hồ sơ</title>
+<style>
+  :root{
+    --ipc:#185fa5; --ipc-bg:#e6f1fb;
+    --mep:#854f0b; --mep-bg:#faeeda;
+    --lot:#a32d2d; --lot-bg:#fcebeb;
+    --qa:#0f6e56;  --qa-bg:#e7f4ef;
+    --sys:#5b4b8a; --sys-bg:#efeaf8;
+    --close:#3f4a54; --close-bg:#eef1f4;
+    --ink:#1e2a36; --mut:#5f7a90; --line:#d7dee5; --card:#ffffff;
+    --warn:#b3671a; --crit:#a32d2d; --ok:#0f6e56;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,'Segoe UI',system-ui,Arial,sans-serif;color:var(--ink);background:#f4f6f8;line-height:1.55;font-size:14px}
+  .wrap{max-width:1120px;margin:0 auto;padding:24px 20px 80px}
+  h1{font-size:24px;margin:0 0 4px}
+  h2{font-size:18px;margin:36px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+  h3{font-size:15px;margin:20px 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+  .sub{color:var(--mut);font-size:13px;margin:0 0 4px}
+  .banner{background:#fff8e6;border:1px solid #e9d59a;border-radius:12px;padding:12px 16px;margin:16px 0;font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:12px 0}
+  table{border-collapse:collapse;width:100%;font-size:13px;background:#fff;border-radius:12px;overflow:hidden}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f2f5f8;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
+  code{background:#eef1f4;border-radius:5px;padding:1px 5px;font-size:12px}
+  .pill{display:inline-block;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;white-space:nowrap}
+  .p-ipc{background:var(--ipc-bg);color:var(--ipc)} .p-mep{background:var(--mep-bg);color:var(--mep)}
+  .p-lot{background:var(--lot-bg);color:var(--lot)} .p-qa{background:var(--qa-bg);color:var(--qa)}
+  .p-sys{background:var(--sys-bg);color:var(--sys)} .p-close{background:var(--close-bg);color:var(--close)}
+  .p-crit{background:var(--lot-bg);color:var(--crit)} .p-warn{background:#fdf0dd;color:var(--warn)} .p-ok{background:var(--qa-bg);color:var(--ok)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+  .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .note{font-size:12px;color:var(--mut)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px}
+  .t-live{background:#e7f4ef;color:#0f6e56} .t-pend{background:#fdf0dd;color:#b3671a} .t-done{background:#e6f1fb;color:#185fa5}
+  ul{margin:6px 0;padding-left:20px} li{margin:3px 0}
+  .kv{display:grid;grid-template-columns:230px 1fr;gap:2px 12px;font-size:13px}
+  .kv div:nth-child(odd){color:var(--mut)}
+  @media(max-width:640px){.kv{grid-template-columns:1fr}.kv div:nth-child(odd){margin-top:8px;font-weight:600}}
+  .foot{margin-top:40px;color:#9aa6b1;font-size:12px;text-align:center}
+  /* thẻ số nhanh */
+  .times{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:0 0 16px}
+  .times>div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+  .times .n{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+  .times .l{font-size:10.5px;color:var(--mut);line-height:1.35;margin-top:1px}
+  /* 4 chặng như trên web */
+  .stages{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+  @media(max-width:900px){.stages{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.stages{grid-template-columns:1fr}}
+  .stage-h{border-radius:12px;padding:9px 12px;color:#fff;display:flex;align-items:center;gap:9px;margin-bottom:9px}
+  .stage-h .so{font-size:20px;font-weight:900;opacity:.55;font-variant-numeric:tabular-nums}
+  .stage-h .tt{font-size:12.5px;font-weight:700;line-height:1.25}
+  .stage-h .mo{font-size:9.5px;opacity:.8}
+  .stc{border:1.5px solid;border-radius:12px;background:#fff;padding:10px 12px;margin-bottom:9px}
+  .stc .nm{font-weight:700;font-size:13px}
+  .stc .ma{font-size:9.5px;color:#9aa6b1;letter-spacing:.4px}
+  .stc .mo{font-size:11px;color:var(--mut);margin-top:4px}
+  .stc .sla{margin-top:6px;font-size:11px;color:var(--mut);display:flex;flex-wrap:wrap;gap:3px 10px}
+  .stc .sla .hot{color:var(--crit);font-weight:600}
+  .tray{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .btnp{display:inline-flex;align-items:center;gap:5px;border-radius:9px;padding:3px 9px;font-size:11.5px;font-weight:600;line-height:1.35;background:var(--bb);color:var(--bc);border:1px solid rgba(0,0,0,.09)}
+  .btnp small{font-weight:500;opacity:.75;font-size:9.5px}
+  .b-ipc{--bb:var(--ipc-bg);--bc:var(--ipc)} .b-mep{--bb:var(--mep-bg);--bc:var(--mep)}
+  .b-lot{--bb:var(--lot-bg);--bc:var(--lot)} .b-qa{--bb:var(--qa-bg);--bc:var(--qa)}
+  .b-adm{--bb:var(--close-bg);--bc:var(--close)} .b-sys{--bb:var(--sys-bg);--bc:var(--sys)}
+  .tbadge{display:inline-block;border-radius:20px;padding:0 8px;font-size:11px;font-weight:700;background:#eef3f1;border:1px solid #cfdcd6;color:#0e7c73;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .band{border:1.5px dashed #cfdcd6;background:#f4f8f6;border-radius:12px;padding:10px 14px;margin:12px 0}
+  .band .t{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--mut)}
+  .band p{margin:7px 0 0;font-size:11.5px;color:var(--mut)}
+  /* pipeline 4 bước từ cảm biến đến vé (như web) */
+  .pipe{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+  @media(max-width:820px){.pipe{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.pipe{grid-template-columns:1fr}}
+  .pipe>div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;position:relative}
+  .pipe b{font-size:12px}
+  .pipe p{margin:5px 0 0;font-size:11px;color:var(--mut)}
+  .pipe .stepno{position:absolute;top:-9px;left:12px;background:var(--sys);color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 8px}
+  details.changelog{border:1px solid var(--line);border-radius:14px;background:#fff;padding:0;margin:12px 0}
+  details.changelog summary{cursor:pointer;padding:13px 18px;font-weight:700;font-size:13.5px;list-style:none}
+  details.changelog summary::before{content:"▸ ";color:var(--mut)}
+  details.changelog[open] summary::before{content:"▾ "}
+  details.changelog .inner{padding:0 18px 16px}
+  .snap{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0}
+  .snap>div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+  .snap .n{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
+  .snap .l{font-size:10.5px;color:var(--mut);line-height:1.35}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Vòng đời sự cố phòng sạch — hành trình một tấm vé</h1>
+<p class="sub">Từ lúc cảm biến báo số liệu lệch chuẩn, đến khi hồ sơ được đóng lại đàng hoàng · <b>Cập nhật 17/07/2026</b></p>
+<p class="sub">Bố cục bám đúng <b>sơ đồ "Bản đồ vận hành sự cố" trên web</b> (4 chặng 01 → 04). Mọi con số lấy trực tiếp từ bảng luật <code>quy_tac_chuyen_trang_thai</code> và cấu hình <code>cau_hinh</code> đang chạy — <b>không có số nào ước lượng</b>. Đây là tài liệu CHỐT: web, email và tài liệu này phải luôn khớp nhau.</p>
+
+<!-- ═══════════════ TÌNH HÌNH HÔM NAY ═══════════════ -->
+<div class="banner" style="background:#eef4fb;border-color:#b9d3ee">
+  <b>📸 Ảnh chụp hệ thống sáng 17/07/2026</b> (đọc thẳng từ CSDL, sau đợt "làm mới" đóng 27 vé tồn hôm 16/07):
+  <div class="snap">
+    <div><div class="n">19</div><div class="l">vé đang mở — toàn bộ mở từ 16/07 trở đi (không còn vé tồn cũ)</div></div>
+    <div><div class="n">14 + 5</div><div class="l">14 vé chờ IPC tiếp nhận · 5 vé đã bàn giao Cơ điện</div></div>
+    <div><div class="n">C1·8 &nbsp; C4·6 &nbsp; Q2·5</div><div class="l">phân bổ vé mở theo khu</div></div>
+    <div><div class="n">51 / 74</div><div class="l">24 giờ qua: mở 51 vé · đóng 74 vé (hệ tự đóng khi số liệu về dải)</div></div>
+    <div><div class="n">8</div><div class="l">cảm biến chênh áp khu C1 vẫn "đứng hình", chờ thay transmitter</div></div>
+  </div>
+  <b>Thay đổi sáng 17/07 (đã LIVE):</b> ① <b>BỎ mốc hẹn giờ SLA</b> (IPC tiếp nhận 30′/60′ · Cơ điện xử lý 4h/8h) khỏi toàn hệ thống — chỉ giữ đồng hồ im lặng 20′/15′; ② <b>BẬT khung giờ email 07:45–16:45</b> cho cả 4 bộ phận — ngoài giờ không gửi email sự cố; ③ vá WF6 hiểu khung giờ (không báo động giả ban đêm); ④ <b>leo thang Cơ điện theo trạng thái</b> — chưa nhận việc 15′, đã nhận việc (đang/chờ xử lý) <b>1 giờ</b> ("khó xử lý xong trong 15 phút"). Bộ kiểm sau thay đổi: <b>23/23 · 14/14 · 11/11</b> đạt.
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--ipc)"></i> IPC — người kiểm tra hiện trường đầu tiên</span>
+  <span><i class="dot" style="background:var(--mep)"></i> Cơ điện (MEP) — người sửa máy</span>
+  <span><i class="dot" style="background:var(--lot)"></i> Trực HSL — người điều phối khi vé bị kẹt</span>
+  <span><i class="dot" style="background:var(--qa)"></i> QA — người gác hồ sơ</span>
+  <span><i class="dot" style="background:var(--sys)"></i> Hệ thống — làm việc tự động</span>
+</div>
+
+<!-- ═══════════════ 1. SỰ CỐ SINH RA TỪ ĐÂU ═══════════════ -->
+<h2>1 · Sự cố sinh ra từ đâu? — 4 bước tự động, không ai phải bấm gì</h2>
+<div class="card">
+  <p class="note" style="font-size:13px;color:var(--ink)">Phần này máy tự làm, giống hệt 4 ô đầu tiên trên sơ đồ web ("Từ dữ liệu cảm biến đến một sự cố"):</p>
+  <div class="pipe">
+    <div><span class="stepno">Bước 1</span><b>Dữ liệu đổ về</b><p>Chênh áp (DP), độ ẩm (RH), nhiệt độ của từng phòng được thu theo phút từ hệ FMS.</p></div>
+    <div><span class="stepno">Bước 2</span><b>Mỗi giờ chấm điểm một lần</b><p>Đúng phút :02 mỗi giờ, WF1 nhìn lại 60 phút vừa qua của từng cảm biến: có bao nhiêu phút số liệu nằm ngoài dải cho phép (gọi là phút OOS)?</p></div>
+    <div><span class="stepno">Bước 3</span><b>Phân mức</b><p>Lệch ít hoặc đã tự hồi → coi như bình thường. Lệch nhiều <i>và</i> 10 phút cuối vẫn chưa về dải → nghiêm trọng, mở vé.</p></div>
+    <div><span class="stepno">Bước 4</span><b>Mở vé & báo người</b><p>Vé mới vào ô <b>Chưa xử lý</b>. Email cảnh báo đi trong vòng ≤ 5 phút (nhịp kiểm WF8). Từ đây con người vào cuộc.</p></div>
+  </div>
+
+  <p class="note">Mỗi loại cảm biến chỉ bị "bắt lỗi" theo đúng hướng nguy hiểm của nó: <b>chênh áp (DP) — tụt xuống dưới sàn</b> mới là vi phạm · <b>độ ẩm (RH) — vọt lên trên trần</b> · <b>nhiệt độ — lệch cả hai phía</b> đều tính. Và chỉ phòng <b>ưu tiên P1, P2</b> mới mở vé; <b>phòng P3 không mở vé, không gửi email</b> <span class="tag t-live">chốt 16/07</span> — số liệu P3 vẫn ghi đầy đủ vào báo cáo/KPI, chỉ là không làm phiền ai lúc nửa đêm. Muốn một phòng P3 được canh gác? Nâng phòng đó lên P2/P1 trong tab Cài đặt — có hiệu lực ngay giờ chấm điểm kế tiếp.</p>
+
+  <table>
+    <tr><th>Trong 60 phút vừa chấm…</th><th>Kết luận</th><th>Chuyện gì xảy ra</th></tr>
+    <tr><td>Lệch dải ≤ <b>20 phút</b></td><td><span class="pill p-ok">BÌNH THƯỜNG</span></td><td>Không mở vé. Nếu phòng này đang có vé mở mà số liệu đẹp <b>2 giờ liền</b> → hệ tự đóng vé giúp luôn.</td></tr>
+    <tr><td>Lệch &gt; 20 phút, <b>nhưng 10 phút cuối đã về dải</b></td><td><span class="pill p-ok">TỰ HỒI — KHÔNG MỞ VÉ</span></td><td>Phòng đã "tự chữa lành" nên không báo ai (chính sách bỏ mức Chú ý, 14/07). Giờ lệch này vẫn được ghi vào dữ liệu để lên báo cáo. Lưu ý: nếu phòng đang có vé NGHIÊM TRỌNG mở sẵn, giờ "tự hồi" này <b>không</b> được tính là giờ sạch, và vé <b>giữ nguyên mức nghiêm trọng đến khi đóng</b> — để không có vé nào "chìm" trong im lặng.</td></tr>
+    <tr><td>Lệch &gt; 20 phút <b>và 10 phút cuối vẫn lệch nặng</b> (≥ 4 phút)</td><td><span class="pill p-crit">NGHIÊM TRỌNG — MỞ VÉ</span></td><td>Đây là mức <b>duy nhất</b> mở vé. Vé vào ô "Chưa xử lý", email đi ở nhịp WF8 kế tiếp (≤ 5 phút).</td></tr>
+    <tr><td>Cảm biến <b>đơ cứng một giá trị ≥ 3 giờ liền</b></td><td><span class="pill p-close">TÁCH RIÊNG</span></td><td>Đây là cảm biến hỏng chứ không phải phòng hỏng → coi như <b>phòng thiếu dữ liệu</b>, không mở vé, không phán xét đạt/không đạt. Theo dõi riêng — xem mục 6.</td></tr>
+  </table>
+  <p class="note">Chi tiết nhỏ nhưng quan trọng: để tính là một đợt lệch, số liệu phải lệch <b>liên tục</b> tối thiểu <b>10 phút</b> (chênh áp) hoặc <b>15 phút</b> (nhiệt độ/độ ẩm) — nhiễu vài phút lẻ tẻ không tính. Phòng nào bị lại trong vòng <b>24 giờ</b> sẽ được gắn nhãn "tái phát" để dễ nhận ra bệnh mãn tính.</p>
+</div>
+
+<!-- ═══════════════ 2. HÀNH TRÌNH 4 CHẶNG ═══════════════ -->
+<h2>2 · Hành trình tấm vé — 4 chặng, đúng như sơ đồ trên web</h2>
+<p class="sub">Trên web (thẻ "Bản đồ vận hành sự cố"), vòng đời được vẽ thành 4 cột đánh số 01 → 04. Dưới đây là chính bản đồ đó, kèm đầy đủ nút bấm và đồng hồ đếm giờ tại từng ô. Ký hiệu: <b>✍ phải ghi lý do</b> · <b>⏹ bấm xong vé ĐÓNG</b> · <b>⟳ vé giữ nguyên chỗ</b> (chỉ ghi vào hồ sơ). Bấm sai vai trò, sai thời điểm hay sai khu — máy chủ đều từ chối lịch sự.</p>
+
+<div class="times">
+  <div><span class="n">20′ · 15′ · 1h</span><div class="l">im lặng → lên Trực: IPC 20′ · Cơ điện chưa nhận việc 15′ · đã nhận việc (đang/chờ xử lý) 1 giờ <span class="tag t-live">17/07</span></div></div>
+  <div><span class="n">2 giờ/lần</span><div class="l">email nhắc lại mỗi vé còn mở (máy kiểm 5 phút/lần)</div></div>
+  <div><span class="n">07:45–16:45</span><div class="l">khung giờ nhận email (cả 4 bộ phận) <span class="tag t-live">BẬT 17/07</span> — ngoài giờ không gửi, vé vẫn chạy</div></div>
+  <div><span class="n">2 giờ sạch</span><div class="l">số liệu đẹp liên tục → hệ tự đóng vé</div></div>
+  <div><span class="n">1 giờ/lần</span><div class="l">nhịp Trực nhắc đội, tới khi có người bấm nút</div></div>
+</div>
+
+<div class="stages">
+
+  <!-- CHẶNG 01 -->
+  <div>
+    <div class="stage-h" style="background:var(--ipc)"><span class="so">01</span><div><div class="tt">IPC tiếp nhận</div><div class="mo">Bắt đầu — hoặc quay lại từ đầu</div></div></div>
+
+    <div class="stc" style="border-color:var(--ipc)">
+      <div class="nm" style="color:var(--ipc)">Chưa xử lý</div>
+      <div class="ma">CHUA_XU_LY</div>
+      <div class="mo">Vé vừa được hệ thống mở; IPC ra hiện trường xem thực hư rồi quyết định bước tiếp.</div>
+      <div class="sla"><span class="hot">im lặng &gt; 20′ → lên Trực</span><span>email nhắc <span class="tbadge">2h/lần</span></span></div>
+      <div class="tray">
+        <span class="btnp b-ipc">Chuyển Cơ điện xử lý</span>
+        <span class="btnp b-ipc">Đã kiểm tra — Bình thường <small>✍ ⏹</small></span>
+        <span class="btnp b-ipc">Đã khắc phục sự cố <small>✍ ⏹</small></span>
+        <span class="btnp b-ipc">Không tại hiện trường <small>⟳ · ân hạn 1 giờ</small></span>
+        <span class="btnp b-lot">Nhắc IPC <small>⟳</small></span>
+      </div>
+    </div>
+
+    <div class="stc" style="border-color:var(--qa);border-style:dashed">
+      <div class="nm" style="color:var(--qa)">Mở lại ⟲</div>
+      <div class="ma">MO_LAI</div>
+      <div class="mo">Vé đã đóng nhưng QA hoặc Quản trị thấy cần điều tra thêm nên mở lại — quay về đúng chặng 01, IPC lại thấy đủ 4 nút, đồng hồ 20′ chạy lại từ đầu.</div>
+    </div>
+  </div>
+
+  <!-- CHẶNG 02 -->
+  <div>
+    <div class="stage-h" style="background:var(--mep)"><span class="so">02</span><div><div class="tt">Bàn giao Cơ điện</div><div class="mo">Chờ Cơ điện xác nhận đã nhận việc</div></div></div>
+
+    <div class="stc" style="border-color:var(--mep)">
+      <div class="nm" style="color:var(--mep)">Đã báo Cơ điện</div>
+      <div class="ma">DA_BAO_CO_DIEN</div>
+      <div class="mo">IPC đã bấm "Chuyển Cơ điện xử lý" — đây là <b>con đường duy nhất</b> để vé sang tay Cơ điện. Việc đang chờ Cơ điện xác nhận.</div>
+      <div class="sla"><span class="hot">chưa nhận việc &gt; 15′ → lên Trực</span><span>email nhắc <span class="tbadge">2h/lần</span></span></div>
+      <div class="tray">
+        <span class="btnp b-mep">Đã nhận thông tin — đang xử lý</span>
+        <span class="btnp b-mep">Không tại hiện trường <small>⟳ · ân hạn 1 giờ</small></span>
+        <span class="btnp b-lot">Nhắc Cơ điện <small>⟳</small></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHẶNG 03 -->
+  <div>
+    <div class="stage-h" style="background:#d97706"><span class="so">03</span><div><div class="tt">Cơ điện xử lý</div><div class="mo">Luồng chính + 2 nhánh ngoại lệ</div></div></div>
+
+    <div class="stc" style="border-color:var(--mep)">
+      <div class="nm" style="color:var(--mep)">Cơ điện đang xử lý</div>
+      <div class="ma">CO_DIEN_DANG_XU_LY</div>
+      <div class="mo">Cơ điện đã nhận việc, đang can thiệp tại AHU / hệ HVAC. Xử lý xong bấm nút chốt.</div>
+      <div class="sla"><span class="hot">im lặng &gt; 1 giờ → lên Trực</span> <span class="tag t-live">17/07</span><span>email nhắc <span class="tbadge">2h/lần</span></span></div>
+      <div class="tray">
+        <span class="btnp b-mep">Đã khắc phục <small>✍ ⏹</small></span>
+        <span class="btnp b-mep">Chờ xử lý (khi rảnh)</span>
+        <span class="btnp b-mep">Không thể xử lý <small>✍</small></span>
+        <span class="btnp b-lot">Nhắc Cơ điện <small>⟳</small></span>
+      </div>
+    </div>
+
+    <div class="stc" style="border-color:var(--mep)">
+      <div class="nm" style="color:var(--mep)">Cơ điện chờ xử lý</div>
+      <div class="ma">CO_DIEN_CHO_XU_LY</div>
+      <div class="mo">Tạm gác vì chờ vật tư hoặc chờ thời điểm phù hợp. Vé <b>vẫn mở</b>, đồng hồ vẫn chạy: im lặng &gt; <b>1 giờ</b> vẫn lên Trực, email vẫn nhắc 2h/lần — "chờ" không có nghĩa là "quên".</div>
+      <div class="tray">
+        <span class="btnp b-mep">Đã nhận thông tin — đang xử lý</span>
+        <span class="btnp b-mep">Không tại hiện trường <small>⟳</small></span>
+        <span class="btnp b-lot">Nhắc Cơ điện <small>⟳</small></span>
+      </div>
+    </div>
+
+    <div class="stc" style="border-color:var(--lot)">
+      <div class="nm" style="color:var(--lot)">Cơ điện không xử lý được</div>
+      <div class="ma">CO_DIEN_KHONG_XU_LY_DUOC</div>
+      <div class="mo" style="color:var(--crit);font-weight:600">Bế tắc — báo Trực NGAY LẬP TỨC + CC QA, không chờ ngưỡng phút nào cả.</div>
+      <div class="mo">Lối ra duy nhất: Cơ điện bấm <b>"Đã có vật tư — xử lý tiếp"</b> khi thu xếp được nguồn lực — hoặc QA/Quản trị đóng vé. (Đường "IPC giao lại" đã bỏ: bế tắc do Cơ điện tự gỡ.)</div>
+      <div class="tray">
+        <span class="btnp b-ipc">Không tại hiện trường <small>⟳</small></span>
+        <span class="btnp b-mep">Đã có vật tư — xử lý tiếp</span>
+        <span class="btnp b-lot">Nhắc IPC <small>⟳</small></span>
+        <span class="btnp b-lot">Nhắc Cơ điện <small>⟳</small></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHẶNG 04 -->
+  <div>
+    <div class="stage-h" style="background:var(--qa)"><span class="so">04</span><div><div class="tt">Kết thúc</div><div class="mo">4 kiểu đóng — phân biệt rõ để hồ sơ sạch</div></div></div>
+
+    <div class="stc" style="border-color:var(--qa);background:var(--qa-bg)">
+      <div class="nm" style="color:var(--qa)">Đã khắc phục ✔</div>
+      <div class="ma">DA_KHAC_PHUC</div>
+      <div class="mo">Sự cố thật, đã sửa xong (Cơ điện / IPC / QA / Quản trị chốt). Hết email, hết leo thang.</div>
+    </div>
+
+    <div class="stc" style="border-color:var(--ipc);background:var(--close-bg)">
+      <div class="nm" style="color:var(--close)">IPC xác nhận bình thường</div>
+      <div class="ma">IPC_BINH_THUONG</div>
+      <div class="mo">IPC ra tận nơi kiểm tra và thấy hiện trường ổn — đóng riêng kiểu này để hồ sơ phân biệt được "cảnh báo giả" với sự cố thật (bắt buộc ghi lý do).</div>
+    </div>
+
+    <div class="stc" style="border-color:var(--sys);background:var(--close-bg)">
+      <div class="nm" style="color:var(--close)">Đóng tự động</div>
+      <div class="ma">DONG_TU_DONG</div>
+      <div class="mo">Số liệu tự về dải và đẹp liên tục <b>2 giờ</b> — hệ thống tự đóng, ghi hồ sơ người thực hiện là <code>he_thong@…</code> (chuẩn ALCOA+).</div>
+    </div>
+
+    <div class="stc" style="border-color:var(--close);background:var(--close-bg)">
+      <div class="nm" style="color:var(--close)">Đóng — ngoài phạm vi</div>
+      <div class="ma">DONG_NGOAI_PHAM_VI</div>
+      <div class="mo">Vé không còn thuộc diện giám sát (ví dụ cảm biến đứng hình ≥ 3h, hoặc Quản trị đóng có lý do). Luôn kèm lý do ghi sổ.</div>
+    </div>
+  </div>
+</div>
+
+<!-- các nhóm luật toàn cục — như 3 khối dưới sơ đồ web -->
+<div class="band">
+  <div class="t">🔓 Bấm được ở MỌI trạng thái đang mở (web xếp riêng nhóm "Có thể đóng từ mọi trạng thái")</div>
+  <div class="tray">
+    <span class="btnp b-ipc">Đã kiểm tra — Bình thường <small>✍ ⏹</small></span>
+    <span class="btnp b-ipc">Đã khắc phục sự cố <small>✍ ⏹</small></span>
+    <span class="btnp b-qa">QA xác nhận đã khắc phục <small>✍ ⏹</small></span>
+    <span class="btnp b-lot">Tạm dừng cảnh báo 4 giờ <small>✍ ⟳</small></span>
+    <span class="btnp b-adm">Đóng sự cố (quản trị) <small>⏹</small></span>
+    <span class="btnp b-adm">Đóng — ngoài phạm vi <small>✍ ⏹</small></span>
+    <span class="btnp b-sys">HỆ tự đóng — đủ 2 giờ sạch <small>⏹ tự động</small></span>
+  </div>
+  <p>Vì hai nút đóng của IPC nằm trong nhóm này, nên khi vé đã sang tay Cơ điện, IPC vẫn thấy đúng <b>2 nút</b> — đó là luật, không phải web "mất nút" (giải thích kỹ ở mục 3). Riêng nút tạm dừng: vé NGHIÊM TRỌNG hoặc phòng P1 thì chỉ QA và Quản trị mới được hoãn.</p>
+</div>
+
+<div class="band">
+  <div class="t">⟲ Với vé ĐÃ ĐÓNG — chỉ còn một việc: mở lại</div>
+  <div class="tray">
+    <span class="btnp b-qa">Mở lại sự cố <small>✍</small></span>
+    <span class="btnp b-adm">Mở lại (quản trị) <small>✍</small></span>
+  </div>
+  <p>Mở lại là chuyện nghiêm túc nên luôn bắt ghi lý do. Vé mở lại quay về chặng 01 và được đối xử y như vé mới.</p>
+</div>
+
+<!-- ═══════════════ 2b. SƠ ĐỒ LÀN BƠI ═══════════════ -->
+<h2>2b · Sơ đồ tổng — ai làm gì, lúc nào, một trang nhìn hết</h2>
+<p class="sub">Mỗi bộ phận một làn ngang: <b style="color:var(--sys)">Hệ thống</b> → <b style="color:var(--ipc)">IPC</b> → <b style="color:var(--mep)">Cơ điện</b> → <b style="color:var(--lot)">Trực HSL</b> → <b style="color:var(--qa)">QA</b>. Mũi tên mang màu của <b>người bấm nút</b>; nét đứt = đường tự động / mở lại. Cột phải = 4 kiểu đóng vé. Kéo ngang để xem trên màn hình hẹp.</p>
+<div class="card" style="padding:10px">
+<div style="overflow-x:auto"><div style="min-width:1500px">
+<svg viewBox="0 0 1710 2010" style="width:100%;height:auto;display:block;font-family:Inter,'Segoe UI',system-ui,Arial,sans-serif" role="img" aria-label="Sơ đồ vòng đời sự cố chi tiết theo bộ phận">
+<defs>
+<marker id="mIPC" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0.5,0.8 L9,5 L0.5,9.2 z" fill="#2a78d6"/></marker>
+<marker id="mMEP" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0.5,0.8 L9,5 L0.5,9.2 z" fill="#c98500"/></marker>
+<marker id="mLOT" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0.5,0.8 L9,5 L0.5,9.2 z" fill="#e34948"/></marker>
+<marker id="mQA" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0.5,0.8 L9,5 L0.5,9.2 z" fill="#008300"/></marker>
+<marker id="mSYS" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0.5,0.8 L9,5 L0.5,9.2 z" fill="#4a3aa7"/></marker>
+<marker id="mCLOSE" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0.5,0.8 L9,5 L0.5,9.2 z" fill="#5b6774"/></marker>
+<filter id="sh" x="-8%" y="-8%" width="116%" height="120%"><feDropShadow dx="0" dy="1.5" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.07"/></filter>
+</defs>
+<rect x="0" y="0" width="1710" height="2010" fill="#fcfcfb"/>
+<rect x="50" y="40" width="1645" height="170" fill="#4a3aa7" opacity=".055" rx="10"/>
+<rect x="50" y="48" width="4" height="154" rx="2" fill="#4a3aa7" opacity=".85"/>
+<text font-size="13.5" font-weight="800" letter-spacing=".16em" fill="#4a3aa7" transform="rotate(-90 32 125.0)" x="32" y="125.0" text-anchor="middle">HỆ THỐNG</text>
+<rect x="50" y="216" width="1645" height="300" fill="#2a78d6" opacity=".055" rx="10"/>
+<rect x="50" y="224" width="4" height="284" rx="2" fill="#2a78d6" opacity=".85"/>
+<text font-size="13.5" font-weight="800" letter-spacing=".16em" fill="#2a78d6" transform="rotate(-90 32 366.0)" x="32" y="366.0" text-anchor="middle">IPC</text>
+<rect x="50" y="522" width="1645" height="540" fill="#c98500" opacity=".055" rx="10"/>
+<rect x="50" y="530" width="4" height="524" rx="2" fill="#c98500" opacity=".85"/>
+<text font-size="13.5" font-weight="800" letter-spacing=".16em" fill="#c98500" transform="rotate(-90 32 792.0)" x="32" y="792.0" text-anchor="middle">CƠ ĐIỆN</text>
+<rect x="50" y="1068" width="1645" height="250" fill="#e34948" opacity=".055" rx="10"/>
+<rect x="50" y="1076" width="4" height="234" rx="2" fill="#e34948" opacity=".85"/>
+<text font-size="13.5" font-weight="800" letter-spacing=".16em" fill="#e34948" transform="rotate(-90 32 1193.0)" x="32" y="1193.0" text-anchor="middle">TRỰC HSL</text>
+<rect x="50" y="1324" width="1645" height="200" fill="#008300" opacity=".055" rx="10"/>
+<rect x="50" y="1332" width="4" height="184" rx="2" fill="#008300" opacity=".85"/>
+<text font-size="13.5" font-weight="800" letter-spacing=".16em" fill="#008300" transform="rotate(-90 32 1424.0)" x="32" y="1424.0" text-anchor="middle">QA</text>
+<rect x="1385" y="40" width="285" height="1024" fill="#f7f9fa" stroke="#e2e7ec" stroke-width="1.4" rx="12"/>
+<text x="1527" y="66" text-anchor="middle" font-size="12.5" font-weight="800" letter-spacing=".14em" fill="#98a3ad">KẾT THÚC — VÉ ĐÓNG</text>
+<rect x="70" y="78" width="290" height="100" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="70" y="90" width="5" height="76" rx="2.5" fill="#4a3aa7"/>
+<text x="90" y="108" font-size="17" font-weight="800" fill="#1f2b38">WF1 chấm điểm mỗi giờ (:02)</text>
+<text x="90" y="134" font-size="13" fill="#5b6774">lệch dải &gt; 20′ và 10′ cuối ≥ 4</text>
+<text x="90" y="156" font-size="13" fill="#5b6774">→ mở vé NGHIÊM TRỌNG (P1/P2)</text>
+<rect x="400" y="78" width="330" height="100" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="400" y="90" width="5" height="76" rx="2.5" fill="#4a3aa7"/>
+<text x="420" y="108" font-size="17" font-weight="800" fill="#1f2b38">Cảm biến đứng hình ≥ 3 giờ</text>
+<text x="420" y="134" font-size="13" fill="#5b6774">= thiếu dữ liệu — KHÔNG mở vé</text>
+<text x="420" y="156" font-size="13" fill="#5b6774">theo dõi tab Cảm biến · WF11 07:00</text>
+<rect x="1405" y="78" width="245" height="100" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="1405" y="90" width="5" height="76" rx="2.5" fill="#4a3aa7"/>
+<text x="1425" y="108" font-size="17" font-weight="800" fill="#1f2b38">TỰ ĐÓNG ⏹</text>
+<text x="1425" y="134" font-size="13" fill="#5b6774">đủ 2 GIỜ SẠCH liên tiếp</text>
+<text x="1425" y="156" font-size="13" fill="#5b6774">— áp dụng mọi vé đang mở</text>
+<circle cx="760" cy="145" r="5" fill="#008300"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M760,145 L1405,145" stroke="#008300" stroke-width="2.3" stroke-dasharray="7 5" marker-end="url(#mQA)"/>
+<text x="770" y="131" font-size="13.5" fill="#0c6b4d" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">KHÔNG cần bấm gì: số liệu đẹp 2 GIỜ liên tiếp → TỰ ĐÓNG (mọi vé đang mở)</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M560,78 L560,30 L1676,30 L1676,850 L1650,850" stroke="#4a3aa7" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mSYS)"/>
+<text x="750" y="25" font-size="13" fill="#98a3ad" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">vé đang mở của cảm biến đứng hình bị hệ ĐÓNG (ngoài phạm vi)</text>
+<rect x="70" y="246" width="340" height="240" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="70" y="258" width="5" height="216" rx="2.5" fill="#2a78d6"/>
+<text x="90" y="276" font-size="17" font-weight="800" fill="#1f2b38">CHƯA XỬ LÝ</text>
+<text x="232" y="276" font-size="10.5" letter-spacing=".04em" fill="#98a3ad">CHUA_XU_LY</text>
+<text x="90" y="300" font-size="13" fill="#5b6774">vé mới · vé MỞ LẠI — IPC ra hiện trường, 4 nút:</text>
+<rect x="88" y="314" width="306" height="30" rx="9" fill="#2a78d6" filter="url(#sh)"/>
+<text x="99" y="334.5" font-size="14.5" font-weight="800" fill="#ffffff">① Chuyển Cơ điện xử lý</text>
+<rect x="88" y="350" width="306" height="30" rx="9" fill="#e9f1fb"/>
+<text x="99" y="370.5" font-size="14.5" font-weight="700" fill="#1f5fa8">② Đã kiểm tra — Bình thường ✍ ⏹</text>
+<rect x="88" y="386" width="306" height="30" rx="9" fill="#e9f1fb"/>
+<text x="99" y="406.5" font-size="14.5" font-weight="700" fill="#1f5fa8">③ Đã khắc phục sự cố ✍ ⏹</text>
+<rect x="88" y="422" width="306" height="30" rx="9" fill="#e9f1fb"/>
+<text x="99" y="442.5" font-size="14.5" font-weight="700" fill="#1f5fa8">④ Không tại hiện trường ⟳ (ân hạn 1 giờ)</text>
+<rect x="1405" y="246" width="245" height="95" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="1405" y="258" width="5" height="71" rx="2.5" fill="#5b6774"/>
+<text x="1425" y="276" font-size="17" font-weight="800" fill="#1f2b38">IPC — BÌNH THƯỜNG ⏹</text>
+<text x="1425" y="300" font-size="13" fill="#5b6774">cảnh báo giả · ghi lý do ✍</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M410,268 L1405,268" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
+<circle cx="432" cy="268" r="14" fill="#fff" stroke="#2a78d6" stroke-width="2.4"/>
+<text x="432" y="274" font-size="17" font-weight="800" fill="#2a78d6" text-anchor="middle">2</text>
+<text x="452" y="257" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đóng — cảnh báo giả</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M410,300 L1352,300 L1352,578 L1405,578" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
+<circle cx="432" cy="300" r="14" fill="#fff" stroke="#2a78d6" stroke-width="2.4"/>
+<text x="432" y="306" font-size="17" font-weight="800" fill="#2a78d6" text-anchor="middle">3</text>
+<text x="452" y="322" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đóng — IPC tự xử lý được</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M410,332 L560,332 L560,552" stroke="#2a78d6" stroke-width="3.6" marker-end="url(#mIPC)"/>
+<circle cx="432" cy="332" r="14" fill="#fff" stroke="#2a78d6" stroke-width="2.4"/>
+<text x="432" y="338" font-size="17" font-weight="800" fill="#2a78d6" text-anchor="middle">1</text>
+<text x="452" y="354" font-size="13.5" fill="#5b6774" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đường DUY NHẤT sang Cơ điện</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M950,268 l16,0" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M950,300 l16,0" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1352,450 l0,16" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#mIPC)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M185,178 L185,246" stroke="#4a3aa7" stroke-width="3.2" marker-end="url(#mSYS)"/>
+<text x="197" y="218" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">mở vé · email đi ≤ 5′</text>
+<rect x="430" y="552" width="350" height="180" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="430" y="564" width="5" height="156" rx="2.5" fill="#c98500"/>
+<text x="450" y="582" font-size="17" font-weight="800" fill="#1f2b38">ĐÃ BÁO CƠ ĐIỆN</text>
+<text x="450" y="602" font-size="10.5" letter-spacing=".04em" fill="#98a3ad">DA_BAO_CO_DIEN · chờ nhận việc</text>
+<rect x="448" y="616" width="316" height="30" rx="9" fill="#8a5e00" filter="url(#sh)"/>
+<text x="459" y="636.5" font-size="14.5" font-weight="800" fill="#ffffff">① Đã nhận thông tin — đang xử lý</text>
+<rect x="448" y="652" width="316" height="30" rx="9" fill="#faf0dc"/>
+<text x="459" y="672.5" font-size="14.5" font-weight="700" fill="#7a5200">② Không tại hiện trường ⟳ (1 giờ)</text>
+<text x="450" y="710" font-size="13" fill="#5b6774">email nhắc 2 giờ/lần (07:45–16:45)</text>
+<rect x="840" y="552" width="360" height="216" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="840" y="564" width="5" height="192" rx="2.5" fill="#c98500"/>
+<text x="860" y="582" font-size="17" font-weight="800" fill="#1f2b38">CƠ ĐIỆN ĐANG XỬ LÝ</text>
+<text x="860" y="602" font-size="10.5" letter-spacing=".04em" fill="#98a3ad">CO_DIEN_DANG_XU_LY · sửa AHU</text>
+<rect x="858" y="616" width="326" height="30" rx="9" fill="#faf0dc"/>
+<text x="869" y="636.5" font-size="14.5" font-weight="700" fill="#7a5200">① Đã khắc phục ✍ ⏹</text>
+<rect x="858" y="652" width="326" height="30" rx="9" fill="#faf0dc"/>
+<text x="869" y="672.5" font-size="14.5" font-weight="700" fill="#7a5200">② Chờ xử lý (khi rảnh)</text>
+<rect x="858" y="688" width="326" height="30" rx="9" fill="#faf0dc"/>
+<text x="869" y="708.5" font-size="14.5" font-weight="700" fill="#7a5200">③ Không thể xử lý ✍</text>
+<text x="860" y="746" font-size="13" fill="#5b6774">nút 🔒 trong mail mở sau "Đã nhận"</text>
+<rect x="840" y="858" width="360" height="160" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="840" y="870" width="5" height="136" rx="2.5" fill="#c98500"/>
+<text x="860" y="888" font-size="17" font-weight="800" fill="#1f2b38">CHỜ XỬ LÝ (khi rảnh)</text>
+<text x="860" y="908" font-size="10.5" letter-spacing=".04em" fill="#98a3ad">CO_DIEN_CHO_XU_LY · vé VẪN MỞ, vẫn nhắc</text>
+<rect x="858" y="922" width="326" height="30" rx="9" fill="#faf0dc"/>
+<text x="869" y="942.5" font-size="14.5" font-weight="700" fill="#7a5200">① Đã nhận — xử lý tiếp</text>
+<rect x="858" y="958" width="326" height="30" rx="9" fill="#faf0dc"/>
+<text x="869" y="978.5" font-size="14.5" font-weight="700" fill="#7a5200">② Không tại hiện trường ⟳ (1 giờ)</text>
+<rect x="430" y="858" width="350" height="160" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="430" y="870" width="5" height="136" rx="2.5" fill="#e34948"/>
+<text x="450" y="888" font-size="17" font-weight="800" fill="#b3312f">KHÔNG XỬ LÝ ĐƯỢC</text>
+<text x="450" y="908" font-size="10.5" letter-spacing=".04em" fill="#98a3ad">CO_DIEN_KHONG_XU_LY_DUOC · bế tắc ✍ · Trực + QA đã được báo</text>
+<rect x="448" y="922" width="316" height="30" rx="9" fill="#faf0dc"/>
+<text x="459" y="942.5" font-size="14.5" font-weight="700" fill="#7a5200">① Đã có vật tư — xử lý tiếp</text>
+<rect x="448" y="958" width="316" height="30" rx="9" fill="#e9f1fb"/>
+<text x="459" y="978.5" font-size="14.5" font-weight="700" fill="#1f5fa8">② IPC: Không tại hiện trường ⟳</text>
+<rect x="1405" y="548" width="245" height="120" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="1405" y="560" width="5" height="96" rx="2.5" fill="#008300"/>
+<text x="1425" y="578" font-size="17" font-weight="800" fill="#0c6b4d">ĐÃ KHẮC PHỤC ⏹</text>
+<text x="1425" y="602" font-size="13" fill="#5b6774">sự cố thật, đã sửa xong</text>
+<text x="1425" y="624" font-size="13" fill="#5b6774">Cơ điện · IPC · QA · Quản trị ✍</text>
+<rect x="1405" y="800" width="245" height="110" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="1405" y="812" width="5" height="86" rx="2.5" fill="#5b6774"/>
+<text x="1425" y="830" font-size="17" font-weight="800" fill="#1f2b38">ĐÓNG — NGOÀI PHẠM VI ⏹</text>
+<text x="1425" y="854" font-size="13" fill="#5b6774">cảm biến đứng hình ≥ 3h</text>
+<text x="1425" y="876" font-size="13" fill="#5b6774">hoặc Quản trị đóng ✍</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M780,630 L840,630" stroke="#c98500" stroke-width="3.6" marker-end="url(#mMEP)"/>
+<circle cx="806" cy="630" r="14" fill="#fff" stroke="#c98500" stroke-width="2.4"/>
+<text x="806" y="636" font-size="17" font-weight="800" fill="#c98500" text-anchor="middle">1</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1200,630 L1405,630" stroke="#c98500" stroke-width="3.6" marker-end="url(#mMEP)"/>
+<circle cx="1226" cy="630" r="14" fill="#fff" stroke="#c98500" stroke-width="2.4"/>
+<text x="1226" y="636" font-size="17" font-weight="800" fill="#c98500" text-anchor="middle">1</text>
+<text x="1246" y="622" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đóng — xong việc</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1090,768 L1090,858" stroke="#c98500" stroke-width="2.2" marker-end="url(#mMEP)"/>
+<circle cx="1090" cy="790" r="14" fill="#fff" stroke="#c98500" stroke-width="2.4"/>
+<text x="1090" y="796" font-size="17" font-weight="800" fill="#c98500" text-anchor="middle">2</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1160,858 L1160,768" stroke="#c98500" stroke-width="2.2" marker-end="url(#mMEP)"/>
+<circle cx="1160" cy="836" r="14" fill="#fff" stroke="#c98500" stroke-width="2.4"/>
+<text x="1160" y="842" font-size="17" font-weight="800" fill="#c98500" text-anchor="middle">1</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M960,768 L960,832 L760,832 L760,858" stroke="#c98500" stroke-width="2.2" marker-end="url(#mMEP)"/>
+<circle cx="960" cy="790" r="14" fill="#fff" stroke="#c98500" stroke-width="2.4"/>
+<text x="960" y="796" font-size="17" font-weight="800" fill="#c98500" text-anchor="middle">3</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M700,858 L700,820 L880,820 L880,768" stroke="#c98500" stroke-width="2.2" marker-end="url(#mMEP)"/>
+<circle cx="700" cy="840" r="14" fill="#fff" stroke="#c98500" stroke-width="2.4"/>
+<text x="700" y="846" font-size="17" font-weight="800" fill="#c98500" text-anchor="middle">1</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M115,486 L115,1074" stroke="#e34948" stroke-width="1.8"/>
+<text x="127" y="646" font-size="13.5" fill="#b3312f" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">KHÔNG bấm gì &gt; 20′</text>
+<text x="127" y="668" font-size="13.5" fill="#b3312f" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">· ④ báo vắng rồi quá 1 GIỜ</text>
+<text x="127" y="690" font-size="12" fill="#98a3ad" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">(đồng hồ tính từ lúc nhận mail)</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M430,690 L400,690 L400,1074" stroke="#e34948" stroke-width="1.8"/>
+<text x="392" y="940" font-size="13.5" fill="#b3312f" text-anchor="end" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">chưa nhận việc &gt; 15′</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1040,1018 L1040,1074" stroke="#e34948" stroke-width="1.8"/>
+<text x="1050" y="1046" font-size="13.5" fill="#b3312f" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">đang / chờ xử lý &gt; 1 GIỜ</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M620,1018 L620,1074" stroke="#e34948" stroke-width="1.8"/>
+<text x="632" y="1050" font-size="13.5" fill="#b3312f" font-weight="800" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">bế tắc → NGAY + CC QA</text>
+<path fill="none" d="M115,1074 L1040,1074" stroke="#e34948" stroke-width="1.8" stroke-linecap="round"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M540,1074 L540,1098" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M730,1074 L730,1098" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M920,1074 L920,1098" stroke="#e34948" stroke-width="1.8" marker-end="url(#mLOT)"/>
+<rect x="430" y="1098" width="620" height="180" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="430" y="1110" width="5" height="156" rx="2.5" fill="#e34948"/>
+<text x="450" y="1128" font-size="17" font-weight="800" fill="#b3312f">TRỰC HSL ĐƯỢC BÁO — tầng điều phối cuối</text>
+<rect x="448" y="1142" width="200" height="30" rx="9" fill="#fdecec"/>
+<text x="459" y="1162.5" font-size="14.5" font-weight="700" fill="#b3312f">① Nhắc IPC ⟳</text>
+<rect x="658" y="1142" width="230" height="30" rx="9" fill="#fdecec"/>
+<text x="669" y="1162.5" font-size="14.5" font-weight="700" fill="#b3312f">② Nhắc Cơ điện ⟳</text>
+<rect x="448" y="1178" width="440" height="30" rx="9" fill="#fdecec"/>
+<text x="459" y="1198.5" font-size="14.5" font-weight="700" fill="#b3312f">③ Tạm dừng cảnh báo 4 giờ ✍ (P1: QA·Quản trị)</text>
+<text x="450" y="1236" font-size="13" fill="#5b6774">chưa ai thao tác → Trực được nhắc lại MỖI 1 GIỜ</text>
+<text x="450" y="1258" font-size="13" fill="#5b6774">email tổng quan ca 6h · 14h · 22h</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M430,1170 L95,1170 L95,486" stroke="#e34948" stroke-width="2.2" marker-end="url(#mLOT)"/>
+<circle cx="406" cy="1170" r="14" fill="#fff" stroke="#e34948" stroke-width="2.4"/>
+<text x="406" y="1176" font-size="17" font-weight="800" fill="#e34948" text-anchor="middle">1</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M95,800 l0,-16" stroke="#e34948" stroke-width="2.2" marker-end="url(#mLOT)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1050,1170 L1240,1170 L1240,700 L1200,700" stroke="#e34948" stroke-width="2.2" marker-end="url(#mLOT)"/>
+<circle cx="1076" cy="1170" r="14" fill="#fff" stroke="#e34948" stroke-width="2.4"/>
+<text x="1076" y="1176" font-size="17" font-weight="800" fill="#e34948" text-anchor="middle">2</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1240,880 l0,-16" stroke="#e34948" stroke-width="2.2" marker-end="url(#mLOT)"/>
+<text x="1252" y="940" font-size="12.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">nhắc Cơ điện ⟳</text>
+<rect x="430" y="1354" width="380" height="110" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="430" y="1366" width="5" height="86" rx="2.5" fill="#008300"/>
+<text x="450" y="1384" font-size="17" font-weight="800" fill="#1f2b38">QA GÁC HỒ SƠ</text>
+<rect x="448" y="1398" width="346" height="30" rx="9" fill="#e7f4ee"/>
+<text x="459" y="1418.5" font-size="14.5" font-weight="700" fill="#0c6b4d">① QA xác nhận đã khắc phục ✍ ⏹</text>
+<text x="450" y="1450" font-size="13" fill="#5b6774">được CC NGAY khi Cơ điện bế tắc</text>
+<rect x="1405" y="1354" width="245" height="110" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="1405" y="1366" width="5" height="86" rx="2.5" fill="#008300"/>
+<text x="1425" y="1384" font-size="17" font-weight="800" fill="#0c6b4d">MỞ LẠI ⟲ ✍</text>
+<text x="1425" y="1408" font-size="13" fill="#5b6774">QA / Quản trị — vé đã đóng</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M650,1354 L650,1316 L1372,1316 L1372,646 L1405,646" stroke="#008300" stroke-width="2.2" marker-end="url(#mQA)"/>
+<circle cx="650" cy="1336" r="14" fill="#fff" stroke="#008300" stroke-width="2.4"/>
+<text x="650" y="1342" font-size="17" font-weight="800" fill="#008300" text-anchor="middle">1</text>
+<text x="782" y="1308" font-size="13.5" fill="#5b6774" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">QA đóng được từ MỌI trạng thái đang mở ✍</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1372,980 l0,-16" stroke="#008300" stroke-width="2.2" marker-end="url(#mQA)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1650,880 L1686,880 L1686,1400 L1650,1400" stroke="#5b6774" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mCLOSE)"/>
+<text transform="rotate(90 1699 1140)" x="1699" y="1140" font-size="12" font-weight="600" fill="#98a3ad" text-anchor="middle">vé đã đóng → mở lại ✍</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M1520,1464 L1520,1496 L56,1496 L56,360 L70,360" stroke="#008300" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mQA)"/>
+<text x="620" y="1489" font-size="13.5" fill="#0c6b4d" font-weight="600" paint-order="stroke" stroke="#fcfcfb" stroke-width="4" stroke-linejoin="round">MỞ LẠI → vé về CHƯA XỬ LÝ: IPC tiếp nhận lại từ đầu, đồng hồ 20′ chạy lại</text>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M840,1496 l-16,0" stroke="#008300" stroke-width="2.2" marker-end="url(#mQA)"/>
+<path fill="none" stroke-linecap="round" stroke-linejoin="round" d="M56,800 l0,-16" stroke="#008300" stroke-width="2.2" marker-end="url(#mQA)"/>
+<text x="70" y="1552" font-size="18" font-weight="800" fill="#1f2b38">📧 CHI TIẾT EMAIL — BẤM NÚT NÀO, VÉ ĐI ĐÂU</text>
+<text x="70" y="1576" font-size="13" fill="#5b6774">nút = link dùng 1 LẦN, sống 4 GIỜ · chỉ gửi trong khung 07:45–16:45 · bấm ngay trong hộp thư, khỏi mở web</text>
+<rect x="70" y="1592" width="795" height="330" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="84" y="1592" width="767" height="4" rx="2" fill="#2a78d6"/>
+<text x="90" y="1626" font-size="17" font-weight="800" fill="#1f2b38">Email IPC — nhắc 2 giờ/lần, TOÀN CẢNH khu · 4 nút</text>
+<text x="90" y="1648" font-size="13" fill="#5b6774">nút hiện khi vé ở: Chưa xử lý · Mở lại (bế tắc: chỉ còn nút ②③④ + Cơ điện tự gỡ)</text>
+<rect x="90" y="1664" width="280" height="34" rx="9" fill="#2a78d6" filter="url(#sh)"/><text x="104" y="1687" font-size="14.5" font-weight="800" fill="#ffffff">① Chuyển Cơ điện xử lý</text>
+<text x="384" y="1687" font-size="13.5" fill="#5b6774">→ vé sang <tspan font-weight="700">ĐÃ BÁO CƠ ĐIỆN</tspan></text>
+<rect x="90" y="1710" width="280" height="34" rx="9" fill="#e9f1fb"/><text x="104" y="1733" font-size="14.5" font-weight="700" fill="#1f5fa8">② Đã kiểm tra — Bình thường ✍</text>
+<text x="384" y="1733" font-size="13.5" fill="#5b6774">→ <tspan font-weight="700">ĐÓNG vé</tspan> (cảnh báo giả)</text>
+<rect x="90" y="1756" width="280" height="34" rx="9" fill="#e9f1fb"/><text x="104" y="1779" font-size="14.5" font-weight="700" fill="#1f5fa8">③ Đã khắc phục sự cố ✍</text>
+<text x="384" y="1779" font-size="13.5" fill="#5b6774">→ <tspan font-weight="700">ĐÓNG vé</tspan> (IPC tự xử lý được)</text>
+<rect x="90" y="1802" width="280" height="34" rx="9" fill="#e9f1fb"/><text x="104" y="1825" font-size="14.5" font-weight="700" fill="#1f5fa8">④ Không tại hiện trường ⟳</text>
+<text x="384" y="1825" font-size="13.5" fill="#5b6774">→ đứng yên · ân hạn <tspan font-weight="700">1 giờ</tspan> rồi lên Trực</text>
+<text x="90" y="1872" font-size="13" fill="#5b6774">+ mục 2: "CƠ ĐIỆN ĐANG XỬ LÝ" — chỉ theo dõi, không nút. Vé đã sang Cơ điện → IPC còn 2 nút đóng (② ③).</text>
+<text x="90" y="1896" font-size="13" font-weight="600" fill="#b3312f">Nhận mail rồi im lặng &gt; 20′ → vé tự lên Trực.</text>
+<rect x="895" y="1592" width="775" height="330" rx="14" fill="#fff" stroke="#e2e7ec" stroke-width="1.4" filter="url(#sh)"/>
+<rect x="909" y="1592" width="747" height="4" rx="2" fill="#c98500"/>
+<text x="915" y="1626" font-size="17" font-weight="800" fill="#1f2b38">Email Cơ điện — theo KHU/AHU · đủ 5 nút</text>
+<text x="915" y="1648" font-size="13" fill="#5b6774">2 nút bấm ngay + 3 nút 🔒 (mở SAU khi bấm "Đã nhận")</text>
+<rect x="915" y="1664" width="280" height="32" rx="9" fill="#8a5e00" filter="url(#sh)"/><text x="929" y="1686" font-size="14.5" font-weight="800" fill="#ffffff">① Đã nhận — đang xử lý</text>
+<text x="1209" y="1686" font-size="13.5" fill="#5b6774">→ sang <tspan font-weight="700">ĐANG XỬ LÝ</tspan> · đồng hồ 1 giờ</text>
+<rect x="915" y="1706" width="280" height="32" rx="9" fill="#faf0dc"/><text x="929" y="1728" font-size="14.5" font-weight="700" fill="#7a5200">② Không tại hiện trường ⟳</text>
+<text x="1209" y="1728" font-size="13.5" fill="#5b6774">→ ân hạn <tspan font-weight="700">1 giờ</tspan> rồi lên Trực</text>
+<rect x="915" y="1748" width="280" height="32" rx="9" fill="#f3f5f7" stroke="#d5dbe1" stroke-width="1" stroke-dasharray="4 3"/><text x="929" y="1770" font-size="14.5" font-weight="700" fill="#9aa4ad">③ 🔒 Đã khắc phục ✍</text>
+<text x="1209" y="1770" font-size="13.5" fill="#5b6774">→ <tspan font-weight="700">ĐÓNG vé</tspan> — hết email</text>
+<rect x="915" y="1790" width="280" height="32" rx="9" fill="#f3f5f7" stroke="#d5dbe1" stroke-width="1" stroke-dasharray="4 3"/><text x="929" y="1812" font-size="14.5" font-weight="700" fill="#9aa4ad">④ 🔒 Không thể xử lý ✍</text>
+<text x="1209" y="1812" font-size="13.5" fill="#5b6774">→ <tspan font-weight="700" fill="#b3312f">bế tắc</tspan> — Trực + QA báo NGAY</text>
+<rect x="915" y="1832" width="280" height="32" rx="9" fill="#f3f5f7" stroke="#d5dbe1" stroke-width="1" stroke-dasharray="4 3"/><text x="929" y="1854" font-size="14.5" font-weight="700" fill="#9aa4ad">⑤ 🔒 Chờ xử lý (khi rảnh)</text>
+<text x="1209" y="1854" font-size="13.5" fill="#5b6774">→ sang <tspan font-weight="700">CHỜ XỬ LÝ</tspan> — vẫn nhắc 2h</text>
+<text x="915" y="1896" font-size="13" fill="#5b6774">🔒 bấm sớm bị từ chối đúng trình tự, KHÔNG mất lượt — "Đã nhận" xong bấm lại là chạy.</text>
+<text x="70" y="1960" font-size="13" font-weight="600" fill="#b3312f">Email Trực HSL: tổng quan ca 6h · 14h · 22h + vé leo thang — ① Nhắc IPC ⟳ · ② Nhắc Cơ điện ⟳ · ③ Tạm dừng 4 giờ ✍; nhắc lại mỗi 1 giờ.</text>
+<text x="70" y="1984" font-size="13" fill="#5b6774">Email "vé đã đóng" gửi Cơ điện khi người khác đóng vé — KHÔNG có nút (hết việc để bấm, khỏi ra hiện trường vô ích).</text>
+</svg>
+</div></div>
+<div class="legend" style="margin-top:6px">
+  <span><i class="dot" style="background:var(--sys)"></i> Hệ thống (tự động)</span>
+  <span><i class="dot" style="background:var(--ipc)"></i> IPC bấm</span>
+  <span><i class="dot" style="background:var(--mep)"></i> Cơ điện bấm</span>
+  <span><i class="dot" style="background:var(--lot)"></i> Trực HSL / leo thang</span>
+  <span><i class="dot" style="background:var(--qa)"></i> QA / mở lại</span>
+  <span>— nét đứt = đường tự động hoặc mở lại · ✍ ghi lý do · ⏹ đóng vé · ⟳ giữ nguyên trạng thái</span>
+</div>
+<p class="note" style="margin-top:8px">Mốc thời gian trên sơ đồ: WF1 chấm điểm <b>mỗi giờ (:02)</b> · email đi <b>≤ 5′</b> sau khi mở vé · nhắc lại <b>2 giờ/lần</b> mỗi vé · lên Trực khi im lặng quá: IPC <b>20′</b> · Cơ điện <b>chưa nhận việc 15′</b> · Cơ điện <b>đã nhận việc (đang/chờ xử lý) 1 giờ</b> · báo vắng quá <b>1 giờ</b> · "không xử lý được" → Trực + QA <b>ngay lập tức</b> · Trực nhắc lại <b>mỗi 1 giờ</b> · số liệu đẹp <b>2 giờ liên tiếp</b> → hệ tự đóng · email chỉ gửi trong <b>khung giờ 07:45–16:45</b> (ngoài giờ vé vẫn chạy, sáng hôm sau gửi dồn).</p>
+</div>
+
+<!-- ═══════════════ 3. BỐN NÚT CỦA IPC ═══════════════ -->
+<h2>3 · Bốn nút của IPC khi cảnh báo đổ về — bấm nút nào, vé đi đường nào</h2>
+<div class="card">
+  <p class="note" style="font-size:13px;color:var(--ink)">Khi vé đứng ở <b>Chưa xử lý</b> (hoặc <b>Mở lại</b>), IPC thấy đủ 4 nút. Mỗi nút dẫn vé đi một con đường khác nhau:</p>
+  <table>
+    <tr><th>Nút</th><th>Vé đi đâu ngay sau đó</th><th>Rồi sao nữa?</th></tr>
+    <tr>
+      <td><b>1 · Chuyển Cơ điện xử lý</b> <code>ipc_bao_co_dien</code></td>
+      <td>→ <b>Đã báo Cơ điện</b> (vé vẫn mở)</td>
+      <td>Cơ điện bấm "Đã nhận — đang xử lý" → vào chặng 03, rồi rẽ 3 nhánh: <b>Đã khắc phục</b> (đóng đẹp) · <b>Chờ xử lý</b> (gác lại, nhận lại khi rảnh) · <b>Không xử lý được</b> (báo Trực + CC QA ngay; chỉ Cơ điện tự gỡ bằng "Đã có vật tư — xử lý tiếp"). Suốt chặng này: Cơ điện <b>chưa nhận việc</b> mà im lặng &gt; 15′ là Trực được báo; <b>đã nhận việc</b> (đang/chờ xử lý) thì quá <b>1 giờ</b> mới báo — sửa máy cần thời gian. Email vẫn nhắc bền bỉ 2 giờ/lần tới khi vé đóng.</td>
+    </tr>
+    <tr>
+      <td><b>2 · Đã kiểm tra — Bình thường</b> <code>ipc_binh_thuong</code> <span class="pill p-crit">ghi lý do</span></td>
+      <td>→ <b>IPC xác nhận bình thường</b> (ĐÓNG — cảnh báo giả)</td>
+      <td>Hết hành trình, tắt mọi email/leo thang. Nếu QA/Quản trị nghi ngờ, họ mở lại (kèm lý do) → vé về chặng 01, IPC lại có đủ 4 nút.</td>
+    </tr>
+    <tr>
+      <td><b>3 · Đã khắc phục sự cố</b> <code>ipc_da_khac_phuc</code> <span class="pill p-crit">ghi lý do</span></td>
+      <td>→ <b>Đã khắc phục</b> (ĐÓNG)</td>
+      <td>Dành cho việc IPC tự xử lý được tại chỗ. Hết email/leo thang; QA có thể xác nhận thêm hoặc mở lại khi cần điều tra.</td>
+    </tr>
+    <tr>
+      <td><b>4 · Không tại hiện trường</b> <code>ipc_vang</code></td>
+      <td>→ vé <b>đứng yên tại chỗ</b> (chỉ ghi "vắng" vào hồ sơ)</td>
+      <td>Báo vắng = xin <b>ân hạn 1 giờ</b>. Quá 1 giờ vẫn chưa ai đụng vé → Trực được báo. Bấm vắng lần nữa là gia hạn thêm 1 giờ — nhưng mỗi lần bấm đều lưu hồ sơ, không giấu được. Vé chỉ sang Cơ điện khi IPC chủ động bấm chuyển.</td>
+    </tr>
+  </table>
+  <p class="note" style="margin-top:10px"><b>⚠️ "Sao trên web có lúc tôi chỉ thấy 2 nút?"</b> — Nút hiện theo <b>trạng thái vé đang đứng</b>. Khi vé đã sang <b>Đã báo Cơ điện / Đang xử lý / Chờ xử lý</b>, hai nút "Chuyển Cơ điện" và "Không tại hiện trường" không còn hợp lệ, nên IPC chỉ còn 2 nút đóng nhanh ("Bình thường" và "Đã khắc phục" — nhóm luật 🔓 phía trên). Hoàn toàn đúng luật, không phải lỗi. Muốn thấy lại đủ 4 nút: chỉ khi vé ở Chưa xử lý · Mở lại.</p>
+</div>
+
+<!-- ═══════════════ 4. AI LÀM GÌ TRONG BAO LÂU ═══════════════ -->
+<h2>4 · Ai làm gì, trong bao lâu — và lỡ quá hạn thì sao?</h2>
+<p class="sub">Phần cốt lõi cho vận hành hằng ngày. Các mốc đều đọc từ cấu hình đang chạy.</p>
+
+<table>
+  <tr><th>Bộ phận</th><th>Việc của mình</th><th>Hẹn giờ (cấu hình LIVE)</th><th>Quá hạn thì sao?</th></tr>
+  <tr>
+    <td><span class="pill p-ipc">IPC</span></td>
+    <td>Nhận vé mới, ra hiện trường kiểm tra, rồi hoặc chuyển Cơ điện, hoặc đóng vé (bình thường / đã khắc phục).</td>
+    <td>— <span class="note">(mốc hẹn tiếp nhận 30′/60′ đã <b>BỎ 17/07</b>; chỉ còn đồng hồ im lặng)</span></td>
+    <td>Im lặng quá <b>20 phút</b> → vé tự báo lên Trực; Trực sẽ nhắc đều tới khi IPC thao tác.</td>
+  </tr>
+  <tr>
+    <td><span class="pill p-mep">Cơ điện</span></td>
+    <td>Xác nhận đã nhận việc, kiểm tra AHU, khắc phục — hoặc thành thật bấm "không xử lý được" / "chờ vật tư".</td>
+    <td>— <span class="note">(mốc hẹn xử lý 4h/8h đã <b>BỎ 17/07</b>; chỉ còn đồng hồ im lặng)</span></td>
+    <td><b>Chưa nhận việc</b>: im lặng quá <b>15 phút</b> → lên Trực. <b>Đã nhận việc</b> (đang/chờ xử lý): quá <b>1 giờ</b> <span class="tag t-live">17/07</span>. Bấm "không xử lý được" → Trực + QA biết ngay lập tức.</td>
+  </tr>
+  <tr>
+    <td><span class="pill p-lot">Trực HSL</span></td>
+    <td>Tầng điều phối cuối cùng: nhắc IPC, nhắc Cơ điện, hoặc tạm hoãn cảnh báo 4 giờ khi cần.</td>
+    <td>Khi vé đã lên Trực: nhắc lại <b>mỗi 1 giờ</b> cho tới khi có người thao tác <span class="note">(<code>truc_xac_nhan_phut=60</code>)</span></td>
+    <td>Trực là <b>chốt chặn cuối</b>. Vé lên Trực khi: IPC im lặng 20′ · Cơ điện im lặng 15′ · "không xử lý được" · báo vắng quá 1 giờ mà không ai xử lý.</td>
+  </tr>
+  <tr>
+    <td><span class="pill p-qa">QA</span></td>
+    <td>Gác hồ sơ: xác nhận khắc phục, hoặc mở lại vé đã đóng khi cần điều tra.</td>
+    <td>Theo nhu cầu, không hẹn giờ. Đóng hay mở lại đều <b>bắt buộc ghi lý do</b>.</td>
+    <td>—</td>
+  </tr>
+  <tr>
+    <td><span class="pill p-sys">Hệ thống</span></td>
+    <td>Tự đóng vé khi số liệu đẹp trở lại; tách riêng cảm biến đứng hình; canh chính nhịp cảnh báo.</td>
+    <td>Tự đóng: đủ <b>2 giờ sạch</b> liên tiếp.</td>
+    <td>Mọi thao tác tự động đều ghi hồ sơ dưới tên <code>he_thong@…</code> (ALCOA+).</td>
+  </tr>
+</table>
+
+<!-- ═══════════════ 5. EMAIL ═══════════════ -->
+<h2>5 · Email cảnh báo — hộp thư của bạn sẽ nhận gì?</h2>
+<div class="kv card">
+  <div>Nhắc lại vé đang mở</div><div><b>2 giờ một lần cho mỗi vé</b> (dung sai 8 phút) — <b>không phải</b> mỗi giờ. Vé mới thì báo ngay ở nhịp kiểm kế tiếp.</div>
+  <div>Nhịp "kiểm" của máy (khác nhịp gửi)</div><div>WF8 chạy <b>5 phút một lần</b> để soi đồng hồ leo thang 20′/15′ cho kịp — nhưng email từng vé vẫn giữ nhịp 2 giờ, có chống gửi trùng.</div>
+  <div>Email tổng quan ca → Trực</div><div><b>6h · 14h · 22h</b> hằng ngày, gửi về địa chỉ Trực (<code>email_truc_hsl</code>). Muốn thêm người Trực: tab Người nhận, vai LOT — tự vào cả kênh leo thang.</div>
+  <div>Email IPC nhìn TOÀN CẢNH khu <span class="tag t-live">16/07</span></div><div>Mỗi email IPC chứa <b>tất cả vé đang mở của khu</b>, kể cả vé chưa tới nhịp nhắc — hết cảnh nhận email lắt nhắt 1–2 vé vì vé mở lệch giờ nhau. Chia 2 mục rõ ràng: <b>mục 1</b> — vé IPC đang phụ trách (đủ nút bấm + dòng đồng hồ "im lặng X′/20′ thì lên Trực"); <b>mục 2</b> — vé đã sang Cơ điện (chỉ để theo dõi, kèm đồng hồ Cơ điện theo trạng thái: ngưỡng 15′ khi chưa nhận việc · 1 giờ khi đang/chờ xử lý, không nút).</div>
+  <div>Email Cơ điện ĐỦ 5 NÚT <span class="tag t-live">16/07</span></div><div>Ngay từ email đầu, Cơ điện thấy đủ 5 nút: 2 nút bấm được ngay (<b>Đã nhận</b> · <b>Không tại hiện trường</b>) + 3 nút <b>🔒 khóa</b> (Đã khắc phục · Không thể xử lý · Chờ xử lý — hiển thị mờ, viền đứt). Nút 🔒 là link thật: bấm <b>sau khi</b> đã "Đã nhận" thì chạy luôn, khỏi chờ email mới; bấm sớm thì máy chủ từ chối đúng trình tự <b>và không đốt token</b> — bấm nhầm không mất lượt.</div>
+  <div>Bấm nút ngay trong email</div><div>Cả email nhắc lẫn email tức thời ("IPC vừa chuyển", "Trực nhắc") đều có nút thao tác — xử lý từ hộp thư, khỏi mở web. Mỗi nút dùng token <b>1 lần</b>, sống <b>4 giờ</b>; vé để lâu thì dùng email nhắc mới nhất (2 giờ/lần có bản mới). Riêng email "vé đã đóng" không có nút — vì chẳng còn gì để bấm.</div>
+  <div>Chống ngập hộp thư <span class="tag t-live">16/07</span></div><div>IPC lỡ tay chuyển hàng loạt vé cùng lúc? Cơ điện chỉ nhận <b>1 email tức thời đầu tiên</b> mỗi khu/AHU trong 10 phút; các vé còn lại được gom vào bản tổng hợp trong ≤ 5 phút — không mất tin nào, không ngập hộp thư.</div>
+  <div>Đồng hồ cảnh báo theo bộ phận <span class="tag t-live">BẬT 17/07</span></div><div>Mỗi bộ phận có <b>khung giờ nhận email riêng</b> (tab Người nhận — chỉ Quản trị sửa được). <b>Đã bật 17/07: cả 4 bộ phận nhận email trong giờ hành chính 07:45–16:45, hằng ngày.</b> Ngoài khung giờ: không email, nhưng vé, leo thang nội bộ, tự đóng vẫn chạy; 07:45 sáng hôm sau hệ gửi dồn các vé còn mở trong ≤ 5 phút — không mất tin nào. "Chuông báo tử" WF6 cũng đã được dạy về khung giờ: đêm im ắng là đúng thiết kế, không còn báo động giả cho IT.</div>
+  <div>Tạm dừng cảnh báo</div><div>Trực/QA hoãn được tối đa <b>4 giờ</b>, phải ghi lý do ≥ 10 ký tự. Vé nghiêm trọng hoặc phòng P1: chỉ QA và Quản trị.</div>
+  <div>"Chuông báo tử" (WF6)</div><div>Nếu chính cỗ máy nhắc nhở im bặt quá <b>3 giờ</b> → tự động báo IT. Ai canh gác người canh gác? — WF6.</div>
+</div>
+
+<!-- ═══════════════ 6. ĐỨNG HÌNH ═══════════════ -->
+<h2>6 · Cảm biến "đứng hình" — máy hỏng thì không đổ tội cho phòng</h2>
+<div class="card">
+  <p class="note" style="font-size:13px;color:var(--ink)">Một cảm biến báo <b>đúng một giá trị suốt ≥ 3 giờ liền</b> gần như chắc chắn là hỏng phần cứng, chứ không phải phòng ổn định phi thường. Chính sách (chốt 13/07): coi phòng đó là <b>thiếu dữ liệu</b> — không khen, không chê, không mở vé:</p>
+  <ul>
+    <li>Giờ đứng hình được ghi nhãn riêng, web hiển thị "thiếu dữ liệu" — <b>không mở sự cố</b>, không tính vào KPI đạt/không đạt.</li>
+    <li>Nếu cảm biến đó đang có vé mở → hệ tự đóng vé (kiểu "Đóng — ngoài phạm vi", hồ sơ đầy đủ) — vì phán xét dựa trên số liệu chết là phán xét sai.</li>
+    <li>Theo dõi ở <b>một chỗ duy nhất</b>: thẻ Tổng quan + tab Cảm biến trên web.</li>
+    <li>Cảm biến sống lại → tự động chấm điểm bình thường trở lại; nếu có vi phạm thật thì vé mới sẽ mở như thường.</li>
+  </ul>
+  <p class="note">Hiện có <b>8 cảm biến chênh áp khu C1</b> đứng hình (đã ~4 tháng), chờ Cơ điện thay transmitter. Mỗi sáng <b>07:00</b>, WF11 gửi danh sách này cho Cơ điện (CC IPC) — nhắc một lần mỗi ngày, đủ để không quên mà không thành spam.</p>
+</div>
+
+<!-- ═══════════════ 7. BẢNG LUẬT ĐẦY ĐỦ ═══════════════ -->
+<h2>7 · Bảng luật đầy đủ — nguồn sự thật của mọi nút bấm</h2>
+<p class="sub">Sinh trực tiếp từ bảng <code>quy_tac_chuyen_trang_thai</code> (chỉ các luật đang bật). Web đọc chính bảng này qua <code>xem_nut_thao_tac</code> để vẽ nút — nên web, email và bảng dưới đây không bao giờ lệch nhau.</p>
+<table>
+  <tr><th>Nút / hành động</th><th>Vai trò</th><th>Bấm được khi vé ở</th><th>→ Vé sang</th><th>Đóng?</th><th>Ghi lý do?</th></tr>
+  <tr><td>Đã kiểm tra — Bình thường <code>ipc_binh_thuong</code></td><td><span class="pill p-ipc">IPC</span></td><td>bất kỳ (đang mở)</td><td>IPC xác nhận bình thường</td><td>Đóng</td><td><b class="p-crit">CÓ</b></td></tr>
+  <tr><td>Đã khắc phục sự cố <code>ipc_da_khac_phuc</code></td><td><span class="pill p-ipc">IPC</span></td><td>bất kỳ (đang mở)</td><td>Đã khắc phục</td><td>Đóng</td><td>CÓ</td></tr>
+  <tr><td>Chuyển Cơ điện xử lý <code>ipc_bao_co_dien</code></td><td><span class="pill p-ipc">IPC</span></td><td>Chưa xử lý · Mở lại</td><td>Đã báo Cơ điện</td><td>—</td><td>—</td></tr>
+  <tr><td>Không tại hiện trường <code>ipc_vang</code></td><td><span class="pill p-ipc">IPC</span></td><td>Chưa xử lý · Mở lại · Không XL được</td><td>giữ nguyên (ân hạn <b>1 giờ</b> rồi lên Trực)</td><td>—</td><td>—</td></tr>
+  <tr><td>Đã nhận thông tin — đang xử lý <code>mep_tiep_nhan</code></td><td><span class="pill p-mep">MEP</span></td><td>Đã báo · Chờ xử lý</td><td>Cơ điện đang xử lý</td><td>—</td><td>—</td></tr>
+  <tr><td>Đã có vật tư — xử lý tiếp <code>mep_tiep_nhan</code></td><td><span class="pill p-mep">MEP</span></td><td>Không XL được</td><td>Cơ điện đang xử lý</td><td>—</td><td>—</td></tr>
+  <tr><td>Đã khắc phục <code>mep_xu_ly_xong</code></td><td><span class="pill p-mep">MEP</span></td><td>Cơ điện đang xử lý</td><td>Đã khắc phục</td><td>Đóng</td><td><b class="p-crit">CÓ</b></td></tr>
+  <tr><td>Không thể xử lý <code>mep_khong_xu_ly_duoc</code></td><td><span class="pill p-mep">MEP</span></td><td>Cơ điện đang xử lý</td><td>Cơ điện không xử lý được</td><td>—</td><td>CÓ</td></tr>
+  <tr><td>Chờ xử lý (khi rảnh) <code>mep_cho_xu_ly</code></td><td><span class="pill p-mep">MEP</span></td><td>Cơ điện đang xử lý</td><td>Cơ điện chờ xử lý</td><td>—</td><td>—</td></tr>
+  <tr><td>Không tại hiện trường <code>mep_vang</code></td><td><span class="pill p-mep">MEP</span></td><td>Đã báo · Chờ xử lý</td><td>giữ nguyên (ân hạn <b>1 giờ</b> rồi lên Trực)</td><td>—</td><td>—</td></tr>
+  <tr><td>Nhắc IPC <code>lot_nhac_ipc</code></td><td><span class="pill p-lot">LOT</span></td><td>Chưa xử lý · Mở lại · Không XL được</td><td>giữ nguyên</td><td>—</td><td>—</td></tr>
+  <tr><td>Nhắc Cơ điện <code>lot_nhac_co_dien</code></td><td><span class="pill p-lot">LOT</span></td><td>Đã báo · Đang XL · Chờ XL · Không XL được</td><td>giữ nguyên</td><td>—</td><td>—</td></tr>
+  <tr><td>Tạm dừng cảnh báo 4 giờ <code>lot_tam_dung_4h</code></td><td><span class="pill p-lot">LOT</span></td><td>bất kỳ (đang mở)</td><td>giữ nguyên</td><td>—</td><td>CÓ</td></tr>
+  <tr><td>QA xác nhận đã khắc phục <code>qa_da_khac_phuc</code></td><td><span class="pill p-qa">QA</span></td><td>bất kỳ (đang mở)</td><td>Đã khắc phục</td><td>Đóng</td><td>CÓ</td></tr>
+  <tr><td>Mở lại sự cố <code>qa_mo_lai</code></td><td><span class="pill p-qa">QA</span></td><td>bất kỳ (đã đóng)</td><td>Mở lại</td><td>Mở lại</td><td>CÓ</td></tr>
+  <tr><td>Hệ tự đóng <code>he_thong_dong_tu_dong</code></td><td><span class="pill p-sys">SYS</span></td><td>bất kỳ</td><td>Đóng tự động</td><td>Đóng</td><td>— (đủ 2h sạch)</td></tr>
+  <tr><td>Hệ tự chuyển Cơ điện <code>tu_phan_tuyen_co_dien</code></td><td><span class="pill p-sys">SYS</span></td><td>Chưa xử lý</td><td>Đã báo Cơ điện</td><td>—</td><td>— <span class="note">(công tắc đang TẮT — luật giữ để bật lại được)</span></td></tr>
+  <tr><td>Đóng sự cố (quản trị) <code>admin_dong</code></td><td><span class="pill p-close">ADMIN</span></td><td>bất kỳ</td><td>Đã khắc phục</td><td>Đóng</td><td>không*</td></tr>
+  <tr><td>Đóng — ngoài phạm vi <code>admin_dong_ngoai_pham_vi</code></td><td><span class="pill p-close">ADMIN</span></td><td>bất kỳ</td><td>Đóng — ngoài phạm vi</td><td>Đóng</td><td>CÓ</td></tr>
+  <tr><td>Mở lại (quản trị) <code>admin_mo_lai</code></td><td><span class="pill p-close">ADMIN</span></td><td>bất kỳ (đã đóng)</td><td>Mở lại</td><td>Mở lại</td><td>CÓ</td></tr>
+</table>
+<p class="note">* <code>admin_dong</code> là "cửa thoát" của Quản trị, hiện chưa bắt lý do. Nếu muốn siết đủ chuẩn ALCOA+ thì chỉ cần 1 lệnh bật — đang chờ bạn quyết.</p>
+
+<!-- ═══════════════ 8. NHẬT KÝ THAY ĐỔI ═══════════════ -->
+<h2>8 · Nhật ký thay đổi gần đây</h2>
+
+<details class="changelog" open>
+  <summary>17/07 — bỏ SLA hẹn giờ · bật giờ hành chính (bấm để thu gọn)</summary>
+  <div class="inner">
+  <div class="card">
+    <h3 style="color:var(--ok)">Sáng 17/07 — đã LIVE, bộ kiểm 23/23 · 14/14 · 11/11</h3>
+    <ul>
+      <li><span class="tag t-live">LIVE</span> <b>BỎ cơ chế SLA hẹn giờ</b> (theo yêu cầu vận hành): xoá view <code>xem_su_co_qua_han</code> + 4 khoá <code>sla_*</code> (30/60/4/8); web bỏ nhãn "chưa tiếp nhận / quá hạn Xh / trong hạn" và ô "Chưa tiếp nhận" màn TV. Cột "Phụ trách" + banner "Việc của bạn" GIỮ NGUYÊN (view gọn mới <code>xem_su_co_phu_trach</code>). Đã rà: không workflow n8n nào dùng SLA. <br><span class="note">Quay lui: scratchpad <code>rollback_xem_su_co_qua_han.sql</code> + INSERT lại 4 khoá; migration local <code>20260717a</code>.</span></li>
+      <li><span class="tag t-live">LIVE</span> <b>Khung giờ email = giờ hành chính 07:45–16:45</b>, cả 4 bộ phận (IPC · Cơ điện · Trực · QA), hằng ngày. Ngoài giờ: không gửi email sự cố; vé/tự đóng vẫn chạy; 07:45 gửi dồn ≤ 5′. <br><span class="note">Quay lui: tắt kich_hoat 4 dòng khung_gio_canh_bao.</span></li>
+      <li><span class="tag t-live">LIVE</span> <b>Leo thang Cơ điện theo trạng thái</b> — chưa nhận việc (ĐÃ BÁO) giữ 15′; đã nhận việc (ĐANG XỬ LÝ / CHỜ XỬ LÝ) nâng lên <b>1 giờ</b> (khoá mới <code>leo_thang_mep_xu_ly_phut=60</code>, view v14 + WF8 đồng hồ hiển thị đúng theo trạng thái; WF8 bản <code>e077af45</code>, rollback <code>7f1c33c0</code>; migration local <code>20260717b</code>). Đã test giao dịch: đang XL 30′ không leo thang · 90′ leo thang · đã báo 30′ leo thang.</li>
+      <li><span class="tag t-live">LIVE</span> <b>Vá WF6 hiểu khung giờ</b> — đêm WF8 cố ý im lặng thì KHÔNG đếm là "đình trệ" (chỉ đếm vé mà vai trò phụ trách đang trong khung giờ). Không vá thì mỗi đêm IT+QA nhận báo động giả 2h/lần. WF6 bản mới <code>f4136fd3</code>, rollback <code>9b1aa1e6</code>.</li>
+      <li><span class="tag t-live">LIVE chiều</span> <b>Thẻ "Kiểm soát xử lý" cho Quản trị</b> (tab Sự cố, web <code>8a36800</code>): vé đang ở bộ phận nào, ai đang chậm (im lặng vượt ngưỡng 20′/15′/1h), đã báo Trực chưa, người thao tác cuối; cột Phụ trách mọi vai trò hiện đồng hồ im lặng. View <code>xem_su_co_phu_trach</code> mở rộng (migration <code>20260717c</code>).</li>
+      <li><span class="tag t-live">LIVE tối</span> <b>CHỈ CHÊNH ÁP mở vé — tắt cảnh báo ĐỘ ẨM + NHIỆT ĐỘ</b> (yêu cầu quản trị, tập trung xử lý chênh áp): khoá mới <code>canh_bao_loai_cam_bien='DP'</code> + hàm phạm vi bản 3 tham số + ingest WF1 truyền loại cảm biến (migration <code>20260717e</code>); dữ liệu RH/T vẫn ghi đủ vào KPI/báo cáo; đã đóng 5 vé RH + 2 vé T tồn (lý do đầy đủ). Test: RH lệch nặng không mở vé nhưng OOS vẫn ghi · DP mở CRITICAL. <b>Bật lại: đổi value='ALL'</b> (hoặc 'DP,T'…).</li>
+      <li><span class="tag t-live">LIVE chiều</span> <b>Tạm bỏ khu C4 khỏi phạm vi mở vé</b> — khoá mới <code>canh_bao_khu_vuc='C1,Q2'</code> gắn vào <code>trong_pham_vi_canh_bao()</code> (migration <code>20260717d</code>); C4 không mở vé/không email, dữ liệu + OOS + KPI vẫn ghi đủ; đã đóng 7 vé C4 tồn (ĐÓNG NGOÀI PHẠM VI, lý do đầy đủ). <b>Bật lại: đổi value='ALL'</b>.</li>
+      <li><span class="tag t-live">LIVE chiều</span> <b>Tab "Nhiệm vụ" cho mọi vai trò</b> (web <code>0a83fed</code>): thẻ Kiểm soát xử lý ai cũng xem được + danh sách "Việc của bạn" bấm Xử lý ngay trong tab. Sơ đồ 2b thêm tầng <b>"Chi tiết email — bấm nút nào, vé đi đâu"</b> (4 nút IPC · 5 nút Cơ điện kèm kết cục từng nút).</li>
+      <li><span class="tag t-done">BỘ KIỂM</span> Ghim fixture test <code>hoavu.qc</code> (S7/N10 vỡ oan do tài khoản live bị đổi vai trò LOT) — test tự đặt vai trò trong transaction rollback. Phép vỡ còn lại duy nhất: dư âm 3 cảnh báo WF6 hôm 16/07 trong cửa sổ 24h, tự hết tối 17/07.</li>
+    </ul>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="color:var(--ok)">Chính sách vé (14/07, bộ kiểm 30/30)</h3>
+      <ul>
+        <li><span class="tag t-live">LIVE</span> <b>Đóng vé phải ghi lý do</b> — hai nút đóng hay dùng nhất ("Cơ điện đã khắc phục", "IPC bình thường") nay bắt buộc ghi chú, đúng tinh thần ALCOA+.</li>
+        <li><span class="tag t-live">LIVE</span> <b>Bỏ mức "Chú ý"</b> — phòng lệch trong giờ nhưng đã tự hồi thì không mở vé, không báo ai; chỉ mức nghiêm trọng mới mở vé. Báo cáo/KPI vẫn ghi đủ giờ lệch.</li>
+        <li><span class="tag t-live">LIVE</span> <b>Vá lỗ "vé chìm"</b> — vé đang mở giữ nguyên mức nghiêm trọng đến khi đóng, không âm thầm hạ mức rồi im lặng (đợt vá đã "làm nổi" 8 vé cũ, có vé treo 11 ngày).</li>
+        <li><span class="tag t-live">LIVE</span> <b>Leo thang lên Trực theo vai trò</b> — IPC im lặng 20′ / Cơ điện 15′ là Trực biết; máy kiểm 5 phút/lần.</li>
+        <li><span class="tag t-live">LIVE</span> <b>Bản tin đứng hình mỗi sáng 07:00</b> (WF11) cho Cơ điện + CC IPC.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="color:var(--ok)">Email & đồng hồ (15–16/07)</h3>
+      <ul>
+        <li><span class="tag t-live">15/07</span> <b>Khung giờ nhận email theo bộ phận</b> (mặc định 24/7, chỉ Quản trị sửa) · <b>tắt tự chuyển Cơ điện sau 2h</b> (thừa vì đã có leo thang Trực).</li>
+        <li><span class="tag t-live">15/07</span> <b>Email IPC 2 mục</b>: vé mình phụ trách (đủ nút) + vé đã sang Cơ điện (chỉ theo dõi).</li>
+        <li><span class="tag t-live">16/07</span> <b>Email toàn cảnh khu</b> — mỗi email chứa tất cả vé mở của khu · <b>email Cơ điện đủ 5 nút</b> (3 nút 🔒 chờ đúng trình tự, bấm sớm không đốt token) · <b>chống dồn email</b> khi chuyển vé hàng loạt (gom trong 10 phút).</li>
+        <li><span class="tag t-live">16/07</span> <b>Đồng hồ im lặng tính từ lúc nhận email</b> (hết leo thang oan) · <b>báo vắng = ân hạn 1 giờ</b> (thay luật đếm ≥3 lần) · <b>P3 không mở vé</b> (gỡ cờ đặc cách 15 airlock/hành lang) · <b>đóng 27 vé tồn</b> để làm mới trước triển khai.</li>
+        <li><span class="tag t-done">RÀ 16/07</span> Bộ kiểm quy trình <b>23/23</b> + bất biến <b>30/30</b>, 0 lỗi workflow từ tối 15/07.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="color:var(--warn)">Ghi nhận theo dõi (không chặn) & việc chờ quyết</h3>
+    <ul>
+      <li>Nếu sau này bật khung giờ cho QA: CC QA của vé "không xử lý được" rơi ngoài giờ sẽ dời sang lượt nhắc kế tiếp trong giờ.</li>
+      <li>Nếu đồng hồ Cơ điện tắt mà IPC bật: lượt gửi cho IPC vẫn đóng dấu "đã nhắc" → Cơ điện vào giờ có thể đợi tới 2h mới nhận nhắc đầu.</li>
+      <li>Nút 🔒 trong email sống 4 giờ — sửa lâu hơn thì dùng email nhắc mới nhất.</li>
+      <li><span class="tag t-pend">CHỜ BẠN QUYẾT</span> Có siết <code>admin_dong</code> bắt lý do theo ALCOA+ không?</li>
+    </ul>
+  </div>
+  </div>
+</details>
+
+<p class="foot">Tài liệu sinh từ dữ liệu CSDL live ngày 17/07/2026 · khớp bảng luật <code>quy_tac_chuyen_trang_thai</code> + cấu hình <code>cau_hinh</code> + sơ đồ web <code>SoDoLuatCard</code> · mọi con số lấy trực tiếp từ hệ thống, không ước lượng.</p>
+
+</div>
+</body>
+</html>
