@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS public.bms_chenh_ap_viewer (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE INDEX IF NOT EXISTS idx_bms_chenh_ap_viewer_last_seen
+  ON public.bms_chenh_ap_viewer(last_seen);
+
 CREATE TABLE IF NOT EXISTS public.bms_chenh_ap_ingest (
   singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
   lease_token uuid,
@@ -218,6 +221,11 @@ BEGIN
   IF lower(COALESCE((SELECT value FROM public.cau_hinh WHERE key='edge_capnhat_phut_bat'),'true')) <> 'true' THEN
     RETURN;
   END IF;
+
+  -- READ COMMITTED kiểm tra lại predicate nếu heartbeat vừa đổi hàng đồng thời;
+  -- nếu DELETE thắng trước thì heartbeat upsert sẽ chờ rồi chèn lại hàng.
+  DELETE FROM public.bms_chenh_ap_viewer
+   WHERE last_seen <= now() - interval '90 seconds';
 
   IF NOT EXISTS (
     SELECT 1
