@@ -43,7 +43,7 @@ export function createPressureViewerSession({
     return enqueueRpc(() => release(viewerId)).catch(() => undefined)
   }
 
-  const scheduleHeartbeat = (currentTransition) => {
+  const scheduleHeartbeat = (currentTransition, updateAfterSuccessfulTouch = false) => {
     if (!active || disposed || transition !== currentTransition) return
 
     heartbeatId = setTimer(async () => {
@@ -53,11 +53,22 @@ export function createPressureViewerSession({
       try {
         const result = await touchViewer()
         if (!touchSucceeded(result)) {
-          scheduleHeartbeat(currentTransition)
+          scheduleHeartbeat(currentTransition, updateAfterSuccessfulTouch)
           return
         }
       } catch {
-        // A later heartbeat can retry a transient touch failure.
+        scheduleHeartbeat(currentTransition, updateAfterSuccessfulTouch)
+        return
+      }
+
+      if (!active || disposed || transition !== currentTransition) return
+
+      if (updateAfterSuccessfulTouch) {
+        try {
+          await requestUpdate()
+        } catch {
+          // The heartbeat remains the source of subsequent updates.
+        }
       }
 
       scheduleHeartbeat(currentTransition)
@@ -69,12 +80,12 @@ export function createPressureViewerSession({
     try {
       result = await touchViewer()
     } catch {
-      if (active && !disposed && transition === currentTransition) active = false
+      scheduleHeartbeat(currentTransition, true)
       return
     }
 
     if (!touchSucceeded(result)) {
-      if (active && !disposed && transition === currentTransition) active = false
+      scheduleHeartbeat(currentTransition, true)
       return
     }
 

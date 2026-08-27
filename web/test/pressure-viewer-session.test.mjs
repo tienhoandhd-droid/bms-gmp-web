@@ -134,19 +134,103 @@ test('dispose waits for in-flight heartbeat touch before releasing viewer', asyn
   assert.equal(timers.length, 0)
 })
 
-test('unsuccessful activation touch does not request an update or heartbeat', async () => {
+test('a rejected initial touch retries after 30s and updates once after it succeeds', async () => {
   const calls = []
+  const timers = []
+  let touchCount = 0
   const session = createPressureViewerSession({
     viewerId: '00000000-0000-4000-8000-000000000006',
-    touch: async () => { calls.push('touch'); return { ok: false, error: 'CHUA_DANG_NHAP' } },
+    touch: async () => {
+      touchCount += 1
+      calls.push(`touch:${touchCount}`)
+      if (touchCount === 1) throw new Error('temporary network error')
+      return { ok: true }
+    },
     release: async () => { calls.push('release') },
     requestUpdate: async () => { calls.push('update') },
-    setTimer: () => { calls.push('timer'); return 19 },
+    setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length },
     clearTimer: (id) => calls.push(`clear:${id}`),
   })
 
   await session.setActive(true)
-  assert.deepEqual(calls, ['touch'])
+  assert.deepEqual(calls, ['touch:1'])
+  assert.equal(timers.length, 1)
+  assert.equal(timers[0].ms, PRESSURE_HEARTBEAT_MS)
+
+  await timers.shift().fn()
+
+  assert.deepEqual(calls, ['touch:1', 'touch:2', 'update'])
+  assert.equal(timers.length, 1)
+  assert.equal(timers[0].ms, PRESSURE_HEARTBEAT_MS)
+})
+
+test('an unsuccessful initial touch retries after 30s and updates once after it succeeds', async () => {
+  const calls = []
+  const timers = []
+  let touchCount = 0
+  const session = createPressureViewerSession({
+    viewerId: '00000000-0000-4000-8000-000000000010',
+    touch: async () => {
+      touchCount += 1
+      calls.push(`touch:${touchCount}`)
+      return touchCount === 1 ? { ok: false, error: 'CHUA_DANG_NHAP' } : { ok: true }
+    },
+    release: async () => { calls.push('release') },
+    requestUpdate: async () => { calls.push('update') },
+    setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length },
+    clearTimer: (id) => calls.push(`clear:${id}`),
+  })
+
+  await session.setActive(true)
+  assert.deepEqual(calls, ['touch:1'])
+  assert.equal(timers.length, 1)
+  assert.equal(timers[0].ms, PRESSURE_HEARTBEAT_MS)
+
+  await timers.shift().fn()
+
+  assert.deepEqual(calls, ['touch:1', 'touch:2', 'update'])
+  assert.equal(timers.length, 1)
+  assert.equal(timers[0].ms, PRESSURE_HEARTBEAT_MS)
+})
+
+test('hiding before an initial-touch retry cancels it without recreating the viewer', async () => {
+  const calls = []
+  const timers = []
+  const session = createPressureViewerSession({
+    viewerId: '00000000-0000-4000-8000-000000000011',
+    touch: async () => { calls.push('touch'); return { ok: false } },
+    release: async () => { calls.push('release') },
+    requestUpdate: async () => { calls.push('update') },
+    setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length },
+    clearTimer: (id) => calls.push(`clear:${id}`),
+  })
+
+  await session.setActive(true)
+  await session.setActive(false)
+  await timers[0].fn()
+
+  assert.deepEqual(calls, ['touch', 'clear:1', 'release'])
+  assert.equal(timers.length, 1)
+})
+
+test('disposing before an initial-touch retry cancels it without recreating the viewer', async () => {
+  const calls = []
+  const timers = []
+  const session = createPressureViewerSession({
+    viewerId: '00000000-0000-4000-8000-000000000012',
+    touch: async () => { calls.push('touch'); return { ok: false } },
+    release: async () => { calls.push('release') },
+    requestUpdate: async () => { calls.push('update') },
+    setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length },
+    clearTimer: (id) => calls.push(`clear:${id}`),
+  })
+
+  await session.setActive(true)
+  await session.dispose()
+  await timers[0].fn()
+
+  assert.deepEqual(calls, ['touch', 'clear:1', 'release'])
+  assert.equal(timers.length, 1)
 })
 
 test('unsuccessful heartbeat touch schedules a later retry', async () => {
