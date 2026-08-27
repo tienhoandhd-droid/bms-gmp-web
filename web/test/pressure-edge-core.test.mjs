@@ -32,11 +32,75 @@ function edgeRequest() {
   })
 }
 
+function monitoredRoom(maPhong) {
+  return {
+    ma_phong: maPhong,
+    loai_cam_bien: 'DP',
+    gioi_han_duoi: -5,
+    gioi_han_tren: 15,
+    tu_thoi_diem: '2026-08-27T05:20:00.000Z',
+  }
+}
+
+function sensorPayload(points) {
+  return {
+    data: {
+      sensors: [{
+        type: 'DP',
+        params: [{
+          data: points.map(({ value, minute }) => ({
+            val: value,
+            dateAndTime: `2026-08-27 12:${String(minute).padStart(2, '0')}:00`,
+          })),
+        }],
+      }],
+    },
+  }
+}
+
+function installEdgeScenario(t, { list, rooms, sensorPayloads }) {
+  const originalFetch = globalThis.fetch
+  t.after(() => { globalThis.fetch = originalFetch })
+  const state = { finishBody: null, upsertBodies: [] }
+
+  globalThis.fetch = async (input, init) => {
+    const url = String(input)
+    if (url.endsWith('/rpc/rpc_claim_capnhat_phut_8h')) {
+      return Response.json({ ok: true, status: 'CLAIMED', token: '55555555-5555-4555-8555-555555555555' })
+    }
+    if (url.endsWith('/rpc/rpc_phong_sensor_theo_doi_8h')) return Response.json(list)
+    if (url === 'https://fms.invalid/auth/login') {
+      return Response.json({ data: { access_token: 'fms-access-test-value' } })
+    }
+    if (url === 'https://fms.invalid/bms-room/rooms') return Response.json({ data: rooms })
+    for (const [techId, payload] of Object.entries(sensorPayloads)) {
+      if (url.includes(`/bms-room/rooms/${techId}/sensors-data`)) return Response.json(payload)
+    }
+    if (url.startsWith('https://supabase.invalid/rest/v1/du_lieu_phut_8h')) {
+      state.upsertBodies.push(JSON.parse(init.body))
+      return new Response('', { status: 201 })
+    }
+    if (url.endsWith('/rpc/rpc_don_du_lieu_phut_8h')) return Response.json({ ok: true })
+    if (url.endsWith('/rpc/rpc_finish_capnhat_phut_8h')) {
+      state.finishBody = JSON.parse(init.body)
+      return Response.json({ ok: true, status: state.finishBody.p_ok ? 'FINISHED' : 'FAILED' })
+    }
+    throw new Error(`unexpected fetch: ${url}`)
+  }
+
+  return state
+}
+
 test('old cursor is clamped to ten minutes', () => {
   const now = Date.parse('2026-08-27T05:30:00.000Z')
   assert.equal(BACKFILL_MS, 600_000)
   assert.equal(clampFromIso('2026-08-27T04:00:00.000Z', now), '2026-08-27T05:20:00.000Z')
   assert.equal(clampFromIso('2026-08-27T05:27:00.000Z', now), '2026-08-27T05:27:00.000Z')
+})
+
+test('future cursor recovers from the oldest ten-minute boundary', () => {
+  const now = Date.parse('2026-08-27T05:30:00.000Z')
+  assert.equal(clampFromIso('2026-08-27T06:00:00.000Z', now), '2026-08-27T05:20:00.000Z')
 })
 
 test('room worker never exceeds three concurrent requests', async () => {
@@ -286,4 +350,91 @@ test('a rejected finish is surfaced after an otherwise successful empty run', as
   assert.equal(body.so_diem, 0)
   assert.equal(body.so_loi_phong, 0)
   assert.equal(finishCalls, 1)
+})
+
+test('invalid sensor values fail and roll back only their room rows', async (t) => {
+  for (const invalid of [
+    { name: 'NaN', value: 'NaN' },
+    { name: 'Infinity', value: 'Infinity' },
+    { name: 'whitespace', value: '   ' },
+  ]) {
+    await t.test(invalid.name, async (t) => {
+      const state = installEdgeScenario(t, {
+        list: [monitoredRoom('P-BAD'), monitoredRoom('P-GOOD')],
+        rooms: [
+          { id: 'P-BAD', _id: 'TECH-BAD' },
+          { id: 'P-GOOD', _id: 'TECH-GOOD' },
+        ],
+        sensorPayloads: {
+          'TECH-BAD': sensorPayload([
+            { value: 1.5, minute: 21 },
+            { value: invalid.value, minute: 22 },
+          ]),
+          'TECH-GOOD': sensorPayload([{ value: 2.5, minute: 21 }]),
+        },
+      })
+
+      const response = await edgeHandler(edgeRequest())
+      const body = await response.json()
+
+      assert.equal(response.status, 502)
+      assert.equal(body.ok, false)
+      assert.equal(body.status, 'FAILED')
+      assert.equal(body.so_phong, 2)
+      assert.equal(body.so_diem, 1)
+      assert.equal(body.so_loi_phong, 1)
+      assert.equal(state.upsertBodies.length, 1)
+      assert.equal(state.upsertBodies[0].length, 1)
+      assert.equal(state.upsertBodies[0][0].ma_phong, 'P-GOOD')
+      assert.equal(Number.isFinite(state.upsertBodies[0][0].gia_tri), true)
+      assert.equal(state.finishBody.p_ok, false)
+      assert.equal(state.finishBody.p_degraded, false)
+      assert.match(state.finishBody.p_error, /^P-BAD: giá trị sensor không hợp lệ$/)
+    })
+  }
+})
+
+test('ten valid minute samples produce exactly ten finite upsert rows', async (t) => {
+  const points = Array.from({ length: 10 }, (_, index) => ({
+    value: index + 0.5,
+    minute: 21 + index,
+  }))
+  const state = installEdgeScenario(t, {
+    list: [monitoredRoom('P-10')],
+    rooms: [{ id: 'P-10', _id: 'TECH-10' }],
+    sensorPayloads: { 'TECH-10': sensorPayload(points) },
+  })
+
+  const response = await edgeHandler(edgeRequest())
+  const body = await response.json()
+
+  assert.equal(response.status, 200)
+  assert.equal(body.ok, true)
+  assert.equal(body.status, 'FINISHED')
+  assert.equal(body.so_diem, 10)
+  assert.equal(body.so_loi_phong, 0)
+  assert.equal(state.upsertBodies.length, 1)
+  assert.equal(state.upsertBodies[0].length, 10)
+  assert.equal(state.upsertBodies[0].every((row) => Number.isFinite(row.gia_tri)), true)
+  assert.equal(new Set(state.upsertBodies[0].map((row) => row.thoi_diem)).size, 10)
+  assert.deepEqual(state.finishBody, {
+    p_token: '55555555-5555-4555-8555-555555555555',
+    p_ok: true,
+    p_error: null,
+    p_degraded: false,
+  })
+})
+
+test('aggregated room error passed to finish is bounded to one thousand characters', async (t) => {
+  const list = Array.from({ length: 57 }, (_, index) => monitoredRoom(`PHONG-${index}`))
+  const state = installEdgeScenario(t, { list, rooms: [], sensorPayloads: {} })
+
+  const response = await edgeHandler(edgeRequest())
+  const body = await response.json()
+
+  assert.equal(response.status, 502)
+  assert.equal(body.status, 'FAILED')
+  assert.equal(body.so_loi_phong, 57)
+  assert.equal(state.upsertBodies.length, 0)
+  assert.equal(state.finishBody.p_error.length, 1000)
 })

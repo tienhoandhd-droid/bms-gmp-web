@@ -244,6 +244,7 @@ export function createHandler(options: {
           ROOM_CONCURRENCY,
           async (entry: [string, RoomInfo]) => {
             const [maPhong, info] = entry;
+            const roomRows: Array<Record<string, unknown>> = [];
             try {
               const tech = idToTech.get(maPhong);
               if (!tech) throw new Error("không tìm thấy ánh xạ phòng FMS");
@@ -270,13 +271,18 @@ export function createHandler(options: {
                     (Array.isArray(best?.data) ? best.data.length : 0)) best = p;
                 }
                 for (const dp of (best?.data || [])) {
-                  const v = dp?.val ?? dp?.value;
-                  if (v === null || v === undefined || v === "") continue;
                   const iso = vnToUtcMinuteIso(dp?.dateAndTime);
                   if (!iso || iso <= lim.from) continue; // chỉ điểm mới hơn mốc đã lưu
+
+                  const v = dp?.val ?? dp?.value;
+                  if (v === null || v === undefined ||
+                    (typeof v === "string" && v.trim() === "")) {
+                    throw new Error("giá trị sensor không hợp lệ");
+                  }
                   const val = Number(v);
+                  if (!Number.isFinite(val)) throw new Error("giá trị sensor không hợp lệ");
                   const oos = (lim.lo != null && val < lim.lo) || (lim.hi != null && val > lim.hi);
-                  rows.push({
+                  roomRows.push({
                     ma_phong: maPhong,
                     loai_cam_bien: type,
                     thoi_diem: iso,
@@ -287,6 +293,7 @@ export function createHandler(options: {
                   });
                 }
               }
+              for (const row of roomRows) rows.push(row);
             } catch (error) {
               roomErrors.push(`${maPhong}: ${boundedError(error)}`);
             }

@@ -4,7 +4,8 @@ export const ROOM_CONCURRENCY = 3
 export function clampFromIso(fromIso, nowMs) {
   const fromMs = Date.parse(fromIso)
   const oldestMs = nowMs - BACKFILL_MS
-  return new Date(Number.isFinite(fromMs) && fromMs >= oldestMs ? fromMs : oldestMs).toISOString()
+  const isWithinWindow = Number.isFinite(fromMs) && fromMs >= oldestMs && fromMs <= nowMs
+  return new Date(isWithinWindow ? fromMs : oldestMs).toISOString()
 }
 
 export async function mapWithConcurrency(items, concurrency, worker) {
