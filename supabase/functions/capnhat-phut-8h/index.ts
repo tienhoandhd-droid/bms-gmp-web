@@ -245,6 +245,8 @@ export function createHandler(options: {
           async (entry: [string, RoomInfo]) => {
             const [maPhong, info] = entry;
             const roomRows: Array<Record<string, unknown>> = [];
+            let candidateCount = 0;
+            let invalidCount = 0;
             try {
               const tech = idToTech.get(maPhong);
               if (!tech) throw new Error("không tìm thấy ánh xạ phòng FMS");
@@ -274,14 +276,19 @@ export function createHandler(options: {
                 for (const dp of (best?.data || [])) {
                   const iso = vnToUtcMinuteIso(dp?.dateAndTime);
                   if (!iso || iso <= sensorFromIso) continue; // chỉ điểm mới hơn mốc đã chuẩn hoá
+                  candidateCount += 1;
 
                   const v = dp?.val ?? dp?.value;
                   if (v === null || v === undefined ||
                     (typeof v === "string" && v.trim() === "")) {
-                    throw new Error("giá trị sensor không hợp lệ");
+                    invalidCount += 1;
+                    continue;
                   }
                   const val = Number(v);
-                  if (!Number.isFinite(val)) throw new Error("giá trị sensor không hợp lệ");
+                  if (!Number.isFinite(val)) {
+                    invalidCount += 1;
+                    continue;
+                  }
                   const oos = (lim.lo != null && val < lim.lo) || (lim.hi != null && val > lim.hi);
                   roomRows.push({
                     ma_phong: maPhong,
@@ -293,6 +300,9 @@ export function createHandler(options: {
                     oos,
                   });
                 }
+              }
+              if (candidateCount > 0 && invalidCount > 0 && roomRows.length === 0) {
+                throw new Error("giá trị sensor không hợp lệ");
               }
               for (const row of roomRows) rows.push(row);
             } catch (error) {

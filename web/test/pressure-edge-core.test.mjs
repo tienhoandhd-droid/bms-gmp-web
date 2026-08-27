@@ -483,46 +483,82 @@ test('a rejected finish is surfaced after an otherwise successful empty run', as
   assert.equal(finishCalls, 1)
 })
 
-test('invalid sensor values fail and roll back only their room rows', async (t) => {
-  for (const invalid of [
-    { name: 'NaN', value: 'NaN' },
-    { name: 'Infinity', value: 'Infinity' },
-    { name: 'whitespace', value: '   ' },
-  ]) {
-    await t.test(invalid.name, async (t) => {
-      const state = installEdgeScenario(t, {
-        list: [monitoredRoom('P-BAD'), monitoredRoom('P-GOOD')],
-        rooms: [
-          { id: 'P-BAD', _id: 'TECH-BAD' },
-          { id: 'P-GOOD', _id: 'TECH-GOOD' },
-        ],
-        sensorPayloads: {
-          'TECH-BAD': sensorPayload([
-            { value: 1.5, minute: 21 },
-            { value: invalid.value, minute: 22 },
-          ]),
-          'TECH-GOOD': sensorPayload([{ value: 2.5, minute: 21 }]),
-        },
-      })
+test('mixed finite and invalid FMS markers upsert only the finite room rows', async (t) => {
+  const state = installEdgeScenario(t, {
+    list: [monitoredRoom('P-MIXED')],
+    rooms: [{ id: 'P-MIXED', _id: 'TECH-MIXED' }],
+    sensorPayloads: {
+      'TECH-MIXED': sensorPayload([
+        { value: 1.5, minute: 21 },
+        { value: null, minute: 22 },
+        { value: undefined, minute: 23 },
+        { value: '', minute: 24 },
+        { value: '   ', minute: 25 },
+        { value: 'NaN', minute: 26 },
+        { value: 'Infinity', minute: 27 },
+      ]),
+    },
+  })
 
-      const response = await edgeHandler(edgeRequest())
-      const body = await response.json()
+  const response = await edgeHandler(edgeRequest())
+  const body = await response.json()
 
-      assert.equal(response.status, 502)
-      assert.equal(body.ok, false)
-      assert.equal(body.status, 'FAILED')
-      assert.equal(body.so_phong, 2)
-      assert.equal(body.so_diem, 1)
-      assert.equal(body.so_loi_phong, 1)
-      assert.equal(state.upsertBodies.length, 1)
-      assert.equal(state.upsertBodies[0].length, 1)
-      assert.equal(state.upsertBodies[0][0].ma_phong, 'P-GOOD')
-      assert.equal(Number.isFinite(state.upsertBodies[0][0].gia_tri), true)
-      assert.equal(state.finishBody.p_ok, false)
-      assert.equal(state.finishBody.p_degraded, false)
-      assert.match(state.finishBody.p_error, /^P-BAD: giá trị sensor không hợp lệ$/)
-    })
-  }
+  assert.equal(response.status, 200)
+  assert.equal(body.ok, true)
+  assert.equal(body.status, 'FINISHED')
+  assert.equal(body.so_phong, 1)
+  assert.equal(body.so_diem, 1)
+  assert.equal(body.so_loi_phong, 0)
+  assert.equal(state.upsertBodies.length, 1)
+  assert.deepEqual(state.upsertBodies[0], [{
+    ma_phong: 'P-MIXED',
+    loai_cam_bien: 'DP',
+    thoi_diem: '2026-08-27T05:21:00.000Z',
+    gia_tri: 1.5,
+    gioi_han_duoi: -5,
+    gioi_han_tren: 15,
+    oos: false,
+  }])
+  assert.deepEqual(state.finishBody, {
+    p_token: '55555555-5555-4555-8555-555555555555',
+    p_ok: true,
+    p_error: null,
+    p_degraded: false,
+  })
+})
+
+test('an all-invalid candidate window fails its room without upserting markers', async (t) => {
+  const state = installEdgeScenario(t, {
+    list: [monitoredRoom('P-INVALID')],
+    rooms: [{ id: 'P-INVALID', _id: 'TECH-INVALID' }],
+    sensorPayloads: {
+      'TECH-INVALID': sensorPayload([
+        { value: null, minute: 21 },
+        { value: undefined, minute: 22 },
+        { value: '', minute: 23 },
+        { value: '   ', minute: 24 },
+        { value: 'NaN', minute: 25 },
+        { value: 'Infinity', minute: 26 },
+      ]),
+    },
+  })
+
+  const response = await edgeHandler(edgeRequest())
+  const body = await response.json()
+
+  assert.equal(response.status, 502)
+  assert.equal(body.ok, false)
+  assert.equal(body.status, 'FAILED')
+  assert.equal(body.so_phong, 1)
+  assert.equal(body.so_diem, 0)
+  assert.equal(body.so_loi_phong, 1)
+  assert.equal(state.upsertBodies.length, 0)
+  assert.deepEqual(state.finishBody, {
+    p_token: '55555555-5555-4555-8555-555555555555',
+    p_ok: false,
+    p_error: 'P-INVALID: giá trị sensor không hợp lệ',
+    p_degraded: false,
+  })
 })
 
 test('ten valid minute samples produce exactly ten finite upsert rows', async (t) => {
