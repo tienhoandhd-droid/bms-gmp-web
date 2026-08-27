@@ -3,6 +3,7 @@ web/dist/
 
 # Phụ thuộc
 node_modules/
+.worktrees/
 
 # Biến môi trường cục bộ (chứa key)
 .env
