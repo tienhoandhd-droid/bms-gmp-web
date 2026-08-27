@@ -6,7 +6,19 @@ import InspectorDrawer from "../../components/layout/InspectorDrawer";
 import PressureRange from "../../components/pressure/PressureRange";
 import { COLOR } from "../../lib/designTokens";
 import { DS_KHU } from "../../lib/phanQuyen";
-import { capNhatPhut8h, dangKyRealtimeChenhAp, layCamBienDungHinh, layChenhApTheoAhu } from "../../lib/supabaseData";
+import {
+  capNhatPhut8h,
+  chamNguoiXemChenhAp,
+  dangKyRealtimeChenhAp,
+  dungXemChenhAp,
+  layCamBienDungHinh,
+  layChenhApTheoAhu,
+} from "../../lib/supabaseData";
+import {
+  createPressureViewerId,
+  createPressureViewerSession,
+  isPressureViewerActive,
+} from "./pressureViewerSession";
 // Bảng CHÊNH ÁP THEO AHU (tab Sự cố gần đây) — yêu cầu (dải giới hạn) + kết quả (TB
 // 5′ cuối của bucket giờ mới nhất), gom theo AHU. Không đạt: Mức 1/2 (P1/P2) = ĐỎ ·
 // Mức 3 (P3) = VÀNG. Đạt = xanh. Thiếu dữ liệu = xám. Có bộ lọc khu/AHU riêng.
@@ -14,36 +26,84 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
   const [rows, setRows] = React.useState(null);   // null = đang tải
   const [khu, setKhu] = React.useState("ALL");
   const [ahuLoc, setAhuLoc] = React.useState("ALL");
-  const [dangTuoi, setDangTuoi] = React.useState(false);   // đang gọi FMS lấy realtime
+  const [dangTai10Phut, setDangTai10Phut] = React.useState(false);
   const [chiTiet, setChiTiet] = React.useState(null);      // phòng đang mở drawer chi tiết (Phase C)
   const [dhMap, setDhMap] = React.useState({});            // ma_phong → số giờ đứng tín hiệu (cảm biến DP)
   const [napLuc, setNapLuc] = React.useState(Date.now());  // mốc client nhận lô số hiện hành
   const [dongHo, setDongHo] = React.useState(Date.now());  // nhịp 10s để nhãn tuổi TỰ ĐẾM LÊN
-  // 03/08: TÁCH ĐÔI NHỊP. Trước đây một hàm `nap()` vừa đọc số vừa gọi Edge (~6s)
-  // rồi lặp mỗi 60s ⇒ màn hình chỉ đổi mỗi 60s dù số trong bảng đã mới. Nay:
-  //   • docSo (RPC ~100ms) — nhịp nhanh + mỗi khi realtime gõ cửa
-  //   • kichEdge (gọi FMS ~6s) — nhịp CHẬM, chỉ còn là lưới đỡ vì cron
-  //     `bms-phut-8h` đã kéo FMS mỗi phút phía máy chủ (migration 20260803a).
+  const [visibilityState, setVisibilityState] = React.useState(() => (
+    typeof document === "undefined" ? "hidden" : document.visibilityState
+  ));
+  const viewerIdRef = React.useRef(null);
+  const sessionRef = React.useRef(null);
+  const viewerActiveRef = React.useRef(false);
+  const mountedRef = React.useRef(false);
+  if (!viewerIdRef.current && typeof globalThis.crypto?.randomUUID === "function") {
+    viewerIdRef.current = createPressureViewerId();
+  }
+  const viewerActive = isPressureViewerActive({ isLive, active, visibilityState });
+  viewerActiveRef.current = viewerActive;
+
   const docSo = React.useCallback(async () => {
+    if (!viewerActiveRef.current) return;
     const [kq, dh] = await Promise.all([layChenhApTheoAhu(), layCamBienDungHinh()]);
+    if (!mountedRef.current || !viewerActiveRef.current) return;
     if (!kq.error) { setRows(kq.rows); setNapLuc(Date.now()); }
     if (dh && !dh.error && dh.rows) setDhMap(Object.fromEntries(dh.rows.filter((x) => x.loai_cam_bien === "DP").map((x) => [x.ma_phong, x.so_gio_dung])));
   }, []);
-  const kichEdge = React.useCallback(async () => {
-    setDangTuoi(true);
-    const up = await capNhatPhut8h();
-    setDangTuoi(false);
-    if (up && up.ok) { const kq = await layChenhApTheoAhu(); if (!kq.error) { setRows(kq.rows); setNapLuc(Date.now()); } }
-  }, []);
-  const nap = React.useCallback(async () => { await docSo(); await kichEdge(); }, [docSo, kichEdge]);
+  const capNhatNgay = React.useCallback(async () => {
+    if (mountedRef.current) setDangTai10Phut(true);
+    try {
+      const up = await capNhatPhut8h();
+      if (up?.ok && viewerActiveRef.current) await docSo();
+      return up;
+    } finally {
+      if (mountedRef.current) setDangTai10Phut(false);
+    }
+  }, [docSo]);
+
   React.useEffect(() => {
-    if (!isLive || !active) return;   // CHỈ gọi FMS/đọc khi tab Chênh áp đang mở — không tải nền làm chậm tab khác
-    nap();
-    // Đọc số: 20s/lần. Rẻ (RPC ~100ms), KHÔNG đụng FMS. Đây là lưới đỡ cho realtime.
-    const tDoc = setInterval(docSo, 20000);
-    // Gọi FMS: 180s/lần. Cron `bms-phut-8h` đã kéo mỗi phút; nhịp này chỉ để phòng
-    // khi cron tắt / ngoài khung giờ (cau_hinh.edge_capnhat_phut_gio_dau|_cuoi).
-    const tEdge = setInterval(kichEdge, 180000);
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const doiVisibility = () => {
+      const nextVisibility = document.visibilityState;
+      viewerActiveRef.current = isPressureViewerActive({ isLive, active, visibilityState: nextVisibility });
+      setVisibilityState(nextVisibility);
+    };
+    document.addEventListener("visibilitychange", doiVisibility);
+    return () => document.removeEventListener("visibilitychange", doiVisibility);
+  }, [isLive, active]);
+
+  React.useEffect(() => {
+    const viewerId = viewerIdRef.current;
+    if (!viewerId) return undefined;
+    const session = createPressureViewerSession({
+      viewerId,
+      touch: chamNguoiXemChenhAp,
+      release: dungXemChenhAp,
+      requestUpdate: capNhatNgay,
+    });
+    sessionRef.current = session;
+    return () => {
+      sessionRef.current = null;
+      void session.dispose();
+    };
+  }, [capNhatNgay]);
+
+  React.useEffect(() => {
+    void sessionRef.current?.setActive(viewerActive);
+    if (!viewerActive) setDangTai10Phut(false);
+  }, [viewerActive]);
+
+  React.useEffect(() => {
+    if (!viewerActive) return undefined;
+    void docSo();
+    // Lưới đỡ Supabase: Realtime là đường ưu tiên, poll chỉ đọc lại DB mỗi phút.
+    const tDoc = setInterval(docSo, 60000);
     // Realtime: bảng du_lieu_phut_8h đổi → đọc lại sau 1.2s (gom burst: đo lượt cron
     // thật ngày 03/08 = 112 điểm / 56 phòng; không gom thì nạp lại hơn trăm lần).
     let hen = null;
@@ -51,14 +111,14 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
       if (hen) clearTimeout(hen);
       hen = setTimeout(() => { hen = null; docSo(); }, 1200);
     });
-    return () => { clearInterval(tDoc); clearInterval(tEdge); if (hen) clearTimeout(hen); huyRt(); };
-  }, [isLive, active, nap, docSo, kichEdge]);
+    return () => { clearInterval(tDoc); if (hen) clearTimeout(hen); huyRt(); };
+  }, [viewerActive, docSo]);
   // Nhịp riêng 10s: KHÔNG gọi mạng, chỉ để nhãn tuổi dữ liệu đếm lên giữa 2 lần nạp.
   React.useEffect(() => {
-    if (!isLive || !active) return;
+    if (!viewerActive) return undefined;
     const t = setInterval(() => setDongHo(Date.now()), 10000);
     return () => clearInterval(t);
-  }, [isLive, active]);
+  }, [viewerActive]);
   if (!isLive) return <Card className="p-8 text-center text-[13px] text-muted">Cần kết nối dữ liệu thật (LIVE) để xem chênh áp theo AHU.</Card>;
   const dsKhu = khuChoPhep || DS_KHU;
   const ahuPairs = [...new Set((rows || []).filter((r) => (khu === "ALL" || r.khuVuc === khu)).map((r) => `${r.khuVuc}|${r.ahu}`))].sort();
@@ -185,7 +245,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
     <Card className="p-5">
       <SectionTitle icon={Gauge} hint="Số liệu 5 phút gần nhất">
         <span title="Nguồn: FMS">Chênh áp</span>
-        {dangTuoi && <span className="text-[12px] font-normal text-success"> · đang cập nhật…</span>}
+        {dangTai10Phut && <span className="text-[12px] font-normal text-success"> · Đang tải 10 phút gần nhất…</span>}
       </SectionTitle>
       {rows !== null && filt.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">

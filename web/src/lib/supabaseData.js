@@ -283,6 +283,34 @@ export async function layChenhApTheoAhu(signal) {
   }
 }
 
+function ketQuaNguoiXemChenhAp(data, error) {
+  const status = data?.status || null
+  const maLoi = data?.error || data?.loi || error?.ma_loi || error?.name || null
+  return { ok: data?.ok === true && !error, status, error: maLoi }
+}
+
+// Heartbeat/release của tab Chênh áp. Hai lời gọi này phải fail-mềm vì chúng
+// chạy trong đường cleanup của trình duyệt khi người dùng đổi tab/đóng trang.
+export async function chamNguoiXemChenhAp(viewerId, signal) {
+  if (!String(viewerId || '').trim()) return { ok: false, status: null, error: 'VIEWER_ID_REQUIRED' }
+  try {
+    const { data, error } = await goiRPC('rpc_cham_nguoi_xem_chenh_ap', { p_viewer_id: viewerId }, { signal })
+    return ketQuaNguoiXemChenhAp(data, error)
+  } catch (error) {
+    return ketQuaNguoiXemChenhAp(null, error)
+  }
+}
+
+export async function dungXemChenhAp(viewerId, signal) {
+  if (!String(viewerId || '').trim()) return { ok: false, status: null, error: 'VIEWER_ID_REQUIRED' }
+  try {
+    const { data, error } = await goiRPC('rpc_dung_xem_chenh_ap', { p_viewer_id: viewerId }, { signal })
+    return ketQuaNguoiXemChenhAp(data, error)
+  } catch (error) {
+    return ketQuaNguoiXemChenhAp(null, error)
+  }
+}
+
 export async function layCumSuCo(signal) {
   const { data, error } = await docView('xem_cum_su_co',
     (q) => q.select('ma_cum,ma_hien_thi,khu_vuc,ahu,loai_cam_bien,dang_mo,gio_mo,'
@@ -1299,11 +1327,17 @@ export async function laySuCoPhut(gio = 8, signal) {
   return { error: null, rows: Array.isArray(data) ? data : [] }
 }
 
-// Kích Edge Function capnhat-phut-8h: đăng nhập FMS phía server, nạp điểm phút
-// mới vào bảng du_lieu_phut_8h + tự dọn >8h. Gọi trước mỗi lần đọc để dữ liệu tươi.
+const EDGE_SKIP_STATUSES = new Set([
+  'SKIPPED_NO_VIEWER',
+  'SKIPPED_FRESH',
+  'SKIPPED_LOCKED',
+  'SKIPPED_COOLDOWN',
+])
+
+// Kích Edge Function capnhat-phut-8h khi phiên người xem vừa được xác nhận.
 // Fail-mềm: Edge chưa deploy / lỗi mạng → web vẫn đọc dữ liệu bảng gần nhất.
 export async function capNhatPhut8h(signal) {
-  if (!SUPABASE_URL) return { ok: false, error: 'NO_URL' }
+  if (!SUPABASE_URL) return { ok: false, status: null, soPhong: null, soDiem: null, soLoiPhong: null, error: 'NO_URL' }
   // Timeout 35s: nếu FMS chậm/treo, hủy để KHÔNG treo request chồng chất (chạy nền,
   // không ảnh hưởng hiển thị — web đã đọc bảng riêng). Lần làm mới sau thử lại.
   const ac = new AbortController()
@@ -1314,11 +1348,17 @@ export async function capNhatPhut8h(signal) {
       headers: { 'Content-Type': 'application/json', 'x-bms-token': await layWebhookToken(signal) },
       signal: signal || ac.signal,
     })
-    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
     const j = await res.json().catch(() => ({}))
-    return j && j.ok ? { ok: true, soPhong: j.so_phong, soDiem: j.so_diem } : { ok: false, error: (j && j.error) || 'EMPTY' }
+    const status = typeof j?.status === 'string' ? j.status : null
+    const soPhong = j?.so_phong
+    const soDiem = j?.so_diem
+    const soLoiPhong = j?.so_loi_phong
+    const error = j?.error || null
+    if (!res.ok) return { ok: false, status, soPhong, soDiem, soLoiPhong, error: error || `HTTP ${res.status}` }
+    const ok = j?.ok === true || EDGE_SKIP_STATUSES.has(status)
+    return { ok, status, soPhong, soDiem, soLoiPhong, error: ok ? error : (error || 'EMPTY') }
   } catch (e) {
-    return { ok: false, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
+    return { ok: false, status: null, soPhong: null, soDiem: null, soLoiPhong: null, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
   } finally {
     clearTimeout(tm)
   }
