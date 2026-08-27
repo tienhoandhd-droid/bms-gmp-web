@@ -38,8 +38,33 @@ test('the minute cron removes expired viewers before checking for an active view
     /create or replace function public\.kich_capnhat_phut_8h\(\)[\s\S]*?\$function\$;/i,
   )?.[0]
   assert.ok(cronFunction, 'kich_capnhat_phut_8h must exist')
-  assert.match(
-    cronFunction,
-    /delete from public\.bms_chenh_ap_viewer\s+where last_seen <= now\(\) - interval '90 seconds';\s*if not exists\s*\(\s*select 1\s+from public\.bms_chenh_ap_viewer\s+where last_seen > now\(\) - interval '90 seconds'/is,
+  const cleanupOffset = cronFunction.search(
+    /delete from public\.bms_chenh_ap_viewer\s+where last_seen <= now\(\) - interval '90 seconds'/i,
   )
+  const activeCheckOffset = cronFunction.search(
+    /if not exists\s*\(\s*select 1\s+from public\.bms_chenh_ap_viewer\s+where last_seen > now\(\) - interval '90 seconds'/is,
+  )
+  assert.ok(cleanupOffset >= 0, 'expired viewer cleanup must exist')
+  assert.ok(activeCheckOffset >= 0, 'active viewer check must exist')
+  assert.ok(cleanupOffset < activeCheckOffset, 'cleanup must precede the active viewer check')
+})
+
+test('viewer cleanup runs before the ingestion enable-switch can return', () => {
+  const cronFunction = sql.match(
+    /create or replace function public\.kich_capnhat_phut_8h\(\)[\s\S]*?\$function\$;/i,
+  )?.[0]
+  assert.ok(cronFunction, 'kich_capnhat_phut_8h must exist')
+
+  const cleanupOffset = cronFunction.search(
+    /delete from public\.bms_chenh_ap_viewer\s+where last_seen <= now\(\) - interval '90 seconds'/i,
+  )
+  const enableSwitchOffset = cronFunction.search(
+    /if lower\(coalesce\(\(select value from public\.cau_hinh where key='edge_capnhat_phut_bat'/i,
+  )
+  const firstReturnOffset = cronFunction.search(/\breturn;/i)
+
+  assert.ok(cleanupOffset >= 0, 'expired viewer cleanup must exist')
+  assert.ok(enableSwitchOffset >= 0, 'ingestion enable-switch must exist')
+  assert.ok(cleanupOffset < enableSwitchOffset, 'cleanup must precede the enable-switch')
+  assert.ok(cleanupOffset < firstReturnOffset, 'cleanup must precede every early return')
 })

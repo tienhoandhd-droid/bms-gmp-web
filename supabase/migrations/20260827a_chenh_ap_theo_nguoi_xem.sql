@@ -218,14 +218,14 @@ DECLARE
   v_url text;
   v_token text;
 BEGIN
-  IF lower(COALESCE((SELECT value FROM public.cau_hinh WHERE key='edge_capnhat_phut_bat'),'true')) <> 'true' THEN
-    RETURN;
-  END IF;
-
   -- READ COMMITTED kiểm tra lại predicate nếu heartbeat vừa đổi hàng đồng thời;
   -- nếu DELETE thắng trước thì heartbeat upsert sẽ chờ rồi chèn lại hàng.
   DELETE FROM public.bms_chenh_ap_viewer
    WHERE last_seen <= now() - interval '90 seconds';
+
+  IF lower(COALESCE((SELECT value FROM public.cau_hinh WHERE key='edge_capnhat_phut_bat'),'true')) <> 'true' THEN
+    RETURN;
+  END IF;
 
   IF NOT EXISTS (
     SELECT 1
