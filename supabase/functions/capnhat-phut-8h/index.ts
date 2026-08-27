@@ -97,7 +97,7 @@ async function sbRpc(fn: string, body: unknown, signal?: AbortSignal) {
     body: JSON.stringify(body ?? {}),
     signal,
   });
-  if (!r.ok) throw new Error(`RPC ${fn} ${r.status}: ${await r.text()}`);
+  if (!r.ok) throw new Error(`RPC ${fn} ${r.status}`);
   return r.json();
 }
 
@@ -115,7 +115,7 @@ export function createHandler(options: {
 
     // --- Xác thực token (chống gọi nặc danh, cùng token webhook web) ---
     const tok = (req.headers.get("x-bms-token") || "").trim();
-    if (BMS_TOKEN && tok !== BMS_TOKEN) {
+    if (!BMS_TOKEN || !tok || tok !== BMS_TOKEN) {
       return json({
         ok: false,
         status: "REJECTED",
@@ -264,6 +264,7 @@ export function createHandler(options: {
                 const type = normType(sensor?.type || sensor?.id);
                 if (!type || !info.sensors.has(type)) continue;
                 const lim = info.sensors.get(type)!;
+                const sensorFromIso = clampFromIso(lim.from, nowMs);
                 const params = Array.isArray(sensor?.params) ? sensor.params : [sensor];
                 let best: any = null;
                 for (const p of params) {
@@ -272,7 +273,7 @@ export function createHandler(options: {
                 }
                 for (const dp of (best?.data || [])) {
                   const iso = vnToUtcMinuteIso(dp?.dateAndTime);
-                  if (!iso || iso <= lim.from) continue; // chỉ điểm mới hơn mốc đã lưu
+                  if (!iso || iso <= sensorFromIso) continue; // chỉ điểm mới hơn mốc đã chuẩn hoá
 
                   const v = dp?.val ?? dp?.value;
                   if (v === null || v === undefined ||
@@ -315,7 +316,7 @@ export function createHandler(options: {
             body: JSON.stringify(uniq),
             signal: runSignal,
           });
-          if (!up.ok) throw new HttpError(`upsert ${up.status}: ${await up.text()}`, 500);
+          if (!up.ok) throw new HttpError(`upsert ${up.status}`, 500);
           ghi = uniq.length;
         }
         await sbRpc("rpc_don_du_lieu_phut_8h", {}, runSignal).catch(() => {});

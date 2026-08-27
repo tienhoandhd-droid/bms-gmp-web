@@ -58,9 +58,20 @@ function sensorPayload(points) {
   }
 }
 
-function installEdgeScenario(t, { list, rooms, sensorPayloads }) {
+function installEdgeScenario(t, {
+  list,
+  rooms,
+  sensorPayloads,
+  upsertFailure = null,
+  nowMs = Date.parse('2026-08-27T05:30:00.000Z'),
+}) {
   const originalFetch = globalThis.fetch
-  t.after(() => { globalThis.fetch = originalFetch })
+  const originalNow = Date.now
+  t.after(() => {
+    globalThis.fetch = originalFetch
+    Date.now = originalNow
+  })
+  Date.now = () => nowMs
   const state = { finishBody: null, upsertBodies: [] }
 
   globalThis.fetch = async (input, init) => {
@@ -78,6 +89,9 @@ function installEdgeScenario(t, { list, rooms, sensorPayloads }) {
     }
     if (url.startsWith('https://supabase.invalid/rest/v1/du_lieu_phut_8h')) {
       state.upsertBodies.push(JSON.parse(init.body))
+      if (upsertFailure) {
+        return new Response(upsertFailure.body, { status: upsertFailure.status })
+      }
       return new Response('', { status: 201 })
     }
     if (url.endsWith('/rpc/rpc_don_du_lieu_phut_8h')) return Response.json({ ok: true })
@@ -101,6 +115,123 @@ test('old cursor is clamped to ten minutes', () => {
 test('future cursor recovers from the oldest ten-minute boundary', () => {
   const now = Date.parse('2026-08-27T05:30:00.000Z')
   assert.equal(clampFromIso('2026-08-27T06:00:00.000Z', now), '2026-08-27T05:20:00.000Z')
+})
+
+test('future sensor cursor keeps a valid point from the recovered ten-minute window', async (t) => {
+  const state = installEdgeScenario(t, {
+    list: [{
+      ...monitoredRoom('P-FUTURE'),
+      tu_thoi_diem: '2026-08-27T06:00:00.000Z',
+    }],
+    rooms: [{ id: 'P-FUTURE', _id: 'TECH-FUTURE' }],
+    sensorPayloads: {
+      'TECH-FUTURE': sensorPayload([{ value: 4.5, minute: 21 }]),
+    },
+  })
+
+  const response = await edgeHandler(edgeRequest())
+  const body = await response.json()
+
+  assert.equal(response.status, 200)
+  assert.equal(body.ok, true)
+  assert.equal(body.so_diem, 1)
+  assert.equal(state.upsertBodies.length, 1)
+  assert.deepEqual(state.upsertBodies[0].map((row) => row.thoi_diem), [
+    '2026-08-27T05:21:00.000Z',
+  ])
+})
+
+test('authentication rejects missing or wrong request tokens and fails closed when configured token is empty', async (t) => {
+  const originalFetch = globalThis.fetch
+  const originalGet = globalThis.Deno.env.get
+  const originalServe = globalThis.Deno.serve
+  t.after(() => {
+    globalThis.fetch = originalFetch
+    globalThis.Deno.env.get = originalGet
+    globalThis.Deno.serve = originalServe
+  })
+
+  let fetchCalls = 0
+  globalThis.fetch = async () => {
+    fetchCalls += 1
+    return Response.json({ ok: true, status: 'SKIPPED_NO_VIEWER' })
+  }
+
+  const missingTokenRequest = new Request('https://edge.invalid/capnhat-phut-8h', { method: 'POST' })
+  const wrongTokenRequest = new Request('https://edge.invalid/capnhat-phut-8h', {
+    method: 'POST',
+    headers: { 'x-bms-token': 'wrong-token' },
+  })
+  for (const request of [missingTokenRequest, wrongTokenRequest]) {
+    const response = await edgeHandler(request)
+    assert.equal(response.status, 403)
+    assert.equal((await response.json()).error, 'KHONG_XAC_THUC')
+  }
+
+  let emptyTokenHandler
+  globalThis.Deno.env.get = (name) => name === 'BMS_TOKEN' ? '' : originalGet(name)
+  globalThis.Deno.serve = (handler) => { emptyTokenHandler = handler }
+  await import('../../supabase/functions/capnhat-phut-8h/index.ts?empty-bms-token')
+
+  const emptyTokenResponse = await emptyTokenHandler(edgeRequest())
+  assert.equal(emptyTokenResponse.status, 403)
+  assert.equal((await emptyTokenResponse.json()).error, 'KHONG_XAC_THUC')
+  assert.equal(fetchCalls, 0)
+})
+
+test('Supabase RPC failure body is not exposed in the response or finish error', async (t) => {
+  const originalFetch = globalThis.fetch
+  t.after(() => { globalThis.fetch = originalFetch })
+  const sentinel = 'INTERNAL_RPC_SENTINEL'
+  let finishBody
+
+  globalThis.fetch = async (input, init) => {
+    const url = String(input)
+    if (url.endsWith('/rpc/rpc_claim_capnhat_phut_8h')) {
+      return Response.json({ ok: true, status: 'CLAIMED', token: '66666666-6666-4666-8666-666666666666' })
+    }
+    if (url.endsWith('/rpc/rpc_phong_sensor_theo_doi_8h')) {
+      return new Response(JSON.stringify({ message: sentinel }), { status: 500 })
+    }
+    if (url.endsWith('/rpc/rpc_finish_capnhat_phut_8h')) {
+      finishBody = JSON.parse(init.body)
+      return Response.json({ ok: true, status: 'FAILED' })
+    }
+    throw new Error(`unexpected fetch: ${url}`)
+  }
+
+  const response = await edgeHandler(edgeRequest())
+  const body = await response.json()
+
+  assert.equal(response.status, 500)
+  assert.equal(body.error, 'RPC rpc_phong_sensor_theo_doi_8h 500')
+  assert.equal(finishBody.p_error, 'RPC rpc_phong_sensor_theo_doi_8h 500')
+  assert.equal(JSON.stringify(body).includes(sentinel), false)
+  assert.equal(JSON.stringify(finishBody).includes(sentinel), false)
+})
+
+test('Supabase upsert failure body is not exposed in the response or finish error', async (t) => {
+  const sentinel = 'INTERNAL_UPSERT_SENTINEL'
+  const state = installEdgeScenario(t, {
+    list: [monitoredRoom('P-UPSERT')],
+    rooms: [{ id: 'P-UPSERT', _id: 'TECH-UPSERT' }],
+    sensorPayloads: {
+      'TECH-UPSERT': sensorPayload([{ value: 7.5, minute: 21 }]),
+    },
+    upsertFailure: {
+      status: 500,
+      body: JSON.stringify({ message: sentinel }),
+    },
+  })
+
+  const response = await edgeHandler(edgeRequest())
+  const body = await response.json()
+
+  assert.equal(response.status, 500)
+  assert.equal(body.error, 'upsert 500')
+  assert.equal(state.finishBody.p_error, 'upsert 500')
+  assert.equal(JSON.stringify(body).includes(sentinel), false)
+  assert.equal(JSON.stringify(state.finishBody).includes(sentinel), false)
 })
 
 test('room worker never exceeds three concurrent requests', async () => {
