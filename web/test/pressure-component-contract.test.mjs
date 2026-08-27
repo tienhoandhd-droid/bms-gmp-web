@@ -10,6 +10,10 @@ const data = readFileSync(
   new URL('../src/lib/supabaseData.js', import.meta.url),
   'utf8',
 )
+const workflow = readFileSync(
+  new URL('../../.github/workflows/deploy.yml', import.meta.url),
+  'utf8',
+)
 
 async function taiPressureData(t, { goiRPC, fetchImpl }) {
   const previousGlobals = Object.fromEntries([
@@ -115,4 +119,16 @@ test('pressure viewer wrapper is fail-soft when the RPC client throws', async (t
   const result = await api.chamNguoiXemChenhAp('00000000-0000-4000-8000-000000000001')
 
   assert.deepEqual(result, { ok: false, status: null, error: 'Error' })
+})
+
+test('deploy workflow runs unit tests before UI tests', () => {
+  const installIndex = workflow.indexOf('- run: npm ci')
+  const unitIndex = workflow.indexOf('run: npm run test:unit')
+  const uiIndex = workflow.indexOf('run: |\n          npx puppeteer browsers install chrome\n          npm run test:ui')
+
+  assert.notEqual(installIndex, -1, 'workflow must install dependencies with npm ci')
+  assert.notEqual(unitIndex, -1, 'workflow must run the unit-test gate')
+  assert.notEqual(uiIndex, -1, 'workflow must retain the UI-test gate')
+  assert.ok(installIndex < unitIndex, 'unit tests must run after npm ci')
+  assert.ok(unitIndex < uiIndex, 'unit tests must run before UI tests')
 })
