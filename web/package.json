@@ -14,6 +14,7 @@
     "check:copy": "node kiemtra-ui/check-ui-copy.mjs",
     "check:contrast": "node kiemtra-ui/check-ui-contrast.mjs",
     "test:ui": "node kiemtra-ui/test-ui.mjs",
+    "test:unit": "node --test test/*.test.mjs",
     "quality": "npm run check:colors && npm run check:copy && npm run check:contrast && npm run build"
   },
   "dependencies": {
