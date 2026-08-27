@@ -21,8 +21,17 @@ export function createPressureViewerSession({
   let heartbeatId = null
   let transition = 0
   let activationPromise = null
+  let rpcQueue = Promise.resolve()
 
   const touchSucceeded = (result) => result !== false && result?.ok !== false
+
+  const enqueueRpc = (operation) => {
+    const queued = rpcQueue.then(operation, operation)
+    rpcQueue = queued.catch(() => undefined)
+    return queued
+  }
+
+  const touchViewer = () => enqueueRpc(() => touch(viewerId))
 
   const clearHeartbeat = () => {
     if (heartbeatId === null) return
@@ -31,11 +40,7 @@ export function createPressureViewerSession({
   }
 
   const releaseBestEffort = () => {
-    try {
-      return Promise.resolve(release(viewerId)).catch(() => undefined)
-    } catch {
-      return Promise.resolve()
-    }
+    return enqueueRpc(() => release(viewerId)).catch(() => undefined)
   }
 
   const scheduleHeartbeat = (currentTransition) => {
@@ -46,7 +51,7 @@ export function createPressureViewerSession({
       if (!active || disposed || transition !== currentTransition) return
 
       try {
-        const result = await touch(viewerId)
+        const result = await touchViewer()
         if (!touchSucceeded(result)) {
           scheduleHeartbeat(currentTransition)
           return
@@ -62,7 +67,7 @@ export function createPressureViewerSession({
   const activate = async (currentTransition) => {
     let result
     try {
-      result = await touch(viewerId)
+      result = await touchViewer()
     } catch {
       if (active && !disposed && transition === currentTransition) active = false
       return

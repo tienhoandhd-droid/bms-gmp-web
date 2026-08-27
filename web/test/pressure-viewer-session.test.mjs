@@ -7,6 +7,12 @@ import {
   isPressureViewerActive,
 } from '../src/features/pressure/pressureViewerSession.js'
 
+function deferred() {
+  let resolve
+  const promise = new Promise((res) => { resolve = res })
+  return { promise, resolve }
+}
+
 test('only a live, selected and visible pressure tab is active', () => {
   assert.equal(isPressureViewerActive({ isLive: true, active: true, visibilityState: 'visible' }), true)
   assert.equal(isPressureViewerActive({ isLive: true, active: true, visibilityState: 'hidden' }), false)
@@ -66,6 +72,66 @@ test('deactivation while touch is pending prevents update and releases after tou
   await Promise.all([activation, deactivation])
 
   assert.deepEqual(calls, ['touch', 'release'])
+})
+
+test('hide waits for initial touch side effect before releasing viewer', async () => {
+  const events = []
+  const touchDone = deferred()
+  const session = createPressureViewerSession({
+    viewerId: '00000000-0000-4000-8000-000000000008',
+    touch: async () => {
+      events.push('touch:start')
+      await touchDone.promise
+      events.push('touch:done')
+      return { ok: true }
+    },
+    release: async () => { events.push('release') },
+    requestUpdate: async () => {},
+    setTimer: () => 23,
+    clearTimer: () => {},
+  })
+
+  const activation = session.setActive(true)
+  await Promise.resolve()
+  const deactivation = session.setActive(false)
+  assert.deepEqual(events, ['touch:start'])
+
+  touchDone.resolve()
+  await Promise.all([activation, deactivation])
+  assert.deepEqual(events, ['touch:start', 'touch:done', 'release'])
+})
+
+test('dispose waits for in-flight heartbeat touch before releasing viewer', async () => {
+  const events = []
+  const heartbeatDone = deferred()
+  const timers = []
+  let touchCount = 0
+  const session = createPressureViewerSession({
+    viewerId: '00000000-0000-4000-8000-000000000009',
+    touch: async () => {
+      touchCount += 1
+      const id = touchCount
+      events.push(`touch:start:${id}`)
+      if (id === 2) await heartbeatDone.promise
+      events.push(`touch:done:${id}`)
+      return { ok: true }
+    },
+    release: async () => { events.push('release') },
+    requestUpdate: async () => {},
+    setTimer: (fn, ms) => { timers.push({ fn, ms }); return 29 },
+    clearTimer: (id) => events.push(`clear:${id}`),
+  })
+
+  await session.setActive(true)
+  const heartbeat = timers.shift().fn()
+  await Promise.resolve()
+  const disposal = session.dispose()
+  assert.deepEqual(events, ['touch:start:1', 'touch:done:1', 'touch:start:2'])
+
+  heartbeatDone.resolve()
+  await Promise.all([heartbeat, disposal])
+  assert.deepEqual(events, ['touch:start:1', 'touch:done:1', 'touch:start:2', 'touch:done:2', 'release'])
+  assert.equal(timers.length, 0)
 })
 
 test('unsuccessful activation touch does not request an update or heartbeat', async () => {
