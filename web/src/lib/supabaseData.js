@@ -1334,19 +1334,48 @@ const EDGE_SKIP_STATUSES = new Set([
   'SKIPPED_COOLDOWN',
 ])
 
+// Ghép tín hiệu hủy của caller với hạn cuối nội bộ. Caller có thể hủy sớm,
+// nhưng không thể làm mất timeout bảo vệ tải FMS/Edge.
+export function taoSignalHan(signalNgoai, timeoutMs = 35000) {
+  const controller = new AbortController()
+  const huy = (reason) => {
+    if (!controller.signal.aborted) controller.abort(reason)
+  }
+  let onAbort = null
+  if (signalNgoai) {
+    if (signalNgoai.aborted) huy(signalNgoai.reason)
+    else {
+      onAbort = () => huy(signalNgoai.reason)
+      signalNgoai.addEventListener('abort', onAbort, { once: true })
+    }
+  }
+  const timeout = setTimeout(() => {
+    const reason = typeof DOMException === 'function'
+      ? new DOMException('timeout', 'AbortError')
+      : Object.assign(new Error('timeout'), { name: 'AbortError' })
+    huy(reason)
+  }, timeoutMs)
+  return {
+    signal: controller.signal,
+    dispose() {
+      clearTimeout(timeout)
+      if (onAbort) signalNgoai.removeEventListener('abort', onAbort)
+    },
+  }
+}
+
 // Kích Edge Function capnhat-phut-8h khi phiên người xem vừa được xác nhận.
 // Fail-mềm: Edge chưa deploy / lỗi mạng → web vẫn đọc dữ liệu bảng gần nhất.
-export async function capNhatPhut8h(signal) {
+export async function capNhatPhut8h(signal, { timeoutMs = 35000 } = {}) {
   if (!SUPABASE_URL) return { ok: false, status: null, soPhong: null, soDiem: null, soLoiPhong: null, error: 'NO_URL' }
   // Timeout 35s: nếu FMS chậm/treo, hủy để KHÔNG treo request chồng chất (chạy nền,
   // không ảnh hưởng hiển thị — web đã đọc bảng riêng). Lần làm mới sau thử lại.
-  const ac = new AbortController()
-  const tm = setTimeout(() => ac.abort(), 35000)
+  const deadline = taoSignalHan(signal, timeoutMs)
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/capnhat-phut-8h`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-bms-token': await layWebhookToken(signal) },
-      signal: signal || ac.signal,
+      headers: { 'Content-Type': 'application/json', 'x-bms-token': await layWebhookToken(deadline.signal) },
+      signal: deadline.signal,
     })
     const j = await res.json().catch(() => ({}))
     const status = typeof j?.status === 'string' ? j.status : null
@@ -1360,7 +1389,7 @@ export async function capNhatPhut8h(signal) {
   } catch (e) {
     return { ok: false, status: null, soPhong: null, soDiem: null, soLoiPhong: null, error: (e && e.name === 'AbortError') ? 'ABORT' : 'NETWORK' }
   } finally {
-    clearTimeout(tm)
+    deadline.dispose()
   }
 }
 
