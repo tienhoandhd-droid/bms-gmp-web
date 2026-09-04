@@ -13,7 +13,7 @@ export default function MobileBottomNav({ tab, setTab, role, badges = {}, onMoTh
   const themActive = conLai.some((it) => it.k === tab);
 
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-line pb-[env(safe-area-inset-bottom)]" aria-label="Điều hướng chính">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-line pb-[env(safe-area-inset-bottom)]" aria-label="Điều hướng nhanh">
       <div className="grid" style={{ gridTemplateColumns: `repeat(${chinh.length + (conLai.length ? 1 : 0)}, 1fr)` }}>
         {chinh.map((it) => {
           const Icon = it.icon;

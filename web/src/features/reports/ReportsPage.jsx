@@ -70,8 +70,8 @@ function ReportsPage({ ai, aiRows = null }) {
       <Card className="p-6"><SectionTitle icon={Mail} hint="báo cáo quản trị — kỳ liền trước">Gửi lại báo cáo (email)</SectionTitle>
         <p className="text-[12px] text-muted mt-3">Dùng khi cần gửi lại báo cáo của kỳ đã qua. Hệ thống tổng hợp số liệu đo, lập báo cáo PDF và gửi email theo danh sách người nhận đã cấu hình.</p>
         <div className="mt-4 flex items-center gap-3 flex-wrap">
-          <label className="text-[12px] uppercase text-muted font-semibold">Kỳ báo cáo</label>
-          <select value={kyBu} onChange={(e) => setKyBu(e.target.value)} className={sel}>
+          <label htmlFor="ky-bao-cao-bu" className="text-[12px] uppercase text-muted font-semibold">Kỳ báo cáo</label>
+          <select id="ky-bao-cao-bu" value={kyBu} onChange={(e) => setKyBu(e.target.value)} className={sel}>
             {KY_BU.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
           </select>
           <button onClick={guiBu} disabled={guiTT === "DANG_GUI" || !wf5Url}

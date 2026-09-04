@@ -40,17 +40,18 @@ function AiSections({ text }) {
     const parseRow = (r) => r.slice(1, -1).split("|").map((c) => c.trim());
     const laNgan = (cells) => cells.every((c) => /^[-: ]*$/.test(c));
     return (
-      <div key={idx} className={`rounded-xl ring-1 ${m.ring} ${m.bg} p-3.5`}>
-        <div className="flex items-center gap-2 mb-1.5"><Icon className="w-4 h-4 shrink-0" style={{ color: m.c }} strokeWidth={1.9} /><h5 className="text-[12px] font-bold uppercase" style={{ color: m.c }}>{hienTitle(title)}</h5></div>
+      <div key={`${title}-${idx}`} className={`rounded-xl ring-1 ${m.ring} ${m.bg} p-3.5`}>
+        <div className="flex items-center gap-2 mb-1.5"><Icon className="w-4 h-4 shrink-0" style={{ color: m.c }} strokeWidth={1.9} /><h3 className="text-[12px] font-bold uppercase" style={{ color: m.c }}>{hienTitle(title)}</h3></div>
         <div className="space-y-1.5">{khoi.map((k, j) => {
           if (k.kind === "table") {
             const rows = k.rows.map(parseRow).filter((cells) => !laNgan(cells));
             if (!rows.length) return null;
             const [head, ...than] = rows;
             return (
-              <div key={j} className="overflow-x-auto rounded-lg ring-1 ring-line/80 bg-surface/70 my-1">
+              <div key={j} tabIndex={0} role="region" aria-label={`Bảng ${hienTitle(title)}, cuộn ngang để xem thêm`} className="overflow-x-auto rounded-lg ring-1 ring-line/80 bg-surface/70 my-1">
                 <table className="w-full text-[12px]">
-                  <thead><tr className="text-left text-[12px] uppercase text-muted bg-subtle/80">{head.map((c, i) => <th key={i} className="py-1.5 px-2.5 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
+                  <caption className="sr-only">Bảng số liệu mục {hienTitle(title)}</caption>
+                  <thead><tr className="text-left text-[12px] uppercase text-muted bg-subtle/80">{head.map((c, i) => <th key={`${c}-${i}`} scope="col" className="py-1.5 px-2.5 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
                   <tbody>{than.map((r, ri) => <tr key={ri} className="border-t border-line">{r.map((c, ci) => <td key={ci} className={`py-1.5 px-2.5 ${ci === 0 ? "font-medium text-body" : "text-body tabular-nums"}`}>{c}</td>)}</tr>)}</tbody>
                 </table>
               </div>

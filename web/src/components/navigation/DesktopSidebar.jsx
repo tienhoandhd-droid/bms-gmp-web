@@ -20,7 +20,7 @@ export default function DesktopSidebar({ tab, setTab, role, badges = {} }) {
   });
 
   return (
-    <aside className={`hidden lg:flex flex-col shrink-0 sticky top-0 h-screen border-r border-line bg-surface ${gon ? "w-[68px]" : "w-[232px]"}`}>
+    <aside aria-label="Thanh bên điều hướng" className={`hidden lg:flex flex-col shrink-0 sticky top-0 h-screen border-r border-line bg-surface ${gon ? "w-[68px]" : "w-[232px]"}`}>
       <div className={`flex items-center gap-2.5 px-3.5 h-16 border-b border-line ${gon ? "justify-center px-0" : ""}`}>
         <CpcLogo className="h-9 w-9 shrink-0" />
         {!gon && (

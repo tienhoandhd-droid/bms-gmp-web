@@ -758,6 +758,8 @@ export default function AppShell() {
 
   return (
     <div className="min-h-screen lg:flex" style={{ background: PAGE_BG, color: "var(--text-default)", fontFamily: "'Inter','Montserrat',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+      {/* Đợt B: skip-link WCAG 2.4.1 — chỉ hiện khi nhận focus bàn phím */}
+      <a href="#noi-dung-chinh" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[70] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-body focus:ring-2 focus:ring-[var(--focus)]">Bỏ qua điều hướng, tới nội dung chính</a>
       {/* Phase A (báo cáo 9): sidebar desktop + bottom-nav mobile thay dải 10 tab; bỏ blob trang trí. */}
       <DesktopSidebar tab={tab} setTab={setTab} role={role} badges={{ events: p12Open }} />
       <div className="relative flex-1 min-w-0 max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-24 lg:pb-6">
@@ -778,6 +780,7 @@ export default function AppShell() {
             {user ? <div className="flex items-center gap-2.5 rounded-2xl bg-surface pl-2 pr-2 ring-1 ring-line h-[50px]" style={cardShadow}><div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: "var(--primary-solid)" }}>{user.name[0]}</div><div className="leading-tight"><p className="text-xs font-semibold" style={{ color: "var(--text-default)" }}>{user.name}</p><p className="text-[12px] font-medium" style={{ color: "var(--primary)" }}>{ROLE_VI[user.role] || user.role}</p></div><button onClick={() => setPwOpen(true)} className="ml-1 rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đổi mật khẩu"><KeyRound className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => { setUser(null); if (isLive) authDangXuat(); }} className="rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đăng xuất"><LogOut className="w-4 h-4" strokeWidth={1.8} /></button></div>
               : <button onClick={() => setLoginOpen(true)} className="flex items-center gap-2 rounded-2xl px-4 text-sm font-semibold text-white h-[50px]" style={{ background: "var(--primary-solid)", ...cardShadow }}><LogIn className="w-4 h-4" strokeWidth={1.8} /> Đăng nhập</button>}
           </div>
+          <div className="w-full md:hidden -mt-1"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} /></div>
         </header>
 
         {/* Báo cáo (10): bình thường nằm GỌN trong header; chỉ bất thường mới có ribbon riêng */}
@@ -786,12 +789,11 @@ export default function AppShell() {
             <SystemHealthStrip isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} />
           </div>
         )}
-        <div className="mt-2 md:hidden"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} /></div>
 
         <MobileBottomNav tab={tab} setTab={setTab} role={role} badges={{ events: p12Open }} onMoThem={() => setSheetThem(true)} />
         <MoreNavigationSheet open={sheetThem} onClose={() => setSheetThem(false)} tab={tab} setTab={setTab} role={role} />
 
-        <main className="mt-6">
+        <main id="noi-dung-chinh" tabIndex={-1} className="mt-6 outline-none">
           {/* 16/07 (user): TẠM ẨN banner "Việc cần xử lý" — chưa cần trong giai đoạn triển khai.
               Bật lại: đổi HIEN_VIEC_CUA_BAN = true (component + dữ liệu giữ nguyên). */}
           {HIEN_VIEC_CUA_BAN && isLive && user && role && <ViecCuaBan viecCuaToi={viecCuaToi} cumChoToi={cumChoToi} onXuLy={openApproval} onGhiKetLuan={ghiKetLuanCum} />}
@@ -840,7 +842,7 @@ export default function AppShell() {
                     {dat.length > 0 && <div className="mt-4"><p className="px-1 mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted">Đang đạt · {dat.length} phòng</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{dat.map((r) => <RoomSummaryCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={null} />)}</div></div>}
                   </>);
                 })()}</div>
-                <aside className="space-y-5">
+                <aside className="space-y-5" aria-label="Cảnh báo hệ thống">
                   <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{duLieuLoi ? <div className="rounded-2xl bg-danger-soft ring-1 ring-danger-line px-3 py-3 text-[12px] text-danger"><b>Không xác minh được trạng thái hệ thống.</b><p className="text-[12px] text-danger/80 mt-1">Máy chủ không trả lời. Đây KHÔNG có nghĩa là hệ thống đang bình thường — hãy kiểm tra nguồn dữ liệu và máy chủ (chi tiết ở Cài đặt → Hệ thống).</p></div> : systemAlerts === null ? <div className="h-20 rounded-2xl bg-subtle animate-pulse" />  : systemAlerts.length === 0 ? <p className="text-[12px] text-muted py-2">Không có cảnh báo hệ thống nào.</p>  : systemAlerts.map((a, i) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={i} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-line/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-body font-medium">{a.text}</p><p className="text-[12px] text-muted mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
                 </aside>
               </div>
@@ -983,7 +985,7 @@ export default function AppShell() {
                 {locChip("ALL", "Tất cả", evtKhu === "ALL", () => { setEvtKhu("ALL"); setEvtAhu("ALL"); })}
                 {(khuChoPhep || DS_KHU).map((k) => locChip(k, `Khu ${k}`, evtKhu === k, () => { setEvtKhu(k); setEvtAhu("ALL"); }))}
                 {ahuPairs.length > 0 && (
-                  <select value={evtAhu === "ALL" ? "ALL" : `${evtKhu}|${evtAhu}`} onChange={(e) => { const v = e.target.value; if (v === "ALL") { setEvtAhu("ALL"); } else { const [k, a] = v.split("|"); setEvtKhu(k); setEvtAhu(a); } }} className="rounded-xl bg-surface ring-1 ring-line px-3 py-1.5 text-[12px] text-body outline-none ml-1">
+                  <select aria-label="Lọc theo AHU" value={evtAhu === "ALL" ? "ALL" : `${evtKhu}|${evtAhu}`} onChange={(e) => { const v = e.target.value; if (v === "ALL") { setEvtAhu("ALL"); } else { const [k, a] = v.split("|"); setEvtKhu(k); setEvtAhu(a); } }} className="rounded-xl bg-surface ring-1 ring-line px-3 py-1.5 text-[12px] text-body outline-none ml-1">
                     <option value="ALL">AHU: tất cả</option>
                     {ahuPairs.map((p) => { const [k, a] = p.split("|"); return <option key={p} value={p}>{evtKhu === "ALL" ? `Khu ${k} · ${a}` : a}</option>; })}
                   </select>
@@ -1013,7 +1015,7 @@ export default function AppShell() {
                   return (
                     <React.Fragment key={inc.id}>
                       {moCum && <p className="pt-2 pb-0.5 px-1 text-[12px] font-semibold uppercase tracking-wider text-muted">{cumAhu(inc)}</p>}
-                      <div className={`rounded-2xl ring-1 ring-line bg-surface p-3 ${inc.silenced ? "opacity-60" : ""}`}>
+                      <div className={`rounded-2xl ring-1 ring-line bg-surface p-3 ${inc.silenced ? "bg-subtle/60" : ""}`}>
                         <div className="flex items-center justify-between gap-2">
                           <span className="min-w-0 truncate"><b style={{ color: "var(--text-strong)" }}>{inc.id}</b><span className="text-body"> · {inc.room}</span>{inc.cumHienThi && <span className="ml-1.5 rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] font-medium text-muted tabular-nums">{inc.cumHienThi}</span>}</span>
                           <span className="shrink-0 flex items-center gap-1.5"><MucBadge p={inc.priority} /><span className="text-[12px] text-warning font-medium tabular-nums">{inc.duration}h</span></span>
@@ -1042,7 +1044,7 @@ export default function AppShell() {
                 })}
               </div>
               {/* ═══ DESKTOP (md+): bảng 7 CỘT (báo cáo 10) — chi tiết còn lại trong drawer ═══ */}
-              <div className="hidden md:block overflow-x-auto"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Mức độ", "Sự cố", "Phòng / AHU", "Hiện trạng", "Thời gian", "Phụ trách", "Thao tác"].map((h) => <th key={h} className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
+              <div className="hidden md:block overflow-x-auto"><table className="w-full text-[13px]"><caption className="sr-only">Sự cố đang xử lý — nhóm theo khu và AHU</caption><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Mức độ", "Sự cố", "Phòng / AHU", "Hiện trạng", "Thời gian", "Phụ trách", "Thao tác"].map((h) => <th key={h} scope="col" className="py-2.5 px-3 font-semibold">{h}</th>)}</tr></thead>
                 <tbody>{incSorted.map((inc, idx) => {
                   const { terminal, myActs, choAi } = tinhNut(inc);
                   const moCum = idx === 0 || cumAhu(incSorted[idx - 1]) !== cumAhu(inc);
@@ -1056,7 +1058,8 @@ export default function AppShell() {
                         {cumAhu(inc)} <span className="text-muted font-normal normal-case tracking-normal">· {soTrongCum} sự cố</span>
                       </td>
                     </tr>)}
-                  <tr onClick={() => setIncChiTiet(inc)} className={`border-t border-line hover:bg-info-soft/40 transition cursor-pointer ${inc.silenced ? "opacity-60" : ""}`}>
+                  <tr onClick={() => setIncChiTiet(inc)} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIncChiTiet(inc); } }} aria-label={`Xem chi tiết sự cố ${inc.id}`}
+                    className={`border-t border-line hover:bg-info-soft/40 focus-visible:bg-info-soft/40 transition cursor-pointer ${inc.silenced ? "bg-subtle/60" : ""}`}>
                     <td className="py-3 px-3"><MucBadge p={inc.priority} stack /></td>
                     <td className="py-3 px-3"><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{inc.id}</span>{inc.cumHienThi && <span className="ml-1.5 rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] font-medium text-body tabular-nums">{inc.cumHienThi}</span>}<span className="block text-[12px] text-muted mt-0.5">{inc.sensor}</span></td>
                     <td className="py-3 px-3">{inc.room}{(() => { const kh = [incKhu(inc), incAhu(inc)].filter(Boolean).join(" · "); return kh ? <span className="block text-[12px] text-muted">{kh}</span> : null; })()}</td>
@@ -1120,7 +1123,8 @@ export default function AppShell() {
                   {khungDongMo && (
                     <div className="mt-3 overflow-x-auto">
                       <table className="w-full min-w-[940px] text-[12px]">
-                        <thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Chỉ tiêu", "Đóng lúc", "Cách đóng", "Bởi", "Lý do", ""].map((h, i) => <th key={i} className="py-2 px-3 font-semibold">{h}</th>)}</tr></thead>
+                        <caption className="sr-only">Sự cố đã đóng gần đây</caption>
+                        <thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Mã", "Cụm", "Phòng", "Chỉ tiêu", "Đóng lúc", "Cách đóng", "Bởi", "Lý do", "Thao tác"].map((h) => <th key={h} scope="col" className="py-2 px-3 font-semibold">{h === "Thao tác" ? <span className="sr-only">{h}</span> : h}</th>)}</tr></thead>
                         <tbody>{suCoDongXem.map((r) => {
                           const act = (!user || !luatSanSang) ? null : nutChoVaiTro(dsNut, r.trang_thai, role, true)[0] || null;
                           return (
@@ -1220,7 +1224,7 @@ export default function AppShell() {
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <label className="relative flex-1 min-w-[240px]">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" strokeWidth={1.8} />
-                    <input value={auditConfigSearch} onChange={(e) => setAuditConfigSearch(e.target.value)} placeholder="Tìm người thực hiện, thời gian hoặc nội dung thay đổi…" className="w-full rounded-xl bg-subtle py-2.5 pl-9 pr-3 text-[13px] text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line" />
+                    <input aria-label="Tìm trong nhật ký cấu hình" value={auditConfigSearch} onChange={(e) => setAuditConfigSearch(e.target.value)} placeholder="Tìm người thực hiện, thời gian hoặc nội dung thay đổi…" className="w-full rounded-xl bg-subtle py-2.5 pl-9 pr-3 text-[13px] text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line" />
                   </label>
                   {auditConfigSearch && <button onClick={() => setAuditConfigSearch("")} className="rounded-xl bg-surface px-3 py-2 text-[12px] font-medium text-body ring-1 ring-line hover:bg-subtle">Xóa tìm kiếm</button>}
                 </div>
@@ -1249,7 +1253,7 @@ export default function AppShell() {
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <label className="relative flex-1 min-w-[240px]">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" strokeWidth={1.8} />
-                    <input value={auditSopSearch} onChange={(e) => setAuditSopSearch(e.target.value)} placeholder="Tìm SOP, phạm vi áp dụng, sai lệch hoặc CAPA…" className="w-full rounded-xl bg-subtle py-2.5 pl-9 pr-3 text-[13px] text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line" />
+                    <input aria-label="Tìm trong danh sách SOP" value={auditSopSearch} onChange={(e) => setAuditSopSearch(e.target.value)} placeholder="Tìm SOP, phạm vi áp dụng, sai lệch hoặc CAPA…" className="w-full rounded-xl bg-subtle py-2.5 pl-9 pr-3 text-[13px] text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line" />
                   </label>
                   {[["ALL", "Tất cả"], ["DEV", "Có sai lệch"], ["CAPA", "Có CAPA"]].map(([k, label]) => (
                     <button key={k} onClick={() => setAuditSopFilter(k)} className={`rounded-xl px-3 py-2 text-[12px] font-medium ring-1 transition ${auditSopFilter === k ? "text-white ring-transparent" : "bg-surface text-body ring-line hover:bg-subtle"}`} style={auditSopFilter === k ? { backgroundColor: "var(--primary-solid)" } : {}}>{label}</button>
@@ -1316,11 +1320,11 @@ export default function AppShell() {
                 <div className="rounded-2xl bg-subtle ring-1 ring-line p-4 mt-5">
                   <div className="flex items-center justify-between gap-2"><label className="text-[12px] font-semibold text-body">Vượt ngưỡng khi OOS 1 giờ &gt;</label><span className="text-[16px] font-bold tabular-nums text-danger">{cfgHT.warn}<span className="text-[12px] text-muted font-normal">/60</span></span></div>
                   <p className="text-[12px] text-muted mt-0.5">Từ hoặc dưới mức này, phòng coi như <b>kiểm soát tốt</b> và sự cố đang mở sẽ <b>tự đóng</b>.</p>
-                  <input type="range" min="0" max="60" value={cfgHT.warn} disabled={!canManage} onChange={(e) => { setCfgNhap({ ...cfgHT, warn: Number(e.target.value) }); setMoPhong(null); }} className="w-full mt-3 accent-primarytk-solid disabled:opacity-50" />
+                  <input type="range" aria-label="Ngưỡng vượt khi số điểm lỗi trong 1 giờ lớn hơn" aria-valuetext={`${cfgHT.warn} trên 60 điểm`} min="0" max="60" value={cfgHT.warn} disabled={!canManage} onChange={(e) => { setCfgNhap({ ...cfgHT, warn: Number(e.target.value) }); setMoPhong(null); }} className="w-full mt-3 accent-primarytk-solid disabled:opacity-50" />
                 </div>
                 <div className="rounded-2xl bg-danger-soft/60 ring-1 ring-danger-line p-4 mt-4 flex items-center justify-between flex-wrap gap-3">
                   <div><label className="text-[12px] font-semibold text-danger">Đã vượt ngưỡng — GỬI MAIL khi 10 phút cuối có ≥</label><p className="text-[12px] text-muted mt-0.5">Ít hơn mức này nghĩa là 10 phút cuối đã về dải: sự cố vẫn mở và vẫn hiện ở tab Sự cố, nhưng xếp <b>Chú ý — theo dõi</b> và <b>không gửi mail</b>, vì không có gì để xử lý ngay trong nhịp này.</p></div>
-                  <div className="flex items-center gap-2"><input type="number" min="0" max="10" value={cfgHT.action} disabled={!canManage} onChange={(e) => { setCfgNhap({ ...cfgHT, action: Number(e.target.value) }); setMoPhong(null); }} className="w-20 rounded-xl bg-surface ring-1 ring-danger-line px-3 py-2 text-sm text-center font-bold disabled:bg-subtle" /><span className="text-sm text-muted">/10 điểm</span></div>
+                  <div className="flex items-center gap-2"><input type="number" aria-label="Số điểm lỗi tối thiểu trong 10 phút cuối để gửi email" min="0" max="10" value={cfgHT.action} disabled={!canManage} onChange={(e) => { setCfgNhap({ ...cfgHT, action: Number(e.target.value) }); setMoPhong(null); }} className="w-20 rounded-xl bg-surface ring-1 ring-danger-line px-3 py-2 text-sm text-center font-bold disabled:bg-subtle" /><span className="text-sm text-muted">/10 điểm</span></div>
                 </div>
 
                 {/* ③ Không thể chỉnh nhầm bằng một cú kéo chuột. Xem tác động trên 7 ngày
@@ -1390,7 +1394,7 @@ export default function AppShell() {
                     {[["DP", "Chênh áp"], ["RH", "Độ ẩm"], ["T", "Nhiệt độ"]].map(([k, ten]) => (
                       <div key={k} className="rounded-xl bg-surface ring-1 ring-line p-3">
                         <div className="text-[12px] font-medium text-body mb-1.5">{ten} <span className="text-muted">({k})</span></div>
-                        <select disabled={!canManage} value={(alertHuong[k] || {}).su_co || "CA_HAI"} onChange={(e) => doiHuong(k, "su_co", e.target.value)} className="w-full rounded-lg bg-subtle ring-1 ring-line px-2 py-1.5 text-[12px] disabled:bg-subtle"><option value="CA_HAI">Cả hai (dưới + trên)</option><option value="DUOI">Chỉ khi THẤP (dưới)</option><option value="TREN">Chỉ khi CAO (trên)</option></select>
+                        <select aria-label={`Hướng mở sự cố cho ${ten}`} disabled={!canManage} value={(alertHuong[k] || {}).su_co || "CA_HAI"} onChange={(e) => doiHuong(k, "su_co", e.target.value)} className="w-full rounded-lg bg-subtle ring-1 ring-line px-2 py-1.5 text-[12px] disabled:bg-subtle"><option value="CA_HAI">Cả hai (dưới + trên)</option><option value="DUOI">Chỉ khi THẤP (dưới)</option><option value="TREN">Chỉ khi CAO (trên)</option></select>
                       </div>
                     ))}
                   </div>

@@ -57,7 +57,8 @@ jobs:
           npm run check:copy
           npm run check:contrast
       # Bộ kiểm runtime: build bản demo (env rỗng) rồi duyệt 10 tab × 2 theme × 3 viewport
-      # bằng Chrome thật — bắt pageerror, tràn ngang, dark kẹt light, lộ thuật ngữ hạ tầng.
+      # bằng Chrome thật — bắt pageerror, tràn ngang, dark kẹt light, lộ thuật ngữ hạ tầng,
+      # và (đợt B 04/09/2026) axe-core WCAG 2.2 AA: 0 vi phạm critical/serious/moderate.
       - name: Bộ kiểm UX/UI runtime (test:ui)
         run: |
           npx puppeteer browsers install chrome

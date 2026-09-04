@@ -87,13 +87,16 @@ function FormDangNhap({ onXong }) {
     <Khung>
       <DauTrang phu="Đăng nhập bằng tài khoản được phân công" />
       <form onSubmit={guiDi} className="mt-4 space-y-3">
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required
-          placeholder="Email" autoComplete="username"
-          className="w-full rounded-xl bg-subtle ring-1 ring-line px-3 py-2.5 text-sm" />
-        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} required
-          placeholder="Mật khẩu" autoComplete="current-password"
-          className="w-full rounded-xl bg-subtle ring-1 ring-line px-3 py-2.5 text-sm" />
-        {loi && <p className="text-[13px] text-danger">{loi}</p>}
+        {/* Đợt B 04/09/2026: nhãn thật thay placeholder (WCAG 1.3.1) + lỗi có role=alert */}
+        <label htmlFor="tt-email" className="block text-[12px] font-medium text-body">Email công việc
+          <input id="tt-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required
+            placeholder="email@cpc1hn.vn" autoComplete="username" aria-invalid={loi ? true : undefined}
+            className="mt-1 w-full rounded-xl bg-subtle ring-1 ring-line px-3 py-2.5 text-sm font-normal" /></label>
+        <label htmlFor="tt-mat-khau" className="block text-[12px] font-medium text-body">Mật khẩu
+          <input id="tt-mat-khau" type="password" value={pw} onChange={(e) => setPw(e.target.value)} required
+            autoComplete="current-password" aria-invalid={loi ? true : undefined}
+            className="mt-1 w-full rounded-xl bg-subtle ring-1 ring-line px-3 py-2.5 text-sm font-normal" /></label>
+        {loi && <p role="alert" className="text-[13px] text-danger">{loi}</p>}
         <button type="submit" disabled={dang}
           className="w-full rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-40" style={{ backgroundColor: TEAL }}>
           {dang ? 'Đang đăng nhập…' : 'Đăng nhập & tiếp tục'}
