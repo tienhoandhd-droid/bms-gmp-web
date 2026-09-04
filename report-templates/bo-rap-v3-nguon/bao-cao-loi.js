@@ -822,7 +822,7 @@ function svgDuongNgay(chuoi, nhan) {
     diem += '<circle cx="' + so(x(i), 1) + '" cy="' + so(y(p.ty_le), 1) + '" r="'
          + (pts.length > 14 ? 2.2 : 3.4) + '" fill="' + MAU.nhan + '" stroke="#fff" stroke-width="1.2">'
          + '<title>' + ngayNgan(p.ngay) + ': ' + phanTram(p.ty_le) + '</title></circle>';
-    if (i % buoc === 0 || i === pts.length - 1) {
+    if (i % buoc === 0 || (i === pts.length - 1 && i % buoc >= buoc / 2)) {
       diem += '<text x="' + so(x(i), 1) + '" y="' + (H - 8) + '" text-anchor="middle" class="svg-truc">'
             + ngayNgan(p.ngay) + '</text>';
     }
@@ -918,7 +918,7 @@ function svgDaiGioiHan(o) {
       diem += '<circle cx="' + so(x(i), 1) + '" cy="' + so(y(c.min), 1) + '" r="2.6" fill="#fff" stroke="'
            + MAU.mo + '" stroke-width="1.2" stroke-dasharray="1.5 1.5"/>';
     }
-    if (i % buoc === 0 || i === pts.length - 1) {
+    if (i % buoc === 0 || (i === pts.length - 1 && i % buoc >= buoc / 2)) {
       nhanNgay += '<text x="' + so(x(i), 1) + '" y="' + (H - 7) + '" text-anchor="middle" class="svg-truc">'
                 + ngayNgan(c.ngay) + '</text>';
     }
@@ -1117,7 +1117,7 @@ function svgXuHuongDai(chuoi, duBao) {
   let nhan = '';
   const buoc = Math.max(1, Math.ceil(ds.length / 8));
   ds.forEach(function (c, i) {
-    if (i % buoc === 0 || i === ds.length - 1) {
+    if (i % buoc === 0 || (i === ds.length - 1 && i % buoc >= buoc / 2)) {
       nhan += '<text x="' + so(x(i), 1) + '" y="' + (H - 8) + '" text-anchor="middle" class="svg-truc">'
             + ngayNgan(c.ngay) + '</text>';
     }
@@ -1186,7 +1186,7 @@ function svgBanDo(phongs, ngays) {
   const buoc = Math.max(1, Math.ceil(ngays.length / 16));
   let s = '';
   ngays.forEach((n, j) => {
-    if (j % buoc === 0 || j === ngays.length - 1) {
+    if (j % buoc === 0 || (j === ngays.length - 1 && j % buoc >= buoc / 2)) {
       s += '<text x="' + (L + j * oW + oW / 2) + '" y="' + (T - 7) + '" text-anchor="middle" class="svg-truc">'
          + ngayNgan(n) + '</text>';
     }
