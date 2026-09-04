@@ -4265,7 +4265,7 @@ function rapEmail(d, duBao, cfg) {
     + '</tbody></table>';
 
   const nut = c.link_dashboard
-    ? '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:18px;">'
+    ? '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px;">'
       + '<tr><td style="background:' + M.nhan + ';border-radius:8px;">'
       + '<a href="' + esc(c.link_dashboard) + '" style="display:inline-block;padding:14px 26px;'
       + 'font-family:' + F + ';font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;">'
@@ -4471,8 +4471,9 @@ function rapEmail(d, duBao, cfg) {
         +     'Bảng tra cứu</div>'
         +   '<div style="font-size:13px;color:' + M.muc2 + ';line-height:1.55;">'
         +     'Lọc theo khu, cụm và mức ưu tiên; bấm một phòng để xem số đo từng ngày. '
-        +     'Mở thẳng trong trình duyệt, không phải tải về.</div></td></tr></table>'
-        + nut)
+        +     'Mở thẳng trong trình duyệt, không phải tải về.</div>'
+        // Nút đặt ngay trong ô "Xem trên Drive" cho đúng chỗ (góp ý 04/09/2026), không để rời bên dưới.
+        +     nut + '</td></tr></table>')
 
     /* ── Chân thư ── */
     + '<tr><td class="pad" style="background:' + M.nen + ';border:1px solid ' + M.vien + ';'
