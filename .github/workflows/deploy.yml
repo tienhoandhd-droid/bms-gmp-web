@@ -36,7 +36,10 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - name: Unit tests — Chênh áp theo người xem
+      # Đợt D 04/09/2026: ESLint (no-undef, luật hook) chặn deploy — trước đây chỉ chạy tay.
+      - name: ESLint
+        run: npm run lint
+      - name: Unit tests
         run: npm run test:unit
       # GMP: KHÔNG deploy production ở chế độ demo. Thiếu secret Supabase ⇒ FAIL, không
       # âm thầm build bản demo (bản demo lên production đọc như dữ liệu thật → nguy hiểm).
@@ -57,11 +60,16 @@ jobs:
           npm run check:copy
           npm run check:contrast
       # Bộ kiểm runtime: build bản demo (env rỗng) rồi duyệt 10 tab × 2 theme × 3 viewport
-      # bằng Chrome thật — bắt pageerror, tràn ngang, dark kẹt light, lộ thuật ngữ hạ tầng.
+      # bằng Chrome thật — bắt pageerror, tràn ngang, dark kẹt light, lộ thuật ngữ hạ tầng,
+      # và (đợt B 04/09/2026) axe-core WCAG 2.2 AA: 0 vi phạm critical/serious/moderate.
       - name: Bộ kiểm UX/UI runtime (test:ui)
         run: |
           npx puppeteer browsers install chrome
           npm run test:ui
+      # Đợt E 04/09/2026: kiểm đầu-cuối luồng người dùng ở chế độ demo (bấm tab, modal + Esc, lọc, theme,
+      # bottom-nav, skip-link, trang phụ). Luồng sau đăng nhập cần tài khoản test — chưa có trong CI.
+      - name: Kiểm đầu-cuối (test:e2e)
+        run: npm run test:e2e
       # Lỗ hổng phụ thuộc mức cao (đợt A 04/09/2026): trước đây `|| true` nuốt luôn kết quả nên
       # bước này KHÔNG BAO GIỜ đỏ. Nay: bước hiện ĐỎ trên GitHub khi có lỗ hổng high, nhưng chưa
       # chặn deploy (continue-on-error) — chuyển sang chặn hẳn sau khi rà xong danh sách lần đầu.
@@ -73,6 +81,9 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_DATA_SOURCE: live
+      # Đợt D 04/09/2026: ngân sách bundle (gzip) đo trên BẢN PRODUCTION vừa build — chặn deploy nếu phình.
+      - name: Ngân sách bundle (check:bundle)
+        run: npm run check:bundle
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist

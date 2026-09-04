@@ -6,14 +6,35 @@
 //   4. Không lộ thuật ngữ hạ tầng trong văn bản render (Supabase/n8n/WF*/rpc_).
 //   5. Tap target bottom-nav mobile ≥ 40px cao.
 //   6. Focus hiển thị: phần tử đầu nhận Tab phải có outline.
+//   7. (đợt B 04/09/2026) axe-core WCAG 2.2 AA: 0 vi phạm mức critical/serious/moderate
+//      trên 10 tab × 2 theme × 2 viewport (1440, 390). axe tải từ cdnjs, GHIM phiên bản +
+//      sha256 (không thêm devDependency); nạp qua page.evaluate nên KHÔNG bị CSP của trang chặn
+//      và lỗi CSP thật vẫn hiện. Không mạng ⇒ test FAIL rõ ràng (BMS_BO_AXE=1 để bỏ qua khi làm offline).
 // Cách chạy:  node kiemtra-ui/test-ui.mjs [baseUrl]
 //   Không truyền baseUrl → tự build demo (--mode kiemtra, env rỗng) + vite preview.
 import { spawn, execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import puppeteer from "puppeteer";
+import { createHash } from "node:crypto";
+
+const AXE_URL = "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js";
+const AXE_SHA256 = "b511cd9dec01c76f4b2ad1723b66b6db37d4c2eb4ed199076e1829d9ee7b75e3";
+async function taiAxe() {
+  if (process.env.BMS_BO_AXE === "1") { console.log("⚠ BMS_BO_AXE=1 — bỏ qua kiểm axe-core"); return null; }
+  const r = await fetch(AXE_URL);
+  if (!r.ok) throw new Error(`không tải được axe-core (${r.status})`);
+  const src = await r.text();
+  const h = createHash("sha256").update(src).digest("hex");
+  if (h !== AXE_SHA256) throw new Error(`axe-core sha256 lệch (${h.slice(0, 12)}…) — phiên bản CDN đổi, cập nhật AXE_SHA256 sau khi rà`);
+  return src;
+}
+// Vi phạm được coi là LỖI: critical/serious/moderate. "minor" và best-practice chỉ cảnh báo.
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 const GOC = new URL("..", import.meta.url).pathname;
 const TABS = ["home", "tasks", "events", "recent", "sensors", "trend", "reports", "audit", "recipients", "settings"];
+// Đợt D 04/09/2026: kiểm cả 3 trang ngoài dashboard (trước đây là vùng mù): bấm từ email, đặt lại mật khẩu, màn treo tường.
+const TRANG = [...TABS.map((t) => ({ ten: t, url: `/?tab=${t}` })), { ten: "action", url: "/action.html" }, { ten: "datlai", url: "/datlai.html" }, { ten: "tv", url: "/?tv=1" }];
 const VIEWPORTS = [[1440, 900], [768, 1024], [390, 844]];
 const CAM_RUNTIME = ["Supabase", "n8n", "WF1", "WF5", "WF6", "WF7", "WF8", "rpc_", "webhook"];
 
@@ -43,6 +64,7 @@ const loi = [];
 function ghi(msg) { loi.push(msg); console.log("❌ " + msg); }
 
 try {
+  const axeSrc = await taiAxe();
   await moServer();
   const browser = await puppeteer.launch({ executablePath: await timChrome(), headless: "new", args: ["--no-sandbox"] });
   for (const theme of ["light", "dark"]) {
@@ -54,10 +76,10 @@ try {
     await page.evaluateOnNewDocument((t) => { try { localStorage.setItem("bms-theme", t); } catch {} }, theme);
     for (const [w, h] of VIEWPORTS) {
       await page.setViewport({ width: w, height: h });
-      for (const tab of TABS) {
+      for (const { ten: tab, url } of TRANG) {
         let taiOk = false;
         for (let lan = 0; lan < 2 && !taiOk; lan++) {
-          try { await page.goto(`${base}/?tab=${tab}`, { waitUntil: "domcontentloaded", timeout: 45000 }); taiOk = true; }
+          try { await page.goto(`${base}${url}`, { waitUntil: "domcontentloaded", timeout: 45000 }); taiOk = true; }
           catch { await new Promise((r) => setTimeout(r, 800)); }
         }
         if (!taiOk) { ghi(`${theme} ${w}px ${tab}: không tải được trang`); continue; }
@@ -72,6 +94,19 @@ try {
         }, CAM_RUNTIME); } catch { ghi(`${theme} ${w}px ${tab}: evaluate thất bại (trang reload giữa chừng)`); continue; }
         if (kq.sw > w) ghi(`${theme} ${w}px ${tab}: tràn ngang (scrollWidth=${kq.sw})`);
         if (kq.cam.length) ghi(`${theme} ${w}px ${tab}: lộ thuật ngữ hạ tầng: ${kq.cam.join(", ")}`);
+        // 7. axe-core — chỉ 1440 và 390 (768 trùng kết quả, tiết kiệm thời gian CI)
+        if (axeSrc && w !== 768) {
+          try {
+            await page.evaluate(axeSrc);
+            const vi = await page.evaluate(async (tags) => {
+              const r = await window.axe.run(document, { runOnly: { type: "tag", values: tags } });
+              return r.violations
+                .filter((v) => ["critical", "serious", "moderate"].includes(v.impact))
+                .map((v) => `${v.id}(${v.impact})×${v.nodes.length}: ${v.nodes[0].html.replace(/\s+/g, " ").slice(0, 100)}`);
+            }, AXE_TAGS);
+            if (vi.length) ghi(`${theme} ${w}px ${tab}: axe — ${vi.join(" | ")}`);
+          } catch (e) { ghi(`${theme} ${w}px ${tab}: axe không chạy được — ${String(e.message || e).slice(0, 120)}`); }
+        }
         if (theme === "dark") {
           const m = kq.bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
           if (m && (+m[1] + +m[2] + +m[3]) / 3 > 128) ghi(`dark ${w}px ${tab}: nền body vẫn sáng (${kq.bg})`);
@@ -105,5 +140,5 @@ try {
 } finally {
   if (server) server.kill();
 }
-console.log(loi.length ? `✗ test:ui — ${loi.length} lỗi` : "✓ test:ui — 10 tab × 2 theme × 3 viewport đạt");
+console.log(loi.length ? `✗ test:ui — ${loi.length} lỗi` : "✓ test:ui — 13 trang × 2 theme × 3 viewport + axe WCAG 2.2 AA đạt");
 process.exit(loi.length ? 1 : 0);

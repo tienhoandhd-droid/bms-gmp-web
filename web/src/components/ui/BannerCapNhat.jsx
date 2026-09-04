@@ -13,10 +13,10 @@ export function BannerCapNhat() {
   }, []);
   if (!hien) return null;
   return (
-    <div className="fixed inset-x-3 bottom-3 z-[60] mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-2xl sm:inset-x-auto sm:right-4">
+    <div role="status" className="fixed inset-x-3 bottom-20 lg:bottom-3 z-[60] mx-auto flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 shadow-2xl sm:inset-x-auto sm:right-4" style={{ background: "var(--anchor)", color: "var(--anchor-fg)" }}>
       <span className="text-[13px] font-medium leading-tight">Đã có bản cập nhật mới của ứng dụng.</span>
       <button onClick={() => window.location.reload()} className="ml-auto shrink-0 rounded-xl bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-strong hover:bg-subtle">Tải lại</button>
-      <button onClick={() => setHien(false)} aria-label="Để sau" className="shrink-0 text-white/50 hover:text-white">✕</button>
+      <button onClick={() => setHien(false)} aria-label="Để sau" className="shrink-0 opacity-60 hover:opacity-100 min-w-[32px] min-h-[32px]">✕</button>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 // RecipientsPage.jsx — cấu hình người nhận + luật phân tuyến (tách move-only từ App.jsx 17/08/2026).
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { AlertOctagon, Check, Clock, Settings as Cog, FileBarChart, GitBranch, Mail, Pencil, Plus, Power, Save, Trash2, X } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
 import { moTaLoi } from "../../lib/bmsClient";
@@ -26,8 +26,8 @@ function ChonAhu({ nn, dsAhu, canManage, onLuu }) {
   const nhan = daChon.length === 0 ? "Tất cả AHU" : `${daChon.length} AHU`;
   return (
     <div className="relative">
-      <button disabled={!canManage} onClick={() => setMo((v) => !v)}
-        className={`text-[12px] px-2 py-1 rounded-lg font-medium whitespace-nowrap ${daChon.length ? "bg-info-soft text-info" : "bg-subtle text-muted"} disabled:opacity-60`}>
+      <button type="button" disabled={!canManage} onClick={() => setMo((v) => !v)} aria-expanded={mo} aria-label={`AHU phụ trách của ${nn.ho_ten || nn.email}: ${nhan}`}
+        className={`text-[12px] px-2 py-1 min-h-[24px] rounded-lg font-medium whitespace-nowrap ${daChon.length ? "bg-info-soft text-info" : "bg-subtle text-muted"} disabled:opacity-60`}>
         {nhan} ▾
       </button>
       {mo && (
@@ -64,6 +64,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   const [form, setForm] = useState(null);      // form thêm/sửa người nhận báo cáo
   const goc = useRef({});                       // giá trị email đã lưu (so sánh khi blur)
   const gocDB = useRef({});                     // email/họ tên danh bạ đã lưu theo id (so sánh khi blur)
+  const idGoc = useId();                        // tiền tố id để nối <label htmlFor> ↔ <input> email hệ thống
   const flash = (ok, text) => { setTb({ ok, text }); setTimeout(() => setTb(null), 4000); };
   const napLai = async () => {
     if (!isLive) { setTai(false); return; }
@@ -170,8 +171,8 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   const emailFields = (keys) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">{keys.map((k) => (
       <div key={k} className={`rounded-2xl ring-1 p-4 ${k === "email_mat_nguon" ? "md:col-span-2 bg-danger-soft/45 ring-danger-line" : "bg-subtle ring-line"}`}>
-        <label className="text-[12px] uppercase text-muted font-semibold">{NHAN_EMAIL_LABEL[k] || k}</label>
-        <input type="text" value={emailCfg[k] || ""} disabled={!canManage} placeholder={k === "email_mat_nguon" ? "email1@cpc1hn.vn,email2@cpc1hn.vn" : "email@cpc1hn.vn"}
+        <label htmlFor={`${idGoc}-${k}`} className="text-[12px] uppercase text-muted font-semibold">{NHAN_EMAIL_LABEL[k] || k}</label>
+        <input id={`${idGoc}-${k}`} type="text" value={emailCfg[k] || ""} disabled={!canManage} placeholder={k === "email_mat_nguon" ? "email1@cpc1hn.vn,email2@cpc1hn.vn" : "email@cpc1hn.vn"}
           onChange={(e) => setEmailCfg((m) => ({ ...m, [k]: e.target.value }))}
           className="w-full mt-2 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm disabled:bg-subtle" />
         <div className="mt-2 flex items-center justify-between gap-3">
@@ -201,31 +202,34 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
           <button type="button" onClick={napLai} className="mt-3 rounded-xl bg-surface px-3.5 py-2 text-[12px] font-semibold text-danger ring-1 ring-danger-line hover:bg-danger-soft min-h-[40px]">Thử tải lại</button>
         </Card>
       )}
-      {tb &&<div className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tb.ok ? "bg-success-soft text-success ring-1 ring-success-line" : "bg-danger-soft text-danger ring-1 ring-danger-line"}`}>{tb.ok ? "✓ " : "✗ "}{tb.text}</div>}
+      {/* Thông báo lưu: screen reader phải đọc được — thành công = status (lịch sự), lỗi = alert */}
+      {tb && <div role={tb.ok ? "status" : "alert"} aria-live={tb.ok ? "polite" : undefined} className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tb.ok ? "bg-success-soft text-success ring-1 ring-success-line" : "bg-danger-soft text-danger ring-1 ring-danger-line"}`}>{tb.ok ? "✓ " : "✗ "}{tb.text}</div>}
       {!canManage && <p className="text-[12px] text-warning">Bạn đang xem ở chế độ chỉ-đọc. Cần quyền <b>QA/Quản trị</b> để chỉnh.</p>}
 
       <Card className="p-6">
         <SectionTitle icon={AlertOctagon} hint="định tuyến cảnh báo theo vai trò × khu — sự cố khu nào gửi người tích khu đó">Cảnh báo — danh bạ email (vai trò × khu)</SectionTitle>
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> :
-          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Email", "Họ tên", "Vai trò", "C1", "C4", "Q2", "AHU phụ trách", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><caption className="sr-only">Danh bạ email nhận cảnh báo theo vai trò và khu</caption><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Email", "Họ tên", "Vai trò", "C1", "C4", "Q2", "AHU phụ trách", "Hoạt động", ""].map((h, i) => <th key={i} scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h || <span className="sr-only">Thao tác</span>}</th>)}</tr></thead>
             <tbody>
               {danhBa.length === 0 && !canManage && <tr><td colSpan={9} className="py-4 text-muted italic">Chưa có địa chỉ nào trong danh bạ.</td></tr>}
+              {/* Ô nhập trong bảng không có nhãn hiển thị → aria-label gắn tên người (placeholder không tính là nhãn);
+                  nút tích khu chỉ có icon → cần aria-label + aria-pressed để biết đang bật/tắt */}
               {danhBa.map((n) => (
                 <tr key={n.id} className={`border-t border-line ${n.kich_hoat ? "" : "opacity-50"}`}>
-                  <td className="py-2 pr-4"><input type="email" value={n.email || ""} disabled={!canManage} onChange={(e) => suaDB(n.id, "email", e.target.value)} onBlur={() => blurDB(n, "email")} className="w-full min-w-[190px] rounded-xl bg-surface ring-1 ring-line px-3 py-1.5 text-[12px] font-mono disabled:bg-subtle disabled:ring-0" /></td>
-                  <td className="py-2 pr-4"><input value={n.ho_ten || ""} disabled={!canManage} placeholder="—" onChange={(e) => suaDB(n.id, "ho_ten", e.target.value)} onBlur={() => blurDB(n, "ho_ten")} className="w-full min-w-[110px] rounded-xl bg-surface ring-1 ring-line px-3 py-1.5 text-sm disabled:bg-subtle disabled:ring-0" /></td>
-                  <td className="py-2 pr-4"><select value={n.vai_tro} disabled={!canManage} onChange={(e) => luuDB({ ...n, vai_tro: e.target.value })} className="rounded-xl bg-surface ring-1 ring-line px-2 py-1.5 text-sm disabled:bg-subtle">{DS_VAI_TRO_CB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
-                  {DS_KHU.map((k) => <td key={k} className="py-2 pr-4"><button disabled={!canManage} onClick={() => toggleKhuDB(n, k)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${(n.khu_vuc || []).includes(k) ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{(n.khu_vuc || []).includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
+                  <td className="py-2 pr-4"><input type="email" aria-label={`Email của ${n.ho_ten || n.email}`} value={n.email || ""} disabled={!canManage} onChange={(e) => suaDB(n.id, "email", e.target.value)} onBlur={() => blurDB(n, "email")} className="w-full min-w-[190px] rounded-xl bg-surface ring-1 ring-line px-3 py-1.5 text-[12px] font-mono disabled:bg-subtle disabled:ring-0" /></td>
+                  <td className="py-2 pr-4"><input aria-label={`Họ tên của ${n.email}`} value={n.ho_ten || ""} disabled={!canManage} placeholder="—" onChange={(e) => suaDB(n.id, "ho_ten", e.target.value)} onBlur={() => blurDB(n, "ho_ten")} className="w-full min-w-[110px] rounded-xl bg-surface ring-1 ring-line px-3 py-1.5 text-sm disabled:bg-subtle disabled:ring-0" /></td>
+                  <td className="py-2 pr-4"><select aria-label={`Vai trò của ${n.ho_ten || n.email}`} value={n.vai_tro} disabled={!canManage} onChange={(e) => luuDB({ ...n, vai_tro: e.target.value })} className="rounded-xl bg-surface ring-1 ring-line px-2 py-1.5 text-sm disabled:bg-subtle">{DS_VAI_TRO_CB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
+                  {DS_KHU.map((k) => { const on = (n.khu_vuc || []).includes(k); return <td key={k} className="py-2 pr-4"><button type="button" aria-pressed={on} aria-label={`Khu ${k} — ${n.ho_ten || n.email}`} disabled={!canManage} onClick={() => toggleKhuDB(n, k)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${on ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{on ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>; })}
                   <td className="py-2 pr-4"><ChonAhu nn={n} dsAhu={dsAhu} canManage={canManage} onLuu={(x) => luuDB(x, "Đã lưu phân công AHU")} /></td>
-                  <td className="py-2 pr-4"><button disabled={!canManage} onClick={() => luuDB({ ...n, kich_hoat: !n.kich_hoat })} className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
-                  <td className="py-2 pr-4">{canManage && <button onClick={() => xoaDB(n.id)} className="text-danger hover:text-danger"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button>}</td>
+                  <td className="py-2 pr-4"><button type="button" disabled={!canManage} onClick={() => luuDB({ ...n, kich_hoat: !n.kich_hoat })} className={`text-[12px] px-2 py-0.5 min-h-[24px] rounded-full font-medium ${n.kich_hoat ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
+                  <td className="py-2 pr-4">{canManage && <button type="button" aria-label={`Xoá ${n.email} khỏi danh bạ`} onClick={() => xoaDB(n.id)} className="p-1 text-danger hover:text-danger"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button>}</td>
                 </tr>))}
               {canManage && (  /* hàng THÊM MỚI cuối bảng */
                 <tr className="border-t border-line bg-info-soft/50">
-                  <td className="py-2.5 pr-4"><input type="email" value={dbMoi.email} placeholder="email@cpc1hn.vn" onChange={(e) => setDbMoi({ ...dbMoi, email: e.target.value })} onKeyDown={(e) => e.key === "Enter" && themDB()} className="w-full min-w-[190px] rounded-xl bg-surface ring-1 ring-info-line px-3 py-1.5 text-[12px] font-mono" /></td>
-                  <td className="py-2.5 pr-4"><input value={dbMoi.ho_ten} placeholder="Họ tên (tuỳ chọn)" onChange={(e) => setDbMoi({ ...dbMoi, ho_ten: e.target.value })} className="w-full min-w-[110px] rounded-xl bg-surface ring-1 ring-info-line px-3 py-1.5 text-sm" /></td>
-                  <td className="py-2.5 pr-4"><select value={dbMoi.vai_tro} onChange={(e) => setDbMoi({ ...dbMoi, vai_tro: e.target.value })} className="rounded-xl bg-surface ring-1 ring-info-line px-2 py-1.5 text-sm">{DS_VAI_TRO_CB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
-                  {DS_KHU.map((k) => <td key={k} className="py-2.5 pr-4"><button onClick={() => setDbMoi({ ...dbMoi, khu_vuc: dbMoi.khu_vuc.includes(k) ? dbMoi.khu_vuc.filter((x) => x !== k) : [...dbMoi.khu_vuc, k] })} className={`w-6 h-6 rounded-lg flex items-center justify-center ${dbMoi.khu_vuc.includes(k) ? "bg-success-soft text-success" : "bg-surface ring-1 ring-line text-muted"}`}>{dbMoi.khu_vuc.includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
+                  <td className="py-2.5 pr-4"><input type="email" aria-label="Email người nhận mới" value={dbMoi.email} placeholder="email@cpc1hn.vn" onChange={(e) => setDbMoi({ ...dbMoi, email: e.target.value })} onKeyDown={(e) => e.key === "Enter" && themDB()} className="w-full min-w-[190px] rounded-xl bg-surface ring-1 ring-info-line px-3 py-1.5 text-[12px] font-mono" /></td>
+                  <td className="py-2.5 pr-4"><input aria-label="Họ tên người nhận mới (tuỳ chọn)" value={dbMoi.ho_ten} placeholder="Họ tên (tuỳ chọn)" onChange={(e) => setDbMoi({ ...dbMoi, ho_ten: e.target.value })} className="w-full min-w-[110px] rounded-xl bg-surface ring-1 ring-info-line px-3 py-1.5 text-sm" /></td>
+                  <td className="py-2.5 pr-4"><select aria-label="Vai trò người nhận mới" value={dbMoi.vai_tro} onChange={(e) => setDbMoi({ ...dbMoi, vai_tro: e.target.value })} className="rounded-xl bg-surface ring-1 ring-info-line px-2 py-1.5 text-sm">{DS_VAI_TRO_CB.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
+                  {DS_KHU.map((k) => { const on = dbMoi.khu_vuc.includes(k); return <td key={k} className="py-2.5 pr-4"><button type="button" aria-pressed={on} aria-label={`Khu ${k} — người nhận mới`} onClick={() => setDbMoi({ ...dbMoi, khu_vuc: on ? dbMoi.khu_vuc.filter((x) => x !== k) : [...dbMoi.khu_vuc, k] })} className={`w-6 h-6 rounded-lg flex items-center justify-center ${on ? "bg-success-soft text-success" : "bg-surface ring-1 ring-line text-muted"}`}>{on ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>; })}
                   <td className="py-2.5 pr-4 text-[12px] text-muted">{dbMoi.vai_tro === "MEP" ? "Phân công sau khi thêm" : "—"}</td>
                   <td className="py-2.5 pr-4 text-[12px] text-muted">Kích hoạt</td>
                   <td className="py-2.5 pr-4"><button onClick={themDB} className="text-xs font-medium text-white rounded-xl px-3 py-1.5 flex items-center gap-1" style={{ backgroundColor: "var(--danger-solid)" }}><Plus className="w-3.5 h-3.5" strokeWidth={2} /> Thêm</button></td>
@@ -239,7 +243,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
         <SectionTitle icon={Clock} hint="chỉ gửi email cảnh báo trong khung giờ của từng bộ phận — chỉ Quản trị chỉnh được">Nhắc việc — khung giờ nhận email theo bộ phận</SectionTitle>
         {!laAdmin && <p className="text-[12px] text-warning mt-2">Chỉ <b>Quản trị</b> được sửa đồng hồ. Bạn đang xem chỉ-đọc.</p>}
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> :
-          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Bộ phận", "Chế độ", "Từ", "Đến", "Ngày trong tuần", "Hiện tại", "Cập nhật"].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><caption className="sr-only">Khung giờ nhận email cảnh báo theo bộ phận</caption><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Bộ phận", "Chế độ", "Từ", "Đến", "Ngày trong tuần", "Hiện tại", "Cập nhật"].map((h, i) => <th key={i} scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
             <tbody>
               {dongHo.map((k) => (
                 <tr key={k.vai_tro} className="border-t border-line">
@@ -250,16 +254,16 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
                       {k.kich_hoat ? "Theo khung giờ" : "24/7"}
                     </button>
                   </td>
-                  <td className="py-2.5 pr-4"><input type="time" value={k.gio_tu || ""} disabled={!laAdmin || !k.kich_hoat}
+                  <td className="py-2.5 pr-4"><input type="time" aria-label={`Giờ bắt đầu — ${ROLE_VI[k.vai_tro] || k.vai_tro}`} value={k.gio_tu || ""} disabled={!laAdmin || !k.kich_hoat}
                     onChange={(e) => suaDongHo(k.vai_tro, { gio_tu: e.target.value })}
                     className="rounded-xl bg-surface ring-1 ring-line px-2.5 py-1.5 text-[12px] tabular-nums disabled:bg-subtle disabled:text-muted" /></td>
-                  <td className="py-2.5 pr-4"><input type="time" value={k.gio_den || ""} disabled={!laAdmin || !k.kich_hoat}
+                  <td className="py-2.5 pr-4"><input type="time" aria-label={`Giờ kết thúc — ${ROLE_VI[k.vai_tro] || k.vai_tro}`} value={k.gio_den || ""} disabled={!laAdmin || !k.kich_hoat}
                     onChange={(e) => suaDongHo(k.vai_tro, { gio_den: e.target.value })}
                     className="rounded-xl bg-surface ring-1 ring-line px-2.5 py-1.5 text-[12px] tabular-nums disabled:bg-subtle disabled:text-muted" /></td>
                   <td className="py-2.5 pr-4">
                     <div className="flex gap-1">{["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((nhan, i) => {
                       const d = i + 1; const on = (k.ngay || []).includes(d);
-                      return <button key={d} disabled={!laAdmin || !k.kich_hoat}
+                      return <button key={d} type="button" aria-pressed={on} disabled={!laAdmin || !k.kich_hoat}
                         onClick={() => suaDongHo(k.vai_tro, { ngay: on ? (k.ngay || []).filter((x) => x !== d) : [...(k.ngay || []), d].sort((a, b) => a - b) })}
                         className={`w-8 h-7 rounded-lg text-[12px] font-semibold ${on ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{nhan}</button>;
                     })}</div>
@@ -304,9 +308,13 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
         </div>
         {form && (
           <div className="rounded-2xl bg-info-soft/60 ring-1 ring-info-line p-4 mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <input value={form.ho_ten} onChange={(e) => setForm({ ...form, ho_ten: e.target.value })} placeholder="Họ tên" className="rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm" />
-            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" className="rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm" />
-            <input value={form.vai_tro || ""} onChange={(e) => setForm({ ...form, vai_tro: e.target.value })} placeholder="Vai trò (QA, Quản lý…)" className="rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm" />
+            {/* Nhãn thật bọc ô nhập (cùng kiểu LuatPhanTuyenCard) — placeholder không tính là nhãn */}
+            <label className="flex flex-col gap-1"><span className="text-[12px] text-muted font-medium">Họ tên</span>
+              <input value={form.ho_ten} onChange={(e) => setForm({ ...form, ho_ten: e.target.value })} placeholder="Họ tên" className="rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm" /></label>
+            <label className="flex flex-col gap-1"><span className="text-[12px] text-muted font-medium">Email</span>
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" className="rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm" /></label>
+            <label className="flex flex-col gap-1"><span className="text-[12px] text-muted font-medium">Vai trò</span>
+              <input value={form.vai_tro || ""} onChange={(e) => setForm({ ...form, vai_tro: e.target.value })} placeholder="Vai trò (QA, Quản lý…)" className="rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm" /></label>
             <div className="flex items-center gap-3 flex-wrap text-[12px] text-body">
               {[["nhan_tuan", "Tuần"], ["nhan_thang", "Tháng"], ["nhan_quy", "Quý"], ["kich_hoat", "Kích hoạt"]].map(([f, l]) => <label key={f} className="flex items-center gap-1.5"><input type="checkbox" checked={!!form[f]} onChange={(e) => setForm({ ...form, [f]: e.target.checked })} />{l}</label>)}
             </div>
@@ -317,16 +325,17 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
           </div>
         )}
         {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> :
-          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Họ tên", "Email", "Vai trò", "Tuần", "Tháng", "Quý", "C1", "C4", "Q2", "Hoạt động", ""].map((h, i) => <th key={i} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead>
+          <div className="overflow-x-auto mt-4"><table className="w-full text-[13px]"><caption className="sr-only">Người nhận báo cáo định kỳ tuần, tháng, quý theo khu</caption><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Họ tên", "Email", "Vai trò", "Tuần", "Tháng", "Quý", "C1", "C4", "Q2", "Hoạt động", ""].map((h, i) => <th key={i} scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h || <span className="sr-only">Thao tác</span>}</th>)}</tr></thead>
             <tbody>{nguoiNhan.length === 0 ? <tr><td colSpan={11} className="py-4 text-muted italic">Chưa có người nhận. Bấm “Thêm người”.</td></tr> : nguoiNhan.map((n) => (
               <tr key={n.id} className={`border-t border-line ${n.kich_hoat ? "" : "opacity-50"}`}>
                 <td className="py-2.5 pr-4 font-semibold" style={{ color: "var(--text-strong)" }}>{n.ho_ten}</td>
                 <td className="py-2.5 pr-4 text-body font-mono text-[12px]">{n.email}</td>
                 <td className="py-2.5 pr-4 text-muted">{n.vai_tro || "—"}</td>
-                {["nhan_tuan", "nhan_thang", "nhan_quy"].map((f) => <td key={f} className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleNN(n, f)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${n[f] ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n[f] ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
-                {DS_KHU.map((k) => <td key={k} className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleKhuNN(n, k)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${(n.khu_vuc || []).includes(k) ? "bg-info-soft text-info" : "bg-subtle text-muted"} disabled:opacity-60`}>{(n.khu_vuc || []).includes(k) ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
-                <td className="py-2.5 pr-4"><button disabled={!canManage} onClick={() => toggleNN(n, "kich_hoat")} className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${n.kich_hoat ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
-                <td className="py-2.5 pr-4">{canManage && <div className="flex gap-1.5"><button onClick={() => setForm({ ...n })} className="text-info hover:text-info"><Pencil className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => xoaNN(n.id)} className="text-danger hover:text-danger"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button></div>}</td>
+                {/* Nút tích chỉ có icon → aria-label + aria-pressed; nút sửa/xoá chỉ icon → aria-label + p-1 cho đủ 24px */}
+                {[["nhan_tuan", "tuần"], ["nhan_thang", "tháng"], ["nhan_quy", "quý"]].map(([f, l]) => <td key={f} className="py-2.5 pr-4"><button type="button" aria-pressed={!!n[f]} aria-label={`Nhận báo cáo ${l} — ${n.ho_ten}`} disabled={!canManage} onClick={() => toggleNN(n, f)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${n[f] ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n[f] ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>)}
+                {DS_KHU.map((k) => { const on = (n.khu_vuc || []).includes(k); return <td key={k} className="py-2.5 pr-4"><button type="button" aria-pressed={on} aria-label={`Khu ${k} — ${n.ho_ten}`} disabled={!canManage} onClick={() => toggleKhuNN(n, k)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${on ? "bg-info-soft text-info" : "bg-subtle text-muted"} disabled:opacity-60`}>{on ? <Check className="w-4 h-4" strokeWidth={2.5} /> : ""}</button></td>; })}
+                <td className="py-2.5 pr-4"><button type="button" disabled={!canManage} onClick={() => toggleNN(n, "kich_hoat")} className={`text-[12px] px-2 py-0.5 min-h-[24px] rounded-full font-medium ${n.kich_hoat ? "bg-success-soft text-success" : "bg-subtle text-muted"} disabled:opacity-60`}>{n.kich_hoat ? "Bật" : "Tắt"}</button></td>
+                <td className="py-2.5 pr-4">{canManage && <div className="flex gap-1.5"><button type="button" aria-label={`Sửa người nhận ${n.ho_ten}`} onClick={() => setForm({ ...n })} className="p-1 text-info hover:text-info"><Pencil className="w-4 h-4" strokeWidth={1.8} /></button><button type="button" aria-label={`Xoá người nhận ${n.ho_ten}`} onClick={() => xoaNN(n.id)} className="p-1 text-danger hover:text-danger"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button></div>}</td>
               </tr>))}</tbody></table></div>}
         <p className="text-[12px] text-muted mt-3">Tích 1 khu = nhận báo cáo riêng khu đó · tích ≥2 khu = nhận bản Tổng (áp dụng khi bật báo cáo theo khu). Chỉ người <b>Kích hoạt</b> mới nhận báo cáo; chưa kích hoạt ai thì hệ thống gửi về địa chỉ dự phòng (mục Địa chỉ hệ thống · Fallback). Mỗi thao tác được ghi nhật ký cấu hình.</p>
       </Card>
@@ -385,13 +394,14 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
         </button>
       </div>
       <p className="text-[12px] text-muted mt-2">Khi <b>BẬT</b>: mỗi 15 phút hệ thống quét sự cố <b>chưa xử lý</b> (mở trong 48h) khớp luật bên dưới và đã chờ đủ số phút → tự chuyển sang <b>Cơ điện</b> (ghi nhật ký, IPC vẫn nhận bản digest). Bản chất kỹ thuật (vd chênh áp nghiêm trọng = nghi lỗi AHU) không còn nằm chờ khi IPC vắng.</p>
-      {note && <p className={`mt-3 text-[12px] rounded-xl px-3 py-2 ring-1 ${note.loi ? "text-danger bg-danger-soft ring-danger-line" : "text-success bg-success-soft ring-success-line"}`}>{note.msg}</p>}
+      {note && <p role={note.loi ? "alert" : "status"} aria-live={note.loi ? undefined : "polite"} className={`mt-3 text-[12px] rounded-xl px-3 py-2 ring-1 ${note.loi ? "text-danger bg-danger-soft ring-danger-line" : "text-success bg-success-soft ring-success-line"}`}>{note.msg}</p>}
 
       {tai ? <div className="h-24 rounded-2xl bg-subtle animate-pulse mt-4" /> : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-[12.5px] border-collapse min-w-[640px]">
+            <caption className="sr-only">Luật tự phân tuyến sự cố sang Cơ điện theo loại cảm biến và mức</caption>
             <thead><tr className="text-left text-muted text-[12px] uppercase tracking-wide">
-              <th className="py-2 px-2">Loại cảm biến</th><th className="py-2 px-2">Mức</th><th className="py-2 px-2 text-right">Chờ trước (phút)</th><th className="py-2 px-2">Diễn giải</th><th className="py-2 px-2 text-center">Bật</th><th className="py-2 px-2"></th>
+              <th scope="col" className="py-2 px-2">Loại cảm biến</th><th scope="col" className="py-2 px-2">Mức</th><th scope="col" className="py-2 px-2 text-right">Chờ trước (phút)</th><th scope="col" className="py-2 px-2">Diễn giải</th><th scope="col" className="py-2 px-2 text-center">Bật</th><th scope="col" className="py-2 px-2"><span className="sr-only">Thao tác</span></th>
             </tr></thead>
             <tbody>
               {luat.map((l) => (
@@ -400,8 +410,8 @@ function LuatPhanTuyenCard({ isLive, canManage, actor }) {
                   <td className="py-2 px-2">{MUC_VI[l.muc_canh_bao] || l.muc_canh_bao}</td>
                   <td className="py-2 px-2 text-right tabular-nums">{l.cho_it_nhat_phut}′</td>
                   <td className="py-2 px-2 text-muted text-[12px] max-w-[280px]">{l.ly_do_mau}</td>
-                  <td className="py-2 px-2 text-center"><button onClick={() => doiKichHoat(l)} disabled={!canManage} className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${l.kich_hoat ? "text-success bg-success-soft" : "text-muted bg-subtle"} ${canManage ? "" : "opacity-60"}`}>{l.kich_hoat ? "bật" : "tắt"}</button></td>
-                  <td className="py-2 px-2 text-right">{canManage && <button onClick={() => xoa(l.id)} className="text-muted hover:text-danger p-1" title="Xoá luật"><Trash2 className="w-3.5 h-3.5" strokeWidth={1.8} /></button>}</td>
+                  <td className="py-2 px-2 text-center"><button type="button" aria-pressed={!!l.kich_hoat} aria-label={`Luật ${SENSOR_VI[l.loai_cam_bien] || l.loai_cam_bien} · ${MUC_VI[l.muc_canh_bao] || l.muc_canh_bao}: ${l.kich_hoat ? "đang bật" : "đang tắt"}`} onClick={() => doiKichHoat(l)} disabled={!canManage} className={`text-[12px] px-2 py-0.5 min-h-[24px] rounded-full font-medium ${l.kich_hoat ? "text-success bg-success-soft" : "text-muted bg-subtle"} ${canManage ? "" : "opacity-60"}`}>{l.kich_hoat ? "bật" : "tắt"}</button></td>
+                  <td className="py-2 px-2 text-right">{canManage && <button type="button" aria-label="Xoá luật" onClick={() => xoa(l.id)} className="text-muted hover:text-danger p-1.5" title="Xoá luật"><Trash2 className="w-3.5 h-3.5" strokeWidth={1.8} /></button>}</td>
                 </tr>
               ))}
               {luat.length === 0 && <tr><td colSpan={6} className="py-4 text-center text-muted text-[12px]">Chưa có luật nào.</td></tr>}

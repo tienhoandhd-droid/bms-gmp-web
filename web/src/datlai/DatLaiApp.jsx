@@ -12,8 +12,9 @@ import { supabase } from '../lib/bmsClient'
 import { guiEmailKhoiPhuc, datLaiMatKhauTuLink } from '../lib/auth'
 import logoCpc1hn from '../assets/logo-cpc1hn.png'
 
-const NAVY = '#1E3A56'
-const TEAL = '#0E7C6B'
+// Đợt C 04/09/2026: màu qua token thay hex — có giao diện tối.
+const NAVY = 'var(--text-strong)'
+const TEAL = 'var(--primary-solid)'
 const PAGE_BG = 'var(--bg-canvas)'
 
 // Đọc token từ hash NGAY khi nạp module rồi dọn URL (token là bí mật — không
@@ -47,7 +48,7 @@ function HuyHieu({ type = 'lock' }) {
   const ok = type === 'check'
   return (
     <div className="h-16 w-16 rounded-2xl flex items-center justify-center"
-      style={{ background: ok ? 'linear-gradient(145deg,#16b981,#0E7C6B)' : `linear-gradient(145deg,${TEAL},${NAVY})`,
+      style={{ background: ok ? 'var(--success-solid)' : 'var(--anchor)',
         boxShadow: '0 14px 28px -12px rgba(14,124,107,0.6)' }}>
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
         {PATHS[type]}
@@ -72,15 +73,17 @@ function DauTrang({ type = 'lock', tieuDe, phu }) {
 }
 
 // Ô mật khẩu có nút hiện/ẩn.
+// Đợt B 04/09/2026: nhãn thật (aria-label = placeholder cũ) — placeholder không tính là nhãn WCAG;
+// nút hiện/ẩn BỎ tabIndex={-1} để người dùng bàn phím vẫn bấm được.
 function OMatKhau({ value, onChange, placeholder, autoFocus }) {
   const [hien, setHien] = useState(false)
   return (
     <div className="relative">
       <input type={hien ? 'text' : 'password'} value={value} onChange={onChange} autoFocus={autoFocus} required
-        placeholder={placeholder} autoComplete="new-password"
+        placeholder={placeholder} aria-label={placeholder} autoComplete="new-password"
         className="w-full rounded-xl bg-subtle ring-1 ring-line px-3.5 py-3 pr-11 text-sm outline-none transition focus:bg-surface focus:ring-2 focus:ring-success-line/70" />
-      <button type="button" onClick={() => setHien((v) => !v)} tabIndex={-1}
-        aria-label={hien ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+      <button type="button" onClick={() => setHien((v) => !v)}
+        aria-label={hien ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-pressed={hien}
         className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-body">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           {hien
@@ -122,9 +125,9 @@ function FormGuiLai({ loiBanDau }) {
       {loiBanDau && <p className="mt-5 text-[12.5px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-4 py-2.5 leading-relaxed text-center">{loiBanDau} Liên kết chỉ dùng 1 lần trong ~1 giờ — gửi lại bên dưới.</p>}
       <form onSubmit={gui} className="mt-5 space-y-3">
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required
-          placeholder="Email tài khoản" autoComplete="username"
+          placeholder="Email tài khoản" aria-label="Email tài khoản" autoComplete="username"
           className="w-full rounded-xl bg-subtle ring-1 ring-line px-3.5 py-3 text-sm outline-none transition focus:bg-surface focus:ring-2 focus:ring-success-line/70" />
-        {loi && <p className="text-[13px] text-danger text-center">{loi}</p>}
+        {loi && <p role="alert" className="text-[13px] text-danger text-center">{loi}</p>}
         <button type="submit" disabled={tt === 'dang_gui'}
           className="w-full rounded-xl py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:opacity-40" style={{ backgroundColor: TEAL }}>
           {tt === 'dang_gui' ? 'Đang gửi…' : 'Gửi liên kết đặt lại'}
@@ -171,7 +174,7 @@ function FormDatLai() {
         <p className="text-[12px] text-muted -mt-1 pl-1">{mk1.length >= 8 ? <span className="text-success">✓ Đủ độ dài</span> : 'Tối thiểu 8 ký tự'}</p>
         <OMatKhau value={mk2} onChange={(e) => setMk2(e.target.value)} placeholder="Nhập lại mật khẩu mới" />
         {mk2.length > 0 && <p className={`text-[12px] -mt-1 pl-1 ${khop ? 'text-success' : 'text-danger'}`}>{khop ? '✓ Hai mật khẩu khớp' : 'Hai lần nhập chưa khớp'}</p>}
-        {loi && <p className="text-[13px] text-danger text-center">{loi}</p>}
+        {loi && <p role="alert" className="text-[13px] text-danger text-center">{loi}</p>}
         <button type="submit" disabled={dang}
           className="w-full rounded-xl py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:opacity-40" style={{ backgroundColor: TEAL }}>
           {dang ? 'Đang lưu…' : 'Đặt mật khẩu mới'}

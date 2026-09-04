@@ -1,0 +1,3 @@
+# Web nội bộ CPC1 Hà Nội — không lập chỉ mục.
+User-agent: *
+Disallow: /

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Không tìm thấy trang — Giám sát HVAC phòng sạch GMP</title>
+    <!-- Trang tĩnh do GitHub Pages trả cho đường dẫn không tồn tại (đợt C 04/09/2026).
+         Không import CSS build (đường dẫn asset băm tên đổi mỗi lần deploy) → màu ghi tay
+         theo đúng token light/dark của theme/tokens.css. -->
+    <style>
+      :root { color-scheme: light; --canvas: #E5EEF2; --surface: #FCFEFF; --line: #AFC4CE; --strong: #0A1D2B; --body: #213746; --muted: #4C6372; --primary: #0A6E68; }
+      @media (prefers-color-scheme: dark) { :root { color-scheme: dark; --canvas: #06131B; --surface: #0C202A; --line: #2A4A56; --strong: #F4F9FB; --body: #DBE7EB; --muted: #9DB4BF; --primary: #4FC3B5; } }
+      html, body { margin: 0; min-height: 100vh; background: var(--canvas); color: var(--body); font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+      main { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+      .hop { max-width: 440px; width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px 26px; box-shadow: 0 20px 60px -24px rgba(12,41,59,0.35); }
+      .ma { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+      h1 { font-size: 20px; margin: 6px 0 8px; color: var(--strong); line-height: 1.25; }
+      p { font-size: 13.5px; line-height: 1.55; margin: 0 0 16px; }
+      a.nut { display: inline-block; background: var(--primary); color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; padding: 10px 18px; border-radius: 12px; min-height: 24px; }
+      a.nut:focus-visible { outline: 2px solid #0B67B2; outline-offset: 2px; }
+      .phu { font-size: 12px; color: var(--muted); margin-top: 14px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="hop" role="region" aria-labelledby="tieu-de">
+        <div class="ma">Lỗi 404</div>
+        <h1 id="tieu-de">Không tìm thấy trang này</h1>
+        <p>Đường dẫn bạn mở không tồn tại hoặc đã đổi. Liên kết trong email cũ vẫn dùng được khi mở từ trang chính.</p>
+        <a class="nut" id="ve-trang-chinh" href="./">Về bảng giám sát</a>
+        <p class="phu">Giám sát HVAC phòng sạch · CPC1 Hà Nội</p>
+      </div>
+    </main>
+    <!-- Trang 404 được trả cho MỌI đường dẫn sâu (vd /repo/a/b/c) nên "./" có thể trỏ sai.
+         Dò thư mục gốc của ứng dụng: thử từng cấp cha cho tới khi thấy index.html. -->
+    <script>
+      (function () {
+        var nut = document.getElementById('ve-trang-chinh');
+        var phan = location.pathname.split('/').filter(Boolean);
+        // Đoạn cuối là tên file (có dấu chấm, vd 404.html) thì không phải thư mục → bỏ.
+        if (phan.length && phan[phan.length - 1].indexOf('.') !== -1) phan.pop();
+        var ungVien = [];
+        for (var i = phan.length; i >= 0; i--) ungVien.push('/' + phan.slice(0, i).join('/') + (i ? '/' : ''));
+        (function thu(k) {
+          if (k >= ungVien.length) return;
+          fetch(ungVien[k] + 'index.html', { method: 'HEAD' })
+            .then(function (r) { if (r.ok) nut.href = ungVien[k]; else thu(k + 1); })
+            .catch(function () { thu(k + 1); });
+        })(0);
+      })();
+    </script>
+  </body>
+</html>

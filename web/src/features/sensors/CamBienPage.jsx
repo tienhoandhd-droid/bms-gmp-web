@@ -1,9 +1,10 @@
 // CamBienPage.jsx — tab Cảm biến + thẻ đứng tín hiệu + drawer cụm (tách move-only từ App.jsx 17/08/2026).
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Gauge, RefreshCw } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
 import InspectorDrawer from "../../components/layout/InspectorDrawer";
+import { useHopThoai } from "../../components/ui/HopThoai";
 import { COLOR } from "../../lib/designTokens";
 import { docTenVaiTro } from "../../lib/phanQuyen";
 import { layCamBienDungHinh } from "../../lib/supabaseData";
@@ -50,19 +51,26 @@ function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
   const [phongNgua, setPhongNgua] = useState(cum.hanh_dong_phong_ngua || "");
   const [ketLuan, setKetLuan] = useState(cum.qa_ket_luan || "");
   const thieu = nguyenNhan.trim().length < 10 || khacPhuc.trim().length < 10;
+  const hopRef = useRef(null);
+  const idTieuDe = useId();
+  const idNguyenNhan = useId(); const idKhacPhuc = useId(); const idPhongNgua = useId(); const idKetLuan = useId();
+  // Giữ onDong ổn định: cha truyền arrow mới mỗi lần render, nếu đưa thẳng vào hook thì hook chạy lại và giật focus.
+  const onDongRef = useRef(onDong); onDongRef.current = onDong;
+  const dong = useCallback(() => { if (onDongRef.current) onDongRef.current(); }, []);
+  useHopThoai(hopRef, dong, dangChay);
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={onDong}>
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-surface shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-[15px] font-semibold" style={{ color: "var(--text-strong)" }}>Kết luận điều tra · {cum.ma_hien_thi}</h3>
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onDong}>
+      <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-surface shadow-2xl p-6 outline-none" onClick={(e) => e.stopPropagation()}>
+        <h3 id={idTieuDe} className="text-[15px] font-semibold" style={{ color: "var(--text-strong)" }}>Kết luận điều tra · {cum.ma_hien_thi}</h3>
         <p className="mt-1 text-[12px] text-muted leading-relaxed">{cum.ahu || "—"} · {cum.loai_cam_bien} · {cum.su_co_dang_mo} sự cố đang mở. Kết luận ghi vào cụm và <b>một dòng audit cho từng sự cố</b> thuộc cụm — không hồ sơ nào mất dấu vết.</p>
-        <label className="block mt-4 text-[12px] font-semibold uppercase tracking-wider text-muted">Nguyên nhân gốc <span className="text-danger">*</span></label>
-        <textarea className={O_TEXTAREA} rows={2} value={nguyenNhan} onChange={(e) => setNguyenNhan(e.target.value)} placeholder="Vì sao xảy ra? (ít nhất 10 ký tự)" />
-        <label className="block mt-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Hành động khắc phục <span className="text-danger">*</span></label>
-        <textarea className={O_TEXTAREA} rows={2} value={khacPhuc} onChange={(e) => setKhacPhuc(e.target.value)} placeholder="Đã/sẽ làm gì để hết lệch? (ít nhất 10 ký tự)" />
-        <label className="block mt-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Hành động phòng ngừa</label>
-        <textarea className={O_TEXTAREA} rows={2} value={phongNgua} onChange={(e) => setPhongNgua(e.target.value)} placeholder="Làm gì để không tái diễn? (bỏ trống được)" />
-        <label className="block mt-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Kết luận QA về ảnh hưởng chất lượng</label>
-        <textarea className={O_TEXTAREA} rows={2} value={ketLuan} onChange={(e) => setKetLuan(e.target.value)} placeholder="Có/không ảnh hưởng lô sản xuất, căn cứ… (bỏ trống được)" />
+        <label htmlFor={idNguyenNhan} className="block mt-4 text-[12px] font-semibold uppercase tracking-wider text-muted">Nguyên nhân gốc <span className="text-danger">*</span></label>
+        <textarea id={idNguyenNhan} className={O_TEXTAREA} rows={2} value={nguyenNhan} onChange={(e) => setNguyenNhan(e.target.value)} placeholder="Vì sao xảy ra? (ít nhất 10 ký tự)" />
+        <label htmlFor={idKhacPhuc} className="block mt-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Hành động khắc phục <span className="text-danger">*</span></label>
+        <textarea id={idKhacPhuc} className={O_TEXTAREA} rows={2} value={khacPhuc} onChange={(e) => setKhacPhuc(e.target.value)} placeholder="Đã/sẽ làm gì để hết lệch? (ít nhất 10 ký tự)" />
+        <label htmlFor={idPhongNgua} className="block mt-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Hành động phòng ngừa</label>
+        <textarea id={idPhongNgua} className={O_TEXTAREA} rows={2} value={phongNgua} onChange={(e) => setPhongNgua(e.target.value)} placeholder="Làm gì để không tái diễn? (bỏ trống được)" />
+        <label htmlFor={idKetLuan} className="block mt-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Kết luận QA về ảnh hưởng chất lượng</label>
+        <textarea id={idKetLuan} className={O_TEXTAREA} rows={2} value={ketLuan} onChange={(e) => setKetLuan(e.target.value)} placeholder="Có/không ảnh hưởng lô sản xuất, căn cứ… (bỏ trống được)" />
         <div className="mt-5 flex items-center justify-end gap-2">
           <button onClick={onDong} className="rounded-xl bg-surface px-4 py-2 text-[13px] font-medium text-body ring-1 ring-line hover:bg-subtle">Huỷ</button>
           <button disabled={thieu || dangChay} onClick={() => onLuu({ nguyenNhan, khacPhuc, phongNgua, ketLuan })}
@@ -134,15 +142,16 @@ function CamBienPage({ isLive }) {
           <p className="mt-1 text-[12px] text-muted">Mọi cảm biến đều đang gửi giá trị thay đổi bình thường.</p>
         </div>
       ) : duNguong.length > 0 && (
-        <div className="mt-4 overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Bảng cảm biến đứng tín hiệu, cuộn ngang để xem thêm" className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
+            <caption className="sr-only">Cảm biến đứng tín hiệu từ 3 giờ trở lên — {duNguong.length} điểm đo</caption>
             <thead><tr className="text-[12px] uppercase tracking-wider text-muted border-b border-line">
-              <th className="py-2 pr-4 font-semibold">Phòng</th>
-              <th className="py-2 pr-4 font-semibold">Khu · AHU</th>
-              <th className="py-2 pr-4 font-semibold">Cảm biến</th>
-              <th className="py-2 pr-4 font-semibold">Giá trị đứng</th>
-              <th className="py-2 pr-4 font-semibold">Đứng từ</th>
-              <th className="py-2 font-semibold">Thời gian đứng</th>
+              <th scope="col" className="py-2 pr-4 font-semibold">Phòng</th>
+              <th scope="col" className="py-2 pr-4 font-semibold">Khu · AHU</th>
+              <th scope="col" className="py-2 pr-4 font-semibold">Cảm biến</th>
+              <th scope="col" className="py-2 pr-4 font-semibold">Giá trị đứng</th>
+              <th scope="col" className="py-2 pr-4 font-semibold">Đứng từ</th>
+              <th scope="col" className="py-2 font-semibold">Thời gian đứng</th>
             </tr></thead>
             <tbody className="divide-y divide-line">
               {duNguong.map((r) => {
@@ -188,13 +197,19 @@ function CamBienPage({ isLive }) {
 function ModalMoLai({ row, act, dangChay, onDong, onLuu }) {
   const [lyDo, setLyDo] = useState("");
   const thieu = lyDo.trim().length < 10;
+  const hopRef = useRef(null);
+  const idTieuDe = useId();
+  const idLyDo = useId();
+  const onDongRef = useRef(onDong); onDongRef.current = onDong;
+  const dong = useCallback(() => { if (onDongRef.current) onDongRef.current(); }, []);
+  useHopThoai(hopRef, dong, dangChay);
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={onDong}>
-      <div className="w-full max-w-md rounded-3xl bg-surface shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-[15px] font-semibold" style={{ color: "var(--text-strong)" }}>Mở lại {row.ma_hien_thi} · {row.phong}</h3>
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onDong}>
+      <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-md rounded-3xl bg-surface shadow-2xl p-6 outline-none" onClick={(e) => e.stopPropagation()}>
+        <h3 id={idTieuDe} className="text-[15px] font-semibold" style={{ color: "var(--text-strong)" }}>Mở lại {row.ma_hien_thi} · {row.phong}</h3>
         <p className="mt-1 text-[12px] text-muted leading-relaxed">{row.cam_bien_vi} · đã đóng {row.dong_luc ? new Date(row.dong_luc).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"} ({row.nhan_trang_thai || row.trang_thai}). Sự cố sẽ quay lại danh sách đang mở và nhập vào cụm điều tra hiện hành.</p>
-        <label className="block mt-4 text-[12px] font-semibold uppercase tracking-wider text-muted">Lý do mở lại <span className="text-danger">*</span></label>
-        <textarea className={O_TEXTAREA} rows={3} autoFocus value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Vì sao hồ sơ này chưa thể khép? (ít nhất 10 ký tự — ghi vào audit)" />
+        <label htmlFor={idLyDo} className="block mt-4 text-[12px] font-semibold uppercase tracking-wider text-muted">Lý do mở lại <span className="text-danger">*</span></label>
+        <textarea id={idLyDo} className={O_TEXTAREA} rows={3} value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Vì sao hồ sơ này chưa thể khép? (ít nhất 10 ký tự — ghi vào audit)" />
         <div className="mt-5 flex items-center justify-end gap-2">
           <button onClick={onDong} className="rounded-xl bg-surface px-4 py-2 text-[13px] font-medium text-body ring-1 ring-line hover:bg-subtle">Huỷ</button>
           <button disabled={thieu || dangChay} onClick={() => onLuu(lyDo.trim())}

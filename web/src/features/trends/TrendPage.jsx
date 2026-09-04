@@ -4,6 +4,7 @@ import InspectorDrawer from "../../components/layout/InspectorDrawer";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Activity, AlertOctagon, AlertTriangle, Check, CheckCircle2, ChevronDown, CircleDot, ClipboardCheck, FileBarChart, Gauge, LineChart as LineIcon, Mail, Minus, Printer, Save, Search, TrendingDown, TrendingUp, Wifi } from "lucide-react";
+import { KhungLoi } from "../../components/ui/KhungLoi";
 import { Card, SectionTitle } from "../../components/ui/Card";
 import Chart from "../../components/ui/Chart";
 import { KpiCard } from "../../components/ui/KpiCard";
@@ -156,6 +157,10 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
   }, [hi, open]);
 
   const pctColor = (p) => (p == null ? "var(--text-muted)" : p < 70 ? COMPLY_BAD : p < 88 ? "var(--warning-solid)" : COMPLY_OK);
+  // Chữ % đạt dùng --warning (đậm hơn --warning-solid) để đủ tương phản 4,5:1; chấm màu vẫn giữ pctColor.
+  // Đợt B: CHỮ dùng token chữ (--danger/--warning/--success) đạt tương phản cả 2 theme;
+  // chấm/điểm màu vẫn dùng pctColor (màu biểu đồ). --danger-solid/COMPLY_BAD trên nền tối chỉ ~3:1.
+  const pctTextColor = (p) => (p == null ? "var(--text-muted)" : p < 70 ? "var(--danger)" : p < 88 ? "var(--warning)" : "var(--success)");
   const hl = (text) => {
     if (!ql) return text;
     const i = text.toLowerCase().indexOf(ql);
@@ -173,12 +178,14 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
           onFocus={() => setOpen(true)}
           onKeyDown={onKey}
           placeholder={placeholder}
+          aria-label="Tìm phạm vi theo mã hoặc tên"
           className="w-full text-[13px] text-body outline-none bg-transparent placeholder:text-muted"
         />
         {cur && cur.latest && cur.latest.compliance != null && !open && (
-          <span className="text-[12px] font-semibold tabular-nums shrink-0" style={{ color: pctColor(cur.latest.compliance) }}>{fmtPct(cur.latest.compliance)}</span>
+          <span className="text-[12px] font-semibold tabular-nums shrink-0" style={{ color: pctTextColor(cur.latest.compliance) }}>{fmtPct(cur.latest.compliance)}</span>
         )}
-        <ChevronDown className={`w-4 h-4 text-muted shrink-0 transition cursor-pointer ${open ? "rotate-180" : ""}`} strokeWidth={1.8} onClick={() => setOpen((v) => !v)} />
+        {/* Nút thật (không phải svg bấm) để có tên truy cập; tabIndex -1 vì ô nhập đã điều khiển bằng phím */}
+        <button type="button" tabIndex={-1} aria-label={open ? "Đóng danh sách" : "Mở danh sách"} onClick={() => setOpen((v) => !v)} className="shrink-0 min-w-[24px] min-h-[24px] flex items-center justify-center text-muted"><ChevronDown className={`w-4 h-4 transition ${open ? "rotate-180" : ""}`} strokeWidth={1.8} /></button>
       </div>
       {open && pos && createPortal(
         <div ref={listRef} style={{ position: "fixed", left: pos.left, top: pos.top, width: pos.width, zIndex: 9999 }} className="max-h-72 overflow-auto rounded-2xl bg-surface ring-1 ring-line shadow-2xl shadow-slate-400/30 py-1.5">
@@ -197,7 +204,7 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
                   <span className="text-[13px] text-muted"> — {hl(o.name)}</span>
                   {(o.area || o.ahu) && <span className="block text-[12px] text-muted truncate">{[o.area, o.ahu].filter(Boolean).join(" · ")}</span>}
                 </span>
-                {p != null && <span className="text-[12px] font-semibold tabular-nums shrink-0" style={{ color: pctColor(p) }}>{fmtPct(p)}</span>}
+                {p != null && <span className="text-[12px] font-semibold tabular-nums shrink-0" style={{ color: pctTextColor(p) }}>{fmtPct(p)}</span>}
                 {isSel && <Check className="w-3.5 h-3.5 text-success shrink-0" strokeWidth={2.2} />}
               </button>
             );
@@ -240,6 +247,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [duBao, setDuBao] = useState(null);           // {du_bao_dang_tin, huong, r2, ghi_chu, chuoi, du_bao[]}
   const [maTran, setMaTran] = useState(null);         // {rooms[], days[], values[][]}
   const [dbBusy, setDbBusy] = useState(false);
+  const [duBaoLoi, setDuBaoLoi] = useState(null);   // đợt C: lỗi tải dự báo — hiện khung lỗi thay vì "chưa đủ dữ liệu"
+  const [lanThuDuBao, setLanThuDuBao] = useState(0);
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, us] = await Promise.all([layWebhookAi(), layWebhookAiSau().catch(() => "")]); if (huy) return; setAiWebhook(u || ""); setAiWebhookSau(us || ""); })(); return () => { huy = true; }; }, [isLive]);
   // WF7b: URL gửi email/lưu Drive + điền sẵn người nhận email từ danh sách người nhận báo cáo.
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, ds] = await Promise.all([layWebhookWf7b(), layNguoiNhanBaoCao().catch(() => ({ rows: [] }))]); if (huy) return; setWf7bUrl(u || ""); const emails = ((ds && ds.rows) || []).map((r) => r.email).filter(Boolean); setEmailTo(emails.join(", ")); })(); return () => { huy = true; }; }, [isLive]);
@@ -344,7 +353,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     const hmId = st === "AREA" ? activeId : "ALL";
     const soNgayHm = Math.min(14, RANGE_DAYS[range] || 30);
     (async () => {
-      setDbBusy(true);
+      setDbBusy(true); setDuBaoLoi(null);
       try {
         const [fc, mt] = await Promise.all([
           layDuBaoXuHuong(st, activeId, sensor, 30, 7),
@@ -353,11 +362,11 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         if (huy) return;
         setDuBao(fc && fc.du_bao ? fc.du_bao : null);
         setMaTran(mt && mt.rooms && mt.rooms.length ? mt : null);
-      } catch { if (!huy) { setDuBao(null); setMaTran(null); } }
+      } catch (e) { if (!huy) { setDuBao(null); setMaTran(null); setDuBaoLoi(e); } }   // đợt C: không nuốt lỗi
       finally { if (!huy) setDbBusy(false); }
     })();
     return () => { huy = true; };
-  }, [isLive, activeScope.type, activeId, sensor, range]); // eslint-disable-line
+  }, [isLive, activeScope.type, activeId, sensor, range, lanThuDuBao]); // eslint-disable-line
 
   // LIVE: tải chuỗi 90 ngày cho scope đang chọn + 4 scope mini (cache theo id)
   const miniIds = useMemo(() => isLive ? [lByType("TOTAL")[0], lByType("AREA")[0], lByType("AHU")[0], lByType("ROOM")[0]].map((s) => s && s.id).filter(Boolean) : [], [isLive, liveScopes]); // eslint-disable-line
@@ -558,6 +567,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     : [findScope("ALL"), ...byType("AREA"), ...byType("AHU"), ...byType("ROOM")].map((s) => ({ ...s, latest: s.latest || {} })))
     .filter(Boolean)
     .sort((a, b) => (LEVEL_RANK[a.type] - LEVEL_RANK[b.type]) || (b.risk - a.risk) || String(a.id).localeCompare(String(b.id)));
+  // Đợt C: cột tỉ lệ 1/3/7 ngày, Δ7 và chuỗi 14 ngày chỉ có với dữ liệu thật — ẩn cả cột thay vì bày 6 cột "—".
+  const coCotNgay = riskRows.some((r) => r.dat1n != null || r.dat3n != null || r.dat7n != null || r.delta7 != null);
+  const coCotChuoi = riskRows.some((r) => Array.isArray(r.chuoi) && r.chuoi.length > 0);
 
   // #4 — Phân tích kỹ thuật của chuỗi đang xem (cho AI + bảng cạnh biểu đồ)
   const tech = useMemo(() => {
@@ -813,11 +825,11 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <div className="mt-3 rounded-2xl bg-info-soft/50 ring-1 ring-info-line px-3 py-2.5">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[12px] uppercase tracking-wider text-muted font-semibold">Từ → đến</span>
-            <input type="datetime-local" value={dtFromDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtFromDraft(e.target.value)} className={sel} />
+            <input type="datetime-local" aria-label="Từ ngày giờ" value={dtFromDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtFromDraft(e.target.value)} className={sel} />
             <span className="text-[12px] text-muted">đến</span>
-            <input type="datetime-local" value={dtToDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtToDraft(e.target.value)} className={sel} />
+            <input type="datetime-local" aria-label="Đến ngày giờ" value={dtToDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtToDraft(e.target.value)} className={sel} />
             <button onClick={() => { setDtFrom(dtFromDraft); setDtTo(dtToDraft); }} className="text-[12px] font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: "var(--primary-solid)" }}><Search className="w-3.5 h-3.5" strokeWidth={1.8} /> Áp dụng</button>
-            {(dtFrom || dtTo || dtFromDraft || dtToDraft) && <button onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }} className="text-[12px] text-muted underline">Đặt lại</button>}
+            {(dtFrom || dtTo || dtFromDraft || dtToDraft) && <button onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }} className="text-[12px] text-muted underline min-h-[24px] px-1">Đặt lại</button>}
             <span className="text-[12px] text-muted ml-1">Đang xem {view.length}/{full.length} điểm ({resLbl})</span>
           </div>
           {/* Khoảng đã chọn THIẾU dữ liệu → nói rõ (thay vì biểu đồ ngắn khó hiểu) */}
@@ -867,7 +879,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       </div>
 
       <Card className="p-6"><SectionTitle icon={FileBarChart} hint="1 / 7 / 30 / 90 ngày">Báo cáo xu hướng nhanh</SectionTitle>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">{periodCards.map((p) => <div key={p.d} className={`rounded-2xl p-4 ring-1 ${p.status === "FULL" ? "ring-success-line bg-success-soft/50" : "ring-warning-line bg-warning-soft/50"}`}><div className="flex items-center justify-between"><h4 className="text-sm font-semibold" style={{ color: "var(--text-strong)" }}>{p.d} ngày</h4><span className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${p.status === "FULL" ? "text-success bg-success-soft" : "text-warning bg-warning-soft"}`}>{p.status === "FULL" ? "ĐỦ" : "THIẾU"}</span></div><p className="text-2xl font-light mt-1.5 tabular-nums" style={{ color: "var(--text-strong)" }}>{fmtH(p.alert)}</p><p className="text-[12px] text-muted mt-1">W {fmtH(p.warn)} · C {fmtH(p.crit)}</p><p className="text-[12px] text-muted">Đạt TB {fmtPct(p.avg)} · {p.avail}/{p.d} ngày</p></div>)}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">{periodCards.map((p) => <div key={p.d} className={`rounded-2xl p-4 ring-1 ${p.status === "FULL" ? "ring-success-line bg-success-soft/50" : "ring-warning-line bg-warning-soft/50"}`}><div className="flex items-center justify-between"><h3 className="text-sm font-semibold" style={{ color: "var(--text-strong)" }}>{p.d} ngày</h3><span className={`text-[12px] px-2 py-0.5 rounded-full font-medium ${p.status === "FULL" ? "text-success bg-success-soft" : "text-warning bg-warning-soft"}`}>{p.status === "FULL" ? "ĐỦ" : "THIẾU"}</span></div><p className="text-2xl font-light mt-1.5 tabular-nums" style={{ color: "var(--text-strong)" }}>{fmtH(p.alert)}</p><p className="text-[12px] text-muted mt-1">W {fmtH(p.warn)} · C {fmtH(p.crit)}</p><p className="text-[12px] text-muted">Đạt TB {fmtPct(p.avg)} · {p.avail}/{p.d} ngày</p></div>)}</div>
       </Card>
 
       <div id="trendPrintArea" className="space-y-5">
@@ -916,7 +928,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
               if (!ks.length) return <p className="mt-4 text-[13px] text-muted">Chưa có chuỗi giá trị để dựng biểu đồ kiểm soát trong khoảng đã chọn.</p>;
               return <div className="mt-4 divide-y divide-line">{ks.map((k, idx) => (
                 <div key={k} className={idx > 0 ? "pt-6" : ""}>
-                  <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: SENSOR_COLOR[k] }} /><h4 className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>{SENSOR_META[k]?.label} ({k})</h4></div>
+                  <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: SENSOR_COLOR[k] }} /><h3 className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>{SENSOR_META[k]?.label} ({k})</h3></div>
                   <Chart type="spc" sensorKey={k} series={bands[k].series} baseline={bands[k].baseline} group={`bands-${activeId}`} h={230} />
                 </div>
               ))}</div>;
@@ -935,7 +947,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           </Card>
           {/* (2) % đạt / OOS THEO TỪNG CHỈ TIÊU */}
           <Card className="p-6"><SectionTitle icon={CircleDot} hint={`${activeScope.name} · theo từng chỉ tiêu · theo ${isHourly ? "giờ" : "ngày"}`}>② % đạt / OOS theo từng chỉ tiêu</SectionTitle>
-            <p className="text-[12px] text-muted mt-1">Tách riêng <span style={{ color: SENSOR_COLOR.DP }}>Chênh áp</span>, <span style={{ color: SENSOR_COLOR.RH }}>Độ ẩm</span>, <span style={{ color: SENSOR_COLOR.T }}>Nhiệt độ</span> để thấy chỉ tiêu nào kéo tỉ lệ đạt xuống.</p>
+            <p className="text-[12px] text-muted mt-1">Tách riêng <span className="text-success">Chênh áp</span>, <span className="text-info">Độ ẩm</span>, <span className="text-warning">Nhiệt độ</span> để thấy chỉ tiêu nào kéo tỉ lệ đạt xuống.</p>
             {sensorsPresent.length > 0 && viewMulti.length > 0 ? (<>
               <div className="mt-3"><Chart type="complyPerMetric" data={viewMulti} present={sensorsPresent} h={296} /></div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted">{sensorsPresent.map((k) => <span key={k} className="flex items-center gap-1"><span className="w-4 inline-block border-t-2" style={{ borderColor: SENSOR_COLOR[k] }} /> {SENSOR_META[k]?.label || k}</span>)}<span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: "var(--warning-line)" }} /> Ngưỡng 80%</span></div>
@@ -989,9 +1001,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
                 ];
                 return (
                   <div key={k}>
-                    <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full" style={{ background: SENSOR_COLOR[k] }} /><h4 className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>{SENSOR_META[k]?.label} ({k})</h4><span className="text-[12px] text-muted">— đánh giá cơ bản (hệ thống tính)</span></div>
+                    <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full" style={{ background: SENSOR_COLOR[k] }} /><h3 className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>{SENSOR_META[k]?.label} ({k})</h3><span className="text-[12px] text-muted">— đánh giá cơ bản (hệ thống tính)</span></div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">{evalCards.map(([kk, vv]) => <div key={kk} className="rounded-xl bg-subtle ring-1 ring-line/70 py-1.5 px-2 text-center"><p className="text-[12px] uppercase text-muted font-semibold leading-tight">{kk}</p><p className="text-[12px] font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{vv}</p></div>)}</div>
-                    <div className="overflow-auto max-h-72 rounded-xl ring-1 ring-line"><table className="w-full text-[12px]"><thead className="sticky top-0 bg-subtle"><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Thời điểm", "TB", "Min", "Max", "P5", "P50", "P95", "GHD", "GHT", "TT"].map((h) => <th key={h} className="py-2 px-2 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{[...s].reverse().map((p, i) => { const oob = (lo != null && p.avg < lo) || (hi != null && p.avg > hi); return <tr key={i} className={`border-t border-line ${oob ? "bg-danger-soft/50" : ""}`}><td className="py-1.5 px-2 text-muted whitespace-nowrap">{p.label}</td><td className={`py-1.5 px-2 tabular-nums font-medium ${oob ? "text-danger" : ""}`}>{fv(p.avg)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{fv(p.vmin)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{fv(p.vmax)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{fv(p.p5)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{fv(p.p50)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{fv(p.p95)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{lo == null ? "—" : lo}</td><td className="py-1.5 px-2 tabular-nums text-muted">{hi == null ? "—" : hi}</td><td className="py-1.5 px-2">{oob ? <span className="text-danger font-semibold">OOS</span> : <span className="text-success">Đạt</span>}</td></tr>; })}</tbody></table></div>
+                    <div tabIndex={0} role="region" aria-label={`Bảng dữ liệu thô ${SENSOR_META[k]?.label || k}, cuộn để xem thêm`} className="overflow-auto max-h-72 rounded-xl ring-1 ring-line"><table className="w-full text-[12px]"><caption className="sr-only">Dữ liệu thô {SENSOR_META[k]?.label || k} theo thời điểm — trung bình, min, max, phân vị và giới hạn</caption><thead className="sticky top-0 bg-subtle"><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Thời điểm", "TB", "Min", "Max", "P5", "P50", "P95", "GHD", "GHT", "TT"].map((h) => <th key={h} scope="col" className="py-2 px-2 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{[...s].reverse().map((p, i) => { const oob = (lo != null && p.avg < lo) || (hi != null && p.avg > hi); return <tr key={`${p.label}-${i}`} className={`border-t border-line ${oob ? "bg-danger-soft/50" : ""}`}><td className="py-1.5 px-2 text-muted whitespace-nowrap">{p.label}</td><td className={`py-1.5 px-2 tabular-nums font-medium ${oob ? "text-danger" : ""}`}>{fv(p.avg)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{fv(p.vmin)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{fv(p.vmax)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{fv(p.p5)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{fv(p.p50)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{fv(p.p95)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{lo == null ? "—" : lo}</td><td className="py-1.5 px-2 tabular-nums text-muted">{hi == null ? "—" : hi}</td><td className="py-1.5 px-2">{oob ? <span className="text-danger font-semibold">OOS</span> : <span className="text-success">Đạt</span>}</td></tr>; })}</tbody></table></div>
                   </div>
                 );
               })}</div>;
@@ -1001,7 +1013,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
               return (
                 <div className="mt-4">
                   <p className="text-[12px] text-muted mb-2">% đạt = 100 − % ngoài giới hạn (OOS) · tổng hợp cảm biến trong phạm vi <b>{activeScope.name}</b>.</p>
-                  <div className="overflow-auto max-h-72 rounded-xl ring-1 ring-line"><table className="w-full text-[12px]"><thead className="sticky top-0 bg-subtle"><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Thời điểm", "% đạt", "OOS", "DQ", ...sensorsPresent.map((k) => SENSOR_META[k]?.label || k)].map((h) => <th key={h} className="py-2 px-2 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{[...view].reverse().map((r, i) => { const low = r.comp != null && r.comp < 80; const m = vm[r.ts] || {}; return <tr key={i} className={`border-t border-line ${low ? "bg-warning-soft/40" : ""}`}><td className="py-1.5 px-2 text-muted whitespace-nowrap">{r.label}</td><td className={`py-1.5 px-2 tabular-nums font-medium ${low ? "text-warning" : ""}`}>{fmtPct(r.comp)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{r.oos ?? "—"}</td><td className="py-1.5 px-2 tabular-nums text-muted">{r.dq == null ? "—" : `${r.dq}%`}</td>{sensorsPresent.map((k) => <td key={k} className="py-1.5 px-2 tabular-nums text-muted">{fmtPct(m[`comp_${k}`])}</td>)}</tr>; })}</tbody></table></div>
+                  <div tabIndex={0} role="region" aria-label="Bảng % đạt theo thời điểm, cuộn để xem thêm" className="overflow-auto max-h-72 rounded-xl ring-1 ring-line"><table className="w-full text-[12px]"><caption className="sr-only">% đạt, số điểm OOS và độ đầy dữ liệu theo thời điểm</caption><thead className="sticky top-0 bg-subtle"><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Thời điểm", "% đạt", "OOS", "DQ", ...sensorsPresent.map((k) => SENSOR_META[k]?.label || k)].map((h) => <th key={h} scope="col" className="py-2 px-2 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{[...view].reverse().map((r, i) => { const low = r.comp != null && r.comp < 80; const m = vm[r.ts] || {}; return <tr key={`${r.ts}-${i}`} className={`border-t border-line ${low ? "bg-warning-soft/40" : ""}`}><td className="py-1.5 px-2 text-muted whitespace-nowrap">{r.label}</td><td className={`py-1.5 px-2 tabular-nums font-medium ${low ? "text-warning" : ""}`}>{fmtPct(r.comp)}</td><td className="py-1.5 px-2 tabular-nums text-muted">{r.oos ?? "—"}</td><td className="py-1.5 px-2 tabular-nums text-muted">{r.dq == null ? "—" : `${r.dq}%`}</td>{sensorsPresent.map((k) => <td key={k} className="py-1.5 px-2 tabular-nums text-muted">{fmtPct(m[`comp_${k}`])}</td>)}</tr>; })}</tbody></table></div>
                 </div>
               );
             }
@@ -1018,18 +1030,19 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       </Card>
       )}
       <Card className="p-6"><SectionTitle icon={CircleDot} hint="% điểm đạt mỗi cấp · theo dõi nhanh">Xu hướng theo cấp</SectionTitle>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-(RANGE_DAYS[range] || 30)) : getSeries(sc, sensor, range); const lt = d[d.length - 1] || {}; const p = lt.comp; const pc = p == null ? "var(--text-muted)" : p < 70 ? COMPLY_BAD : p < 88 ? "var(--warning-solid)" : COMPLY_OK; return <div key={lvl} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold" style={{ color: "var(--text-strong)" }}>{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-[12px] px-2 py-0.5 rounded-full text-body bg-surface ring-1 ring-line">{sc.id}</span></div><div className="flex items-baseline gap-1.5 mb-1"><span className="text-2xl font-light tabular-nums leading-none" style={{ color: pc }}>{p == null ? "—" : fmtPct(p)}</span><span className="text-[12px] text-muted">% đạt mới nhất</span></div><p className="text-[12px] text-muted mb-1 truncate">{sc.name}</p><Chart type="miniArea" data={d} h={84} /></div>; })}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-(RANGE_DAYS[range] || 30)) : getSeries(sc, sensor, range); const lt = d[d.length - 1] || {}; const p = lt.comp; const pc = p == null ? "var(--text-muted)" : p < 70 ? "var(--danger)" : p < 88 ? "var(--warning)" : "var(--success)"; /* đợt B: token CHỮ đạt tương phản 2 theme */ return <div key={lvl} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold" style={{ color: "var(--text-strong)" }}>{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-[12px] px-2 py-0.5 rounded-full text-body bg-surface ring-1 ring-line">{sc.id}</span></div><div className="flex items-baseline gap-1.5 mb-1"><span className="text-2xl font-light tabular-nums leading-none" style={{ color: pc }}>{p == null ? "—" : fmtPct(p)}</span><span className="text-[12px] text-muted">% đạt mới nhất</span></div><p className="text-[12px] text-muted mb-1 truncate">{sc.name}</p><Chart type="miniArea" data={d} h={84} /></div>; })}</div>
       </Card>
 
       <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="Tổng → Khu → AHU → Phòng · tỉ lệ đạt 1/3/7 ngày">Xếp hạng rủi ro</SectionTitle>
-        <div className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", "Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày", "Xu hướng 14n", "Risk", "Đánh giá"].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; const a = comp == null ? ["Chờ dữ liệu", "text-muted"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-danger"] : comp < 88 ? ["Cần chú ý", "text-warning"] : ["Tốt", "text-success"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-line hover:bg-info-soft/40 ${r.type === "TOTAL" ? "bg-success-soft/30" : ""}`}><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4"><button disabled={!canPick} onClick={() => { if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left ${canPick ? "hover:underline" : ""}`}><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.id}</span> <span className="text-muted">{r.name}</span></button></td><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td><td className="py-2.5 pr-4"><Chart type="sparkline" chuoi={r.chuoi} h={30} /></td><td className="py-2.5 pr-4"><span className="inline-block px-2 py-0.5 rounded-full text-[12px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: "var(--danger)" }}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
-        <p className="text-[12px] text-muted mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó. Tỉ lệ đạt = trung bình tỷ lệ đạt trong 1 / 3 / 7 ngày gần nhất.</p>
+        <div tabIndex={0} role="region" aria-label="Bảng xếp hạng rủi ro, cuộn ngang để xem thêm" className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><caption className="sr-only">Xếp hạng rủi ro theo cấp Tổng, Khu, AHU, Phòng — tỉ lệ đạt 1, 3, 7 ngày</caption><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", ...(coCotNgay ? ["Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày"] : []), ...(coCotChuoi ? ["Xu hướng 14n"] : []), "Risk", "Đánh giá"].map((h) => <th key={h} scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; const a = comp == null ? ["Chờ dữ liệu", "text-muted"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-danger"] : comp < 88 ? ["Cần chú ý", "text-warning"] : ["Tốt", "text-success"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-line hover:bg-info-soft/40 ${r.type === "TOTAL" ? "bg-success-soft/30" : ""}`}><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4"><button disabled={!canPick} onClick={() => { if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left min-h-[24px] ${canPick ? "hover:underline" : ""}`}><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.id}</span> <span className="text-muted">{r.name}</span></button></td><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td>{coCotNgay && <><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td></>}{coCotChuoi && <td className="py-2.5 pr-4"><Chart type="sparkline" chuoi={r.chuoi} h={30} /></td>}<td className="py-2.5 pr-4"><span className="inline-block px-2 py-0.5 rounded-full text-[12px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: "var(--danger)" }}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
+        <p className="text-[12px] text-muted mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó.{coCotNgay ? " Tỉ lệ đạt = trung bình tỷ lệ đạt trong 1 / 3 / 7 ngày gần nhất." : " Cột tỉ lệ đạt 1 / 3 / 7 ngày và xu hướng 14 ngày chỉ có khi dùng dữ liệu thật."}</p>
       </Card>
 
       {/* Mảng 3 — Dự báo xu hướng (RPC gate R²) */}
       {isLive && (
       <Card className="p-6"><SectionTitle icon={LineIcon} hint="hồi quy OLS + cổng R²≥0.5 · dải tin cậy robust (MAD) · dữ liệu thật">Ước tính xu hướng 7 ngày</SectionTitle>
         {dbBusy && !duBao ? <div className="mt-3 h-16 rounded-2xl bg-subtle animate-pulse" /> :
+         duBaoLoi ? <KhungLoi gon className="mt-3" tieuDe="Chưa tải được ước tính xu hướng" loi={duBaoLoi} onThuLai={() => setLanThuDuBao((n) => n + 1)} dangThu={dbBusy} /> :
          !duBao ? <p className="mt-3 text-[13px] text-muted italic">Chưa đủ dữ liệu để dự báo cho phạm vi đang chọn.</p> :
          (duBao.du_bao_dang_tin && (duBao.du_bao || []).length) ? (() => {
            const last = duBao.du_bao[duBao.du_bao.length - 1];
@@ -1068,7 +1081,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
             <div>
               <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Phiếu sự cố mở trong kỳ này</p>
               {sc.length === 0 ? <p className="mt-1.5 text-[12px] text-muted italic">Không có phiếu sự cố gắn với mốc này.</p>
-                : <ul className="mt-1.5 space-y-1">{sc.map((m, i) => <li key={i} className="text-[13px] text-body">⚑ {m.name}</li>)}</ul>}
+                : <ul className="mt-1.5 space-y-1">{sc.map((m, i) => <li key={`${m.name}-${i}`} className="text-[13px] text-body">⚑ {m.name}</li>)}</ul>}
               <p className="mt-2 text-[12px] text-muted">Xem đầy đủ ở tab <b>Sự cố</b>.</p>
             </div>
             <p className="text-[12px] meta">Số liệu tất định do hệ thống tính — bấm điểm khác trên biểu đồ để so sánh.</p>
@@ -1090,7 +1103,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
                 </div>
                 {emailOpen && (
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && guiEmailNhanDinh()} placeholder="email1@…, email2@… (phân tách bằng dấu phẩy)" className="flex-1 min-w-[240px] rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[12px] text-body outline-none focus:ring-2 focus:ring-success-line" />
+                    <input value={emailTo} aria-label="Email người nhận nhận định" onChange={(e) => setEmailTo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && guiEmailNhanDinh()} placeholder="email1@…, email2@… (phân tách bằng dấu phẩy)" className="flex-1 min-w-[240px] rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[12px] text-body outline-none focus:ring-2 focus:ring-success-line" />
                     <button onClick={guiEmailNhanDinh} disabled={sendBusy === "email"} className="text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: "var(--primary-solid)" }}>{sendBusy === "email" ? "Đang gửi…" : "Gửi email"}</button>
                   </div>
                 )}

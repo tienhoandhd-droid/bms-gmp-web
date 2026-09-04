@@ -1,7 +1,8 @@
 // IncidentsParts.jsx — tiến trình phiếu, kiểm soát xử lý, đánh giá hiệu quả cảnh báo (tách move-only từ App.jsx 17/08/2026).
-import React, { useState } from "react";
+import React, { useCallback, useId, useRef, useState } from "react";
 import { Activity, BellRing, Check, ClipboardCheck, Clock3, Eye, FileText, ShieldAlert, ShieldCheck, User, X } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
+import { useHopThoai } from "../../components/ui/HopThoai";
 import Chart from "../../components/ui/Chart";
 import { moTaLoi } from "../../lib/bmsClient";
 import { COLOR } from "../../lib/designTokens";
@@ -187,15 +188,22 @@ const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
 
 function ApprovalModal({ incident, action, user, onClose, onCommit }) {
   const [reason, setReason] = useState(""); const valid = reason.trim().length >= 6 && action && user;
+  const hopRef = useRef(null);
+  const idTieuDe = useId();
+  const idLyDo = useId();
+  // Giữ onClose ổn định: cha truyền arrow mới mỗi lần render, nếu đưa thẳng vào hook thì hook chạy lại và giật focus.
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  const dong = useCallback(() => { if (onCloseRef.current) onCloseRef.current(); }, []);
+  useHopThoai(hopRef, dong);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
-      <div className="w-full max-w-lg rounded-3xl bg-surface ring-1 ring-line overflow-hidden" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 pt-6 pb-4 flex items-start justify-between" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center gap-3"><div className="rounded-2xl bg-surface p-2.5 ring-1 ring-success-line shadow-sm"><ShieldCheck className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>{action ? action.label : "Xem sự cố"}</h2><p className="text-[12px] text-muted">Ghi nhận bằng tài khoản đăng nhập · ALCOA+</p></div></div><button onClick={onClose} className="rounded-full p-1.5 hover:bg-subtle text-muted"><X className="w-4 h-4" strokeWidth={1.8} /></button></div>
+      <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-lg rounded-3xl bg-surface ring-1 ring-line overflow-hidden outline-none" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 pt-6 pb-4 flex items-start justify-between" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center gap-3"><div className="rounded-2xl bg-surface p-2.5 ring-1 ring-success-line shadow-sm"><ShieldCheck className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 id={idTieuDe} className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>{action ? action.label : "Xem sự cố"}</h2><p className="text-[12px] text-muted">Ghi nhận bằng tài khoản đăng nhập · ALCOA+</p></div></div><button type="button" onClick={onClose} aria-label="Đóng hộp thoại" className="rounded-full p-1.5 hover:bg-subtle text-muted min-w-[28px] min-h-[28px] flex items-center justify-center"><X className="w-4 h-4" strokeWidth={1.8} /></button></div>
         <div className="px-6 py-5 space-y-5">
           <div className="grid grid-cols-3 gap-3 text-xs">{[["Mã sự cố", incident.id], ["Phòng", incident.room], ["Chỉ tiêu", incident.sensor]].map(([k, v]) => <div key={k}><p className="text-muted text-[12px] uppercase tracking-wider font-semibold">{k}</p><p className="mt-1 font-semibold" style={{ color: "var(--text-strong)" }}>{v}</p></div>)}</div>
           <div className="rounded-2xl bg-success-soft ring-1 ring-success-line px-4 py-3 flex items-center gap-2 text-[13px]"><User className="w-4 h-4 text-success" strokeWidth={1.8} /><span className="text-body">Người thực hiện:</span> <span className="font-semibold" style={{ color: "var(--text-strong)" }}>{user ? `${user.name} (${user.role})` : "chưa đăng nhập"}</span></div>
-          <div className="rounded-2xl bg-subtle ring-1 ring-line/70 p-4"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" strokeWidth={1.8} /> Nhật ký truy vết</p><div className="space-y-2 max-h-32 overflow-y-auto pr-1">{incident.trail.map((e, i) => <div key={i} className="flex gap-3 text-xs"><span className="text-muted tabular-nums shrink-0">{e.t}</span><span className="text-muted">·</span><span className="text-body"><span className="font-semibold">{e.who}</span> — {e.act}</span></div>)}</div></div>
-          <div><label className="text-[12px] font-semibold text-body mb-2 block">Lý do / kết quả <span className="text-danger">*</span></label><textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ghi rõ lý do/kết quả (tối thiểu 6 ký tự)…" className="w-full rounded-2xl bg-subtle px-4 py-3 text-sm text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line resize-none placeholder:text-muted" /></div>
+          <div className="rounded-2xl bg-subtle ring-1 ring-line/70 p-4"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" strokeWidth={1.8} /> Nhật ký truy vết</p><div className="space-y-2 max-h-32 overflow-y-auto pr-1">{incident.trail.map((e, i) => <div key={`${e.t}-${i}`} className="flex gap-3 text-xs"><span className="text-muted tabular-nums shrink-0">{e.t}</span><span className="text-muted">·</span><span className="text-body"><span className="font-semibold">{e.who}</span> — {e.act}</span></div>)}</div></div>
+          <div><label htmlFor={idLyDo} className="text-[12px] font-semibold text-body mb-2 block">Lý do / kết quả <span className="text-danger">*</span></label><textarea id={idLyDo} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ghi rõ lý do/kết quả (tối thiểu 6 ký tự)…" className="w-full rounded-2xl bg-subtle px-4 py-3 text-sm text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line resize-none placeholder:text-muted" /></div>
         </div>
         <div className="px-6 py-4 bg-subtle flex items-center justify-between gap-3"><span className="text-[12px] text-muted">{action ? <>Trạng thái tiếp → <span className="font-semibold text-body">{action.next}</span></> : <span className="text-muted">Bạn không có quyền thao tác bước này</span>}</span><div className="flex gap-2"><button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-body hover:bg-subtle">{action ? "Hủy" : "Đóng"}</button>{action && <button disabled={!valid} onClick={() => onCommit(incident, action, reason)} className="px-5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 text-white disabled:bg-subtle disabled:text-muted" style={valid ? { backgroundColor: "var(--danger-solid)" } : {}}><Check className="w-4 h-4" strokeWidth={2} /> Xác nhận & lưu</button>}</div></div>
       </div>
@@ -473,7 +481,7 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Tóm tắt kết luận GMP</p>
-              <h4 className="mt-1 text-base font-semibold" style={{ color: "var(--text-strong)" }}>{mucKetLuan.nhan}</h4>
+              <h3 className="mt-1 text-base font-semibold" style={{ color: "var(--text-strong)" }}>{mucKetLuan.nhan}</h3>
               <p className="mt-0.5 text-[12.5px] text-muted">{mucKetLuan.mo}</p>
             </div>
             <span className={`rounded-full px-3 py-1 text-[12px] font-semibold ring-1 ${mucKetLuan.cls}`}>Kỳ {soTuan} tuần</span>
@@ -534,9 +542,9 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
                   <ClipboardCheck className="h-3.5 w-3.5 text-success" strokeWidth={2} />
                   Xác nhận tỉ lệ phản hồi
                 </p>
-                <h4 className="mt-1 text-base font-semibold leading-snug" style={{ color: "var(--text-strong)" }}>
+                <h3 className="mt-1 text-base font-semibold leading-snug" style={{ color: "var(--text-strong)" }}>
                   Tình trạng tiếp nhận và xử lý phiếu đã gửi thông báo
-                </h4>
+                </h3>
               </div>
               <div className="grid grid-cols-3 gap-2 text-right">
                 <div className="rounded-xl bg-surface px-3 py-2 ring-1 ring-line">
@@ -704,20 +712,21 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           return (
             <div className="mt-4">
               <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Tình trạng phản hồi từng tuần</p>
-              <div className="mt-2 overflow-x-auto">
+              <div tabIndex={0} role="region" aria-label="Bảng tình trạng phản hồi từng tuần, cuộn ngang để xem thêm" className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-[12px]">
+                  <caption className="sr-only">Tỉ lệ phản hồi phiếu của từng bộ phận theo tuần</caption>
                   <thead>
                     <tr className="bg-subtle text-muted">
-                      <th className="border border-line px-2 py-1.5 text-left font-semibold">Bộ phận</th>
+                      <th scope="col" className="border border-line px-2 py-1.5 text-left font-semibold">Bộ phận</th>
                       {dsTuan.map((t) => {
                         const m = mocTuan(t);
                         return (
-                          <th key={t} className="border border-line px-2 py-1.5 text-center font-semibold">
+                          <th key={t} scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">
                             Tuần {t}{m && <><br /><span className="font-normal text-[12px] text-muted">{dmy(m.tu)}–{dmy(m.den)}</span></>}
                           </th>
                         );
                       })}
-                      <th className="border border-line px-2 py-1.5 text-center font-semibold bg-subtle">Tiến bộ</th>
+                      <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold bg-subtle">Tiến bộ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -791,23 +800,24 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           return (
             <div className="mt-4">
               <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Trung bình toàn khu theo tuần</p>
-              <div className="mt-2 overflow-x-auto">
+              <div tabIndex={0} role="region" aria-label="Bảng trung bình toàn khu theo tuần, cuộn ngang để xem thêm" className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-[12px]">
+                  <caption className="sr-only">Tỉ lệ dưới sàn và vượt trần trung bình của từng khu theo tuần</caption>
                   <thead>
                     <tr className="bg-subtle text-muted">
-                      <th className="border border-line px-2 py-1.5 text-left font-semibold" rowSpan={2}>Phạm vi</th>
+                      <th scope="col" className="border border-line px-2 py-1.5 text-left font-semibold" rowSpan={2}>Phạm vi</th>
                       {tuan.map((w) => (
-                        <th key={w.tuan} className="border border-line px-2 py-1 text-center font-semibold" colSpan={2}>
+                        <th key={w.tuan} scope="colgroup" className="border border-line px-2 py-1 text-center font-semibold" colSpan={2}>
                           Tuần {w.tuan}<br /><span className="font-normal text-[12px] text-muted">{dmy(w.tu)}–{dmy(w.den)}</span>
                         </th>
                       ))}
-                      <th className="border border-line px-2 py-1.5 text-center font-semibold bg-subtle" rowSpan={2}>Tiến bộ<br /><span className="font-normal text-[12px]">(dưới sàn)</span></th>
+                      <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold bg-subtle" rowSpan={2}>Tiến bộ<br /><span className="font-normal text-[12px]">(dưới sàn)</span></th>
                     </tr>
                     <tr className="bg-subtle text-muted text-[12px]">
                       {tuan.map((w) => (
                         <React.Fragment key={w.tuan}>
-                          <th className="border border-line px-1.5 py-1 text-center font-semibold">dưới sàn</th>
-                          <th className="border border-line px-1.5 py-1 text-center font-normal">vượt trần</th>
+                          <th scope="col" className="border border-line px-1.5 py-1 text-center font-semibold">dưới sàn</th>
+                          <th scope="col" className="border border-line px-1.5 py-1 text-center font-normal">vượt trần</th>
                         </React.Fragment>
                       ))}
                     </tr>
@@ -857,22 +867,23 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
               Khu {k.khu_vuc}
               <span className="ml-2 font-normal text-muted">{k.so_phong} phòng · trung bình <b className={mauKhongDat(k.pct_duoi_san_tb)}>{k.pct_duoi_san_tb}%</b> dưới sàn</span>
             </p>
-            <div className="mt-1.5 overflow-x-auto">
+            <div tabIndex={0} role="region" aria-label={`Bảng phòng khu ${k.khu_vuc} theo tuần, cuộn ngang để xem thêm`} className="mt-1.5 overflow-x-auto">
               <table className="w-full border-collapse text-[12px]">
+                <caption className="sr-only">Tỉ lệ dưới sàn từng phòng khu {k.khu_vuc} theo tuần, cả kỳ, xu hướng và số phiếu</caption>
                 <thead>
                   <tr className="bg-subtle text-muted">
-                    <th className="border border-line px-2 py-1.5 text-left font-semibold">Phòng</th>
-                    <th className="border border-line px-2 py-1.5 text-center font-semibold">Ưu tiên</th>
-                    <th className="border border-line px-2 py-1.5 text-center font-semibold">Yêu cầu</th>
+                    <th scope="col" className="border border-line px-2 py-1.5 text-left font-semibold">Phòng</th>
+                    <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">Ưu tiên</th>
+                    <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">Yêu cầu</th>
                     {tuan.map((w) => (
-                      <th key={w.tuan} className="border border-line px-2 py-1.5 text-center font-semibold">
+                      <th key={w.tuan} scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">
                         {w.nhan}<br /><span className="font-normal text-[12px] text-muted">{dmy(w.tu)}–{dmy(w.den)}</span>
                       </th>
                     ))}
-                    <th className="border border-line px-2 py-1.5 text-center font-semibold bg-subtle">Cả kỳ</th>
-                    <th className="border border-line px-2 py-1.5 text-center font-semibold">Xu hướng</th>
-                    <th className="border border-line px-2 py-1.5 text-center font-semibold">Phiếu</th>
-                    <th className="border border-line px-2 py-1.5 text-center font-semibold text-muted">Vượt trần</th>
+                    <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold bg-subtle">Cả kỳ</th>
+                    <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">Xu hướng</th>
+                    <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">Phiếu</th>
+                    <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold text-muted">Vượt trần</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -924,19 +935,20 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
         {/* ── Mục phụ: phòng ngoài danh sách ── */}
         {ngoaiPv.length > 0 && (
           <div className="mt-4">
-            <button onClick={() => setXemHet((v) => !v)} className="text-[12px] font-semibold text-success hover:underline">
+            <button onClick={() => setXemHet((v) => !v)} aria-expanded={xemHet} className="text-[12px] font-semibold text-success hover:underline min-h-[24px]">
               {xemHet ? "▾ Thu gọn" : `▸ Xem ${ngoaiPv.length} phòng NGOÀI danh sách sự cố (không sinh cảnh báo)`}
             </button>
             {xemHet && (
-              <div className="mt-2 overflow-x-auto">
+              <div tabIndex={0} role="region" aria-label="Bảng phòng ngoài danh sách sự cố, cuộn ngang để xem thêm" className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-[12px]">
+                  <caption className="sr-only">Phòng ngoài danh sách sự cố — không sinh cảnh báo và lý do</caption>
                   <thead>
                     <tr className="bg-subtle text-muted">
-                      <th className="border border-line px-2 py-1.5 text-left font-semibold">Phòng</th>
-                      <th className="border border-line px-2 py-1.5 text-left font-semibold">Khu / AHU</th>
-                      <th className="border border-line px-2 py-1.5 text-center font-semibold">Ưu tiên</th>
-                      <th className="border border-line px-2 py-1.5 text-center font-semibold">% đạt (cả 2 hướng)</th>
-                      <th className="border border-line px-2 py-1.5 text-left font-semibold">Vì sao không cảnh báo</th>
+                      <th scope="col" className="border border-line px-2 py-1.5 text-left font-semibold">Phòng</th>
+                      <th scope="col" className="border border-line px-2 py-1.5 text-left font-semibold">Khu / AHU</th>
+                      <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">Ưu tiên</th>
+                      <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">% đạt (cả 2 hướng)</th>
+                      <th scope="col" className="border border-line px-2 py-1.5 text-left font-semibold">Vì sao không cảnh báo</th>
                     </tr>
                   </thead>
                   <tbody>

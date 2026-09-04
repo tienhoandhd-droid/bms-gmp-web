@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Activity, AlertOctagon, ClipboardCheck, FileBarChart, History, Mail, Printer, ShieldCheck } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
+import { KhungLoi } from "../../components/ui/KhungLoi";
 import { COLOR } from "../../lib/designTokens";
 import { guiBaoCaoBu, layWebhookBaoCaoBu } from "../../lib/supabaseData";
 import { AiSections } from "../trends/AiSections";
@@ -14,7 +15,20 @@ function ReportsPage({ ai, aiRows = null }) {
   const [wf5Url, setWf5Url] = useState("");
   const [kyBu, setKyBu] = useState("THANG");           // mặc định: bù THÁNG trước
   const [guiTT, setGuiTT] = useState(null);            // null | 'DANG_GUI' | {ok, message|error}
-  useEffect(() => { let huy = false; (async () => { const u = await layWebhookBaoCaoBu(); if (!huy) setWf5Url(u || ""); })(); return () => { huy = true; }; }, []);
+  // Đợt C 04/09/2026: tách 3 trạng thái nạp địa chỉ gửi — trước đây lỗi mạng và "chưa cấu hình"
+  // đều làm nút xám câm, người dùng không biết vì sao không gửi được.
+  const [napTT, setNapTT] = useState("DANG_TAI");      // 'DANG_TAI' | 'OK' | 'CHUA_CAU_HINH' | {loi}
+  const [lanNap, setLanNap] = useState(0);
+  useEffect(() => {
+    let huy = false; setNapTT("DANG_TAI");
+    (async () => {
+      const r = await layWebhookBaoCaoBu();
+      if (huy) return;
+      if (r.error) { setNapTT({ loi: r.error }); return; }
+      setWf5Url(r.url); setNapTT(r.url ? "OK" : "CHUA_CAU_HINH");
+    })();
+    return () => { huy = true; };
+  }, [lanNap]);
   const KY_BU = [
     { key: "THANG", label: "Tháng trước" },
     { key: "TUAN", label: "Tuần trước" },
@@ -59,7 +73,7 @@ function ReportsPage({ ai, aiRows = null }) {
           <div className="mt-5">
             <p className="text-[12px] uppercase text-muted font-semibold mb-2 flex items-center gap-1.5"><History className="w-3 h-3" strokeWidth={1.8} /> Nhận định gần đây</p>
             <div className="space-y-2 max-h-72 overflow-y-auto pr-1">{aiRows.map((r, i) => (
-              <div key={i} className="rounded-xl bg-subtle ring-1 ring-line/70 p-3.5">
+              <div key={`${r.ts || r.thoi_gian || ""}-${r.scope || ""}-${i}`} className="rounded-xl bg-subtle ring-1 ring-line/70 p-3.5">
                 <div className="flex items-center justify-between gap-2 mb-1"><span className="text-[12px] font-semibold" style={{ color: "var(--text-strong)" }}>{r.scope}<span className="text-muted font-normal"> · {r.sensor} · {r.range}</span></span><span className={`text-[12px] font-semibold px-2 py-0.5 rounded-full ring-1 ${NHAN_DINH_LV[r.level] || NHAN_DINH_LV[0]}`}>{r.time}</span></div>
                 <p className="text-[12px] leading-relaxed text-body">{r.text}</p>
               </div>
@@ -69,12 +83,15 @@ function ReportsPage({ ai, aiRows = null }) {
       </Card>
       <Card className="p-6"><SectionTitle icon={Mail} hint="báo cáo quản trị — kỳ liền trước">Gửi lại báo cáo (email)</SectionTitle>
         <p className="text-[12px] text-muted mt-3">Dùng khi cần gửi lại báo cáo của kỳ đã qua. Hệ thống tổng hợp số liệu đo, lập báo cáo PDF và gửi email theo danh sách người nhận đã cấu hình.</p>
+        {napTT === "DANG_TAI" && <div className="mt-4 h-10 w-72 max-w-full rounded-xl bg-subtle animate-pulse" role="status" aria-label="Đang kiểm tra cấu hình gửi báo cáo" />}
+        {napTT && napTT.loi && <KhungLoi gon className="mt-4" tieuDe="Chưa kiểm tra được cấu hình gửi báo cáo" loi={napTT.loi} onThuLai={() => setLanNap((n) => n + 1)} />}
+        {napTT === "CHUA_CAU_HINH" && <p className="mt-4 rounded-xl bg-warning-soft ring-1 ring-warning-line px-4 py-2.5 text-[12px] text-warning font-medium" role="status">Chưa cấu hình địa chỉ gửi báo cáo bù — liên hệ Quản trị hệ thống để thêm vào Cấu hình.</p>}
         <div className="mt-4 flex items-center gap-3 flex-wrap">
-          <label className="text-[12px] uppercase text-muted font-semibold">Kỳ báo cáo</label>
-          <select value={kyBu} onChange={(e) => setKyBu(e.target.value)} className={sel}>
+          <label htmlFor="ky-bao-cao-bu" className="text-[12px] uppercase text-muted font-semibold">Kỳ báo cáo</label>
+          <select id="ky-bao-cao-bu" value={kyBu} onChange={(e) => setKyBu(e.target.value)} className={sel}>
             {KY_BU.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
           </select>
-          <button onClick={guiBu} disabled={guiTT === "DANG_GUI" || !wf5Url}
+          <button onClick={guiBu} disabled={guiTT === "DANG_GUI" || !wf5Url} aria-disabled={!wf5Url || undefined}
             className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${guiTT === "DANG_GUI" ? "opacity-60 cursor-wait" : !wf5Url ? "opacity-50 cursor-not-allowed" : ""}`}
             style={{ backgroundColor: "var(--danger-solid)" }}>
             <Mail className="w-3.5 h-3.5" strokeWidth={1.8} />

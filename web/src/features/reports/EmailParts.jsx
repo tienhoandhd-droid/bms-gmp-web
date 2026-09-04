@@ -1,5 +1,5 @@
 // EmailParts.jsx — hướng dẫn nút email + modal phiếu email (tách 17/08/2026: AppShell dùng, không kéo cả ReportsPage vào bundle đầu).
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { Mail } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
@@ -69,6 +69,7 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
   const [lyDo, setLyDo] = useState("");
   const [dangChay, setDangChay] = useState(false);
   const [ketQua, setKetQua] = useState(null);
+  const idLyDo = useId();
   if (!trangThai) return null;
   const ve = trangThai.ve;
   const canNote = !!ve?.bat_buoc_ly_do;
@@ -80,7 +81,7 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
     setDangChay(false);
   };
   const Khung = ({ children }) => createPortal(
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Xác nhận thao tác từ email">
       <div className="w-full max-w-md rounded-3xl bg-surface shadow-2xl p-6">{children}</div>
     </div>, document.body);
 
@@ -146,8 +147,8 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
       </div>
       {canNote && (
         <div className="mt-3">
-          <label className="text-[12px] uppercase text-muted font-semibold">Nội dung sự cố / biện pháp <span className="text-danger">*</span></label>
-          <textarea value={lyDo} onChange={(e) => setLyDo(e.target.value)} rows={3} autoFocus
+          <label htmlFor={idLyDo} className="text-[12px] uppercase text-muted font-semibold">Nội dung sự cố / biện pháp <span className="text-danger">*</span></label>
+          <textarea id={idLyDo} value={lyDo} onChange={(e) => setLyDo(e.target.value)} rows={3} autoFocus
             placeholder="Ví dụ: van điều tiết kẹt, đã chỉnh lại 40% và theo dõi 30 phút"
             className="w-full mt-1.5 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm" />
           <p className="text-[12px] text-muted mt-1">Bắt buộc — ghi vào hồ sơ kiểm toán ALCOA+.</p>

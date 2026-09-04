@@ -1291,11 +1291,13 @@ async function doiKetQuaAiWf7(inputHash, signal, onTienTrinh, tenWf = 'WF7') {
 }
 
 // Lấy URL webhook WF5 v2 — nút "Gửi báo cáo bù" (key 'wf5_webhook_bao_cao_bu'). Trả '' nếu chưa đặt.
+// Đợt C 04/09/2026: trả {url, error} thay vì '' — để trang Báo cáo phân biệt "lỗi mạng"
+// với "chưa cấu hình" (trước đây cả hai đều là chuỗi rỗng ⇒ nút gửi xám câm).
 export async function layWebhookBaoCaoBu(signal) {
   const { data, error } = await docView('xem_cau_hinh_he_thong',
     (q) => q.select('key,value_hien_thi').eq('key', 'wf5_webhook_bao_cao_bu'), { signal })
-  if (error || !data || !data.length) return ''
-  return (data[0].value_hien_thi || '').trim()
+  if (error) return { url: '', error }
+  return { url: ((data && data[0] && data[0].value_hien_thi) || '').trim(), error: null }
 }
 
 // Gọi WF5 v2 (n8n) gửi báo cáo bù. ky: 'THANG' | 'TUAN' | 'QUY' (kỳ LIỀN TRƯỚC).

@@ -15,12 +15,18 @@ import { X, BellOff, Check } from "lucide-react";
 
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function HopThoai({ tieuDe, moTa, icon: Icon, onDong, dangChay = false, rong = "max-w-lg", chanTrang, children }) {
-  const hopRef = useRef(null);
-  const tieuDeId = useId();
-  const moTaId = useId();
-
+// Hook dùng chung cho MỌI hộp thoại/ngăn kéo (kể cả modal cũ chưa đổi sang <HopThoai>):
+//   const hopRef = useRef(null); useHopThoai(hopRef, onDong, dangChay);
+//   <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby=… tabIndex={-1}>…</div>
+// Làm 4 việc: focus vào trong khi mở · Esc đóng · Tab quay vòng bên trong · trả focus + mở lại cuộn khi đóng.
+export function useHopThoai(hopRef, onDong, dangChay = false) {
+  // Giữ callback/cờ trong ref: nơi gọi thường truyền arrow function mới mỗi lần render
+  // (AppShell render lại mỗi nhịp poll 60 s) — nếu effect phụ thuộc onDong thì sẽ chạy lại,
+  // trả focus rồi focus lại ô đầu tiên ⇒ người dùng đang gõ bị giật con trỏ.
+  const onDongRef = useRef(onDong); onDongRef.current = onDong;
+  const dangChayRef = useRef(dangChay); dangChayRef.current = dangChay;
   useEffect(() => {
+    const onDong = () => onDongRef.current();
     const truoc = document.activeElement;
     const hop = hopRef.current;
     // Focus phần tử đầu tiên bấm được (ưu tiên ô nhập), không thì chính hộp thoại.
@@ -29,7 +35,7 @@ export function HopThoai({ tieuDe, moTa, icon: Icon, onDong, dangChay = false, r
     const cuonCu = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e) => {
-      if (e.key === "Escape") { if (!dangChay) { e.stopPropagation(); onDong(); } return; }
+      if (e.key === "Escape") { if (!dangChayRef.current) { e.stopPropagation(); onDong(); } return; }
       if (e.key !== "Tab" || !hop) return;
       const ds = Array.from(hop.querySelectorAll(FOCUSABLE)).filter((el) => el.offsetParent !== null);
       if (ds.length === 0) { e.preventDefault(); return; }
@@ -43,7 +49,14 @@ export function HopThoai({ tieuDe, moTa, icon: Icon, onDong, dangChay = false, r
       document.body.style.overflow = cuonCu;
       if (truoc && typeof truoc.focus === "function") truoc.focus();
     };
-  }, [onDong, dangChay]);
+  }, [hopRef]);   // chạy đúng 1 lần khi hộp thoại mount
+}
+
+export function HopThoai({ tieuDe, moTa, icon: Icon, onDong, dangChay = false, rong = "max-w-lg", chanTrang, children }) {
+  const hopRef = useRef(null);
+  const tieuDeId = useId();
+  const moTaId = useId();
+  useHopThoai(hopRef, onDong, dangChay);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(12,41,59,0.38)", backdropFilter: "blur(4px)" }}

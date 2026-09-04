@@ -155,11 +155,11 @@ export default function TVMode() {
         </div>
       )}
       <div style={{ flex: 1, minHeight: 0 }}>{noiDung}</div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "1.3vw", color: "#64748b", borderTop: "1px solid #1e293b", paddingTop: "1vw" }}>
-        <span>BMS · HVAC phòng sạch — CPC1 Hà Nội <span style={{ color: "#475569" }}>· nháy đúp để toàn màn hình</span></span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "1.3vw", color: "#94a3b8" /* đợt D: tương phản ≥ 4,5:1 trên nền tối */, borderTop: "1px solid #1e293b", paddingTop: "1vw" }}>
+        <span>BMS · HVAC phòng sạch — CPC1 Hà Nội <span style={{ color: "#94a3b8" }}>· nháy đúp để toàn màn hình</span></span>
         <span style={{ display: "flex", gap: "1.5vw", alignItems: "center" }}>
           {veDashboard && MAN.map((m, i) => <span key={m} style={{ width: "0.7vw", height: "0.7vw", borderRadius: "50%", background: i === man ? "#5eead4" : "#334155", display: "inline-block" }} />)}
-          <span style={{ fontVariantNumeric: "tabular-nums", color: trangThai === "CU" ? "#fbbf24" : "#64748b" }}>
+          <span style={{ fontVariantNumeric: "tabular-nums", color: trangThai === "CU" ? "#fbbf24" : "#94a3b8" }}>
             {live.capNhatLuc ? `dữ liệu ${live.capNhatLuc.toLocaleTimeString("vi-VN")}${tuoiPhut != null && tuoiPhut >= 1 ? ` · ${tuoiPhut} phút trước` : ""}` : "chưa có dữ liệu"} · {gio.toLocaleTimeString("vi-VN")}
           </span>
         </span>

@@ -1,7 +1,8 @@
 // DashboardParts.jsx — thẻ phòng, modal chi tiết/KPI, quản lý phòng (tách move-only từ App.jsx 17/08/2026).
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Activity, AlertOctagon, AlertTriangle, Building2, CheckCircle2, ChevronRight, Clock, Eye, HelpCircle, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { Card, MucBadge, SectionTitle } from "../../components/ui/Card";
+import { useHopThoai } from "../../components/ui/HopThoai";
 import Chart from "../../components/ui/Chart";
 import InspectorDrawer from "../../components/layout/InspectorDrawer";
 import { OosMiniBars } from "../../components/ui/KpiCard";
@@ -93,15 +94,24 @@ function KpiListModal({ kind, groups, incidents, cfg, onClose, onPickRoom, onPic
   const rooms = isP1 ? [] : (groups[kind] || []);
   const ageTone = (a) => a == null ? "text-muted bg-subtle" : a <= 90 ? "text-success bg-success-soft" : a <= 240 ? "text-warning bg-warning-soft" : "text-danger bg-danger-soft";
   const ageTxt = (a) => a == null ? "—" : a === 0 ? "mới nhất" : a < 60 ? `${a}′ trước` : `trễ ${(a / 60).toFixed(1)}h`;
+  // WCAG 2.2 (đợt B 04/09/2026): dialog có role/aria, Esc đóng, focus quay vòng bên trong.
+  // onClose từ AppShell là hàm inline (identity đổi mỗi render) — bọc qua ref để useHopThoai
+  // không chạy lại effect (và nhảy focus) mỗi khi dữ liệu live làm mới.
+  const hopRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  const dongOnDinh = useCallback(() => onCloseRef.current(), []);
+  useHopThoai(hopRef, dongOnDinh);
+  const idTieuDe = useId();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
-      <div className="w-full max-w-lg rounded-3xl bg-surface ring-1 ring-line overflow-hidden max-h-[85vh] flex flex-col" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
+      <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-lg rounded-3xl bg-surface ring-1 ring-line overflow-hidden max-h-[85vh] flex flex-col outline-none" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-5 pb-4 flex items-start justify-between" style={{ background: "var(--bg-subtle)" }}>
           <div className="flex items-start gap-3">
             <div className="rounded-2xl p-2.5" style={{ background: "#fff", boxShadow: "0 4px 14px -6px rgba(30,58,86,0.3)" }}><META.Icon className="w-5 h-5" style={{ color: META.color }} strokeWidth={1.9} /></div>
-            <div><h2 className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>{META.title}</h2><p className="text-[12px] text-muted mt-0.5 max-w-xs">{META.desc}</p></div>
+            <div><h2 id={idTieuDe} className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>{META.title}</h2><p className="text-[12px] text-muted mt-0.5 max-w-xs">{META.desc}</p></div>
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-surface/70 text-muted"><X className="w-4 h-4" strokeWidth={1.8} /></button>
+          <button type="button" onClick={onClose} aria-label="Đóng hộp thoại" className="rounded-full p-1.5 hover:bg-surface/70 text-muted"><X className="w-4 h-4" strokeWidth={1.8} /></button>
         </div>
         <div className="px-5 py-4 overflow-y-auto">
           {isP1 ? (
@@ -160,6 +170,7 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onDelete, onSaveEdits }) {
     onAdd({ id, name: f.name || id, area: f.area, ahu: f.ahu, priority: f.priority, note: f.note, noData: f.noData, sensors }); setF(blank); setOpen(false);
   };
   const inp = "rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[13px] text-body outline-none focus:ring-2 focus:ring-success-line";
+  const idF = useId();   // tiền tố id nối <label htmlFor> ↔ ô nhập (form thêm phòng + form sửa phòng)
   const editing = rooms.find((r) => r.id === editId);
   // So bản nháp với bản gốc → danh sách thay đổi sẽ ghi khi bấm Lưu.
   const num = (v) => (v === "" || v == null ? null : Number(v));
@@ -199,32 +210,34 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onDelete, onSaveEdits }) {
       {open && canManage && (
         <div className="mt-4 rounded-2xl bg-info-soft/60 ring-1 ring-info-line p-4 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-            <div className="flex flex-col gap-1"><label className="text-[12px] uppercase text-muted font-semibold">Mã phòng</label><input className={inp} value={f.id} onChange={(e) => setF({ ...f, id: e.target.value })} placeholder="C1.R09" /></div>
-            <div className="flex flex-col gap-1 col-span-2"><label className="text-[12px] uppercase text-muted font-semibold">Tên phòng</label><input className={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Phòng cân" /></div>
-            <div className="flex flex-col gap-1"><label className="text-[12px] uppercase text-muted font-semibold">Khu</label><select className={inp} value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })}>{AREAS.map((a) => <option key={a}>{a}</option>)}</select></div>
-            <div className="flex flex-col gap-1"><label className="text-[12px] uppercase text-muted font-semibold">AHU</label><select className={inp} value={f.ahu} onChange={(e) => setF({ ...f, ahu: e.target.value })}>{AHUS.map((a) => <option key={a}>{a}</option>)}</select></div>
-            <div className="flex flex-col gap-1"><label className="text-[12px] uppercase text-muted font-semibold">Mức ưu tiên</label><select className={inp} value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value })}><option value="P1">Mức 1</option><option value="P2">Mức 2</option><option value="P3">Mức 3</option></select></div>
+            {/* label đã có chữ nhưng chưa nối với ô nhập → htmlFor/id để screen reader đọc đúng tên */}
+            <div className="flex flex-col gap-1"><label htmlFor={`${idF}-ma`} className="text-[12px] uppercase text-muted font-semibold">Mã phòng</label><input id={`${idF}-ma`} className={inp} value={f.id} onChange={(e) => setF({ ...f, id: e.target.value })} placeholder="C1.R09" /></div>
+            <div className="flex flex-col gap-1 col-span-2"><label htmlFor={`${idF}-ten`} className="text-[12px] uppercase text-muted font-semibold">Tên phòng</label><input id={`${idF}-ten`} className={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Phòng cân" /></div>
+            <div className="flex flex-col gap-1"><label htmlFor={`${idF}-khu`} className="text-[12px] uppercase text-muted font-semibold">Khu</label><select id={`${idF}-khu`} className={inp} value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })}>{AREAS.map((a) => <option key={a}>{a}</option>)}</select></div>
+            <div className="flex flex-col gap-1"><label htmlFor={`${idF}-ahu`} className="text-[12px] uppercase text-muted font-semibold">AHU</label><select id={`${idF}-ahu`} className={inp} value={f.ahu} onChange={(e) => setF({ ...f, ahu: e.target.value })}>{AHUS.map((a) => <option key={a}>{a}</option>)}</select></div>
+            <div className="flex flex-col gap-1"><label htmlFor={`${idF}-uutien`} className="text-[12px] uppercase text-muted font-semibold">Mức ưu tiên</label><select id={`${idF}-uutien`} className={inp} value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value })}><option value="P1">Mức 1</option><option value="P2">Mức 2</option><option value="P3">Mức 3</option></select></div>
           </div>
           <div className="rounded-xl bg-surface ring-1 ring-line p-3">
             <p className="text-[12px] uppercase text-muted font-semibold mb-2">Chọn loại cảm biến & giới hạn (min – max)</p>
+            {/* <label> bọc nhiều ô: chỉ ô checkbox đầu nhận nhãn → ô số min/max cần aria-label riêng; min-h-[24px] cho đủ cỡ bấm */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <label className="flex items-center gap-1.5 text-[12px] text-body rounded-lg bg-subtle px-2 py-2"><input type="checkbox" checked={f.DP} onChange={(e) => setF({ ...f, DP: e.target.checked })} /> DP <input type="number" className="w-12 rounded ring-1 ring-line px-1 py-0.5" value={f.DPmin} onChange={(e) => setF({ ...f, DPmin: e.target.value })} />–<input type="number" className="w-12 rounded ring-1 ring-line px-1 py-0.5" value={f.DPmax} onChange={(e) => setF({ ...f, DPmax: e.target.value })} /> Pa</label>
-              <label className="flex items-center gap-1.5 text-[12px] text-body rounded-lg bg-subtle px-2 py-2"><input type="checkbox" checked={f.RH} onChange={(e) => setF({ ...f, RH: e.target.checked })} /> RH <input type="number" className="w-12 rounded ring-1 ring-line px-1 py-0.5" value={f.RHmin} onChange={(e) => setF({ ...f, RHmin: e.target.value })} />–<input type="number" className="w-12 rounded ring-1 ring-line px-1 py-0.5" value={f.RHmax} onChange={(e) => setF({ ...f, RHmax: e.target.value })} /> %</label>
-              <label className="flex items-center gap-1.5 text-[12px] text-body rounded-lg bg-subtle px-2 py-2"><input type="checkbox" checked={f.T} onChange={(e) => setF({ ...f, T: e.target.checked })} /> T <input type="number" className="w-12 rounded ring-1 ring-line px-1 py-0.5" value={f.Tmin} onChange={(e) => setF({ ...f, Tmin: e.target.value })} />–<input type="number" className="w-12 rounded ring-1 ring-line px-1 py-0.5" value={f.Tmax} onChange={(e) => setF({ ...f, Tmax: e.target.value })} /> °C</label>
+              <label className="flex items-center gap-1.5 text-[12px] text-body rounded-lg bg-subtle px-2 py-2"><input type="checkbox" checked={f.DP} onChange={(e) => setF({ ...f, DP: e.target.checked })} /> DP <input type="number" aria-label="DP tối thiểu (Pa)" className="w-12 min-h-[24px] rounded ring-1 ring-line px-1 py-0.5" value={f.DPmin} onChange={(e) => setF({ ...f, DPmin: e.target.value })} />–<input type="number" aria-label="DP tối đa (Pa)" className="w-12 min-h-[24px] rounded ring-1 ring-line px-1 py-0.5" value={f.DPmax} onChange={(e) => setF({ ...f, DPmax: e.target.value })} /> Pa</label>
+              <label className="flex items-center gap-1.5 text-[12px] text-body rounded-lg bg-subtle px-2 py-2"><input type="checkbox" checked={f.RH} onChange={(e) => setF({ ...f, RH: e.target.checked })} /> RH <input type="number" aria-label="RH tối thiểu (%)" className="w-12 min-h-[24px] rounded ring-1 ring-line px-1 py-0.5" value={f.RHmin} onChange={(e) => setF({ ...f, RHmin: e.target.value })} />–<input type="number" aria-label="RH tối đa (%)" className="w-12 min-h-[24px] rounded ring-1 ring-line px-1 py-0.5" value={f.RHmax} onChange={(e) => setF({ ...f, RHmax: e.target.value })} /> %</label>
+              <label className="flex items-center gap-1.5 text-[12px] text-body rounded-lg bg-subtle px-2 py-2"><input type="checkbox" checked={f.T} onChange={(e) => setF({ ...f, T: e.target.checked })} /> T <input type="number" aria-label="T tối thiểu (°C)" className="w-12 min-h-[24px] rounded ring-1 ring-line px-1 py-0.5" value={f.Tmin} onChange={(e) => setF({ ...f, Tmin: e.target.value })} />–<input type="number" aria-label="T tối đa (°C)" className="w-12 min-h-[24px] rounded ring-1 ring-line px-1 py-0.5" value={f.Tmax} onChange={(e) => setF({ ...f, Tmax: e.target.value })} /> °C</label>
             </div>
           </div>
-          <div className="flex items-center justify-between flex-wrap gap-2"><div className="flex items-center gap-4"><label className="flex items-center gap-2 text-[12px] text-body"><input type="checkbox" checked={f.noData} onChange={(e) => setF({ ...f, noData: e.target.checked })} /> Thiếu dữ liệu</label><input className={inp + " w-56"} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="Ghi chú (tuỳ chọn)" /></div><div className="flex gap-2"><button onClick={() => setOpen(false)} className="text-xs text-muted rounded-xl px-4 py-2 hover:bg-subtle">Hủy</button><button onClick={submit} className="text-xs font-medium text-white rounded-xl px-4 py-2" style={{ backgroundColor: "var(--primary-solid)" }}>Lưu phòng</button></div></div>
+          <div className="flex items-center justify-between flex-wrap gap-2"><div className="flex items-center gap-4"><label className="flex items-center gap-2 text-[12px] text-body"><input type="checkbox" checked={f.noData} onChange={(e) => setF({ ...f, noData: e.target.checked })} /> Thiếu dữ liệu</label><input aria-label="Ghi chú phòng mới (tuỳ chọn)" className={inp + " w-56"} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="Ghi chú (tuỳ chọn)" /></div><div className="flex gap-2"><button onClick={() => setOpen(false)} className="text-xs text-muted rounded-xl px-4 py-2 hover:bg-subtle">Hủy</button><button onClick={submit} className="text-xs font-medium text-white rounded-xl px-4 py-2" style={{ backgroundColor: "var(--primary-solid)" }}>Lưu phòng</button></div></div>
         </div>
       )}
 
       <div className="flex items-center gap-2 mt-4 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]"><Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" strokeWidth={1.8} /><input value={qTim} onChange={(e) => setQTim(e.target.value)} placeholder="Tìm mã hoặc tên phòng…" className="w-full rounded-xl bg-surface ring-1 ring-line pl-9 pr-3 py-2 text-[12px] text-body outline-none focus:ring-2 focus:ring-success-line" />{qTim && <button onClick={() => setQTim("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-body"><X className="w-3.5 h-3.5" /></button>}</div>
+        <div className="relative flex-1 min-w-[200px]"><Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" strokeWidth={1.8} aria-hidden="true" /><input type="search" aria-label="Tìm mã hoặc tên phòng" value={qTim} onChange={(e) => setQTim(e.target.value)} placeholder="Tìm mã hoặc tên phòng…" className="w-full rounded-xl bg-surface ring-1 ring-line pl-9 pr-3 py-2 text-[12px] text-body outline-none focus:ring-2 focus:ring-success-line" />{qTim && <button type="button" aria-label="Xoá ô tìm kiếm" onClick={() => setQTim("")} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-body"><X className="w-3.5 h-3.5" /></button>}</div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Khu vực</span>
           {locChip("ALL", "Tất cả", locKhu === "ALL", () => { setLocKhu("ALL"); setLocAhu("ALL"); })}
           {DS_KHU.map((k) => locChip(k, `Khu ${k}`, locKhu === k, () => { setLocKhu(k); setLocAhu("ALL"); }))}
           {ahusLoc.length > 0 && (
-            <select value={locAhu === "ALL" ? "ALL" : `${locKhu}|${locAhu}`} onChange={(e) => { const v = e.target.value; if (v === "ALL") { setLocAhu("ALL"); } else { const [k, a] = v.split("|"); setLocKhu(k); setLocAhu(a); } }} className="rounded-xl bg-surface ring-1 ring-line px-3 py-1.5 text-[12px] text-body outline-none ml-1">
+            <select aria-label="Lọc theo AHU" value={locAhu === "ALL" ? "ALL" : `${locKhu}|${locAhu}`} onChange={(e) => { const v = e.target.value; if (v === "ALL") { setLocAhu("ALL"); } else { const [k, a] = v.split("|"); setLocKhu(k); setLocAhu(a); } }} className="rounded-xl bg-surface ring-1 ring-line px-3 py-1.5 text-[12px] text-body outline-none ml-1">
               <option value="ALL">AHU: tất cả</option>
               {ahusLoc.map((p) => { const [k, a] = p.split("|"); return <option key={p} value={p}>{locKhu === "ALL" ? `Khu ${k} · ${a}` : a}</option>; })}
             </select>
@@ -234,7 +247,8 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onDelete, onSaveEdits }) {
       </div>
       <div className="overflow-x-auto mt-3">
         <table className="w-full text-[13px]">
-          <thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Mã", "Tên", "Khu", "AHU", "Ưu tiên", "Loại DL", "Mức cảnh báo", ""].map((h) => <th key={h} className="py-2.5 pr-4 font-semibold">{h}</th>)}</tr></thead>
+          <caption className="sr-only">Danh sách phòng: khu, AHU, mức ưu tiên, loại cảm biến và mức cảnh báo</caption>
+          <thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Mã", "Tên", "Khu", "AHU", "Ưu tiên", "Loại DL", "Mức cảnh báo", ""].map((h) => <th key={h} scope="col" className="py-2.5 pr-4 font-semibold">{h || <span className="sr-only">Thao tác</span>}</th>)}</tr></thead>
           <tbody>
             {roomsHienThi.length === 0 ? <tr><td colSpan={8} className="py-6 text-center text-[12px] text-muted">Không có phòng khớp bộ lọc{locKhu !== "ALL" ? ` · Khu ${locKhu}` : ""}{locAhu !== "ALL" ? ` · ${locAhu}` : ""}{qTim.trim() ? ` · "${qTim.trim()}"` : ""}. <button onClick={() => { setLocKhu("ALL"); setLocAhu("ALL"); setQTim(""); }} className="text-success font-semibold underline">Bỏ lọc</button></td></tr> : roomsHienThi.map((r) => { const lvl = roomLevel(r, cfg); const lm = lvl < 0 ? null : LEVELS[lvl]; return (
               <tr key={r.id} className="border-t border-line hover:bg-info-soft/40 transition">
@@ -245,7 +259,7 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onDelete, onSaveEdits }) {
                 <td className="py-2 pr-4"><MucBadge p={r.priority} /></td>
                 <td className="py-2 pr-4 text-muted">{r.noData ? "—" : r.sensors.map((s) => s.k).join(", ")}</td>
                 <td className="py-2 pr-4">{lm ? <span className={`text-[12px] px-2 py-0.5 rounded-full ${lm.bg} ${lm.txt}`}>{lm.label}</span> : <span className="text-[12px] text-warning">Mất DL</span>}</td>
-                <td className="py-2 pr-4">{canManage && <div className="flex gap-1.5"><button onClick={() => moSua(r)} className="text-info hover:text-info" title="Sửa phòng / cảm biến / giới hạn"><Pencil className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => onDelete(r.id)} className="text-danger hover:text-danger"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button></div>}</td>
+                <td className="py-2 pr-4">{canManage && <div className="flex gap-1.5"><button type="button" aria-label={`Sửa phòng ${r.id}`} onClick={() => moSua(r)} className="p-1 text-info hover:text-info" title="Sửa phòng / cảm biến / giới hạn"><Pencil className="w-4 h-4" strokeWidth={1.8} /></button><button type="button" aria-label={`Xoá phòng ${r.id}`} onClick={() => onDelete(r.id)} className="p-1 text-danger hover:text-danger"><Trash2 className="w-4 h-4" strokeWidth={1.8} /></button></div>}</td>
               </tr>
             ); })}
           </tbody>
@@ -256,28 +270,28 @@ function RoomManager({ rooms, cfg, canManage, onAdd, onDelete, onSaveEdits }) {
         <div className="mt-4 rounded-2xl bg-success-soft/50 ring-1 ring-success-line p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold" style={{ color: "var(--text-strong)" }}>Sửa phòng & cảm biến — {editing.id}{soThayDoi > 0 && <span className="ml-2 align-middle text-[12px] font-semibold text-warning bg-warning-soft ring-1 ring-warning-line rounded-full px-2 py-0.5">{soThayDoi} thay đổi chưa lưu</span>}</p>
-            <button onClick={dongSua} className="text-muted hover:text-body"><X className="w-4 h-4" /></button>
+            <button type="button" aria-label="Đóng khung sửa phòng" onClick={dongSua} className="p-1 text-muted hover:text-body"><X className="w-4 h-4" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-            <div className="flex flex-col gap-1 col-span-2"><label className="text-[12px] uppercase text-muted font-semibold">Tên phòng</label><input className={inp} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></div>
-            <div className="flex flex-col gap-1"><label className="text-[12px] uppercase text-muted font-semibold">Khu</label><select className={inp} value={draft.area} onChange={(e) => setDraft({ ...draft, area: e.target.value })}>{AREAS.map((a) => <option key={a}>{a}</option>)}</select></div>
-            <div className="flex flex-col gap-1"><label className="text-[12px] uppercase text-muted font-semibold">AHU</label><select className={inp} value={draft.ahu} onChange={(e) => setDraft({ ...draft, ahu: e.target.value })}>{[...new Set([draft.ahu, ...AHUS])].filter(Boolean).map((a) => <option key={a}>{a}</option>)}</select></div>
-            <div className="flex flex-col gap-1"><label className="text-[12px] uppercase text-muted font-semibold">Mức ưu tiên</label><select className={inp} value={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.value })}><option value="P1">Mức 1</option><option value="P2">Mức 2</option><option value="P3">Mức 3</option></select></div>
-            <div className="flex flex-col gap-1"><label className="text-[12px] uppercase text-muted font-semibold">Ghi chú</label><input className={inp} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="(tuỳ chọn)" /></div>
+            <div className="flex flex-col gap-1 col-span-2"><label htmlFor={`${idF}-s-ten`} className="text-[12px] uppercase text-muted font-semibold">Tên phòng</label><input id={`${idF}-s-ten`} className={inp} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></div>
+            <div className="flex flex-col gap-1"><label htmlFor={`${idF}-s-khu`} className="text-[12px] uppercase text-muted font-semibold">Khu</label><select id={`${idF}-s-khu`} className={inp} value={draft.area} onChange={(e) => setDraft({ ...draft, area: e.target.value })}>{AREAS.map((a) => <option key={a}>{a}</option>)}</select></div>
+            <div className="flex flex-col gap-1"><label htmlFor={`${idF}-s-ahu`} className="text-[12px] uppercase text-muted font-semibold">AHU</label><select id={`${idF}-s-ahu`} className={inp} value={draft.ahu} onChange={(e) => setDraft({ ...draft, ahu: e.target.value })}>{[...new Set([draft.ahu, ...AHUS])].filter(Boolean).map((a) => <option key={a}>{a}</option>)}</select></div>
+            <div className="flex flex-col gap-1"><label htmlFor={`${idF}-s-uutien`} className="text-[12px] uppercase text-muted font-semibold">Mức ưu tiên</label><select id={`${idF}-s-uutien`} className={inp} value={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.value })}><option value="P1">Mức 1</option><option value="P2">Mức 2</option><option value="P3">Mức 3</option></select></div>
+            <div className="flex flex-col gap-1"><label htmlFor={`${idF}-s-ghichu`} className="text-[12px] uppercase text-muted font-semibold">Ghi chú</label><input id={`${idF}-s-ghichu`} className={inp} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="(tuỳ chọn)" /></div>
           </div>
           {!editing.noData && (
             <div className="space-y-2 mt-3">
               {draft.sensors.map((s) => (
                 <div key={s.k} className="rounded-xl bg-surface ring-1 ring-line px-3 py-2 flex items-center gap-2 text-[12px] flex-wrap">
                   <span className="font-semibold w-16" style={{ color: "var(--text-strong)" }}>{SENSOR_META[s.k].label}</span>
-                  <span className="text-muted">min</span><input type="number" value={s.min ?? ""} onChange={(e) => doiGioiHan(s.k, "min", e.target.value)} className="w-16 rounded ring-1 ring-line px-1.5 py-0.5" />
-                  <span className="text-muted">max</span><input type="number" value={s.max ?? ""} onChange={(e) => doiGioiHan(s.k, "max", e.target.value)} className="w-16 rounded ring-1 ring-line px-1.5 py-0.5" />
+                  <span className="text-muted">min</span><input type="number" aria-label={`${SENSOR_META[s.k].label} tối thiểu (${SENSOR_META[s.k].unit})`} value={s.min ?? ""} onChange={(e) => doiGioiHan(s.k, "min", e.target.value)} className="w-16 min-h-[24px] rounded ring-1 ring-line px-1.5 py-0.5" />
+                  <span className="text-muted">max</span><input type="number" aria-label={`${SENSOR_META[s.k].label} tối đa (${SENSOR_META[s.k].unit})`} value={s.max ?? ""} onChange={(e) => doiGioiHan(s.k, "max", e.target.value)} className="w-16 min-h-[24px] rounded ring-1 ring-line px-1.5 py-0.5" />
                   <span className="text-muted">{SENSOR_META[s.k].unit}</span>
-                  <button onClick={() => setDraft((d) => ({ ...d, sensors: d.sensors.filter((x) => x.k !== s.k) }))} className="ml-auto text-danger hover:text-danger text-[12px] flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> bỏ</button>
+                  <button type="button" aria-label={`Bỏ cảm biến ${SENSOR_META[s.k].label}`} onClick={() => setDraft((d) => ({ ...d, sensors: d.sensors.filter((x) => x.k !== s.k) }))} className="ml-auto min-h-[24px] text-danger hover:text-danger text-[12px] flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> bỏ</button>
                 </div>
               ))}
               {["DP", "RH", "T"].filter((k) => !draft.sensors.some((s) => s.k === k)).length > 0 && (
-                <div className="flex items-center gap-2 pt-1"><span className="text-[12px] text-muted">Thêm cảm biến:</span>{["DP", "RH", "T"].filter((k) => !draft.sensors.some((s) => s.k === k)).map((k) => <button key={k} onClick={() => setDraft((d) => ({ ...d, sensors: [...d.sensors, { k, ...SENSOR_DEFAULT[k] }] }))} className="text-[12px] rounded-lg px-2 py-1 ring-1 ring-success-line text-success bg-success-soft hover:bg-success-soft flex items-center gap-1"><Plus className="w-3 h-3" strokeWidth={2} /> {SENSOR_META[k].label}</button>)}</div>
+                <div className="flex items-center gap-2 pt-1"><span className="text-[12px] text-muted">Thêm cảm biến:</span>{["DP", "RH", "T"].filter((k) => !draft.sensors.some((s) => s.k === k)).map((k) => <button key={k} type="button" onClick={() => setDraft((d) => ({ ...d, sensors: [...d.sensors, { k, ...SENSOR_DEFAULT[k] }] }))} className="text-[12px] rounded-lg px-2 py-1 min-h-[24px] ring-1 ring-success-line text-success bg-success-soft hover:bg-success-soft flex items-center gap-1"><Plus className="w-3 h-3" strokeWidth={2} /> {SENSOR_META[k].label}</button>)}</div>
               )}
             </div>
           )}

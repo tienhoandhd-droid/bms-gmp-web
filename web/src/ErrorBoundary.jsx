@@ -47,19 +47,19 @@ export default class ErrorBoundary extends React.Component {
           style={{
             maxWidth: 440,
             width: "100%",
-            background: "rgba(255,255,255,0.96)",
+            background: "var(--bg-surface, #FFFFFF)",   /* đợt C: token + dự phòng khi CSS chưa nạp */
             borderRadius: 24,
             padding: "32px 28px",
             textAlign: "center",
             boxShadow: "0 20px 60px -20px rgba(16,40,55,0.35)",
-            border: "1px solid #D8E6EC",
+            border: "1px solid var(--border, #D8E6EC)",
           }}
         >
           <div style={{ fontSize: 40, lineHeight: 1, marginBottom: 12 }}>⚠️</div>
-          <h1 style={{ fontSize: 18, fontWeight: 600, color: "#1E3A56", margin: "0 0 8px" }}>
+          <h1 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-strong, #1E3A56)", margin: "0 0 8px" }}>
             Giao diện gặp sự cố hiển thị
           </h1>
-          <p style={{ fontSize: 13, color: "#4A6072", margin: "0 0 20px", lineHeight: 1.5 }}>
+          <p style={{ fontSize: 13, color: "var(--text-muted, #4A6072)", margin: "0 0 20px", lineHeight: 1.5 }}>
             Đã có lỗi khi dựng trang. Dữ liệu giám sát trên máy chủ KHÔNG bị ảnh hưởng.
             Vui lòng tải lại trang; nếu còn lỗi, báo IT kèm ảnh chụp màn hình.
           </p>
@@ -69,7 +69,7 @@ export default class ErrorBoundary extends React.Component {
               fontSize: 14,
               fontWeight: 600,
               color: "#fff",
-              background: "#0E7C6B",
+              background: "var(--primary-solid, #0E7C6B)",
               border: "none",
               borderRadius: 14,
               padding: "10px 22px",
@@ -79,7 +79,7 @@ export default class ErrorBoundary extends React.Component {
             Tải lại trang
           </button>
           {this.state.err?.message ? (
-            <p style={{ fontSize: 11, color: "#94A3B8", marginTop: 16, wordBreak: "break-word" }}>
+            <p style={{ fontSize: 11, color: "var(--text-muted, #94A3B8)", marginTop: 16, wordBreak: "break-word" }}>
               {String(this.state.err.message).slice(0, 200)}
             </p>
           ) : null}

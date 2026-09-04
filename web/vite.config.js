@@ -4,6 +4,9 @@ import { resolve, sep } from 'node:path'
 import { readdirSync, statSync, readFileSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 
+// Đợt C 04/09/2026: phiên bản + thời điểm build đưa vào thẻ "Thông tin hệ thống" (Cấu hình → Hệ thống).
+const PKG = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8'))
+
 // ============================================================
 // Service worker precache — vì sao cần: GitHub Pages trả cache-control
 // max-age=600 cho MỌI file (kể cả asset đã hash tên) → hôm sau vào lại,
@@ -179,6 +182,10 @@ function cspMetaPlugin() {
 // https://<user>.github.io/<repo>/ mà không cần biết tên repo.
 export default defineConfig({
   base: './',
+  define: {
+    __BMS_VERSION__: JSON.stringify(PKG.version),
+    __BMS_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   // cspMetaPlugin đứng TRƯỚC swPrecachePlugin: SW băm nội dung html cuối (đã có CSP) để đặt version cache.
   plugins: [react(), cspMetaPlugin(), swPrecachePlugin()],
   build: {
