@@ -18,8 +18,9 @@ Bộ dựng ba đầu ra của báo cáo giám sát môi trường phòng sạch
 - So sánh giữa các nhóm bằng **tỉ lệ**, không bằng số giờ cộng dồn.
 - Không dùng chữ "lệch" cho số đo ngoài dải (giữ "sai lệch" cho phiếu deviation),
   không "điểm %", không viết tắt tiếng Anh trong phần chữ.
-- Số giờ vượt giới hạn hành động gọi là "giờ ngoài giới hạn" (không "giờ nghiêm trọng");
-  chữ "nghiêm trọng" chỉ còn dùng cho mức của phiếu sự cố.
+- Hai đơn vị không được cộng với nhau: "trong ngưỡng" / "ngoài dải" tính theo PHÚT (cộng đúng
+  100%); "giờ vượt giới hạn hành động" là SỐ GIỜ cảm biến bị dán nhãn nghiêm trọng, luôn ghi kèm
+  chữ "số giờ". Chữ "nghiêm trọng" chỉ còn dùng cho mức của phiếu sự cố.
 - Phân loại việc phải xử lý do **luật cố định** trong `phanCap()`; máy viết nhận định
   chỉ nêu giả thuyết, dán nhãn "AI đề xuất", và bị lọc bởi `locPhatHien()`.
 - Sự cố mở SAU ngày chốt kỳ tách khối "Ngoài kỳ báo cáo", không tính vào kết quả kỳ.

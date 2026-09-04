@@ -348,7 +348,7 @@ function phanCap(d) {
               + (lechDuoiDP[p.ma_phong] != null
                   ? 'Chênh áp tụt dưới giới hạn ' + phanTram(lechDuoiDP[p.ma_phong])
                     + ' thời gian, đây là hướng gây nhiễm chéo. ' : '')
-              + gioDoc(p.so_gio_critical) + ' ngoài giới hạn.',
+              + gioDoc(p.so_gio_critical) + ' vượt giới hạn hành động.',
         viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
             + ': lọc, van gió, cài đặt chênh áp. Giám sát trong quá trình khoanh vùng khung giờ ngoài giới hạn.',
         nguon: 'tat_ca_phong (mức ưu tiên 1)'
@@ -360,12 +360,12 @@ function phanCap(d) {
     .filter((p) => p.muc_uu_tien !== 'P1' && p.so_gio_critical >= GIO_NGHIEM_TRONG_A)
     .forEach((p) => {
       ghi(p.ma_phong, {
-        loai: 'Nhiều giờ ngoài giới hạn',
+        loai: 'Nhiều giờ vượt giới hạn hành động',
         can_cu: 'Trong ngưỡng ' + phanTram(p.ty_le_tuan_thu) + '. '
               + (lechDuoiDP[p.ma_phong] != null
                   ? 'Chênh áp tụt dưới giới hạn ' + phanTram(lechDuoiDP[p.ma_phong])
                     + ' thời gian, đây là hướng gây nhiễm chéo. ' : '')
-              + gioDoc(p.so_gio_critical) + ' ngoài giới hạn.',
+              + gioDoc(p.so_gio_critical) + ' vượt giới hạn hành động.',
         viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
             + '. Giám sát trong quá trình đối chiếu lịch sản xuất xem có trùng ca không.',
         nguon: 'tat_ca_phong (số giờ ngoài giới hạn)'
@@ -869,7 +869,7 @@ function svgDaiGioiHan(o) {
          + (pts.length > 20 ? 2.4 : 3.6) + '" fill="' + (ngoai ? MAU.cap2 : MAU.nhan)
          + '" stroke="#fff" stroke-width="1.2"><title>' + ngayNgan(c.ngay) + ': ' + soVN(c.tb, 1)
          + ' (' + soVN(c.min, 1) + '–' + soVN(c.max, 1) + ')' + esc(o.don_vi ? ' ' + o.don_vi : '')
-         + (c.ngh ? ', ' + c.ngh + 'h ngoài giới hạn' : '')
+         + (c.ngh ? ', ' + c.ngh + 'h vượt giới hạn hành động' : '')
          + (c.nghi_loi_do ? ', nghi lỗi đo' : '') + '</title></circle>';
     if (c.nghi_loi_do) {
       diem += '<circle cx="' + so(x(i), 1) + '" cy="' + so(y(c.min), 1) + '" r="2.6" fill="#fff" stroke="'

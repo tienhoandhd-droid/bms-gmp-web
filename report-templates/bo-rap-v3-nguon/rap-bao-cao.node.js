@@ -468,7 +468,7 @@ function mucChiTieu(ct, laMucLon, soMuc, cauDan) {
       +   '<span>Thời gian ngoài giới hạn: <b>' + L.gioTyLe(p.gio_lech, p.gio_do) + '</b></span>'
       +   '<span>Số đợt ngoài giới hạn: <b>' + (p.so_dot == null ? '—' : p.so_dot) + '</b></span>'
       +   '<span>Đợt dài nhất: <b>' + (p.dot_dai_nhat == null ? '—' : gioDoc(p.dot_dai_nhat)) + '</b></span>'
-      +   '<span>Thời gian ngoài giới hạn: <b>' + L.gioTyLe(p.gio_nghiem_trong, p.gio_co_du_lieu || p.gio_do) + '</b></span>'
+      +   '<span>Giờ vượt giới hạn hành động: <b>' + L.gioTyLe(p.gio_nghiem_trong, p.gio_co_du_lieu || p.gio_do) + '</b></span>'
       +   (p.con_lech_cuoi_ky ? '<span class="tang-xau">Còn đang ở ngoài giới hạn khi hết kỳ</span>' : '')
       + '</div></div>';
   }
@@ -639,7 +639,7 @@ function mucPhanCap(cay, dayDu, soMuc, cauDan) {
         + L.svgSpark(c.chuoi, 92, 20) + '</span>'
         + '<span class="cum-so">giữ trong ngưỡng ' + phanTram(c.ty_le_tb) + ' thời gian · '
         + c.so_phong_dat + '/' + c.so_phong + ' phòng đạt · '
-        + L.gioTyLe(c.gio_nghiem_trong, c.gio_do) + ' ngoài giới hạn'
+        + L.gioTyLe(c.gio_nghiem_trong, c.gio_do) + ' số giờ vượt giới hạn hành động'
         + (c.so_phong_dac_biet ? ' · trong đó ' + c.so_phong_dac_biet
             + ' phòng thuộc nhóm theo dõi đặc biệt' : '') + '</span></div>'
         + '<table class="bang-phong"><tbody>' + phong + con + '</tbody></table></div>';
@@ -840,15 +840,20 @@ function rapBaoCao(d, duBao, cfg) {
     + '<p class="chu-thich">Tỉ lệ thời gian số đo nằm trong ngưỡng cho phép, tính theo từng ngày. '
     + 'Vạch đỏ đứt là ngưỡng hành động; vùng hồng là phần còn thiếu so với ngưỡng đó.</p></div></div>'
     + '<div class="kpi-hang">'
-    + '<div class="kpi"><div class="ten">Thời gian ngoài giới hạn</div><div class="gt">'
-    +   soVN(k.so_gio_critical || 0, 0) + '<span class="don-vi" style="font-size:13px"> giờ</span>'
-    +   (ht && ht.gio_co_du_lieu
-          ? '<span class="don-vi" style="font-size:14px"> · '
-            + phanTram(100 * (k.so_gio_critical || 0) / ht.gio_co_du_lieu) + '</span>' : '')
+    + '<div class="kpi"><div class="ten">Thời gian ngoài dải cho phép</div><div class="gt">'
+    +   (k.ty_le_tuan_thu == null ? '—' : soVN(Math.max(0, 100 - k.ty_le_tuan_thu), 1) + '<span class="don-vi">%</span>')
     +   '</div>'
-    +   '<div class="ct tang tang-' + dNghiem.huong + '">' + esc(dNghiem.chu) + ' so với kỳ trước'
-    +   (ht && ht.gio_co_du_lieu ? ' · phần trăm tính trên ' + soVN(ht.gio_co_du_lieu, 0)
-          + ' giờ thu được số đo' : '') + '</div></div>'
+    +   '<div class="ct">cộng với ' + soVN(k.ty_le_tuan_thu, 1) + '% trong ngưỡng là đủ 100% — cùng tính theo phút. '
+    +   'Trong đó <b>' + soVN(k.so_gio_critical || 0, 0) + ' giờ</b> cảm biến có lúc vượt giới hạn hành động'
+    +   (ht && ht.gio_co_du_lieu
+          ? ' (' + phanTram(100 * (k.so_gio_critical || 0) / ht.gio_co_du_lieu) + ' của '
+            + soVN(ht.gio_co_du_lieu, 0) + ' giờ có số đo)' : '')
+    +   ((k.so_gio_warning || 0) > 0 ? ', ' + soVN(k.so_gio_warning, 0) + ' giờ ở mức cảnh báo' : '')
+    +   (kt.so_gio_critical != null
+          ? '; <span class="tang tang-' + dNghiem.huong + '">'
+            + ((k.so_gio_critical || 0) <= kt.so_gio_critical ? 'ít hơn' : 'nhiều hơn') + ' kỳ trước '
+            + soVN(Math.abs((k.so_gio_critical || 0) - kt.so_gio_critical), 0) + ' giờ</span>' : '')
+    +   '.</div></div>'
     + '<div class="kpi"><div class="ten">Sự cố còn mở</div><div class="gt">' + ((d.su_co || {}).dang_mo || 0) + '</div>'
     +   '<div class="ct">phát sinh ' + ((d.su_co || {}).mo_trong_ky || 0) + ' · đã đóng '
     +   ((d.su_co || {}).dong_trong_ky || 0) + ' · trung bình khắc phục ' + soVN((d.su_co || {}).mttr_gio, 1) + ' giờ</div></div>'
@@ -871,7 +876,7 @@ function rapBaoCao(d, duBao, cfg) {
     + ' giờ mà chưa xử lý; hoặc là phòng theo dõi đặc biệt mà thời gian trong ngưỡng dưới ' + NGUONG_HANH_DONG + '%; '
     + 'hoặc có từ ' + L.GIO_NGHIEM_TRONG_A + ' giờ trở lên ngoài giới hạn. '
     + 'Thứ tự ưu tiên: mức ưu tiên của phòng, rồi tới có sự cố quá hạn hay không, '
-    + 'rồi tới mức thiếu hụt so với ngưỡng, cuối cùng là số giờ ngoài giới hạn.</p>'
+    + 'rồi tới mức thiếu hụt so với ngưỡng, cuối cùng là số giờ vượt giới hạn hành động.</p>'
     + heThongHtml
     + (hangCapA
         ? '<div class="cuon-ngang"><table><thead><tr><th class="so" style="width:34px">#</th>'
@@ -939,7 +944,7 @@ function rapBaoCao(d, duBao, cfg) {
         ? '<details><summary>Phụ lục A · Toàn bộ ' + cap.capA_tong + ' phòng phải xử lý</summary>'
           + '<div class="noi-dung"><div class="cuon-ngang"><table><thead><tr><th class="so">#</th><th>Phòng</th>'
           + '<th>Khu · cụm</th><th>Ưu tiên</th><th class="so">Thời gian trong ngưỡng %</th>'
-          + '<th class="so">Giờ ngoài giới hạn</th><th class="so">Sự cố đã mở (giờ)</th><th>Vì sao vào danh sách</th></tr></thead><tbody>'
+          + '<th class="so">Giờ vượt giới hạn hành động</th><th class="so">Sự cố đã mở (giờ)</th><th>Vì sao vào danh sách</th></tr></thead><tbody>'
           + cap.capA_tat_ca.map((v, i) => '<tr><td class="so stt-a">A' + (i + 1) + '</td>'
               + '<td><span class="ma">' + esc(v.ma_phong) + '</span><br><span class="mo">' + esc(v.ten) + '</span></td>'
               + '<td>' + esc(v.khu) + ' · ' + esc(v.ahu) + '</td>'
@@ -959,7 +964,7 @@ function rapBaoCao(d, duBao, cfg) {
     + (laThang ? ''   // kỳ tháng: phần cây ở trên đã liệt kê đủ từng phòng theo cụm
         : '<details><summary>Phụ lục C · Toàn bộ ' + ((d.tat_ca_phong || []).length) + ' phòng có số đo</summary>'
     + '<div class="noi-dung"><div class="cuon-ngang"><table><thead><tr><th>Mã phòng</th><th>Tên phòng</th><th>Khu</th>'
-    + '<th>Cụm</th><th>Ưu tiên</th><th class="so">Thời gian trong ngưỡng %</th><th class="so">Giờ ngoài giới hạn</th>'
+    + '<th>Cụm</th><th>Ưu tiên</th><th class="so">Thời gian trong ngưỡng %</th><th class="so">Giờ vượt giới hạn hành động</th>'
     + '<th class="so">Thời gian có số đo %</th></tr></thead><tbody>' + hangPhong
     + '</tbody></table></div></div></details>')
 

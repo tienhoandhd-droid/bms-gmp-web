@@ -267,6 +267,11 @@ function rapEmail(d, duBao, cfg) {
     || (ht && ht.gio_co_du_lieu) || 0;
   // Tỉ lệ thời gian ngoài giới hạn trên tổng số giờ thực sự đo được của toàn nhà máy.
   const pNghiem = gioDoDuoc ? 100 * (k.so_gio_critical || 0) / gioDoDuoc : null;
+  // "Trong ngưỡng" (ty_le_tuan_thu) tính theo PHÚT: 100 trừ trung bình tỉ lệ phút ngoài dải của
+  // từng giờ cảm biến. Phần bù của nó là "ngoài dải" — hai số này cộng đúng 100%. Còn
+  // so_gio_critical là SỐ GIỜ cảm biến bị dán nhãn nghiêm trọng (vượt giới hạn hành động dù chỉ
+  // vài phút) — đơn vị khác, không cộng với tỉ lệ theo phút (góp ý 04/09/2026).
+  const pNgoaiDai = k.ty_le_tuan_thu == null ? null : Math.max(0, 100 - Number(k.ty_le_tuan_thu));
   // Kỳ trước không kèm số giờ đo được nên không dựng được tỉ lệ tương ứng để so.
   // Chỉ so được mức tăng giảm của chính số giờ — phải nói rõ là "về số giờ".
   const dGioNghiem = kt.so_gio_critical
@@ -607,18 +612,19 @@ function rapEmail(d, duBao, cfg) {
         : '') + '.'
     +   '</td></tr></tbody></table>';
 
-  // Ô "Ngoài giới hạn": tỉ lệ to, số giờ nhỏ bên dưới. Không có giờ đo thì ghi "—".
-  function oGioNgoai(pct, gio) {
-    return (pct == null ? '—' : phanTram(pct))
+  // Ô "Giờ vượt giới hạn hành động": số giờ to, tỉ lệ trên số giờ có số đo ghi nhỏ bên dưới —
+  // ghi rõ "số giờ" để không ai cộng nó với tỉ lệ theo phút ở hai cột bên trái.
+  function oGioVuot(gio, pct) {
+    return soVN(gio || 0, 0) + ' giờ'
       + '<div style="font-size:12px;font-weight:400;color:' + M.mo + ';line-height:1.3;">'
-      + soVN(gio || 0, 0) + ' giờ</div>';
+      + (pct == null ? '—' : phanTram(pct) + ' số giờ') + '</div>';
   }
 
   const khoiBangKhu =
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
     + ' style="border-collapse:collapse;"><thead><tr>'
     + thB('Khu', false, true) + thB('Phòng đạt', true)
-    + thB('Trong ngưỡng', true) + thB('Ngoài giới hạn', true)
+    + thB('Trong ngưỡng', true) + thB('Ngoài dải', true) + thB('Giờ vượt giới hạn hành động', true)
     + thB('Phòng phải xử lý', true, false, true)
     + '</tr></thead><tbody>'
     // Số giờ cộng dồn của một khu không so được với khu khác (mỗi khu số phòng khác nhau),
@@ -633,7 +639,8 @@ function rapEmail(d, duBao, cfg) {
           + oB('Khu ' + esc(x.khu), false, true, null, true)
           + oB(x.so_phong_dat + '/' + x.so_phong, true, true, duoi ? M.doChu : M.luc)
           + oB(phanTram(x.ty_le_tb), true, true, duoi ? M.doChu : M.luc)
-          + oB(oGioNgoai(pNgoai, x.gio_nghiem_trong), true, true,
+          + oB(x.ty_le_tb == null ? '—' : phanTram(100 - x.ty_le_tb), true, true, duoi ? M.doChu : M.luc)
+          + oB(oGioVuot(x.gio_nghiem_trong, pNgoai), true, false,
                pNgoai != null && pNgoai > 20 ? M.doChu : M.muc)
           + oB(dsK.length + '/' + x.so_phong, true, true, dsK.length ? M.doChu : M.luc, false, true)
           + '</tr>';
@@ -643,21 +650,24 @@ function rapEmail(d, duBao, cfg) {
     +   oB((k.tong_phong_co_du_lieu - k.so_phong_khong_dat) + '/' + k.tong_phong_co_du_lieu, true, true)
     +   oB(phanTram(k.ty_le_tuan_thu), true, true,
            k.ty_le_tuan_thu < NGUONG_HANH_DONG ? M.doChu : M.luc)
-    +   oB(oGioNgoai(pNghiem, k.so_gio_critical), true, true,
+    +   oB(pNgoaiDai == null ? '—' : phanTram(pNgoaiDai), true, true,
+           k.ty_le_tuan_thu < NGUONG_HANH_DONG ? M.doChu : M.luc)
+    +   oB(oGioVuot(k.so_gio_critical, pNghiem), true, false,
            pNghiem != null && pNghiem > 20 ? M.doChu : M.muc)
     +   oB(cap.capA_tong + '/' + k.tong_phong_co_du_lieu, true, true,
            cap.capA_tong ? M.doChu : M.luc, false, true)
     + '</tr>'
     + '<tr style="background:' + M.muc + ';">'
-    +   '<td colspan="5" style="padding:' + LE_O + 'px ' + K[3] + 'px;font-size:13px;color:#C7D2E0;'
+    +   '<td colspan="6" style="padding:' + LE_O + 'px ' + K[3] + 'px;font-size:13px;color:#C7D2E0;'
     +   'line-height:1.55;">'
-    +   '<b style="color:#ffffff;">Trong ngưỡng</b>: phần thời gian số đo nằm trong dải cho phép, '
-    +   'tính trên giờ đo được của khu. '
-    +   '<b style="color:#ffffff;">Ngoài giới hạn</b>: phần thời gian số đo vượt giới hạn hành động; '
-    +   'số giờ ghi nhỏ bên dưới. '
+    +   '<b style="color:#ffffff;">Trong ngưỡng</b> và <b style="color:#ffffff;">Ngoài dải</b>: phần '
+    +   'thời gian (tính theo phút) số đo nằm trong hoặc ra ngoài dải cho phép — hai cột cộng đúng 100%. '
+    +   '<b style="color:#ffffff;">Giờ vượt giới hạn hành động</b>: số giờ cảm biến có lúc vượt giới hạn '
+    +   'hành động (một giờ chỉ vượt vài phút vẫn tính trọn giờ), cộng dồn các phòng trong khu; tỉ lệ nhỏ '
+    +   'bên dưới tính trên số giờ có số đo — đơn vị khác hai cột trước nên không cộng với nhau. '
     +   '<b style="color:#ffffff;">Phòng phải xử lý</b>: phòng có sự cố mở quá hạn, hoặc thời gian '
     +   'trong ngưỡng thiếu hụt so với mức ' + NGUONG_HANH_DONG + '%, hoặc từ ' + L.GIO_NGHIEM_TRONG_A
-    +   ' giờ trở lên ngoài giới hạn — danh sách ở mục "Việc phải xử lý".'
+    +   ' giờ trở lên vượt giới hạn hành động — danh sách ở mục "Việc phải xử lý".'
     +   '</td></tr></tbody></table>';
 
   /* ===== So với bốn kỳ trước ===========================================
@@ -891,19 +901,20 @@ function rapEmail(d, duBao, cfg) {
 
     /* ── Hai chỉ số phụ ── */
     + hang('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="co"><tr>'
-        + oChiSo('Thời gian ngoài giới hạn',
-            pNghiem != null ? phanTram(pNghiem) : soVN(k.so_gio_critical || 0, 0) + ' giờ',
+        + oChiSo('Thời gian ngoài dải cho phép',
+            pNgoaiDai != null ? phanTram(pNgoaiDai) : '—',
             // Dòng này chỉ nói lại con số lớn bằng lời, không thêm số mới.
-            pNghiem == null ? ''
-              : (Math.round(pNghiem) < 1
-                  ? 'Gần như không có giờ nào ngoài giới hạn.'
-                  : 'Cứ 100 giờ đo được thì có ' + Math.round(pNghiem)
-                    + ' giờ ngoài giới hạn.'),
-            (k.so_gio_critical || 0) > 0 ? M.do : M.muc,
-            'Cả kỳ ' + soVN(k.so_gio_critical || 0, 0) + ' giờ trong '
-              + soVN(gioDoDuoc, 0) + ' giờ đo được.'
+            pNgoaiDai == null ? ''
+              : (Math.round(pNgoaiDai) < 1
+                  ? 'Gần như toàn bộ thời gian đo nằm trong dải cho phép.'
+                  : 'Cứ 100 phút đo được thì có ' + Math.round(pNgoaiDai)
+                    + ' phút ngoài dải. Cộng với ' + phanTram(k.ty_le_tuan_thu) + ' trong ngưỡng là đủ 100%.'),
+            pNgoaiDai != null && pNgoaiDai > 100 - NGUONG_HANH_DONG ? M.do : M.muc,
+            'Trong đó ' + soVN(k.so_gio_critical || 0, 0) + ' giờ cảm biến có lúc vượt giới hạn hành động'
+              + (pNghiem != null ? ' (' + phanTram(pNghiem) + ' số giờ có số đo)' : '')
+              + ((k.so_gio_warning || 0) > 0 ? ' và ' + soVN(k.so_gio_warning, 0) + ' giờ ở mức cảnh báo' : '') + '.'
               + (kt.so_gio_critical != null
-                  ? ' Kỳ trước ' + soVN(kt.so_gio_critical, 0) + ' giờ, kỳ này '
+                  ? ' Kỳ trước ' + soVN(kt.so_gio_critical, 0) + ' giờ vượt giới hạn, kỳ này '
                     + ((k.so_gio_critical || 0) < kt.so_gio_critical ? 'ít hơn' : 'nhiều hơn') + '.'
                   : ''))
         + DEM

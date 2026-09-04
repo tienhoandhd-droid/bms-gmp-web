@@ -382,7 +382,7 @@ const JS = String.raw`
     { k: 'ma',  t: 'Mã phòng' }, { k: 'ten', t: 'Tên phòng' },
     { k: 'khu', t: 'Khu' }, { k: 'ahu', t: 'Cụm' }, { k: 'ut', t: 'Ưu tiên' },
     { k: 'tt',  t: 'Thời gian trong ngưỡng %', so: 1 },
-    { k: 'gn',  t: 'Giờ ngoài giới hạn', so: 1 },
+    { k: 'gn',  t: 'Giờ vượt giới hạn hành động', so: 1 },
     { k: 'dq',  t: 'Thời gian có số đo %', so: 1 }
   ];
 
@@ -468,7 +468,7 @@ const JS = String.raw`
         + (pts.length > 20 ? 2.4 : 3.6) + '" fill="' + (ngoai ? '#DC2626' : '#1D4ED8')
         + '" stroke="#fff" stroke-width="1.2"><title>' + nn(c[0]) + ': ' + soVN(c[1])
         + ' (' + soVN(c[2]) + '–' + soVN(c[3]) + ')'
-        + (c[4] ? ', ' + c[4] + ' giờ ngoài giới hạn' : '') + '</title></circle>';
+        + (c[4] ? ', ' + c[4] + ' giờ vượt giới hạn hành động' : '') + '</title></circle>';
       if (i % buoc === 0 || i === pts.length - 1) {
         s += '<text x="' + x(i).toFixed(1) + '" y="' + (H - 7)
           + '" text-anchor="middle" class="svg-truc">' + nn(c[0]) + '</text>';
@@ -508,7 +508,7 @@ const JS = String.raw`
         h += '<div class="khoi-ct"><div class="khoi-ct-ten">Số đo ngày ' + nd(ngayChon) + '</div>'
           + '<div class="cuon-ngang"><table style="margin-top:8px"><thead><tr><th>Chỉ tiêu</th>'
           + '<th class="so">Trung bình</th><th class="so">Thấp nhất</th><th class="so">Cao nhất</th>'
-          + '<th class="so">Giờ ngoài giới hạn</th><th class="so">Giờ cảnh báo</th>'
+          + '<th class="so">Giờ vượt giới hạn hành động</th><th class="so">Giờ cảnh báo</th>'
           + '<th class="so">Dải cho phép</th></tr></thead><tbody>' + dong + '</tbody></table></div></div>';
       }
     }
@@ -583,7 +583,7 @@ const JS = String.raw`
   // thập phân; thêm dấu nhận dạng đầu tệp để bảng tính đọc đúng tiếng Việt.
   function xuatCSV(ds) {
     var dau = ['Mã phòng', 'Tên phòng', 'Khu', 'Cụm', 'Mức ưu tiên',
-               'Thời gian trong ngưỡng %', 'Giờ ngoài giới hạn', 'Thời gian có số đo %'];
+               'Thời gian trong ngưỡng %', 'Giờ vượt giới hạn hành động', 'Thời gian có số đo %'];
     var dong = ds.map(function (p) {
       return [p.ma, p.ten, p.khu, p.ahu, TEN_UT[p.ut] || p.ut, p.tt, p.gn, p.dq];
     });
@@ -826,7 +826,7 @@ function rapDashboard(d, duBao, cfg) {
     + '<div class="csn csn-chinh"><div class="gt" id="cs-tt">—</div>'
     +   '<div class="ten">trung vị thời gian trong ngưỡng · <span id="cs-nhan">toàn nhà máy</span></div></div>'
     + '<div class="csn"><div class="gt" id="cs-gn">—</div>'
-    +   '<div class="ten">giờ ngoài giới hạn</div></div>'
+    +   '<div class="ten">giờ cảm biến vượt giới hạn hành động</div></div>'
     + '<div class="csn"><div class="gt" id="cs-a">—</div>'
     +   '<div class="ten">phòng phải xử lý</div></div>'
     + '<div class="csn"><div class="gt" id="cs-dat">—</div>'
@@ -912,10 +912,10 @@ function rapDashboard(d, duBao, cfg) {
     + cay.map((k2) => '<div class="o">'
         + '<h2>Khu ' + esc(k2.khu) + ' <span class="mo" style="font-weight:400;font-size:13px">— '
         + phanTram(k2.ty_le_tb) + ' trong ngưỡng · ' + k2.so_phong_dat + '/' + k2.so_phong
-        + ' phòng đạt · ' + L.gioTyLe(k2.gio_nghiem_trong, k2.gio_do) + ' ngoài giới hạn</span></h2>'
+        + ' phòng đạt · ' + L.gioTyLe(k2.gio_nghiem_trong, k2.gio_do) + ' số giờ vượt giới hạn hành động</span></h2>'
         + '<div class="cuon-ngang"><table><thead><tr><th>Cụm</th>'
         + '<th class="so">Thời gian trong ngưỡng</th><th class="so">Phòng đạt</th>'
-        + '<th class="so">Giờ ngoài giới hạn</th><th>Diễn biến</th></tr></thead><tbody>'
+        + '<th class="so">Giờ vượt giới hạn hành động</th><th>Diễn biến</th></tr></thead><tbody>'
         + k2.cum.map((cc) => '<tr><td>' + esc(cc.ahu) + '</td>'
             + '<td class="so' + (cc.ty_le_tb < NGUONG_HANH_DONG ? ' tang-xau' : '') + '">'
             +   phanTram(cc.ty_le_tb) + '</td>'
