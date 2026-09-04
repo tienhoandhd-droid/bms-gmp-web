@@ -40,8 +40,10 @@ báo, một khu, không sự cố) — phải "dựng được trang" hết trư
 
 ## Workflow nháp trên n8n
 
-`BMS WF5 v3 — Bố cục mới (nháp, không gửi mail)` — id `CKekaM0QRPl40GhQ`.
-KHÔNG đụng WF5 v2 đang chạy. Node "Gửi email báo cáo" TẮT SẴN.
+`BMS WF5 v3 — Báo cáo quản trị tuần/tháng/quý` — id `CKekaM0QRPl40GhQ`.
+**CHÍNH THỨC từ 04/09/2026** (đã publish, node gửi mail và node lịch BẬT). Đã gửi báo cáo tháng
+08/2026 tới 5 người trong `nguoi_nhan_bao_cao` (bản tổng 4 người, bản khu Q2 1 người). Lịch của
+WF5 v2 đã tắt; webhook "Gửi báo cáo bù" trên web vẫn trỏ v2 cho tới khi đổi `cau_hinh.wf5_webhook_bao_cao_bu`.
 
 Chuỗi (19 node, cập nhật 04/09/2026):
 
