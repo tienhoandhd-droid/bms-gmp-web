@@ -3343,6 +3343,34 @@ function dongThanh(ten, pct, so, mau, phu, nguong) {
     + '</tr>';
 }
 
+// Một phòng, hai thanh so sánh kỳ trước / kỳ này trên cùng thang 0–100%, cùng vạch
+// ngưỡng. Số đứng ngay bên phải thanh của nó nên không cần chú thích "kỳ trước x%".
+function dongSoSanh(ten, truoc, nay, khu) {
+  const thanhNho = function (nhan, pct, mau, mauChu, dam) {
+    return '<tr>'
+      + '<td width="64" style="width:64px;padding:2px 8px 2px 0;font-size:12px;color:' + M.mo
+      +   ';white-space:nowrap;vertical-align:middle;">' + nhan + '</td>'
+      + '<td style="padding:2px 0;vertical-align:middle;">' + thanh(pct, mau, NGUONG_HANH_DONG, 10) + '</td>'
+      + '<td width="56" style="width:56px;padding:2px 0 2px 8px;text-align:right;vertical-align:middle;'
+      +   'font-size:' + (dam ? 15 : 13) + 'px;font-weight:700;color:' + mauChu + ';white-space:nowrap;">'
+      +   (pct == null ? '—' : phanTram(pct)) + '</td>'
+      + '</tr>';
+  };
+  return '<tr>'
+    + '<td width="30%" style="padding:10px 12px 10px 0;vertical-align:middle;border-bottom:1px solid '
+    +   M.vien2 + ';">'
+    +   '<div style="font-size:15px;font-weight:700;color:' + M.muc + ';line-height:1.35;">' + esc(ten) + '</div>'
+    +   (khu ? '<div style="font-size:12px;color:' + M.mo + ';margin-top:2px;">Khu ' + esc(khu) + '</div>' : '')
+    + '</td>'
+    + '<td style="padding:8px 0;vertical-align:middle;border-bottom:1px solid ' + M.vien2 + ';">'
+    +   '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">'
+    +   thanhNho('kỳ trước', truoc, '#9AA6B5', M.muc2, false)
+    +   thanhNho('kỳ này', nay, M.do, M.doChu, true)
+    +   '</table>'
+    + '</td>'
+    + '</tr>';
+}
+
 // Cột theo ngày — mỗi ngày một cột, cao theo tỉ lệ. Vạch ngưỡng vẽ bằng một
 // hàng nền nhạt phía sau, vì hòm thư không cho vẽ đường kẻ tự do.
 function cotNgay(chuoi, nguong) {
@@ -4034,17 +4062,24 @@ function rapEmail(d, duBao, cfg) {
     /* ── Xử lý sự cố trong kỳ (chỉ kỳ tháng) ── */
     + (khoiSuCo ? hang(nhanMuc('Xử lý sự cố trong kỳ') + khoiSuCo) : '')
 
-    /* ── Xấu đi so kỳ trước ── */
+    /* ── Xấu đi so kỳ trước ──
+     * Bản cũ mỗi phòng một thanh + chữ nhỏ "kỳ trước 67,7%" — người đọc không biết
+     * con số là gì và giảm từ đâu xuống đâu (góp ý 04/09/2026). Nay: câu dẫn nói rõ
+     * tiêu chí, mỗi phòng HAI thanh cùng thang (xám = kỳ trước, đỏ = kỳ này) có vạch
+     * 80%, số đứng cạnh thanh của nó. */
     + (cap.capB.length
         ? hang(nhanMuc('Xấu đi rõ so với kỳ trước')
+            + '<div style="font-size:15px;color:' + M.muc2 + ';line-height:1.6;margin:-4px 0 12px;">'
+            +   'Phòng có <b>thời gian trong ngưỡng</b> kỳ này thấp hơn kỳ trước từ '
+            +   L.SUT_GIAM_CAP_B + ' phần trăm trở lên. Thanh xám là kỳ trước, thanh đỏ là kỳ này; '
+            +   'vạch đứng là mức phải đạt ' + NGUONG_HANH_DONG + '%.</div>'
             + bang(cap.capB.slice(0, 4).map(function (x) {
-                return dongThanh(L.tenPhongGon(x.ma_phong, x.ten_phong), x.tuan_thu_ky_nay,
-                  phanTram(x.tuan_thu_ky_nay), M.do,
-                  'kỳ trước ' + phanTram(x.tuan_thu_ky_truoc), NGUONG_HANH_DONG);
+                return dongSoSanh(L.tenPhongGon(x.ma_phong, x.ten_phong),
+                  x.tuan_thu_ky_truoc, x.tuan_thu_ky_nay, x.khu_vuc);
               }).join(''))
             + (cap.capB.length > 4
                 ? '<div style="font-size:14px;color:' + M.mo + ';margin-top:10px;">Còn '
-                  + (cap.capB.length - 4) + ' phòng nữa trong tệp đính kèm.</div>' : ''))
+                  + (cap.capB.length - 4) + ' phòng nữa, xem đầy đủ trong tệp đính kèm.</div>' : ''))
         : '')
 
     /* ── Nhận định ── */
