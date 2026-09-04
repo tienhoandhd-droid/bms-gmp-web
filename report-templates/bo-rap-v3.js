@@ -3386,6 +3386,16 @@ function rapEmail(d, duBao, cfg) {
   const cay = L.dungCay(d);
   const ht = cap.heThong;
   const tenKy = dich(L.TEN_KY, String(d.ky).toUpperCase(), String(d.ky).toLowerCase());
+  // Nhãn kỳ ở dòng đầu thư để nhận diện ngay: "tháng 08/2026", "tuần 36/2026"...
+  // n8n truyền sẵn cfg.nhan_ky; chạy thử tại chỗ không có thì suy từ ngày cuối kỳ
+  // (tháng, quý) hoặc ghi hai mốc ngày (tuần, kỳ tuỳ chọn).
+  const nhanKy = c.nhan_ky || (function () {
+    const den = String(d.den_ngay || ''), nam = den.slice(0, 4), thang = den.slice(5, 7);
+    const ma = String(d.ky || '').toUpperCase();
+    if (ma === 'THANG' && nam && thang) return 'tháng ' + thang + '/' + nam;
+    if (ma === 'QUY' && nam && thang) return 'quý ' + Math.ceil(Number(thang) / 3) + '/' + nam;
+    return tenKy + ' ' + ngayDai(d.tu_ngay) + ' – ' + ngayDai(d.den_ngay);
+  })();
   const gioDoDuoc = (d.do_tin_cay_du_lieu && d.do_tin_cay_du_lieu.gio_co_du_lieu)
     || (ht && ht.gio_co_du_lieu) || 0;
   // Tỉ lệ thời gian ngoài giới hạn trên tổng số giờ thực sự đo được của toàn nhà máy.
@@ -3894,7 +3904,7 @@ function rapEmail(d, duBao, cfg) {
   return nen('<!doctype html>\n<html lang="vi"><head><meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width, initial-scale=1">'
     + '<meta name="color-scheme" content="light only">'
-    + '<title>' + esc(c.tieu_de_email || ('Báo cáo ' + tenKy)) + '</title>'
+    + '<title>' + esc(c.tieu_de_email || ('Báo cáo ' + nhanKy)) + '</title>'
     /* Khối kiểu dáng CHỈ dùng cho màn hình hẹp; mọi thứ khác viết thẳng vào thẻ. */
     + '<style>'
     + '.o{height:12px;font-size:0;line-height:0;}'
@@ -3923,22 +3933,21 @@ function rapEmail(d, duBao, cfg) {
 
     + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:'
     + M.ngoai + ';"><tr><td align="center" style="padding:28px 12px;">'
-    /* Bề rộng: chuẩn an toàn của thư điện tử là 600–640px, trên 650px có hòm thư
-       bắt đầu sinh thanh cuộn ngang. Nhưng thư này là CHỮ chứ không phải ảnh nên
-       không cần khoá cứng như thư quảng cáo. Chọn 720px — rộng hơn chuẩn để màn
-       hình lớn đỡ trống trải, vẫn dưới ngưỡng gây cuộn ngang ở phần lớn hòm thư.
-       Nền ngoài trải rộng toàn màn hình nên nhìn không bị bó vào một cột hẹp.
-       Dòng chữ dài quá 90 ký tự thì mắt khó bắt dòng, nên rộng hơn nữa cũng
-       không giúp đọc dễ hơn. */
+    /* Bề rộng: chuẩn an toàn của thư điện tử là 600–640px; bản đầu chọn 720px.
+       Người dùng xem trên máy tính thấy cột chữ bị bó ở giữa màn hình (góp ý
+       04/09/2026) nên nới lên 1000px: bảng và biểu đồ thoáng hơn, đoạn văn vẫn đọc
+       được. Không trải hết màn hình vì dòng chữ quá dài khó bắt dòng kế, và Gmail
+       máy tính tự giới hạn khung đọc nên 100% cũng không rộng hơn bao nhiêu.
+       Điện thoại không đổi: dưới 660px khung co theo màn hình (xem @media). */
     + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
-    + ' style="width:100%;max-width:720px;font-family:' + F + ';color:' + M.muc + ';">'
+    + ' style="width:100%;max-width:1000px;font-family:' + F + ';color:' + M.muc + ';">'
 
     /* ── Dải đầu thư ── */
     + '<tr><td class="pad" style="background:' + M.dam + ';border-radius:14px 14px 0 0;padding:26px 32px;">'
     + '<div style="font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:#93A4B8;'
     + 'font-weight:700;">Giám sát môi trường phòng sạch</div>'
     + '<div style="font-size:26px;line-height:1.3;color:#ffffff;font-weight:700;margin-top:8px;'
-    + 'letter-spacing:-.02em;">Báo cáo ' + esc(tenKy) + '</div>'
+    + 'letter-spacing:-.02em;">Báo cáo ' + esc(nhanKy) + '</div>'
     + '<div style="font-size:14px;color:#B7C4D4;margin-top:6px;line-height:1.5;">'
     + ngayDai(d.tu_ngay) + ' → ' + ngayDai(d.den_ngay) + ' · ' + (k.so_ngay_co_du_lieu || 0)
     + ' ngày có số đo · lập lúc ' + esc(c.tao_luc || ngayDai(d.tao_luc)) + '</div></td></tr>'
