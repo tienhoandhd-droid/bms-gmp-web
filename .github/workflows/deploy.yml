@@ -66,6 +66,10 @@ jobs:
         run: |
           npx puppeteer browsers install chrome
           npm run test:ui
+      # Đợt E 04/09/2026: kiểm đầu-cuối luồng người dùng ở chế độ demo (bấm tab, modal + Esc, lọc, theme,
+      # bottom-nav, skip-link, trang phụ). Luồng sau đăng nhập cần tài khoản test — chưa có trong CI.
+      - name: Kiểm đầu-cuối (test:e2e)
+        run: npm run test:e2e
       # Lỗ hổng phụ thuộc mức cao (đợt A 04/09/2026): trước đây `|| true` nuốt luôn kết quả nên
       # bước này KHÔNG BAO GIỜ đỏ. Nay: bước hiện ĐỎ trên GitHub khi có lỗ hổng high, nhưng chưa
       # chặn deploy (continue-on-error) — chuyển sang chặn hẳn sau khi rà xong danh sách lần đầu.

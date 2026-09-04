@@ -38,6 +38,8 @@
       (function () {
         var nut = document.getElementById('ve-trang-chinh');
         var phan = location.pathname.split('/').filter(Boolean);
+        // Đoạn cuối là tên file (có dấu chấm, vd 404.html) thì không phải thư mục → bỏ.
+        if (phan.length && phan[phan.length - 1].indexOf('.') !== -1) phan.pop();
         var ungVien = [];
         for (var i = phan.length; i >= 0; i--) ungVien.push('/' + phan.slice(0, i).join('/') + (i ? '/' : ''));
         (function thu(k) {
