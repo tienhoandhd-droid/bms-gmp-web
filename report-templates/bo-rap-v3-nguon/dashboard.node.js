@@ -94,6 +94,9 @@ function duLieuNhung(d) {
 
   return {
     ky: d.ky, tu: d.tu_ngay, den: d.den_ngay, ngay: ngays, nguong: NGUONG_HANH_DONG,
+    // Con số dẫn đầu khi không lọc phải trùng thư và bản in (rà soát 04/09/2026, đợt 2)
+    kpiTT: lam((d.kpi_ky_nay || {}).ty_le_tuan_thu),
+    tiLeVuotA: L.TI_LE_GIO_VUOT_A,
     phong: phong, cb: cb, chiSo: chiSo, suKien: suKien, suCo: suCo,
     capA: L.phanCap(d).capA_tat_ca.map(function (v) {
       return { ma: v.ma_phong, cc: v.can_cu, viec: v.viec };
@@ -358,9 +361,10 @@ const JS = String.raw`
 
   function dat(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
 
-  // Chỉ số trên đầu tính lại theo ĐÚNG bộ lọc đang bật, không phải luôn là
-  // số toàn nhà máy. Dùng TRUNG VỊ chứ không lấy trung bình cộng các tỉ lệ,
-  // vì mỗi phòng có số giờ đo khác nhau.
+  // Chỉ số trên đầu tính lại theo ĐÚNG bộ lọc đang bật. Không lọc thì lấy đúng con số của
+  // kỳ (kpi_ky_nay) để trùng thư và bản in; đang lọc thì lấy trung bình CÂN THEO GIỜ ĐO của
+  // các phòng trong nhóm — cùng cách tính với số của kỳ. Trung vị chỉ còn là dòng phụ
+  // (rà soát 04/09/2026, đợt 2).
   function veChiSo(ds) {
     var gn = 0, datN = 0, tong = ds.length, maSet = {};
     ds.forEach(function (p) { gn += p.gn; if (p.tt >= NG) datN++; maSet[p.ma] = 1; });
@@ -371,13 +375,19 @@ const JS = String.raw`
               : (tt[tt.length / 2 - 1] + tt[tt.length / 2]) / 2) : null;
     var toanBo = loc.khu === 'TAT_CA' && loc.ahu === 'TAT_CA' && loc.ut === 'TAT_CA'
                  && !loc.chuaDat && !loc.tim;
-    dat('cs-tt', pt(tv));
-    dat('cs-nhan', toanBo ? 'toàn nhà máy' : 'phạm vi đang lọc');
+    var ws = 0, wg = 0, nCan = 0;
+    ds.forEach(function (p) { if (p.tt != null && p.gd) { ws += p.tt * p.gd; wg += p.gd; nCan++; } });
+    var can = wg ? ws / wg : null;
+    var chinh = toanBo && D.kpiTT != null ? D.kpiTT : can;
+    dat('cs-tt', pt(chinh));
+    dat('cs-nhan', toanBo && D.kpiTT != null ? 'thời gian trong ngưỡng, toàn nhà máy'
+      : 'trung bình cân theo giờ đo của ' + nCan + ' phòng đang lọc');
+    dat('cs-tv', tv == null ? '' : 'trung vị các phòng: ' + pt(tv));
     dat('cs-gn', soVN(gn, 0));
     dat('cs-a', String(soA));
     dat('cs-dat', datN + '/' + tong);
     var e = document.getElementById('cs-tt');
-    if (e) e.classList.toggle('xau', tv != null && tv < NG);
+    if (e) e.classList.toggle('xau', chinh != null && chinh < NG);
   }
 
   var COT = [
@@ -385,7 +395,7 @@ const JS = String.raw`
     { k: 'khu', t: 'Khu' }, { k: 'ahu', t: 'Cụm' }, { k: 'ut', t: 'Ưu tiên' },
     { k: 'tt',  t: 'Thời gian trong ngưỡng %', so: 1 },
     { k: 'gn',  t: 'Giờ vượt giới hạn hành động', so: 1 },
-    { k: 'dq',  t: 'Thời gian có số đo %', so: 1 }
+    // (rà soát 04/09/2026, mục 12) bỏ cột dq_pct: đó là chất lượng điểm đo trong giờ có số đo, không phải độ phủ.
   ];
 
   function spark(ch, w, h) {
@@ -420,7 +430,7 @@ const JS = String.raw`
         + '<td>' + (TEN_UT[p.ut] || p.ut) + '</td>'
         + '<td class="so' + (p.tt < NG ? ' tang-xau' : '') + '">' + soVN(p.tt) + '</td>'
         + '<td class="so">' + soVN(p.gn, 0) + '</td>'
-        + '<td class="so">' + soVN(p.dq) + '</td>'
+
         + '<td>' + spark(p.ch) + '</td></tr>';
     }).join('');
     return '<div class="cuon-ngang"><table><thead><tr>' + th + '</tr></thead><tbody>'
@@ -585,9 +595,9 @@ const JS = String.raw`
   // thập phân; thêm dấu nhận dạng đầu tệp để bảng tính đọc đúng tiếng Việt.
   function xuatCSV(ds) {
     var dau = ['Mã phòng', 'Tên phòng', 'Khu', 'Cụm', 'Mức ưu tiên',
-               'Thời gian trong ngưỡng %', 'Giờ vượt giới hạn hành động', 'Thời gian có số đo %'];
+               'Thời gian trong ngưỡng %', 'Giờ vượt giới hạn hành động'];
     var dong = ds.map(function (p) {
-      return [p.ma, p.ten, p.khu, p.ahu, TEN_UT[p.ut] || p.ut, p.tt, p.gn, p.dq];
+      return [p.ma, p.ten, p.khu, p.ahu, TEN_UT[p.ut] || p.ut, p.tt, p.gn];
     });
     var csv = [dau].concat(dong).map(function (h) {
       return h.map(function (o) {
@@ -831,7 +841,8 @@ function rapDashboard(d, duBao, cfg) {
     + ' ngày có số đo</div></div>'
     + '<div class="chi-so-nhanh">'
     + '<div class="csn csn-chinh"><div class="gt" id="cs-tt">—</div>'
-    +   '<div class="ten">trung vị thời gian trong ngưỡng · <span id="cs-nhan">toàn nhà máy</span></div></div>'
+    +   '<div class="ten" id="cs-nhan">thời gian trong ngưỡng, toàn nhà máy</div>'
+    +   '<div class="ten" id="cs-tv"></div></div>'
     + '<div class="csn"><div class="gt" id="cs-gn">—</div>'
     +   '<div class="ten">giờ cảm biến vượt giới hạn hành động</div></div>'
     + '<div class="csn"><div class="gt" id="cs-a">—</div>'

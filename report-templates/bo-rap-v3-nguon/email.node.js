@@ -696,8 +696,9 @@ function rapEmail(d, duBao, cfg) {
     +   'hành động (một giờ chỉ vượt vài phút vẫn tính trọn giờ), cộng dồn các phòng trong khu; tỉ lệ nhỏ '
     +   'bên dưới tính trên số giờ có số đo — đơn vị khác hai cột trước nên không cộng với nhau. '
     +   '<b style="color:#ffffff;">Phòng phải xử lý</b>: phòng có sự cố mở quá hạn, hoặc thời gian '
-    +   'trong ngưỡng thiếu hụt so với mức ' + NGUONG_HANH_DONG + '%, hoặc từ ' + L.GIO_NGHIEM_TRONG_A
-    +   ' giờ trở lên vượt giới hạn hành động — danh sách ở mục "Việc phải xử lý".'
+    // Luật A3 nay theo tỉ lệ trên giờ có số đo của phòng (rà soát 04/09/2026, đợt 2)
+    +   'trong ngưỡng thiếu hụt so với mức ' + NGUONG_HANH_DONG + '%, hoặc từ ' + L.TI_LE_GIO_VUOT_A
+    +   '% số giờ có số đo trở lên vượt giới hạn hành động — danh sách ở mục "Việc phải xử lý".'
     +   '</td></tr></tbody></table>';
 
   /* ===== So với bốn kỳ trước ===========================================

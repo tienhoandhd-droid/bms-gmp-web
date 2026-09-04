@@ -929,7 +929,7 @@ function rapBaoCao(d, duBao, cfg) {
     + '<p class="mota">Danh sách này do luật cố định chọn ra, không do máy viết nhận định quyết định. '
     + 'Một phòng vào danh sách khi: có sự cố mức nghiêm trọng mở quá ' + L.GIO_SU_CO_CAP_A
     + ' giờ mà chưa xử lý; hoặc là phòng theo dõi đặc biệt mà thời gian trong ngưỡng dưới ' + NGUONG_HANH_DONG + '%; '
-    + 'hoặc có từ ' + L.GIO_NGHIEM_TRONG_A + ' giờ cảm biến trở lên vượt giới hạn hành động. '   // đúng chữ luật dùng (rà soát 04/09/2026)
+    + 'hoặc từ ' + L.TI_LE_GIO_VUOT_A + '% số giờ có số đo của phòng trở lên vượt giới hạn hành động. '   // luật theo tỉ lệ (rà soát 04/09/2026, đợt 2)
     + 'Thứ tự ưu tiên: mức ưu tiên của phòng, rồi tới có sự cố quá hạn hay không, '
     + 'rồi tới mức thiếu hụt so với ngưỡng, cuối cùng là số giờ vượt giới hạn hành động.</p>'
     + heThongHtml

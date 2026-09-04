@@ -179,7 +179,10 @@ function vietLai(s) {
 
 const NGUONG_HANH_DONG   = 80;   // % thời gian trong ngưỡng — dưới mức này là không đạt
 const GIO_SU_CO_CAP_A    = 24;   // sự cố mở quá số giờ này thì lên cấp A
-const GIO_NGHIEM_TRONG_A = 100;  // số giờ ngoài giới hạn trong kỳ đưa phòng lên cấp A
+// Luật A3 tính theo TỈ LỆ trên giờ có số đo của chính phòng: 100 giờ tuyệt đối là 13% của
+// một tháng nhưng 60% của một tuần — cùng một con số, hai ý nghĩa (rà soát 04/09/2026, đợt 2).
+const TI_LE_GIO_VUOT_A   = 15;   // % số giờ có số đo của phòng bị dán nhãn vượt giới hạn hành động → cấp A
+const GIO_NGHIEM_TRONG_A = 100;  // CŨ, không dùng nữa — giữ export cho nơi khác còn tham chiếu
 const SUT_GIAM_CAP_B     = 10;   // giảm bao nhiêu điểm % so kỳ trước thì vào cấp B
 const NGOAI_LE_HE_THONG  = 100;  // số lần lỗi thu dữ liệu đủ để coi là sự cố hệ thống
 const TOI_DA_CAP_A       = 7;    // trần số dòng cấp A ở phần chính
@@ -314,6 +317,15 @@ function phanCap(d) {
     const gd = gioDoDP[r.ma_phong];
     if (gd) lechDuoiDP[r.ma_phong] = 100 * (r.gio_lech || 0) / gd;
   });
+  // Giờ có số đo của từng phòng, cộng mọi cảm biến mọi ngày — cùng nguồn dungCay dùng làm
+  // gio_do. Là mẫu số cho luật A3 (rà soát 04/09/2026, đợt 2).
+  const gioDoPhong = {};
+  Object.keys(d.chuoi_cam_bien || {}).forEach(function (kh) {
+    const ma = kh.split('|')[0];
+    (d.chuoi_cam_bien[kh].chuoi || []).forEach(function (x) {
+      gioDoPhong[ma] = (gioDoPhong[ma] || 0) + (x.gio_co_dl || 0);
+    });
+  });
 
   // Gom theo ĐỐI TƯỢNG: mỗi phòng đúng một dòng, dù trúng nhiều luật.
   const theoPhong = {};
@@ -390,20 +402,25 @@ function phanCap(d) {
       });
     });
 
-  // A3. Phòng ngoài mức 1 nhưng số giờ ngoài giới hạn quá cao
+  // A3. Phòng ngoài mức 1 nhưng tỉ lệ giờ vượt giới hạn hành động quá cao.
+  // Phòng không có giờ đo thì KHÔNG xét — thiếu số liệu không phải bằng 0 (rà soát 04/09/2026, đợt 2).
   (d.tat_ca_phong || [])
-    .filter((p) => p.muc_uu_tien !== 'P1' && p.so_gio_critical >= GIO_NGHIEM_TRONG_A)
+    .filter((p) => p.muc_uu_tien !== 'P1' && gioDoPhong[p.ma_phong]
+      && 100 * (p.so_gio_critical || 0) / gioDoPhong[p.ma_phong] >= TI_LE_GIO_VUOT_A)
     .forEach((p) => {
+      const gd = gioDoPhong[p.ma_phong];
       ghi(p.ma_phong, {
         loai: 'Nhiều giờ vượt giới hạn hành động',
         can_cu: 'Trong ngưỡng ' + phanTram(p.ty_le_tuan_thu) + '. '
               + (lechDuoiDP[p.ma_phong] != null
                   ? 'Chênh áp tụt dưới giới hạn ' + phanTram(lechDuoiDP[p.ma_phong])
                     + ' thời gian, đây là hướng gây nhiễm chéo. ' : '')
-              + gioDoc(p.so_gio_critical) + ' vượt giới hạn hành động.',
+              + 'Từ ' + TI_LE_GIO_VUOT_A + '% số giờ có số đo trở lên vượt giới hạn hành động ('
+              + gioDoc(p.so_gio_critical) + ' / ' + gioDoc(gd) + ', tức '
+              + phanTram(100 * (p.so_gio_critical || 0) / gd) + ').',
         viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
             + '. Giám sát trong quá trình đối chiếu lịch sản xuất xem có trùng ca không.',
-        nguon: 'tat_ca_phong (số giờ ngoài giới hạn)'
+        nguon: 'tat_ca_phong (tỉ lệ giờ vượt giới hạn hành động trên giờ có số đo)'
       });
     });
 
@@ -1253,22 +1270,27 @@ function chuanHoaLichSu(d) {
 function xuHuongLichSu(ds) {
   if (!ds) return null;
   const co = ds.filter(function (x) { return x.ty_le != null; });
+  const soTrong = ds.length - co.length;
   const nay = ds[ds.length - 1];
   if (nay.ty_le == null || co.length < 2) return { chu: 'Chưa đủ kỳ có số liệu để so sánh.', huong: 'khong' };
   const truoc = co.slice(0, -1).map(function (x) { return x.ty_le; });
   const tb = truoc.reduce(function (t, v) { return t + v; }, 0) / truoc.length;
   const caoNhat = nay.ty_le >= Math.max.apply(null, truoc);
   const thapNhat = nay.ty_le <= Math.min.apply(null, truoc);
+  // Đếm "liên tiếp" trên DÃY GỐC: gặp kỳ trống là ngắt, không nhảy qua kỳ trống rồi
+  // vẫn gọi là liên tiếp (rà soát 04/09/2026, đợt 2)
   let lienTiep = 0;
-  for (let i = co.length - 1; i > 0 && co[i].ty_le > co[i - 1].ty_le; i--) lienTiep++;
+  for (let i = ds.length - 1; i > 0 && ds[i - 1].ty_le != null && ds[i].ty_le > ds[i - 1].ty_le; i--) lienTiep++;
   let lienTiepGiam = 0;
-  for (let i = co.length - 1; i > 0 && co[i].ty_le < co[i - 1].ty_le; i--) lienTiepGiam++;
-  if (caoNhat && lienTiep >= 2) return { chu: 'Tốt lên ' + lienTiep + ' kỳ liên tiếp; kỳ này cao nhất trong ' + co.length + ' kỳ.', huong: 'tot' };
-  if (caoNhat) return { chu: 'Kỳ này cao nhất trong ' + co.length + ' kỳ có số liệu.', huong: 'tot' };
-  if (thapNhat && lienTiepGiam >= 2) return { chu: 'Xấu đi ' + lienTiepGiam + ' kỳ liên tiếp; kỳ này thấp nhất trong ' + co.length + ' kỳ.', huong: 'xau' };
-  if (thapNhat) return { chu: 'Kỳ này thấp nhất trong ' + co.length + ' kỳ có số liệu.', huong: 'xau' };
-  if (nay.ty_le > tb) return { chu: 'Kỳ này (' + phanTram(nay.ty_le) + ') cao hơn trung bình các kỳ trước (' + phanTram(tb) + '), nhưng chưa phải cao nhất.', huong: 'tot' };
-  return { chu: 'Kỳ này (' + phanTram(nay.ty_le) + ') thấp hơn trung bình các kỳ trước (' + phanTram(tb) + ').', huong: 'xau' };
+  for (let i = ds.length - 1; i > 0 && ds[i - 1].ty_le != null && ds[i].ty_le < ds[i - 1].ty_le; i--) lienTiepGiam++;
+  const ghiTrong = soTrong ? ' (có ' + soTrong + ' kỳ chưa có số liệu)' : '';
+  const kq = function (chu, huong) { return { chu: chu.replace(/\.$/, '') + ghiTrong + '.', huong: huong }; };
+  if (caoNhat && lienTiep >= 2) return kq('Tốt lên ' + lienTiep + ' kỳ liên tiếp; kỳ này cao nhất trong ' + co.length + ' kỳ.', 'tot');
+  if (caoNhat) return kq('Kỳ này cao nhất trong ' + co.length + ' kỳ có số liệu.', 'tot');
+  if (thapNhat && lienTiepGiam >= 2) return kq('Xấu đi ' + lienTiepGiam + ' kỳ liên tiếp; kỳ này thấp nhất trong ' + co.length + ' kỳ.', 'xau');
+  if (thapNhat) return kq('Kỳ này thấp nhất trong ' + co.length + ' kỳ có số liệu.', 'xau');
+  if (nay.ty_le > tb) return kq('Kỳ này (' + phanTram(nay.ty_le) + ') cao hơn trung bình các kỳ trước (' + phanTram(tb) + '), nhưng chưa phải cao nhất.', 'tot');
+  return kq('Kỳ này (' + phanTram(nay.ty_le) + ') thấp hơn trung bình các kỳ trước (' + phanTram(tb) + ').', 'xau');
 }
 
 module.exports = {
@@ -1280,7 +1302,7 @@ module.exports = {
   TEN_KET_LUAN_DU_LIEU: TEN_KET_LUAN_DU_LIEU, TEN_HUONG: TEN_HUONG, TEN_KY: TEN_KY,
   dich: dich, vietLai: vietLai,
   NGUONG_HANH_DONG: NGUONG_HANH_DONG, GIO_SU_CO_CAP_A: GIO_SU_CO_CAP_A,
-  GIO_NGHIEM_TRONG_A: GIO_NGHIEM_TRONG_A, SUT_GIAM_CAP_B: SUT_GIAM_CAP_B,
+  GIO_NGHIEM_TRONG_A: GIO_NGHIEM_TRONG_A, TI_LE_GIO_VUOT_A: TI_LE_GIO_VUOT_A, SUT_GIAM_CAP_B: SUT_GIAM_CAP_B,
   NGOAI_LE_HE_THONG: NGOAI_LE_HE_THONG, TOI_DA_CAP_A: TOI_DA_CAP_A, DOT_LECH_DANG_KE: DOT_LECH_DANG_KE,
   DU_PHONG_DE_SO_SANH: DU_PHONG_DE_SO_SANH,
   esc: esc, so: so, soVN: soVN, tenPhongGon: tenPhongGon, phanTram: phanTram, gioTyLe: gioTyLe, ngayNgan: ngayNgan, ngayDai: ngayDai, gioPhut: gioPhut, gioVietNam: gioVietNam, ngayVietNamISO: ngayVietNamISO, gioDoc: gioDoc, delta: delta,
