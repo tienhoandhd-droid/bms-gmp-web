@@ -15,7 +15,9 @@
     "check:contrast": "node kiemtra-ui/check-ui-contrast.mjs",
     "test:ui": "node kiemtra-ui/test-ui.mjs",
     "test:unit": "node --test test/*.test.mjs",
-    "quality": "npm run check:colors && npm run check:copy && npm run check:contrast && npm run build"
+    "quality": "npm run lint && npm run check:colors && npm run check:copy && npm run check:contrast && npm run build && npm run check:bundle",
+    "lint": "eslint src --ext .js,.jsx",
+    "check:bundle": "node kiemtra-ui/check-bundle.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.106.2",

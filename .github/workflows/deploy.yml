@@ -36,7 +36,10 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - name: Unit tests — Chênh áp theo người xem
+      # Đợt D 04/09/2026: ESLint (no-undef, luật hook) chặn deploy — trước đây chỉ chạy tay.
+      - name: ESLint
+        run: npm run lint
+      - name: Unit tests
         run: npm run test:unit
       # GMP: KHÔNG deploy production ở chế độ demo. Thiếu secret Supabase ⇒ FAIL, không
       # âm thầm build bản demo (bản demo lên production đọc như dữ liệu thật → nguy hiểm).
@@ -74,6 +77,9 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_DATA_SOURCE: live
+      # Đợt D 04/09/2026: ngân sách bundle (gzip) đo trên BẢN PRODUCTION vừa build — chặn deploy nếu phình.
+      - name: Ngân sách bundle (check:bundle)
+        run: npm run check:bundle
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist

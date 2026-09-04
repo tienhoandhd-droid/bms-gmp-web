@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Biểu tượng tab: ô vuông xanh lục lam (primary-solid) + ba dải luồng khí phòng sạch,
+       chấm đỏ góc trên = trạng thái cảnh báo. Đơn giản để rõ ở 16 px. -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#0A6E68"/>
+  <path d="M14 24h26a6 6 0 1 0-6-6" fill="none" stroke="#F4F9FB" stroke-width="5" stroke-linecap="round"/>
+  <path d="M14 34h34a6 6 0 1 1-6 6" fill="none" stroke="#F4F9FB" stroke-width="5" stroke-linecap="round"/>
+  <path d="M14 44h18" fill="none" stroke="#F4F9FB" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="50" cy="14" r="7" fill="#F08C85" stroke="#0A6E68" stroke-width="3"/>
+</svg>

@@ -10,5 +10,8 @@ module.exports = {
   rules: {
     "no-undef": "error",
     "react/jsx-no-undef": "error",
+    // Đợt D 04/09/2026: luật hook — gọi sai thứ tự là lỗi thật; thiếu dependency chỉ cảnh báo (8 chỗ cũ đã có eslint-disable có chủ đích).
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
   },
 };

@@ -1118,7 +1118,7 @@ export default function AppShell() {
                         <p className="text-[12px] font-semibold uppercase tracking-wider text-muted mb-1.5">Dòng thời gian xử lý</p>
                         <ol className="space-y-2 border-l-2 border-line pl-3">
                           {inc.trail.map((t, i) => (
-                            <li key={i} className="text-[13px]"><span className="tabular-nums text-muted">{t.t}</span> <b className="text-strong">{t.who}</b><span className="block text-body">{t.act}</span></li>
+                            <li key={`${t.t}-${i}`} className="text-[13px]"><span className="tabular-nums text-muted">{t.t}</span> <b className="text-strong">{t.who}</b><span className="block text-body">{t.act}</span></li>
                           ))}
                         </ol>
                       </div>

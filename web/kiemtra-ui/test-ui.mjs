@@ -33,6 +33,8 @@ const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 const GOC = new URL("..", import.meta.url).pathname;
 const TABS = ["home", "tasks", "events", "recent", "sensors", "trend", "reports", "audit", "recipients", "settings"];
+// Đợt D 04/09/2026: kiểm cả 3 trang ngoài dashboard (trước đây là vùng mù): bấm từ email, đặt lại mật khẩu, màn treo tường.
+const TRANG = [...TABS.map((t) => ({ ten: t, url: `/?tab=${t}` })), { ten: "action", url: "/action.html" }, { ten: "datlai", url: "/datlai.html" }, { ten: "tv", url: "/?tv=1" }];
 const VIEWPORTS = [[1440, 900], [768, 1024], [390, 844]];
 const CAM_RUNTIME = ["Supabase", "n8n", "WF1", "WF5", "WF6", "WF7", "WF8", "rpc_", "webhook"];
 
@@ -74,10 +76,10 @@ try {
     await page.evaluateOnNewDocument((t) => { try { localStorage.setItem("bms-theme", t); } catch {} }, theme);
     for (const [w, h] of VIEWPORTS) {
       await page.setViewport({ width: w, height: h });
-      for (const tab of TABS) {
+      for (const { ten: tab, url } of TRANG) {
         let taiOk = false;
         for (let lan = 0; lan < 2 && !taiOk; lan++) {
-          try { await page.goto(`${base}/?tab=${tab}`, { waitUntil: "domcontentloaded", timeout: 45000 }); taiOk = true; }
+          try { await page.goto(`${base}${url}`, { waitUntil: "domcontentloaded", timeout: 45000 }); taiOk = true; }
           catch { await new Promise((r) => setTimeout(r, 800)); }
         }
         if (!taiOk) { ghi(`${theme} ${w}px ${tab}: không tải được trang`); continue; }
@@ -138,5 +140,5 @@ try {
 } finally {
   if (server) server.kill();
 }
-console.log(loi.length ? `✗ test:ui — ${loi.length} lỗi` : "✓ test:ui — 10 tab × 2 theme × 3 viewport + axe WCAG 2.2 AA đạt");
+console.log(loi.length ? `✗ test:ui — ${loi.length} lỗi` : "✓ test:ui — 13 trang × 2 theme × 3 viewport + axe WCAG 2.2 AA đạt");
 process.exit(loi.length ? 1 : 0);

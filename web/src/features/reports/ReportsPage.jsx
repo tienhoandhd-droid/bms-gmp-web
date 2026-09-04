@@ -73,7 +73,7 @@ function ReportsPage({ ai, aiRows = null }) {
           <div className="mt-5">
             <p className="text-[12px] uppercase text-muted font-semibold mb-2 flex items-center gap-1.5"><History className="w-3 h-3" strokeWidth={1.8} /> Nhận định gần đây</p>
             <div className="space-y-2 max-h-72 overflow-y-auto pr-1">{aiRows.map((r, i) => (
-              <div key={i} className="rounded-xl bg-subtle ring-1 ring-line/70 p-3.5">
+              <div key={`${r.ts || r.thoi_gian || ""}-${r.scope || ""}-${i}`} className="rounded-xl bg-subtle ring-1 ring-line/70 p-3.5">
                 <div className="flex items-center justify-between gap-2 mb-1"><span className="text-[12px] font-semibold" style={{ color: "var(--text-strong)" }}>{r.scope}<span className="text-muted font-normal"> · {r.sensor} · {r.range}</span></span><span className={`text-[12px] font-semibold px-2 py-0.5 rounded-full ring-1 ${NHAN_DINH_LV[r.level] || NHAN_DINH_LV[0]}`}>{r.time}</span></div>
                 <p className="text-[12px] leading-relaxed text-body">{r.text}</p>
               </div>
