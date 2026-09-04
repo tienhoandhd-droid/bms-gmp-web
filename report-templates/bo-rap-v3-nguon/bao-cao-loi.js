@@ -163,7 +163,10 @@ const CUM_KY_THUAT = [
   [/điểm\s+phần\s+trăm/g, 'điểm %'],   // không dùng \b: chữ có dấu không phải ký tự từ trong biểu thức JavaScript
   // Chuỗi từ truy vấn dùng dấu chấm thập phân kiểu Anh — đổi sang lối Việt.
   // Chỉ khớp khi cả hai bên đều là chữ số, nên mã phòng "C1.R19" không bị đụng.
-  [/(\d)\.(\d)/g, '$1,$2']
+  // Không đụng dấu chấm hàng nghìn đã viết lối Việt ("1.000 giờ" — chấm rồi đúng ba
+  // chữ số rồi hết số); riêng số mở đầu bằng 0 như "0.818" luôn là thập phân (rà soát 04/09/2026).
+  [/\b0\.(\d)/g, '0,$1'],
+  [/(\d)\.(\d)(?!\d{2}\b)/g, '$1,$2']
 ];
 function vietLai(s) {
   if (s == null) return '';
@@ -200,6 +203,33 @@ const so = (v, n) => (v == null || !isFinite(v)) ? '—' : Number(v).toFixed(n =
 const ngayNgan = (iso) => String(iso || '').slice(8, 10) + '/' + String(iso || '').slice(5, 7);
 const ngayDai  = (iso) => String(iso || '').slice(0, 10).split('-').reverse().join('/');
 const gioPhut  = (iso) => String(iso || '').slice(11, 16);
+
+// Thời điểm ISO CÓ múi giờ ("…T08:14:12+00:00", "…Z") → giờ Việt Nam (+7), viết
+// "dd/mm/yyyy hh:mm:ss" hoặc chỉ ngày. Tự cộng bù 7 giờ rồi đọc lại bằng getUTC*
+// thay vì dùng Intl, vì môi trường n8n không chắc có dữ liệu múi giờ. Chuỗi không
+// có múi giờ thì trả nguyên văn — không đoán (rà soát 04/09/2026).
+function gioVietNam(iso, chiNgay) {
+  if (!iso) return '—';
+  const chuoi = String(iso);
+  if (!/(Z|[+-]\d{2}:?\d{2})$/.test(chuoi)) return chiNgay ? ngayDai(chuoi) : chuoi;
+  const t = Date.parse(chuoi);
+  if (!isFinite(t)) return chuoi;
+  const v = new Date(t + 7 * 3600 * 1000);
+  const p = (n) => String(n).padStart(2, '0');
+  const ngay = p(v.getUTCDate()) + '/' + p(v.getUTCMonth() + 1) + '/' + v.getUTCFullYear();
+  return chiNgay ? ngay
+    : ngay + ' ' + p(v.getUTCHours()) + ':' + p(v.getUTCMinutes()) + ':' + p(v.getUTCSeconds());
+}
+// Ngày (yyyy-mm-dd) theo giờ Việt Nam, để so với mốc chốt kỳ. Chuỗi có múi giờ thì
+// cộng 7 giờ rồi mới lấy ngày; chuỗi không múi giờ giữ nguyên 10 ký tự đầu (rà soát 04/09/2026).
+function ngayVietNamISO(iso) {
+  if (!iso) return null;
+  const chuoi = String(iso);
+  if (!/(Z|[+-]\d{2}:?\d{2})$/.test(chuoi)) return chuoi.slice(0, 10);
+  const t = Date.parse(chuoi);
+  if (!isFinite(t)) return chuoi.slice(0, 10);
+  return new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 10);
+}
 
 // Số giờ viết cho người đọc: 162 giờ → "162 giờ (6,8 ngày)"
 // Không quy đổi ra ngày: phần lớn số giờ trong báo cáo là CỘNG DỒN của nhiều phòng
@@ -314,14 +344,18 @@ function phanCap(d) {
    * cũng đo tới lúc chạy chứ không tới ngày chốt kỳ.
    * Vẫn giữ lại để báo, nhưng tách riêng và ghi rõ là ngoài kỳ. */
   const chotKy = d.den_ngay ? String(d.den_ngay).slice(0, 10) : null;
-  const trongKy = (s) => !chotKy || !s.bat_dau || String(s.bat_dau).slice(0, 10) <= chotKy;
+  // So theo NGÀY VIỆT NAM: bat_dau của sự cố là UTC (+00:00), lấy thô 10 ký tự đầu thì sự cố
+  // mở 17:00–24:00 UTC (00:00–07:00 sáng hôm sau giờ VN) bị gán sai ngày (rà soát 04/09/2026)
+  const trongKy = (s) => !chotKy || !s.bat_dau || ngayVietNamISO(s.bat_dau) <= chotKy;
   const suCoDangMo = (d.su_co && d.su_co.danh_sach_dang_mo || []);
   const suCoNgoaiKy = suCoDangMo.filter((s) => !trongKy(s))
     .sort((a, b) => (b.keo_dai_gio || 0) - (a.keo_dai_gio || 0));
 
   // A1. Sự cố mức nghiêm trọng còn mở quá lâu ở phòng mức 1 hoặc mức 2
+  // Câu mô tả nói "mức nghiêm trọng" thì luật phải lọc đúng mức đó (rà soát 04/09/2026).
   suCoDangMo
     .filter(trongKy)
+    .filter((s) => s.muc_canh_bao === 'CRITICAL')
     .filter((s) => s.keo_dai_gio >= GIO_SU_CO_CAP_A && (s.uu_tien === 'P1' || s.uu_tien === 'P2'))
     .forEach((s) => {
       ghi(s.phong, {
@@ -330,7 +364,7 @@ function phanCap(d) {
         // Câu ngắn, số đứng trước, giải thích sau — người quản lý lướt qua là nắm.
         can_cu: 'Sự cố số ' + s.ma_su_co + ' mức ' + dich(TEN_MUC_CANH_BAO, s.muc_canh_bao)
               + ' — ' + dich(TEN_TRANG_THAI, s.trang_thai).toLowerCase() + ', đã '
-              + gioDoc(s.keo_dai_gio) + ' kể từ ' + ngayDai(s.bat_dau) + '.',
+              + gioDoc(s.keo_dai_gio) + ' kể từ ' + gioVietNam(s.bat_dau, true) + '.',   // ngày VN (rà soát 04/09/2026)
         viec: 'Cơ điện xác minh tại chỗ và đóng sự cố. Quá 24 giờ nữa chưa xong thì '
             + 'Bảo đảm chất lượng mở phiếu sai lệch.',
         nguon: 'su_co.danh_sach_dang_mo'
@@ -339,7 +373,8 @@ function phanCap(d) {
 
   // A2. Phòng theo dõi đặc biệt (mức 1) dưới ngưỡng hành động
   (d.tat_ca_phong || [])
-    .filter((p) => p.muc_uu_tien === 'P1' && p.ty_le_tuan_thu < NGUONG_HANH_DONG)
+    // null < 80 cho true trong JavaScript — phòng thiếu số liệu không phải phòng dưới ngưỡng (rà soát 04/09/2026)
+    .filter((p) => p.muc_uu_tien === 'P1' && p.ty_le_tuan_thu != null && p.ty_le_tuan_thu < NGUONG_HANH_DONG)
     .forEach((p) => {
       ghi(p.ma_phong, {
         loai: 'Phòng theo dõi đặc biệt dưới ngưỡng',
@@ -405,7 +440,8 @@ function phanCap(d) {
     };
   }
 
-  const capB = (d.phong_xau_bat_thuong || []).filter((p) => p.delta <= -SUT_GIAM_CAP_B).slice(0, 6);
+  // Không cắt: cắt ở đây thì bản in cũng mất phòng, thư lại hứa "xem đầy đủ trong tệp đính kèm" (rà soát 04/09/2026)
+  const capB = (d.phong_xau_bat_thuong || []).filter((p) => p.delta <= -SUT_GIAM_CAP_B);
   const spcXau = (d.xu_huong_dang_chu_y || []).filter((x) => x.huong === 'worsening').slice(0, 5);
 
   return { capA: capA.slice(0, TOI_DA_CAP_A), capA_tat_ca: capA, capA_tong: capA.length,
@@ -492,6 +528,10 @@ function tongHopChiTieu(d, loai) {
         chuoi: ds, gio_nghiem_trong: gioNgh, gio_canh_bao: gioCb, gio_co_du_lieu: gioTong,
         ty_le_trong_nguong: xh ? xh.ty_le_trong_nguong : null,
         gio_lech: xh ? xh.gio_lech : null,
+        // Cả hai hướng, để ô từng phòng không chỉ in một phía (rà soát 04/09/2026)
+        gio_duoi: xh ? xh.gio_duoi : null,
+        gio_tren: xh ? xh.gio_tren : null,
+        gio_lech_tong: xh ? xh.gio_lech_tong : null,
         so_dot: xh ? xh.so_dot : null,
         dot_dai_nhat: xh ? xh.dot_dai_nhat : null,
         con_lech_cuoi_ky: xh ? xh.con_lech_cuoi_ky : null
@@ -530,7 +570,7 @@ function tongHopChiTieu(d, loai) {
         gio_co_du_lieu: ds.reduce(function (t, x) { return t + (x.gio_co_dl || 0); }, 0),
         gio_do: r.gio_do,
         ty_le_trong_nguong: r.ty_le_trong_nguong, gio_lech: r.gio_lech,
-        gio_duoi: r.gio_duoi, gio_tren: r.gio_tren,
+        gio_duoi: r.gio_duoi, gio_tren: r.gio_tren, gio_lech_tong: r.gio_lech_tong,
         so_dot: r.so_dot, dot_dai_nhat: r.dot_dai_nhat, con_lech_cuoi_ky: r.con_lech_cuoi_ky
       };
     });
@@ -601,9 +641,12 @@ function gomChiTieuTheoCap(ct) {
 
   // Xếp theo TỈ LỆ thời gian ngoài giới hạn, không theo số giờ cộng dồn — cùng lý do khi vẽ:
   // nhóm đông phòng luôn nhiều giờ hơn dù chất lượng có khi tốt hơn.
-  const nang = (x) => x.tong_gio_do
-    ? (x.tong_gio_duoi + x.tong_gio_tren) / x.tong_gio_do
-    : (x.tong_gio_duoi + x.tong_gio_tren);
+  // Nhiệt độ không tách hai hướng (cả hai bằng 0) thì lấy tổng giờ ngoài dải, nếu không
+  // mọi nhóm đều nặng 0 và phép xếp không làm gì (rà soát 04/09/2026)
+  const nang = (x) => {
+    const g = (x.tong_gio_duoi + x.tong_gio_tren) || (x.tong_gio_lech || 0);
+    return x.tong_gio_do ? g / x.tong_gio_do : g;
+  };
   const khu = Object.keys(theoKhu).map((k) => Object.assign({ khu: k }, gom(theoKhu[k])))
     .sort((a, b) => nang(b) - nang(a));
   const cum = Object.keys(theoCum).map((k) => {
@@ -1240,7 +1283,7 @@ module.exports = {
   GIO_NGHIEM_TRONG_A: GIO_NGHIEM_TRONG_A, SUT_GIAM_CAP_B: SUT_GIAM_CAP_B,
   NGOAI_LE_HE_THONG: NGOAI_LE_HE_THONG, TOI_DA_CAP_A: TOI_DA_CAP_A, DOT_LECH_DANG_KE: DOT_LECH_DANG_KE,
   DU_PHONG_DE_SO_SANH: DU_PHONG_DE_SO_SANH,
-  esc: esc, so: so, soVN: soVN, tenPhongGon: tenPhongGon, phanTram: phanTram, gioTyLe: gioTyLe, ngayNgan: ngayNgan, ngayDai: ngayDai, gioPhut: gioPhut, gioDoc: gioDoc, delta: delta,
+  esc: esc, so: so, soVN: soVN, tenPhongGon: tenPhongGon, phanTram: phanTram, gioTyLe: gioTyLe, ngayNgan: ngayNgan, ngayDai: ngayDai, gioPhut: gioPhut, gioVietNam: gioVietNam, ngayVietNamISO: ngayVietNamISO, gioDoc: gioDoc, delta: delta,
   phanCap: phanCap, tongHopChiTieu: tongHopChiTieu, gomChiTieuTheoCap: gomChiTieuTheoCap, bocChuoiCamBien: bocChuoiCamBien, dungCay: dungCay,
   MAU: MAU, mauTheoTyLe: mauTheoTyLe, CSS_BAN_DO: CSS_BAN_DO,
   svgSpark: svgSpark, svgDuongNgay: svgDuongNgay, svgDaiGioiHan: svgDaiGioiHan,

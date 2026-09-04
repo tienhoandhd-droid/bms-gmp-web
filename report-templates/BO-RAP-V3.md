@@ -24,6 +24,8 @@ Bộ dựng ba đầu ra của báo cáo giám sát môi trường phòng sạch
 - Phân loại việc phải xử lý do **luật cố định** trong `phanCap()`; máy viết nhận định
   chỉ nêu giả thuyết, dán nhãn "AI đề xuất", và bị lọc bởi `locPhatHien()`.
 - Sự cố mở SAU ngày chốt kỳ tách khối "Ngoài kỳ báo cáo", không tính vào kết quả kỳ.
+- Bản riêng khu (n8n truyền `cfg.khu`): "Toàn nhà máy" → "Cả khu X", bỏ bảng ba khu, lịch sử chỉ cột
+  khu đó. So sánh khu/cụm hiện cho mọi chỉ tiêu khi có ≥ 2 khu hoặc ≥ 2 cụm.
 
 ## Sửa và phát hành
 
