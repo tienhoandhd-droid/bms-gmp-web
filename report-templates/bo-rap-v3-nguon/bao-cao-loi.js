@@ -176,7 +176,7 @@ function vietLai(s) {
 
 const NGUONG_HANH_DONG   = 80;   // % thời gian trong ngưỡng — dưới mức này là không đạt
 const GIO_SU_CO_CAP_A    = 24;   // sự cố mở quá số giờ này thì lên cấp A
-const GIO_NGHIEM_TRONG_A = 100;  // số giờ nghiêm trọng trong kỳ đưa phòng lên cấp A
+const GIO_NGHIEM_TRONG_A = 100;  // số giờ ngoài giới hạn trong kỳ đưa phòng lên cấp A
 const SUT_GIAM_CAP_B     = 10;   // giảm bao nhiêu điểm % so kỳ trước thì vào cấp B
 const NGOAI_LE_HE_THONG  = 100;  // số lần lỗi thu dữ liệu đủ để coi là sự cố hệ thống
 const TOI_DA_CAP_A       = 7;    // trần số dòng cấp A ở phần chính
@@ -346,32 +346,32 @@ function phanCap(d) {
               + (lechDuoiDP[p.ma_phong] != null
                   ? 'Chênh áp tụt dưới giới hạn ' + phanTram(lechDuoiDP[p.ma_phong])
                     + ' thời gian, đây là hướng gây nhiễm chéo. ' : '')
-              + gioDoc(p.so_gio_critical) + ' ở mức nghiêm trọng.',
+              + gioDoc(p.so_gio_critical) + ' ngoài giới hạn.',
         viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
             + ': lọc, van gió, cài đặt chênh áp. Giám sát trong quá trình khoanh vùng khung giờ ngoài giới hạn.',
         nguon: 'tat_ca_phong (mức ưu tiên 1)'
       });
     });
 
-  // A3. Phòng ngoài mức 1 nhưng số giờ nghiêm trọng quá cao
+  // A3. Phòng ngoài mức 1 nhưng số giờ ngoài giới hạn quá cao
   (d.tat_ca_phong || [])
     .filter((p) => p.muc_uu_tien !== 'P1' && p.so_gio_critical >= GIO_NGHIEM_TRONG_A)
     .forEach((p) => {
       ghi(p.ma_phong, {
-        loai: 'Nhiều giờ ở mức nghiêm trọng',
+        loai: 'Nhiều giờ ngoài giới hạn',
         can_cu: 'Trong ngưỡng ' + phanTram(p.ty_le_tuan_thu) + '. '
               + (lechDuoiDP[p.ma_phong] != null
                   ? 'Chênh áp tụt dưới giới hạn ' + phanTram(lechDuoiDP[p.ma_phong])
                     + ' thời gian, đây là hướng gây nhiễm chéo. ' : '')
-              + gioDoc(p.so_gio_critical) + ' ở mức nghiêm trọng.',
+              + gioDoc(p.so_gio_critical) + ' ngoài giới hạn.',
         viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
             + '. Giám sát trong quá trình đối chiếu lịch sản xuất xem có trùng ca không.',
-        nguon: 'tat_ca_phong (số giờ nghiêm trọng)'
+        nguon: 'tat_ca_phong (số giờ ngoài giới hạn)'
       });
     });
 
   // Xếp hạng theo THỨ TỰ TỪ ĐIỂN — giải thích được bằng một câu khi bị hỏi:
-  //   mức ưu tiên phòng → có sự cố quá hạn → thiếu hụt so ngưỡng → số giờ nghiêm trọng
+  //   mức ưu tiên phòng → có sự cố quá hạn → thiếu hụt so ngưỡng → số giờ ngoài giới hạn
   const hangUuTien = { P1: 0, P2: 1, P3: 2 };
   const thieuHut = (o) => Math.max(0, NGUONG_HANH_DONG - (o.tuan_thu == null ? NGUONG_HANH_DONG : o.tuan_thu));
   const capA = Object.keys(theoPhong).map((k) => theoPhong[k]).sort((a, b) =>
@@ -867,7 +867,7 @@ function svgDaiGioiHan(o) {
          + (pts.length > 20 ? 2.4 : 3.6) + '" fill="' + (ngoai ? MAU.cap2 : MAU.nhan)
          + '" stroke="#fff" stroke-width="1.2"><title>' + ngayNgan(c.ngay) + ': ' + soVN(c.tb, 1)
          + ' (' + soVN(c.min, 1) + '–' + soVN(c.max, 1) + ')' + esc(o.don_vi ? ' ' + o.don_vi : '')
-         + (c.ngh ? ', ' + c.ngh + 'h nghiêm trọng' : '')
+         + (c.ngh ? ', ' + c.ngh + 'h ngoài giới hạn' : '')
          + (c.nghi_loi_do ? ', nghi lỗi đo' : '') + '</title></circle>';
     if (c.nghi_loi_do) {
       diem += '<circle cx="' + so(x(i), 1) + '" cy="' + so(y(c.min), 1) + '" r="2.6" fill="#fff" stroke="'
