@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AlertOctagon, Check, Clock, Settings as Cog, FileBarChart, GitBranch, Mail, Pencil, Plus, Power, Save, Trash2, X } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
+import { moTaLoi } from "../../lib/bmsClient";
 import { COLOR } from "../../lib/designTokens";
 import { DB_MOI_MAC_DINH, DS_KHU, ROLE_VI } from "../../lib/phanQuyen";
 import { EMAIL_KEYS_BAO_CAO, EMAIL_KEYS_HE_THONG, datCauHinhEmail, datCongTacPhanTuyen, layCauHinhEmail, layDanhSachAhu, layKhungGioCanhBao, layLuatPhanTuyen, layNguoiNhanBaoCao, layNguoiNhanCanhBao, luuKhungGioCanhBao, luuLuatPhanTuyen, luuNguoiNhanBaoCao, luuNguoiNhanCanhBao, xoaLuatPhanTuyen, xoaNguoiNhanBaoCao, xoaNguoiNhanCanhBao } from "../../lib/supabaseData";
@@ -57,6 +58,7 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   const [dsAhu, setDsAhu] = useState([]);      // {ma_ahu:'C1/AHU03', khu_vuc, ahu, so_phong, co_p1_p2}
   const [dbMoi, setDbMoi] = useState(DB_MOI_MAC_DINH());   // hàng "thêm mới" cuối bảng danh bạ
   const [tai, setTai] = useState(true);
+  const [loiNap, setLoiNap] = useState(null);   // {phan, text} — truy vấn nào hỏng khi nạp (đợt A)
   const [dangLuuEmail, setDangLuuEmail] = useState({});
   const [tb, setTb] = useState(null);          // {ok, text}
   const [form, setForm] = useState(null);      // form thêm/sửa người nhận báo cáo
@@ -65,8 +67,13 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   const flash = (ok, text) => { setTb({ ok, text }); setTimeout(() => setTb(null), 4000); };
   const napLai = async () => {
     if (!isLive) { setTai(false); return; }
-    setTai(true);
+    setTai(true); setLoiNap(null);
     const [e, n, d, a, kg] = await Promise.all([layCauHinhEmail(), layNguoiNhanBaoCao(), layNguoiNhanCanhBao(), layDanhSachAhu(), layKhungGioCanhBao()]);
+    // Đợt A 04/09/2026: TRƯỚC ĐÂY bỏ qua `error` của cả 5 truy vấn ⇒ mất mạng thì bảng rỗng,
+    // QA đọc thành "chưa cấu hình ai nhận cảnh báo". Nay: có lỗi là dừng, hiện lỗi + nút thử lại,
+    // KHÔNG ghi đè state cũ bằng mảng rỗng.
+    const loiDau = [["Email hệ thống", e], ["Người nhận báo cáo", n], ["Danh bạ cảnh báo", d], ["Danh sách AHU", a], ["Khung giờ cảnh báo", kg]].find(([, x]) => x.error);
+    if (loiDau) { setLoiNap({ phan: loiDau[0], text: moTaLoi(loiDau[1].error) }); setTai(false); return; }
     if (e.cfg) { setEmailCfg(e.cfg); goc.current = { ...e.cfg }; }
     setNguoiNhan(n.rows || []);
     setDanhBa(d.rows || []);
@@ -187,7 +194,14 @@ function CauHinhNguoiNhan({ isLive, canManage, laAdmin, actor }) {
   return (
     <div className="space-y-5">
       <SectionTitle icon={Mail}>Người nhận email</SectionTitle>
-      {tb && <div className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tb.ok ? "bg-success-soft text-success ring-1 ring-success-line" : "bg-danger-soft text-danger ring-1 ring-danger-line"}`}>{tb.ok ? "✓ " : "✗ "}{tb.text}</div>}
+      {loiNap && (
+        <Card className="p-5 bg-danger-soft ring-1 ring-danger-line" role="alert">
+          <p className="text-[14px] font-semibold text-danger">Chưa tải được cấu hình người nhận ({loiNap.phan})</p>
+          <p className="mt-1 text-[12px] text-body">{loiNap.text} Bảng bên dưới đang giữ bản đã tải lần trước (nếu có) — KHÔNG kết luận "chưa có người nhận" khi đang lỗi.</p>
+          <button type="button" onClick={napLai} className="mt-3 rounded-xl bg-surface px-3.5 py-2 text-[12px] font-semibold text-danger ring-1 ring-danger-line hover:bg-danger-soft min-h-[40px]">Thử tải lại</button>
+        </Card>
+      )}
+      {tb &&<div className={`rounded-xl px-4 py-2.5 text-sm font-medium ${tb.ok ? "bg-success-soft text-success ring-1 ring-success-line" : "bg-danger-soft text-danger ring-1 ring-danger-line"}`}>{tb.ok ? "✓ " : "✗ "}{tb.text}</div>}
       {!canManage && <p className="text-[12px] text-warning">Bạn đang xem ở chế độ chỉ-đọc. Cần quyền <b>QA/Quản trị</b> để chỉnh.</p>}
 
       <Card className="p-6">

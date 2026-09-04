@@ -97,9 +97,11 @@ ${styleTags}
   ${clone.outerHTML}
   <div class="rp-foot">Số liệu do hệ thống BMS tổng hợp theo giới hạn GHD/GHT đã cấu hình. Nhận định hỗ trợ chỉ dùng để rà soát; IPC/QA chịu trách nhiệm đánh giá và kết luận GMP.</div>
 </div>
-<scr` + `ipt>window.onload=function(){setTimeout(function(){try{window.focus();window.print();}catch(e){}},450);};</scr` + `ipt>
 </body></html>`);
     win.document.close(); win.focus();
+    // Đợt A 04/09/2026: lệnh in gọi TỪ TRANG MẸ thay vì <script> inline trong cửa sổ in —
+    // cửa sổ about:blank kế thừa Content-Security-Policy của trang mẹ, script inline sẽ bị chặn.
+    setTimeout(() => { try { win.focus(); win.print(); } catch (_) { /* cửa sổ đã đóng */ } }, 450);
   } catch (e) { try { window.print(); } catch (_) { /* bỏ qua */ } }
 }
 

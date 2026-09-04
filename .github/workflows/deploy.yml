@@ -62,8 +62,12 @@ jobs:
         run: |
           npx puppeteer browsers install chrome
           npm run test:ui
-      # Theo dõi lỗ hổng phụ thuộc mức cao — không chặn (advisory phụ thuộc gián tiếp).
-      - run: npm audit --omit=dev --audit-level=high || true
+      # Lỗ hổng phụ thuộc mức cao (đợt A 04/09/2026): trước đây `|| true` nuốt luôn kết quả nên
+      # bước này KHÔNG BAO GIỜ đỏ. Nay: bước hiện ĐỎ trên GitHub khi có lỗ hổng high, nhưng chưa
+      # chặn deploy (continue-on-error) — chuyển sang chặn hẳn sau khi rà xong danh sách lần đầu.
+      - name: npm audit (lỗ hổng mức high)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

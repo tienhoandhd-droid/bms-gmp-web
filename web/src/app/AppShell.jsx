@@ -45,6 +45,9 @@ import { Card, SectionTitle, MucBadge, HeaderChip } from "../components/ui/Card"
 import ServerClock from "../components/ui/ServerClock";
 import { BannerCapNhat } from "../components/ui/BannerCapNhat";
 import { KpiCard, OosMiniBars } from "../components/ui/KpiCard";
+// Đợt A 04/09/2026: hộp thoại chuẩn (thay window.prompt) + thanh thông báo (thay window.alert)
+import { HopThoaiTamHoan } from "../components/ui/HopThoai";
+import { ThongBaoStack, taoBao } from "../components/ui/ThongBao";
 
 
 
@@ -161,6 +164,12 @@ export default function AppShell() {
   const [user, setUser] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [modal, setModal] = useState(null);
+  // Thanh thông báo thay alert(): lỗi giữ tới khi đóng, thành công tự ẩn (ThongBao.jsx)
+  const [dsThongBao, setDsThongBao] = useState([]);
+  const bao = useMemo(() => taoBao(setDsThongBao), []);
+  // Hộp thoại tạm hoãn cảnh báo (thay 2 window.prompt nối đuôi) — sự cố đang được hoãn
+  const [tamHoan, setTamHoan] = useState(null);
+  const [dangTamHoan, setDangTamHoan] = useState(false);
   const [roomModal, setRoomModal] = useState(null);
   const [configHistory, setConfigHistory] = useState(LIVE_MAC_DINH ? [] : [{ t: "08:00 29/5", who: "Quản trị (ADMIN)", change: "Khởi tạo cấu hình hệ thống · 6 phòng" }]);
   const [audit, setAudit] = useState(LIVE_MAC_DINH ? [] : [{ t: "13:05 29/5", who: "Hệ thống", act: "Tạo sự cố", obj: "SC-1042 / C4.R7", detail: "Chênh áp nghiêm trọng" }, { t: "10:18 29/5", who: "Nam (IPC)", act: "Xác nhận bất thường", obj: "SC-1038 / C4.R1", detail: "Kiểm tra thực tế" }]);
@@ -282,7 +291,7 @@ export default function AppShell() {
         if (u) { setUser(u); return; }   // phiên còn sống (tab khác vừa refresh) → giữ nguyên
       } finally { dangKhoiPhuc = false; }
       if (daBao) return; daBao = true;
-      alert("Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại để tiếp tục thao tác.\n(Dữ liệu giám sát không bị ảnh hưởng.)");
+      bao("loi", "Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại để tiếp tục thao tác.\n(Dữ liệu giám sát không bị ảnh hưởng.)");
       setUser(null); authDangXuat();
     };
     window.addEventListener("bms:phien-het-han", onHetHan);
@@ -434,7 +443,7 @@ export default function AppShell() {
 
   const logConfig = (change) => setConfigHistory((h) => [{ t: now.slice(11, 16) + " 29/5", who: user ? `${user.name} (${user.role})` : "(chưa đăng nhập)", change }, ...h]);
   const apMoi = () => live.lamMoi({ nen: true });
-  const baoLoi = (error, duPhong) => { if (error) alert(error.thong_bao || error.ma_loi || duPhong || "Lỗi kết nối — thử lại."); return !error; };
+  const baoLoi = (error, duPhong) => { if (error) bao("loi", error.thong_bao || error.ma_loi || duPhong || "Lỗi kết nối — thử lại."); return !error; };
   const addRoom = async (r) => {
     if (isLive) { const { error } = await themPhong({ p_ma_phong: r.id, p_ten_phong: r.name, p_khu_vuc: r.area, p_ahu: r.ahu, p_muc_uu_tien: r.priority, p_ghi_chu: r.note || null, p_thieu_du_lieu: !!r.noData, p_cam_bien: (r.sensors || []).map((s) => ({ loai: s.k, min: s.min, max: s.max })), p_actor: user?.email || null }); if (baoLoi(error, "Không thêm được phòng")) await apMoi(); return; }
     setRooms((rs) => [...rs, r]); logConfig(`Thêm phòng ${r.id} (${r.name}) · ${r.noData ? "no-data" : r.sensors.map((s) => s.k).join("/")}`);
@@ -459,7 +468,7 @@ export default function AppShell() {
       for (const s of themSensor) { const { error } = await themCamBien({ p_ma_phong: id, p_loai_cam_bien: s.k, p_gioi_han_duoi: s.min, p_gioi_han_tren: s.max, p_actor: actor }); ghi(`Thêm cảm biến ${s.k}`, error); }
       for (const s of capNhatGioiHan) { const { error } = await suaGioiHan({ p_ma_phong: id, p_loai_cam_bien: s.k, p_gioi_han_duoi: s.min, p_gioi_han_tren: s.max, p_actor: actor }); ghi(`Giới hạn ${s.k}`, error); }
       await apMoi();
-      if (loi.length) { alert(`Một số thay đổi của ${id} CHƯA lưu được:\n• ` + loi.join("\n• ")); return false; }
+      if (loi.length) { bao("loi", `Một số thay đổi của ${id} CHƯA lưu được:\n• ` + loi.join("\n• ")); return false; }
       return true;
     }
     setRooms((rs) => rs.map((r) => {
@@ -523,7 +532,7 @@ export default function AppShell() {
       if (isLive) {
         const ds = live.nutThaoTac;
         if (!Array.isArray(ds) || !ds.length || !inc.statusCode) {
-          alert("Chưa tải được bộ quy tắc thao tác. Tải lại trang rồi thử lại.");
+          bao("loi", "Chưa tải được bộ quy tắc thao tác. Tải lại trang rồi thử lại.");
           return;
         }
         act = nutChoVaiTro(ds, inc.statusCode, role)[0] || null;
@@ -538,7 +547,7 @@ export default function AppShell() {
     if (isLive && inc.dbId) {
       const { error } = await thaoTacSuCo({ dbId: inc.dbId, actionCode: action.code, lyDo: reason, actorEmail: user.email });
       setModal(null);
-      if (error) { alert(error.nghiep_vu ? (error.thong_bao || error.ma_loi) : "Lỗi kết nối — thử lại."); return; }
+      if (error) { bao("loi", error.nghiep_vu ? (error.thong_bao || error.ma_loi) : "Lỗi kết nối — thử lại."); return; }
       await live.lamMoi({ nen: true });   // đồng bộ lại từ DB (đã có audit/trail thật)
       return;
     }
@@ -587,8 +596,8 @@ export default function AppShell() {
     setDangGhiCum(true);
     const { error, data } = await ketLuanCum({ maCum: cumKetLuan.ma_cum, nguyenNhan, khacPhuc, phongNgua, ketLuan });
     setDangGhiCum(false);
-    if (error) { alert(error.thong_bao || error.ma_loi || "Không ghi được kết luận"); return; }
-    if (data && data.ok === false) { alert(data.thong_bao || data.loi); return; }
+    if (error) { bao("loi", error.thong_bao || error.ma_loi || "Không ghi được kết luận"); return; }
+    if (data && data.ok === false) { bao("loi", data.thong_bao || data.loi); return; }
     setCumKetLuan(null); setCumChiTiet(null);
     await live.lamMoi({ nen: true });
   };
@@ -596,8 +605,8 @@ export default function AppShell() {
     setDangGhiCum(true);
     const { error, data } = await thaoTacSuCo({ dbId: moLai.row.ma_su_co, actionCode: moLai.act.code, lyDo, actorEmail: user.email });
     setDangGhiCum(false);
-    if (error) { alert(error.thong_bao || error.ma_loi || "Không mở lại được"); return; }
-    if (data && data.ok === false) { alert(data.thong_bao || data.loi); return; }
+    if (error) { bao("loi", error.thong_bao || error.ma_loi || "Không mở lại được"); return; }
+    if (data && data.ok === false) { bao("loi", data.thong_bao || data.loi); return; }
     setMoLai(null); setKhungDongMo(false);
     await live.lamMoi({ nen: true });
   };
@@ -605,7 +614,7 @@ export default function AppShell() {
   // Bản in hồ sơ cụm: RPC trả trọn bộ (đã lọc khu ở máy chủ), lib dựng HTML tự chứa.
   const inHoSoCum = async (cum) => {
     const { error, data } = await layHoSoCum(cum.ma_cum);
-    if (error || !data || data.ok === false) { alert((data && (data.thong_bao || data.loi)) || error?.thong_bao || "Không tải được hồ sơ cụm"); return; }
+    if (error || !data || data.ok === false) { bao("loi", (data && (data.thong_bao || data.loi)) || error?.thong_bao || "Không tải được hồ sơ cụm"); return; }
     moHoSoCumBanIn(data);
   };
 
@@ -635,21 +644,23 @@ export default function AppShell() {
     }
     if (inc.silenced) {
       const { error, data } = await batLaiCanhBao({ dbId: inc.dbId, lyDo: "Bật lại từ bảng điều khiển", actorEmail: user.email });
-      if (error) { alert(error.thong_bao || error.ma_loi || "Lỗi"); return; }
-      if (data && data.ok === false) { alert(data.thong_bao || data.loi); return; }
+      if (error) { bao("loi", error.thong_bao || error.ma_loi || "Lỗi"); return; }
+      if (data && data.ok === false) { bao("loi", data.thong_bao || data.loi); return; }
       await live.lamMoi({ nen: true });
       return;
     }
-    const lyDo = window.prompt("Lý do tạm hoãn cảnh báo (ít nhất 10 ký tự) — sẽ ghi vào hồ sơ:", "");
-    if (lyDo == null) return;
-    const phutStr = window.prompt("Tạm hoãn bao nhiêu phút? (15–240)", "60");
-    if (phutStr == null) return;
-    const phut = Number(phutStr);
-    if (!Number.isFinite(phut) || phut < 15) { alert("Thời lượng phải từ 15 phút trở lên."); return; }
-    const { error, data } = await tamDungCanhBao({ dbId: inc.dbId, phut, lyDo, actorEmail: user.email });
-    if (error) { alert(error.thong_bao || error.ma_loi || "Lỗi"); return; }
-    if (data && data.ok === false) { alert(data.thong_bao || data.loi); return; }
-    if (data?.thong_bao) alert(data.thong_bao);
+    // Đợt A: mở hộp thoại chuẩn (lý do ≥ 10 ký tự + chọn thời lượng) thay 2 window.prompt.
+    setTamHoan(inc);
+  };
+  const xacNhanTamHoan = async ({ lyDo, phut }) => {
+    if (!tamHoan?.dbId || !user) return;
+    setDangTamHoan(true);
+    const { error, data } = await tamDungCanhBao({ dbId: tamHoan.dbId, phut, lyDo, actorEmail: user.email });
+    setDangTamHoan(false);
+    if (error) { bao("loi", error.thong_bao || error.ma_loi || "Không tạm hoãn được — kiểm tra kết nối rồi thử lại."); return; }
+    if (data && data.ok === false) { bao("loi", data.thong_bao || data.loi); return; }
+    setTamHoan(null);
+    bao("ok", data?.thong_bao || `Đã tạm hoãn cảnh báo ${tamHoan.id} trong ${phut} phút. Hết hạn hệ thống tự bật lại.`);
     await live.lamMoi({ nen: true });
   };
   const openRoomIncident = (room) => { const inc = incidents.find((i) => i.room === room.id && i.status !== "Đã khắc phục"); if (inc) openApproval(inc); else setRoomModal(room); };
@@ -842,10 +853,24 @@ export default function AppShell() {
           {tab === "tasks" && (
             <div className="space-y-5">
               <SectionTitle icon={ClipboardList} hint={user ? `vai trò: ${ROLE_VI[role] || "chưa phân quyền"}` : "đăng nhập để thao tác"}>Việc cần làm</SectionTitle>
+              {/* Đợt A: tách 4 trạng thái — null + lỗi = LỖI; null = ĐANG TẢI; [] = KHÔNG CÓ VIỆC.
+                  Trước đây `live.suCoPhuTrach || []` khiến tải lỗi hiện y hệt "không có việc". */}
+              {isLive && live.suCoPhuTrach === null && live.loi && (
+                <Card className="p-5 bg-danger-soft ring-1 ring-danger-line" role="alert">
+                  <p className="text-[14px] font-semibold text-danger">Chưa tải được danh sách việc cần làm</p>
+                  <p className="mt-1 text-[12px] text-body">{moTaLoi(live.loi)}</p>
+                  <button type="button" onClick={() => live.lamMoi({ nen: false })} className="mt-3 rounded-xl bg-surface px-3.5 py-2 text-[12px] font-semibold text-danger ring-1 ring-danger-line hover:bg-danger-soft min-h-[40px]">Thử tải lại</button>
+                </Card>
+              )}
+              {isLive && live.suCoPhuTrach === null && !live.loi && (
+                <div className="space-y-3" role="status" aria-live="polite" aria-label="Đang tải việc cần làm">
+                  <div className="h-24 rounded-2xl bg-subtle animate-pulse" /><div className="h-40 rounded-2xl bg-subtle animate-pulse" />
+                </div>
+              )}
               {isLive && Array.isArray(live.suCoPhuTrach) && live.suCoPhuTrach.length === 0 && (
                 <Card className="p-6 text-center"><CheckCircle2 className="mx-auto w-7 h-7" style={{ color: "var(--primary)" }} strokeWidth={1.8} /><p className="mt-2 text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>Không có phiếu nào đang mở</p><p className="mt-1 text-[12px] text-muted">Tất cả sự cố đã được xử lý hoặc hệ đã tự đóng.</p></Card>
               )}
-              <KiemSoatXuLy rows={isLive ? (live.suCoPhuTrach || []) : []} />
+              <KiemSoatXuLy rows={isLive && Array.isArray(live.suCoPhuTrach) ? live.suCoPhuTrach : []} />
               {isLive && user && role && (
                 <Card className="p-4 sm:p-5">
                   <SectionTitle icon={User} hint="các phiếu đang chờ đúng vai trò của bạn bấm nút — bấm Xử lý để thao tác ngay">Việc cần xử lý — {ROLE_VI[role] || role}</SectionTitle>
@@ -1441,6 +1466,8 @@ export default function AppShell() {
       {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} isLive={isLive} />}
       {pwOpen && <DoiMatKhauModal user={user} isLive={isLive} onClose={() => setPwOpen(false)} />}
       {veEmail && <ModalVeEmail trangThai={veEmail} onDong={dongVe} onChay={chayVe} />}
+      {tamHoan && <HopThoaiTamHoan suCo={tamHoan} dangChay={dangTamHoan} onDong={() => { if (!dangTamHoan) setTamHoan(null); }} onXacNhan={xacNhanTamHoan} />}
+      <ThongBaoStack items={dsThongBao} onDong={(id) => setDsThongBao((ds) => ds.filter((x) => x.id !== id))} />
     </div>
   );
 }

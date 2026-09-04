@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve, sep } from 'node:path'
 import { readdirSync, statSync, readFileSync, writeFileSync } from 'node:fs'
@@ -115,11 +115,72 @@ self.addEventListener('fetch', (e) => {
   }
 }
 
+// ============================================================
+// Content-Security-Policy (đợt A 04/09/2026) — vì sao cần: GitHub Pages không cho đặt
+// HTTP header, nên CSP phải đi bằng <meta http-equiv>. Token phiên Supabase nằm trong
+// localStorage; CSP là lớp chặn tối thiểu để script lạ (XSS) không chạy/không gửi được
+// dữ liệu ra ngoài. Chạy ở closeBundle vì phải băm NỘI DUNG CUỐI của các <script>
+// inline (Vite đã thay %VITE_…% lúc này) — hash sha256 đổi theo từng bản build.
+//  • script-src: 'self' + hash từng script inline (không 'unsafe-inline').
+//  • style-src: 'unsafe-inline' — React/ECharts/xyflow gắn style trực tiếp lên phần tử.
+//  • connect-src: Supabase (https + wss) + n8n webhook + VITE_CSP_CONNECT_THEM (tuỳ chọn).
+//  • Cửa sổ in (window.open về about:blank) KẾ THỪA CSP này ⇒ hoSoCum.js/TrendPage.jsx
+//    đã bỏ script/onclick inline, gắn sự kiện từ trang mẹ.
+//  • frame-ancestors/report-uri bị bỏ qua trong meta theo chuẩn — không đặt.
+// ============================================================
+const N8N_ORIGIN = 'https://n8n.cpc1hn.com'   // máy chủ webhook (AGENTS.md) — thêm host khác qua VITE_CSP_CONNECT_THEM
+function cspMetaPlugin() {
+  let env = {}
+  return {
+    name: 'bms-csp-meta',
+    apply: 'build',
+    configResolved(cfg) { env = loadEnv(cfg.mode, cfg.envDir || process.cwd(), 'VITE_') },
+    closeBundle() {
+      const dist = resolve(__dirname, 'dist')
+      const connect = new Set(["'self'"])
+      const su = (env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim()
+      if (/^https:\/\//.test(su)) {
+        const origin = new URL(su).origin
+        connect.add(origin); connect.add(origin.replace(/^https:/, 'wss:'))
+      }
+      connect.add(N8N_ORIGIN)
+      for (const o of (env.VITE_CSP_CONNECT_THEM || process.env.VITE_CSP_CONNECT_THEM || '').split(/\s+/)) if (/^(https|wss):\/\//.test(o)) connect.add(o)
+      for (const f of readdirSync(dist).filter((x) => x.endsWith('.html'))) {
+        const p = resolve(dist, f)
+        let html = readFileSync(p, 'utf8')
+        if (html.includes('http-equiv="Content-Security-Policy"')) continue
+        const hashes = []
+        for (const m of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)) {
+          hashes.push(`'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`)
+        }
+        const csp = [
+          "default-src 'self'",
+          "base-uri 'self'",
+          "object-src 'none'",
+          "form-action 'self'",
+          `script-src 'self' ${hashes.join(' ')}`.trim(),
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: blob:",
+          "font-src 'self' data:",
+          `connect-src ${[...connect].join(' ')}`,
+          "worker-src 'self'",
+          "manifest-src 'self'",
+        ].join('; ')
+        // Đặt ngay sau <meta charset> — CSP meta phải đứng trước mọi script để có hiệu lực với chúng.
+        html = html.replace(/(<meta charset="[^"]*"\s*\/?>)/i, `$1\n    <meta http-equiv="Content-Security-Policy" content="${csp}" />`)
+        writeFileSync(p, html)
+        console.log(`  csp: ${f} · ${hashes.length} script inline · connect-src ${[...connect].filter((x) => x !== "'self'").join(' ') || '(chỉ self)'}`)
+      }
+    },
+  }
+}
+
 // base './' để asset dùng đường dẫn tương đối → chạy đúng dù repo đặt ở
 // https://<user>.github.io/<repo>/ mà không cần biết tên repo.
 export default defineConfig({
   base: './',
-  plugins: [react(), swPrecachePlugin()],
+  // cspMetaPlugin đứng TRƯỚC swPrecachePlugin: SW băm nội dung html cuối (đã có CSP) để đặt version cache.
+  plugins: [react(), cspMetaPlugin(), swPrecachePlugin()],
   build: {
     outDir: 'dist',
     sourcemap: false,

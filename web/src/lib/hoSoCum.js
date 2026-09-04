@@ -68,7 +68,7 @@ export function moHoSoCumBanIn(hoSo) {
       <h1>HỒ SƠ SAI LỆCH / CỤM ĐIỀU TRA ${esc(c.ma_hien_thi)}</h1>
       <p class="mut">Hệ giám sát HVAC phòng sạch (BMS) · CPC1 Hà Nội — hồ sơ sinh tự động từ audit trail ALCOA+</p>
     </div>
-    <button class="no-print" onclick="window.print()" style="padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer">In / Lưu PDF</button>
+    <button class="no-print" id="nut-in-ho-so" type="button" style="padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;background:#f8fafc;cursor:pointer">In / Lưu PDF</button>
   </div>
 
   <div class="khung">
@@ -96,8 +96,15 @@ export function moHoSoCumBanIn(hoSo) {
   </div>
 </body></html>`
 
-  const w = window.open('', '_blank', 'noopener,width=1000,height=800')
+  // Đợt A 04/09/2026: BỎ 'noopener' — với cờ này window.open() TRẢ VỀ null theo chuẩn,
+  // nên nhánh dưới luôn báo "trình duyệt chặn cửa sổ" dù pop-up không bị chặn (bản in
+  // hồ sơ cụm chưa bao giờ mở được). Cửa sổ do chính ta ghi nội dung nên không cần noopener.
+  const w = window.open('', '_blank', 'width=1000,height=800')
   if (!w) { alert('Trình duyệt chặn cửa sổ mới — hãy cho phép pop-up để in hồ sơ.'); return }
   w.document.write(html)
   w.document.close()
+  // Nút "In / Lưu PDF" gắn sự kiện TỪ TRANG MẸ (không dùng onclick inline): cửa sổ
+  // about:blank kế thừa Content-Security-Policy của trang mẹ, handler inline sẽ bị chặn.
+  const nutIn = w.document.getElementById('nut-in-ho-so')
+  if (nutIn) nutIn.addEventListener('click', () => w.print())
 }
