@@ -660,6 +660,53 @@ function rapEmail(d, duBao, cfg) {
     +   ' giờ trở lên ngoài giới hạn — danh sách ở mục "Việc phải xử lý".'
     +   '</td></tr></tbody></table>';
 
+  /* ===== So với bốn kỳ trước ===========================================
+   * Người đọc muốn biết có tiến bộ hay không (góp ý 04/09/2026). Bảng 5 dòng,
+   * cũ → mới, cột toàn nhà máy và từng khu; mỗi số kèm mũi tên so với kỳ liền
+   * trước; câu kết luận rút thẳng từ dãy số.
+   * ================================================================== */
+  const lichSu = L.chuanHoaLichSu(d);
+  const khoiLichSu = (function () {
+    if (!lichSu) return '';
+    const dsKhu = ['C1', 'C4', 'Q2'].filter(function (k) {
+      return lichSu.some(function (x) { return x.khu && x.khu[k] != null; });
+    });
+    const xh = L.xuHuongLichSu(lichSu);
+    const mauSo = function (v) {
+      return v == null ? M.mo : (v >= NGUONG_HANH_DONG ? M.luc : (v >= NGUONG_HANH_DONG - 10 ? M.vang : M.doChu));
+    };
+    const o = function (v, truoc, dam) {
+      const muiTen = (v != null && truoc != null && v !== truoc)
+        ? '<span style="font-size:11px;color:' + (v > truoc ? M.luc : M.doChu) + ';"> '
+          + (v > truoc ? '▲' : '▼') + '</span>' : '';
+      return '<td class="d dp" style="font-weight:' + (dam ? 700 : 500) + ';color:' + mauSo(v)
+        + ';white-space:nowrap;">' + (v == null ? '—' : phanTram(v)) + muiTen + '</td>';
+    };
+    const dong = lichSu.map(function (x, i) {
+      const tr = i > 0 ? lichSu[i - 1] : null;
+      return '<tr style="' + (x.la_ky_nay ? 'background:' + M.nen + ';' : '') + '">'
+        + '<td class="d dl" style="font-weight:' + (x.la_ky_nay ? 700 : 500) + ';color:' + M.muc
+        +   ';white-space:nowrap;">' + esc(x.nhan) + (x.la_ky_nay ? ' <span style="font-size:11px;color:'
+        +   M.mo + ';">kỳ này</span>' : '') + '</td>'
+        + o(x.ty_le, tr ? tr.ty_le : null, true)
+        + dsKhu.map(function (k) {
+            return o(x.khu[k] == null ? null : Number(x.khu[k]), tr && tr.khu[k] != null ? Number(tr.khu[k]) : null, false);
+          }).join('')
+        + '</tr>';
+    }).join('');
+    return '<div style="font-size:15px;color:' + M.muc2 + ';line-height:1.6;margin:-4px 0 12px;">'
+      +   'Tỉ lệ <b>thời gian trong ngưỡng</b> của năm kỳ gần nhất, càng cao càng tốt; mức phải đạt '
+      +   NGUONG_HANH_DONG + '%. Mũi tên so với kỳ liền trước.</div>'
+      + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">'
+      + '<thead><tr>' + thB('Kỳ', false, true) + thB('Toàn nhà máy', true)
+      + dsKhu.map(function (k, i) { return thB('Khu ' + k, true, false, i === dsKhu.length - 1); }).join('')
+      + '</tr></thead><tbody>' + dong + '</tbody></table>'
+      + (xh ? '<div style="font-size:15px;font-weight:700;color:' + (xh.huong === 'tot' ? M.luc : (xh.huong === 'xau' ? M.doChu : M.muc2))
+          + ';margin-top:10px;line-height:1.5;">' + esc(xh.chu) + '</div>' : '')
+      + (lichSu.some(function (x) { return x.ty_le == null; })
+          ? '<div style="font-size:13px;color:' + M.mo + ';margin-top:6px;">Kỳ ghi "—" là kỳ chưa có số liệu trong hệ thống.</div>' : '');
+  })();
+
   /* ===== Đánh giá kết quả tổng quát ====================================
    * Bảng ở trên là số liệu; khối này trả lời câu "vậy kết quả kỳ này ra sao".
    * Dựng thành bảng chứ không phải đoạn văn: người đọc quét mắt theo cột
@@ -872,6 +919,9 @@ function rapEmail(d, duBao, cfg) {
 
     /* ── Đánh giá kết quả tổng quát ── */
     + hang(nhanMuc('Đánh giá kết quả tổng quát') + khoiDanhGia, M.nen)
+
+    /* ── So với bốn kỳ trước ── */
+    + (khoiLichSu ? hang(nhanMuc('So với bốn kỳ trước') + khoiLichSu) : '')
 
     /* ── Việc phải xử lý ── */
     + hang(nhanMuc('Việc phải xử lý trong kỳ này', M.do)

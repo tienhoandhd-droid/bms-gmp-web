@@ -57,8 +57,11 @@ Những phần chép nguyên từ WF5 v2 (cùng credential, cùng bảng):
 - **Kiểm token webhook**: so `body._token` với `cau_hinh.webhook_token_web`; token rỗng
   trong DB = không kiểm. Khác v2 một điều: chạy thử từ trong n8n (`$execution.mode === 'test'`)
   không cần token, vì chỉ chủ n8n bấm được.
-- **Lịch thứ 5 07:00** (`0 0 7 * * 4`): node có sẵn nhưng **TẮT**. Bật lên là chạy song
-  song với v2 — chỉ bật khi đã tắt lịch của v2.
+- **Lịch** (`0 0 7 * * 4` tuần thứ 5; `0 0 7 1 * *` mùng 1: tháng lịch liền trước, + quý vào
+  1/4/7/10; múi giờ Asia/Ho_Chi_Minh): node có sẵn nhưng **TẮT**. Bật lên là chạy song song
+  với v2 — chỉ bật khi đã tắt lịch của v2.
+- **Bảng "So với bốn kỳ trước"**: cột `lich_su_ky` trong truy vấn Supabase (từ `kpi_ngay_scope`),
+  bộ ráp đọc `d.lich_su_ky`; thiếu thì ẩn bảng.
 - **Fan-out theo khu + Gắn khu vào kỳ**: bản TỔNG gửi người có ≥ 2 khu trong
   `nguoi_nhan_bao_cao`; mỗi khu C1/C4/Q2 có người nhận riêng thì thêm một bản khu.
   Bản TỔNG không có ai thì rơi về `cau_hinh.email_bao_cao_thang/tuan`; bản khu không có

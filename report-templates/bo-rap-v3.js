@@ -223,11 +223,13 @@ const ngayDai  = (iso) => String(iso || '').slice(0, 10).split('-').reverse().jo
 const gioPhut  = (iso) => String(iso || '').slice(11, 16);
 
 // Số giờ viết cho người đọc: 162 giờ → "162 giờ (6,8 ngày)"
+// Không quy đổi ra ngày: phần lớn số giờ trong báo cáo là CỘNG DỒN của nhiều phòng
+// (57 phòng × 31 ngày), "535,9 ngày" trong một báo cáo tháng chỉ gây hiểu lầm
+// (góp ý 04/09/2026). Chỗ nào là giờ cộng dồn thì câu chữ bên cạnh phải nói rõ.
 function gioDoc(g) {
   if (g == null || !isFinite(g)) return '—';
   const n = Number(g);
-  if (n < 24) return soVN(n, n % 1 ? 1 : 0) + ' giờ';
-  return soVN(n, n % 1 ? 1 : 0) + ' giờ (' + soVN(n / 24, 1) + ' ngày)';
+  return soVN(n, n % 1 ? 1 : 0) + ' giờ';
 }
 
 // Viết một con số theo lối Việt Nam: dấu phẩy ngăn phần thập phân, dấu chấm
@@ -995,12 +997,15 @@ function svgThanhHaiChieu(rows, khoaNhan, khoaDuoi, khoaTren) {
   // dù chất lượng có khi còn tốt hơn. Số giờ vẫn xem được khi rê chuột.
   const coTyLe = ds.every((r) => r.tong_gio_do);
   const gt = (r, kh) => coTyLe ? 100 * (r[kh] || 0) / r.tong_gio_do : (r[kh] || 0);
-  const W = 700, hangCao = 26, Lx = 176, R = coSoPhong ? 126 : 16, T = 22;
+  // Bố cục cột cố định: [tên] [số trái] [thanh trái | thanh phải] [số phải] [phòng đạt].
+  // Trước đây số đặt ngay sau đầu thanh nên thanh dài là số đè lên cột "phòng đạt"
+  // (góp ý 04/09/2026). Nay số nằm trong cột riêng, thanh chỉ chạy trong vùng của nó.
+  const W = 780, hangCao = 26, Lx = 150, colSo = 50, R = coSoPhong ? 196 : 8, T = 22;
   const H = T + ds.length * hangCao + 8;
-  const nua = Math.round((W - Lx - R) / 2);
-  const giua = Lx + nua;
+  const nua = Math.floor((W - Lx - 2 * colSo - R) / 2);
+  const giua = Lx + colSo + nua;
   const max = Math.max.apply(null, ds.map((r) => Math.max(gt(r, khoaDuoi), gt(r, khoaTren)))) || 1;
-  const rong = (v) => Math.max(0, (v / max) * (nua - 52));
+  const rong = (v) => Math.max(0, (v / max) * (nua - 4));
 
   let s = '<text x="' + (giua - 8) + '" y="12" text-anchor="end" class="svg-nhan-duoi">← tụt dưới giới hạn dưới</text>'
         + '<text x="' + (giua + 8) + '" y="12" class="svg-nhan-tren">vượt trên giới hạn trên →</text>'
@@ -1018,17 +1023,17 @@ function svgThanhHaiChieu(rows, khoaNhan, khoaDuoi, khoaTren) {
       + (d > 0
           ? '<rect x="' + so(giua - rong(d), 1) + '" y="' + (cy + 5) + '" width="' + so(rong(d), 1)
             + '" height="13" rx="2" fill="' + MAU.lechDuoi + '"/>'
-            + '<text x="' + so(giua - rong(d) - 6, 1) + '" y="' + (cy + 16)
+            + '<text x="' + (Lx + colSo - 8) + '" y="' + (cy + 16)
             + '" text-anchor="end" class="svg-nhan">' + viet(d, gioD) + '</text>' : '')
       + (t > 0
           ? '<rect x="' + giua + '" y="' + (cy + 5) + '" width="' + so(rong(t), 1)
             + '" height="13" rx="2" fill="' + MAU.lechTren + '"/>'
-            + '<text x="' + so(giua + rong(t) + 6, 1) + '" y="' + (cy + 16) + '" class="svg-nhan">'
+            + '<text x="' + (giua + nua + 8) + '" y="' + (cy + 16) + '" class="svg-nhan">'
             + viet(t, gioT) + '</text>' : '')
       + (coSoPhong && r.so_phong != null
           ? '<text x="' + W + '" y="' + (cy + 16) + '" text-anchor="end" class="svg-hang">'
-            + r.so_phong_dat + '/' + r.so_phong + ' phòng đạt'
-            + (r.so_con_lech ? ' · ' + r.so_con_lech + ' còn ngoài giới hạn' : '') + '</text>'
+            + r.so_phong_dat + '/' + r.so_phong + ' đạt'
+            + (r.so_con_lech ? ' · ' + r.so_con_lech + ' ngoài giới hạn' : '') + '</text>'
           : '')
       + '</g>';
   });
@@ -1192,7 +1197,60 @@ function svgBanDo(phongs, ngays) {
     + '" class="bieu-do" role="img" aria-label="Bản đồ thời gian trong ngưỡng theo phòng và ngày">' + s + '</svg></div>';
 }
 
+/* ===== So với bốn kỳ trước =================================================
+ * d.lich_su_ky do node Supabase của WF5 v3 cấp: 5 phần tử thu_tu 0..4 (0 = kỳ này),
+ * mỗi phần tử { tu, den, tong: { ty_le, so_ngay }, khu: { C1: ty_le, ... } }.
+ * Tính đúng như hàm tổng hợp tính "thời gian trong ngưỡng" của kỳ (trung bình
+ * kpi_ngay_scope), nên con số kỳ này ở bảng trùng con số dẫn đầu thư.
+ * Thiếu khối này (dữ liệu cũ, chạy thử tại chỗ) → trả null, khối tự ẩn.
+ * ======================================================================= */
+function nhanKyNgan(ky, tu, den) {
+  const ma = String(ky || '').toUpperCase();
+  const s = String(den || ''), nam = s.slice(0, 4), thang = s.slice(5, 7);
+  if (ma === 'THANG' && nam) return 'tháng ' + thang + '/' + nam;
+  if (ma === 'QUY' && nam) return 'quý ' + Math.ceil(Number(thang) / 3) + '/' + nam;
+  return ngayNgan(tu) + ' – ' + ngayNgan(den);
+}
+function chuanHoaLichSu(d) {
+  const ds = Array.isArray(d.lich_su_ky) ? d.lich_su_ky : null;
+  if (!ds || !ds.length) return null;
+  const ra = ds.map(function (x) {
+    const tong = x.tong || {};
+    return {
+      thu_tu: Number(x.thu_tu) || 0, tu: x.tu, den: x.den,
+      nhan: nhanKyNgan(d.ky, x.tu, x.den),
+      ty_le: tong.ty_le == null ? null : Number(tong.ty_le),
+      so_ngay: tong.so_ngay == null ? null : Number(tong.so_ngay),
+      khu: x.khu || {}
+    };
+  }).sort(function (a, b) { return b.thu_tu - a.thu_tu; });   // cũ → mới
+  ra.forEach(function (x, i) { x.la_ky_nay = i === ra.length - 1; });
+  return ra;
+}
+// Một câu kết luận rút thẳng từ dãy số, không do máy viết.
+function xuHuongLichSu(ds) {
+  if (!ds) return null;
+  const co = ds.filter(function (x) { return x.ty_le != null; });
+  const nay = ds[ds.length - 1];
+  if (nay.ty_le == null || co.length < 2) return { chu: 'Chưa đủ kỳ có số liệu để so sánh.', huong: 'khong' };
+  const truoc = co.slice(0, -1).map(function (x) { return x.ty_le; });
+  const tb = truoc.reduce(function (t, v) { return t + v; }, 0) / truoc.length;
+  const caoNhat = nay.ty_le >= Math.max.apply(null, truoc);
+  const thapNhat = nay.ty_le <= Math.min.apply(null, truoc);
+  let lienTiep = 0;
+  for (let i = co.length - 1; i > 0 && co[i].ty_le > co[i - 1].ty_le; i--) lienTiep++;
+  let lienTiepGiam = 0;
+  for (let i = co.length - 1; i > 0 && co[i].ty_le < co[i - 1].ty_le; i--) lienTiepGiam++;
+  if (caoNhat && lienTiep >= 2) return { chu: 'Tốt lên ' + lienTiep + ' kỳ liên tiếp; kỳ này cao nhất trong ' + co.length + ' kỳ.', huong: 'tot' };
+  if (caoNhat) return { chu: 'Kỳ này cao nhất trong ' + co.length + ' kỳ có số liệu.', huong: 'tot' };
+  if (thapNhat && lienTiepGiam >= 2) return { chu: 'Xấu đi ' + lienTiepGiam + ' kỳ liên tiếp; kỳ này thấp nhất trong ' + co.length + ' kỳ.', huong: 'xau' };
+  if (thapNhat) return { chu: 'Kỳ này thấp nhất trong ' + co.length + ' kỳ có số liệu.', huong: 'xau' };
+  if (nay.ty_le > tb) return { chu: 'Kỳ này (' + phanTram(nay.ty_le) + ') cao hơn trung bình các kỳ trước (' + phanTram(tb) + '), nhưng chưa phải cao nhất.', huong: 'tot' };
+  return { chu: 'Kỳ này (' + phanTram(nay.ty_le) + ') thấp hơn trung bình các kỳ trước (' + phanTram(tb) + ').', huong: 'xau' };
+}
+
 module.exports = {
+  nhanKyNgan: nhanKyNgan, chuanHoaLichSu: chuanHoaLichSu, xuHuongLichSu: xuHuongLichSu,
   TEN_CHI_TIEU: TEN_CHI_TIEU, TEN_CHI_TIEU_DAY_DU: TEN_CHI_TIEU_DAY_DU,
   Y_NGHIA_CHI_TIEU: Y_NGHIA_CHI_TIEU, HUONG_NGUY_HIEM: HUONG_NGUY_HIEM,
   TEN_MUC_CANH_BAO: TEN_MUC_CANH_BAO, TEN_UU_TIEN: TEN_UU_TIEN, TEN_UU_TIEN_NGAN: TEN_UU_TIEN_NGAN,
@@ -1310,6 +1368,7 @@ h3:first-of-type{border-top:none;padding-top:0;margin-top:var(--k-5)}
 .mo{color:var(--mo)}
 .chinh{border-top:3px solid var(--muc)}
 
+
 /* ── Kết luận và số dẫn ──────────────────────────────────────────────── */
 .ket-luan{display:flex;gap:var(--k-3);align-items:baseline;padding:var(--k-3) var(--k-4);
   border-radius:var(--bo-3);background:#FEF2F2;border:1px solid #FCA5A5;margin:0 0 var(--k-6)}
@@ -1340,6 +1399,8 @@ h3:first-of-type{border-top:none;padding-top:0;margin-top:var(--k-5)}
 .phu-ty-le{font-size:var(--co-1);color:var(--mo);font-weight:400}
 .phu-th{font-weight:400;text-transform:none;letter-spacing:0;color:var(--nhat)}
 .tang-tot{color:var(--muc2)}
+.ls-tot{color:#15803D;font-weight:600}.ls-xau{color:var(--cap2);font-weight:600}
+.dong-nhan td{background:#F3F6FA;font-weight:700}.ket-luan-nho{font-weight:700;margin-top:8px}
 
 /* ── Bảng: bỏ viền dọc, dùng khoảng trắng và một đường ngang mảnh ────── */
 table{width:100%;border-collapse:collapse;font-size:var(--co-3)}
@@ -1582,6 +1643,40 @@ details summary:hover{background:var(--nen)}
 }
 `;
 
+/* ── So với bốn kỳ trước (cuối mục 1) ──────────────────────────────────── */
+function khoiLichSuBanIn(d) {
+  const ds = L.chuanHoaLichSu(d);
+  if (!ds) return '';
+  const dsKhu = ['C1', 'C4', 'Q2'].filter(function (k) {
+    return ds.some(function (x) { return x.khu && x.khu[k] != null; });
+  });
+  const xh = L.xuHuongLichSu(ds);
+  const o = function (v, truoc, dam) {
+    const lop = v == null ? 'mo' : (v >= NGUONG_HANH_DONG ? 'ls-tot' : 'ls-xau');
+    const mt = (v != null && truoc != null && v !== truoc)
+      ? ' <span class="' + (v > truoc ? 'ls-tot' : 'ls-xau') + '">' + (v > truoc ? '▲' : '▼') + '</span>' : '';
+    return '<td class="so' + (dam ? ' dam' : '') + '"><span class="' + lop + '">' + (v == null ? '—' : phanTram(v)) + '</span>' + mt + '</td>';
+  };
+  return '<h3>So với bốn kỳ trước</h3>'
+    + '<p class="mota">Tỉ lệ thời gian trong ngưỡng của năm kỳ gần nhất, tính cùng một cách với con số dẫn đầu '
+    + 'báo cáo; mức phải đạt ' + NGUONG_HANH_DONG + '%. Mũi tên so với kỳ liền trước. Kỳ ghi "—" là kỳ chưa có số liệu.</p>'
+    + '<div class="cuon-ngang"><table><thead><tr><th>Kỳ</th><th class="so">Toàn nhà máy</th>'
+    + dsKhu.map(function (k) { return '<th class="so">Khu ' + k + '</th>'; }).join('')
+    + '</tr></thead><tbody>'
+    + ds.map(function (x, i) {
+        const tr = i > 0 ? ds[i - 1] : null;
+        return '<tr' + (x.la_ky_nay ? ' class="dong-nhan"' : '') + '><td>' + esc(x.nhan)
+          + (x.la_ky_nay ? ' <span class="mo">(kỳ này)</span>' : '') + '</td>'
+          + o(x.ty_le, tr ? tr.ty_le : null, true)
+          + dsKhu.map(function (k) {
+              return o(x.khu[k] == null ? null : Number(x.khu[k]), tr && tr.khu[k] != null ? Number(tr.khu[k]) : null, false);
+            }).join('')
+          + '</tr>';
+      }).join('')
+    + '</tbody></table></div>'
+    + (xh ? '<p class="ket-luan-nho ' + (xh.huong === 'tot' ? 'ls-tot' : (xh.huong === 'xau' ? 'ls-xau' : 'mo')) + '">' + esc(xh.chu) + '</p>' : '');
+}
+
 /* ===== KHỐI NHẬN ĐỊNH — nhận JSON có cấu trúc ========================== */
 
 const TRUONG_BAT_BUOC = ['quan_sat', 'lien_he', 'gia_thuyet', 'can_xac_minh', 'ai_lam'];
@@ -1704,9 +1799,10 @@ function mucChiTieu(ct, laMucLon, soMuc, cauDan) {
 
     /* Tầng 1 — toàn nhà máy */
     + '<h3><span class="so-muc-phu">' + soMuc + '.1</span>Toàn nhà máy</h3>'
-    + '<p class="mota">Phần trăm đi kèm số giờ là tỉ lệ trên tổng thời gian THỰC SỰ CÓ SỐ ĐO của chỉ tiêu này ('
-    + soVN(ct.tong_gio_do, 0) + ' giờ), không phải trên thời gian kỳ vọng — lấy thời gian kỳ vọng thì '
-    + 'kỳ nào mất dữ liệu sẽ bị làm nhẹ đi một cách giả tạo.</p>'
+    + '<p class="mota">Số giờ ở đây là <b>giờ cộng dồn của ' + ct.so_phong_do + ' phòng đo</b> (mỗi phòng một '
+    + 'đồng hồ riêng), nên lớn hơn số giờ của kỳ; không quy đổi ra ngày. Phần trăm đi kèm là tỉ lệ trên tổng '
+    + 'thời gian THỰC SỰ CÓ SỐ ĐO của chỉ tiêu này (' + soVN(ct.tong_gio_do, 0) + ' giờ cộng dồn), không phải '
+    + 'trên thời gian kỳ vọng — lấy thời gian kỳ vọng thì kỳ nào mất dữ liệu sẽ bị làm nhẹ đi một cách giả tạo.</p>'
     + '<p class="mota">' + ct.so_phong_dat_trong_bang + '/' + ct.so_phong_do + ' phòng đạt ngưỡng hành động '
     + NGUONG_HANH_DONG + '% thời gian trong ngưỡng. Con số này tính <b>riêng</b> cho ' + esc(String(ct.ten).toLowerCase())
     + ', nên khác con số ở mục 1 và mục 6 — hai chỗ đó gộp cả ba chỉ tiêu của phòng lại.</p>'
@@ -1893,6 +1989,7 @@ function rapBaoCao(d, duBao, cfg) {
   const dNghiem  = delta(k.so_gio_critical, kt.so_gio_critical, ' giờ', false);
 
   const dat = (k.ty_le_tuan_thu || 0) >= NGUONG_HANH_DONG && !cap.capA.length;
+  const khoiLichSuIn = khoiLichSuBanIn(d);
   // Câu kết luận phải nói thẳng ý nghĩa, không bắt người đọc tự trừ rồi tự suy
   // ra "vậy là phải làm gì". Dưới ngưỡng hành động nghĩa là PHẢI khắc phục,
   // không phải chỉ theo dõi tiếp — nói rõ điều đó ra.
@@ -2035,7 +2132,9 @@ function rapBaoCao(d, duBao, cfg) {
     + '<div class="kpi"><div class="ten">Thời gian thu được số đo</div><div class="gt">'
     +   soVN((ht && ht.do_phu_pct) != null ? ht.do_phu_pct : k.dq_pct, 1) + '%</div>'
     +   '<div class="ct">' + (ht ? (ht.gio_rong || 0) + ' giờ không có số đo' : 'đầy đủ') + '</div></div>'
-    + '</div></section>'
+    + '</div>'
+    + khoiLichSuIn
+    + '</section>'
 
     /* 2 · Việc phải xử lý */
     + '<section class="chinh" id="muc-2"><h2><span class="so-muc">2</span>Việc phải xử lý trong kỳ này '
@@ -3821,6 +3920,53 @@ function rapEmail(d, duBao, cfg) {
     +   ' giờ trở lên ngoài giới hạn — danh sách ở mục "Việc phải xử lý".'
     +   '</td></tr></tbody></table>';
 
+  /* ===== So với bốn kỳ trước ===========================================
+   * Người đọc muốn biết có tiến bộ hay không (góp ý 04/09/2026). Bảng 5 dòng,
+   * cũ → mới, cột toàn nhà máy và từng khu; mỗi số kèm mũi tên so với kỳ liền
+   * trước; câu kết luận rút thẳng từ dãy số.
+   * ================================================================== */
+  const lichSu = L.chuanHoaLichSu(d);
+  const khoiLichSu = (function () {
+    if (!lichSu) return '';
+    const dsKhu = ['C1', 'C4', 'Q2'].filter(function (k) {
+      return lichSu.some(function (x) { return x.khu && x.khu[k] != null; });
+    });
+    const xh = L.xuHuongLichSu(lichSu);
+    const mauSo = function (v) {
+      return v == null ? M.mo : (v >= NGUONG_HANH_DONG ? M.luc : (v >= NGUONG_HANH_DONG - 10 ? M.vang : M.doChu));
+    };
+    const o = function (v, truoc, dam) {
+      const muiTen = (v != null && truoc != null && v !== truoc)
+        ? '<span style="font-size:11px;color:' + (v > truoc ? M.luc : M.doChu) + ';"> '
+          + (v > truoc ? '▲' : '▼') + '</span>' : '';
+      return '<td class="d dp" style="font-weight:' + (dam ? 700 : 500) + ';color:' + mauSo(v)
+        + ';white-space:nowrap;">' + (v == null ? '—' : phanTram(v)) + muiTen + '</td>';
+    };
+    const dong = lichSu.map(function (x, i) {
+      const tr = i > 0 ? lichSu[i - 1] : null;
+      return '<tr style="' + (x.la_ky_nay ? 'background:' + M.nen + ';' : '') + '">'
+        + '<td class="d dl" style="font-weight:' + (x.la_ky_nay ? 700 : 500) + ';color:' + M.muc
+        +   ';white-space:nowrap;">' + esc(x.nhan) + (x.la_ky_nay ? ' <span style="font-size:11px;color:'
+        +   M.mo + ';">kỳ này</span>' : '') + '</td>'
+        + o(x.ty_le, tr ? tr.ty_le : null, true)
+        + dsKhu.map(function (k) {
+            return o(x.khu[k] == null ? null : Number(x.khu[k]), tr && tr.khu[k] != null ? Number(tr.khu[k]) : null, false);
+          }).join('')
+        + '</tr>';
+    }).join('');
+    return '<div style="font-size:15px;color:' + M.muc2 + ';line-height:1.6;margin:-4px 0 12px;">'
+      +   'Tỉ lệ <b>thời gian trong ngưỡng</b> của năm kỳ gần nhất, càng cao càng tốt; mức phải đạt '
+      +   NGUONG_HANH_DONG + '%. Mũi tên so với kỳ liền trước.</div>'
+      + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">'
+      + '<thead><tr>' + thB('Kỳ', false, true) + thB('Toàn nhà máy', true)
+      + dsKhu.map(function (k, i) { return thB('Khu ' + k, true, false, i === dsKhu.length - 1); }).join('')
+      + '</tr></thead><tbody>' + dong + '</tbody></table>'
+      + (xh ? '<div style="font-size:15px;font-weight:700;color:' + (xh.huong === 'tot' ? M.luc : (xh.huong === 'xau' ? M.doChu : M.muc2))
+          + ';margin-top:10px;line-height:1.5;">' + esc(xh.chu) + '</div>' : '')
+      + (lichSu.some(function (x) { return x.ty_le == null; })
+          ? '<div style="font-size:13px;color:' + M.mo + ';margin-top:6px;">Kỳ ghi "—" là kỳ chưa có số liệu trong hệ thống.</div>' : '');
+  })();
+
   /* ===== Đánh giá kết quả tổng quát ====================================
    * Bảng ở trên là số liệu; khối này trả lời câu "vậy kết quả kỳ này ra sao".
    * Dựng thành bảng chứ không phải đoạn văn: người đọc quét mắt theo cột
@@ -4033,6 +4179,9 @@ function rapEmail(d, duBao, cfg) {
 
     /* ── Đánh giá kết quả tổng quát ── */
     + hang(nhanMuc('Đánh giá kết quả tổng quát') + khoiDanhGia, M.nen)
+
+    /* ── So với bốn kỳ trước ── */
+    + (khoiLichSu ? hang(nhanMuc('So với bốn kỳ trước') + khoiLichSu) : '')
 
     /* ── Việc phải xử lý ── */
     + hang(nhanMuc('Việc phải xử lý trong kỳ này', M.do)
