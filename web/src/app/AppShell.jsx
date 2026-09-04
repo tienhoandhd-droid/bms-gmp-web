@@ -48,6 +48,9 @@ import { KpiCard, OosMiniBars } from "../components/ui/KpiCard";
 // Đợt A 04/09/2026: hộp thoại chuẩn (thay window.prompt) + thanh thông báo (thay window.alert)
 import { HopThoaiTamHoan } from "../components/ui/HopThoai";
 import { ThongBaoStack, taoBao } from "../components/ui/ThongBao";
+// Đợt C: khung lỗi dùng chung + thẻ thông tin hệ thống cho thanh tra
+import { KhungLoi } from "../components/ui/KhungLoi";
+import { ThongTinHeThongCard } from "../features/settings/ThongTinHeThongCard";
 
 
 
@@ -130,7 +133,23 @@ export default function AppShell() {
     ? preference
     : (typeof document !== "undefined" && document.documentElement.dataset.theme) || "light";
   const toggleTheme = () => setPreference(resolvedTheme === "dark" ? "light" : "dark");
-  const [tab, setTab] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return NAV_ITEMS.some((x) => x.k === t) || t === "tasks" ? t : "home"; } catch { return "home"; } });
+  const [tab, setTabState] = useState(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); return NAV_ITEMS.some((x) => x.k === t) || t === "tasks" ? t : "home"; } catch { return "home"; } });
+  // Đợt C 04/09/2026: ĐỒNG BỘ URL khi chuyển tab. Trước đây ?tab= chỉ đọc lúc mount nên nút
+  // Back của trình duyệt không đổi tab và không chia sẻ được link đang xem. pushState giữ
+  // nguyên các tham số khác (tv, token…); popstate đọc lại ?tab= khi bấm Back/Forward.
+  const docTabTuUrl = () => { try { const t = new URLSearchParams(window.location.search).get("tab"); return NAV_ITEMS.some((x) => x.k === t) || t === "tasks" ? t : "home"; } catch (e) { return "home"; } };
+  const setTab = useCallback((k) => {
+    setTabState(k);
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.get("tab") !== k) { u.searchParams.set("tab", k); window.history.pushState({ tab: k }, "", u); }
+    } catch (e) { /* trình duyệt cũ không có URL/History API → chỉ đổi tab trong bộ nhớ */ }
+  }, []);
+  useEffect(() => {
+    const onPop = () => setTabState(docTabTuUrl());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [sheetThem, setSheetThem] = useState(false);   // sheet "Thêm" của bottom-nav mobile
   const [incChiTiet, setIncChiTiet] = useState(null);  // drawer chi tiết sự cố (bảng 7 cột — báo cáo 10)
   // KEEP-ALIVE tab nặng (Xu hướng, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
@@ -763,10 +782,10 @@ export default function AppShell() {
       {/* Phase A (báo cáo 9): sidebar desktop + bottom-nav mobile thay dải 10 tab; bỏ blob trang trí. */}
       <DesktopSidebar tab={tab} setTab={setTab} role={role} badges={{ events: p12Open }} />
       <div className="relative flex-1 min-w-0 max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-24 lg:pb-6">
-        <header className="flex items-center justify-between gap-4 flex-wrap">
+        <header className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="lg:hidden rounded-2xl bg-surface px-2.5 ring-1 ring-line flex items-center justify-center h-[50px] w-[50px] shrink-0" style={cardShadow}><CpcLogo className="h-10 w-10" /></div>
-            <div className="flex flex-col justify-center min-w-0"><h1 className="text-lg sm:text-xl font-semibold tracking-tight leading-tight truncate" style={{ color: "var(--text-strong)" }}>{(NAV_ITEMS.find((t) => t.k === tab) || {}).label || "Giám sát HVAC phòng sạch"}</h1><p className="text-[12px] font-medium tracking-wide mt-0.5 text-muted">Giám sát HVAC phòng sạch · Phòng Quản lý chất lượng</p></div>
+            <div className="lg:hidden rounded-2xl bg-surface px-2 ring-1 ring-line flex items-center justify-center h-[44px] w-[44px] shrink-0" style={cardShadow}><CpcLogo className="h-9 w-9" /></div>
+            <div className="flex flex-col justify-center min-w-0"><h1 className="text-lg sm:text-xl font-semibold tracking-tight leading-tight truncate" style={{ color: "var(--text-strong)" }}>{(NAV_ITEMS.find((t) => t.k === tab) || {}).label || "Giám sát HVAC phòng sạch"}</h1><p className="hidden sm:block text-[12px] font-medium tracking-wide mt-0.5 text-muted">Giám sát HVAC phòng sạch · Phòng Quản lý chất lượng</p></div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap justify-end ml-auto">
             <div className="hidden md:block"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} /></div>
@@ -778,7 +797,7 @@ export default function AppShell() {
               {resolvedTheme === "dark" ? <Sun className="h-4 w-4" strokeWidth={1.9} /> : <Moon className="h-4 w-4" strokeWidth={1.9} />}
             </button>
             {user ? <div className="flex items-center gap-2.5 rounded-2xl bg-surface pl-2 pr-2 ring-1 ring-line h-[50px]" style={cardShadow}><div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: "var(--primary-solid)" }}>{user.name[0]}</div><div className="leading-tight"><p className="text-xs font-semibold" style={{ color: "var(--text-default)" }}>{user.name}</p><p className="text-[12px] font-medium" style={{ color: "var(--primary)" }}>{ROLE_VI[user.role] || user.role}</p></div><button onClick={() => setPwOpen(true)} className="ml-1 rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đổi mật khẩu"><KeyRound className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => { setUser(null); if (isLive) authDangXuat(); }} className="rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đăng xuất"><LogOut className="w-4 h-4" strokeWidth={1.8} /></button></div>
-              : <button onClick={() => setLoginOpen(true)} className="flex items-center gap-2 rounded-2xl px-4 text-sm font-semibold text-white h-[50px]" style={{ background: "var(--primary-solid)", ...cardShadow }}><LogIn className="w-4 h-4" strokeWidth={1.8} /> Đăng nhập</button>}
+              : <button onClick={() => setLoginOpen(true)} aria-label="Đăng nhập" className="flex items-center gap-2 rounded-2xl px-3 sm:px-4 text-sm font-semibold text-white h-[44px] sm:h-[50px]" style={{ background: "var(--primary-solid)", ...cardShadow }}><LogIn className="w-4 h-4" strokeWidth={1.8} /> <span className="hidden sm:inline">Đăng nhập</span></button>}
           </div>
           <div className="w-full md:hidden -mt-1"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} /></div>
         </header>
@@ -858,11 +877,7 @@ export default function AppShell() {
               {/* Đợt A: tách 4 trạng thái — null + lỗi = LỖI; null = ĐANG TẢI; [] = KHÔNG CÓ VIỆC.
                   Trước đây `live.suCoPhuTrach || []` khiến tải lỗi hiện y hệt "không có việc". */}
               {isLive && live.suCoPhuTrach === null && live.loi && (
-                <Card className="p-5 bg-danger-soft ring-1 ring-danger-line" role="alert">
-                  <p className="text-[14px] font-semibold text-danger">Chưa tải được danh sách việc cần làm</p>
-                  <p className="mt-1 text-[12px] text-body">{moTaLoi(live.loi)}</p>
-                  <button type="button" onClick={() => live.lamMoi({ nen: false })} className="mt-3 rounded-xl bg-surface px-3.5 py-2 text-[12px] font-semibold text-danger ring-1 ring-danger-line hover:bg-danger-soft min-h-[40px]">Thử tải lại</button>
-                </Card>
+                <KhungLoi tieuDe="Chưa tải được danh sách việc cần làm" loi={live.loi} onThuLai={() => live.lamMoi({ nen: false })} dangThu={live.dangTai} capNhatLuc={live.capNhatLuc} />
               )}
               {isLive && live.suCoPhuTrach === null && !live.loi && (
                 <div className="space-y-3" role="status" aria-live="polite" aria-label="Đang tải việc cần làm">
@@ -964,6 +979,7 @@ export default function AppShell() {
             return (
             <div className="space-y-5">
               <SectionTitle icon={AlertOctagon} hint={user ? `vai trò: ${ROLE_VI[role]}` : "đăng nhập để thao tác"}>Sự cố đang xử lý</SectionTitle>
+              {isLive && live.loi && <KhungLoi gon tieuDe="Bảng sự cố có thể đã cũ — lần làm mới gần nhất bị lỗi" loi={live.loi} onThuLai={() => live.lamMoi({ nen: false })} dangThu={live.dangTai} />}
               {/* Phiếu VẪN hiện khi mất nguồn là ĐÚNG — mất dữ liệu không xoá được sự kiện đã
                   xảy ra, đóng phiếu vì hết dữ liệu là làm mất hồ sơ GMP (bài học 14/07). Cái
                   phải nói rõ là: mức đang hiện dựa trên số CŨ, và khoảng mù này KHÔNG mở
@@ -1443,6 +1459,7 @@ export default function AppShell() {
                       </details>
                     </div>
                   ); })()}</Card>
+                <ThongTinHeThongCard giaoDien={resolvedTheme} />
                 <GiaoDienCard />
                 <ChuoiHashCard isLive={isLive} />
                 <DoiMatKhauCard user={user} isLive={isLive} />

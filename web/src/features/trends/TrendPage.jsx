@@ -4,6 +4,7 @@ import InspectorDrawer from "../../components/layout/InspectorDrawer";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Activity, AlertOctagon, AlertTriangle, Check, CheckCircle2, ChevronDown, CircleDot, ClipboardCheck, FileBarChart, Gauge, LineChart as LineIcon, Mail, Minus, Printer, Save, Search, TrendingDown, TrendingUp, Wifi } from "lucide-react";
+import { KhungLoi } from "../../components/ui/KhungLoi";
 import { Card, SectionTitle } from "../../components/ui/Card";
 import Chart from "../../components/ui/Chart";
 import { KpiCard } from "../../components/ui/KpiCard";
@@ -246,6 +247,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [duBao, setDuBao] = useState(null);           // {du_bao_dang_tin, huong, r2, ghi_chu, chuoi, du_bao[]}
   const [maTran, setMaTran] = useState(null);         // {rooms[], days[], values[][]}
   const [dbBusy, setDbBusy] = useState(false);
+  const [duBaoLoi, setDuBaoLoi] = useState(null);   // đợt C: lỗi tải dự báo — hiện khung lỗi thay vì "chưa đủ dữ liệu"
+  const [lanThuDuBao, setLanThuDuBao] = useState(0);
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, us] = await Promise.all([layWebhookAi(), layWebhookAiSau().catch(() => "")]); if (huy) return; setAiWebhook(u || ""); setAiWebhookSau(us || ""); })(); return () => { huy = true; }; }, [isLive]);
   // WF7b: URL gửi email/lưu Drive + điền sẵn người nhận email từ danh sách người nhận báo cáo.
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, ds] = await Promise.all([layWebhookWf7b(), layNguoiNhanBaoCao().catch(() => ({ rows: [] }))]); if (huy) return; setWf7bUrl(u || ""); const emails = ((ds && ds.rows) || []).map((r) => r.email).filter(Boolean); setEmailTo(emails.join(", ")); })(); return () => { huy = true; }; }, [isLive]);
@@ -350,7 +353,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     const hmId = st === "AREA" ? activeId : "ALL";
     const soNgayHm = Math.min(14, RANGE_DAYS[range] || 30);
     (async () => {
-      setDbBusy(true);
+      setDbBusy(true); setDuBaoLoi(null);
       try {
         const [fc, mt] = await Promise.all([
           layDuBaoXuHuong(st, activeId, sensor, 30, 7),
@@ -359,11 +362,11 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         if (huy) return;
         setDuBao(fc && fc.du_bao ? fc.du_bao : null);
         setMaTran(mt && mt.rooms && mt.rooms.length ? mt : null);
-      } catch { if (!huy) { setDuBao(null); setMaTran(null); } }
+      } catch (e) { if (!huy) { setDuBao(null); setMaTran(null); setDuBaoLoi(e); } }   // đợt C: không nuốt lỗi
       finally { if (!huy) setDbBusy(false); }
     })();
     return () => { huy = true; };
-  }, [isLive, activeScope.type, activeId, sensor, range]); // eslint-disable-line
+  }, [isLive, activeScope.type, activeId, sensor, range, lanThuDuBao]); // eslint-disable-line
 
   // LIVE: tải chuỗi 90 ngày cho scope đang chọn + 4 scope mini (cache theo id)
   const miniIds = useMemo(() => isLive ? [lByType("TOTAL")[0], lByType("AREA")[0], lByType("AHU")[0], lByType("ROOM")[0]].map((s) => s && s.id).filter(Boolean) : [], [isLive, liveScopes]); // eslint-disable-line
@@ -564,6 +567,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     : [findScope("ALL"), ...byType("AREA"), ...byType("AHU"), ...byType("ROOM")].map((s) => ({ ...s, latest: s.latest || {} })))
     .filter(Boolean)
     .sort((a, b) => (LEVEL_RANK[a.type] - LEVEL_RANK[b.type]) || (b.risk - a.risk) || String(a.id).localeCompare(String(b.id)));
+  // Đợt C: cột tỉ lệ 1/3/7 ngày, Δ7 và chuỗi 14 ngày chỉ có với dữ liệu thật — ẩn cả cột thay vì bày 6 cột "—".
+  const coCotNgay = riskRows.some((r) => r.dat1n != null || r.dat3n != null || r.dat7n != null || r.delta7 != null);
+  const coCotChuoi = riskRows.some((r) => Array.isArray(r.chuoi) && r.chuoi.length > 0);
 
   // #4 — Phân tích kỹ thuật của chuỗi đang xem (cho AI + bảng cạnh biểu đồ)
   const tech = useMemo(() => {
@@ -1028,14 +1034,15 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       </Card>
 
       <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="Tổng → Khu → AHU → Phòng · tỉ lệ đạt 1/3/7 ngày">Xếp hạng rủi ro</SectionTitle>
-        <div tabIndex={0} role="region" aria-label="Bảng xếp hạng rủi ro, cuộn ngang để xem thêm" className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><caption className="sr-only">Xếp hạng rủi ro theo cấp Tổng, Khu, AHU, Phòng — tỉ lệ đạt 1, 3, 7 ngày</caption><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", "Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày", "Xu hướng 14n", "Risk", "Đánh giá"].map((h) => <th key={h} scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; const a = comp == null ? ["Chờ dữ liệu", "text-muted"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-danger"] : comp < 88 ? ["Cần chú ý", "text-warning"] : ["Tốt", "text-success"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-line hover:bg-info-soft/40 ${r.type === "TOTAL" ? "bg-success-soft/30" : ""}`}><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4"><button disabled={!canPick} onClick={() => { if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left min-h-[24px] ${canPick ? "hover:underline" : ""}`}><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.id}</span> <span className="text-muted">{r.name}</span></button></td><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td><td className="py-2.5 pr-4"><Chart type="sparkline" chuoi={r.chuoi} h={30} /></td><td className="py-2.5 pr-4"><span className="inline-block px-2 py-0.5 rounded-full text-[12px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: "var(--danger)" }}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
-        <p className="text-[12px] text-muted mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó. Tỉ lệ đạt = trung bình tỷ lệ đạt trong 1 / 3 / 7 ngày gần nhất.</p>
+        <div tabIndex={0} role="region" aria-label="Bảng xếp hạng rủi ro, cuộn ngang để xem thêm" className="overflow-x-auto mt-3"><table className="w-full text-[13px]"><caption className="sr-only">Xếp hạng rủi ro theo cấp Tổng, Khu, AHU, Phòng — tỉ lệ đạt 1, 3, 7 ngày</caption><thead><tr className="text-muted text-left text-[12px] uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", ...(coCotNgay ? ["Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày"] : []), ...(coCotChuoi ? ["Xu hướng 14n"] : []), "Risk", "Đánh giá"].map((h) => <th key={h} scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; const a = comp == null ? ["Chờ dữ liệu", "text-muted"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-danger"] : comp < 88 ? ["Cần chú ý", "text-warning"] : ["Tốt", "text-success"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-line hover:bg-info-soft/40 ${r.type === "TOTAL" ? "bg-success-soft/30" : ""}`}><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4"><button disabled={!canPick} onClick={() => { if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left min-h-[24px] ${canPick ? "hover:underline" : ""}`}><span className="font-semibold" style={{ color: "var(--text-strong)" }}>{r.id}</span> <span className="text-muted">{r.name}</span></button></td><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td>{coCotNgay && <><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td></>}{coCotChuoi && <td className="py-2.5 pr-4"><Chart type="sparkline" chuoi={r.chuoi} h={30} /></td>}<td className="py-2.5 pr-4"><span className="inline-block px-2 py-0.5 rounded-full text-[12px] font-medium" style={{ backgroundColor: "rgba(226,103,79,0.14)", color: "var(--danger)" }}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
+        <p className="text-[12px] text-muted mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó.{coCotNgay ? " Tỉ lệ đạt = trung bình tỷ lệ đạt trong 1 / 3 / 7 ngày gần nhất." : " Cột tỉ lệ đạt 1 / 3 / 7 ngày và xu hướng 14 ngày chỉ có khi dùng dữ liệu thật."}</p>
       </Card>
 
       {/* Mảng 3 — Dự báo xu hướng (RPC gate R²) */}
       {isLive && (
       <Card className="p-6"><SectionTitle icon={LineIcon} hint="hồi quy OLS + cổng R²≥0.5 · dải tin cậy robust (MAD) · dữ liệu thật">Ước tính xu hướng 7 ngày</SectionTitle>
         {dbBusy && !duBao ? <div className="mt-3 h-16 rounded-2xl bg-subtle animate-pulse" /> :
+         duBaoLoi ? <KhungLoi gon className="mt-3" tieuDe="Chưa tải được ước tính xu hướng" loi={duBaoLoi} onThuLai={() => setLanThuDuBao((n) => n + 1)} dangThu={dbBusy} /> :
          !duBao ? <p className="mt-3 text-[13px] text-muted italic">Chưa đủ dữ liệu để dự báo cho phạm vi đang chọn.</p> :
          (duBao.du_bao_dang_tin && (duBao.du_bao || []).length) ? (() => {
            const last = duBao.du_bao[duBao.du_bao.length - 1];

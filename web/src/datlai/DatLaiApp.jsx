@@ -12,8 +12,9 @@ import { supabase } from '../lib/bmsClient'
 import { guiEmailKhoiPhuc, datLaiMatKhauTuLink } from '../lib/auth'
 import logoCpc1hn from '../assets/logo-cpc1hn.png'
 
-const NAVY = '#1E3A56'
-const TEAL = '#0E7C6B'
+// Đợt C 04/09/2026: màu qua token thay hex — có giao diện tối.
+const NAVY = 'var(--text-strong)'
+const TEAL = 'var(--primary-solid)'
 const PAGE_BG = 'var(--bg-canvas)'
 
 // Đọc token từ hash NGAY khi nạp module rồi dọn URL (token là bí mật — không
@@ -47,7 +48,7 @@ function HuyHieu({ type = 'lock' }) {
   const ok = type === 'check'
   return (
     <div className="h-16 w-16 rounded-2xl flex items-center justify-center"
-      style={{ background: ok ? 'linear-gradient(145deg,#16b981,#0E7C6B)' : `linear-gradient(145deg,${TEAL},${NAVY})`,
+      style={{ background: ok ? 'var(--success-solid)' : 'var(--anchor)',
         boxShadow: '0 14px 28px -12px rgba(14,124,107,0.6)' }}>
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
         {PATHS[type]}

@@ -18,8 +18,9 @@ import { kiemVeThaoTac, thaoTacSuCoTuEmail } from '../lib/supabaseData'
 // 404 trên bản build (asset bị hash tên). Ảnh 16KB tải lười, không chặn JS.
 import logoCpc1hn from '../assets/logo-cpc1hn.png'
 
-const NAVY = '#1E3A56'
-const TEAL = '#0E7C6B'
+// Đợt C 04/09/2026: màu qua token (theme/tokens.css) thay hex — trang có giao diện tối như dashboard.
+const NAVY = 'var(--text-strong)'
+const TEAL = 'var(--primary-solid)'
 // Tên vai trò đầy đủ (không viết tắt trên giao diện — đồng bộ ROLE_VI của App).
 const VAI_TRO_VI = { IPC: 'Kiểm soát hiện trường', MEP: 'Cơ điện', LOT: 'Trực hồ sơ lô', QA: 'Đảm bảo chất lượng', ADMIN: 'Quản trị hệ thống', IT: 'Quản trị hệ thống' }
 const tenVaiTro = (m) => VAI_TRO_VI[m] || m
