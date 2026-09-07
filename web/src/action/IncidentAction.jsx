@@ -9,7 +9,7 @@ function moTaSuCo(incident) {
   return `${incident.ma_hien_thi || `SC-${incident.ma_su_co}`} · ${incident.phong || '—'}${incident.ten_phong ? ` — ${incident.ten_phong}` : ''}`
 }
 
-export default function IncidentAction({ email, incidentId, intent, Khung, DauTrang, NutMoDashboard, tenVaiTro }) {
+export default function IncidentAction({ email, incidentId, intent, Khung: KhungEmail, DauTrang: DauTrangEmail, NutMoDashboard: NutMoDashboardEmail, tenVaiTro }) {
   const [state, setState] = useState({ loading: true })
   const [selected, setSelected] = useState(null)
   const [reason, setReason] = useState('')
@@ -69,8 +69,8 @@ export default function IncidentAction({ email, incidentId, intent, Khung, DauTr
     setResult({ error: 'Không xác định được kết quả ghi nhận. Để tránh ghi trùng, hãy tải lại trang rồi kiểm tra lại phiếu trước khi thao tác tiếp.' })
   }
 
-  if (state.loading) return <Khung><DauTrang phu={email} /><p className="py-6 text-center text-sm text-muted">Đang mở phiếu…</p></Khung>
-  if (state.error) return <Khung><DauTrang phu={email} /><p role="alert" className="mt-4 text-sm leading-relaxed text-danger">{state.error}</p><button type="button" onClick={() => window.location.reload()} className="mt-4 min-h-[44px] w-full rounded-xl bg-subtle px-4 py-2 text-sm font-semibold text-body ring-1 ring-line">Tải lại phiếu</button><NutMoDashboard /></Khung>
+  if (state.loading) return <KhungEmail><DauTrangEmail phu={email} /><p className="py-6 text-center text-sm text-muted">Đang mở phiếu…</p></KhungEmail>
+  if (state.error) return <KhungEmail><DauTrangEmail phu={email} /><p role="alert" className="mt-4 text-sm leading-relaxed text-danger">{state.error}</p><button type="button" onClick={() => window.location.reload()} className="mt-4 min-h-[44px] w-full rounded-xl bg-subtle px-4 py-2 text-sm font-semibold text-body ring-1 ring-line">Tải lại phiếu</button><NutMoDashboardEmail /></KhungEmail>
 
   const { incident, role, actions } = state
   const reasonMissing = selected?.batBuocLyDo && !reason.trim()
@@ -78,8 +78,8 @@ export default function IncidentAction({ email, incidentId, intent, Khung, DauTr
   const locked = submitting || result?.ok || reloadRequired
   const history = Array.isArray(incident.lich_su) ? incident.lich_su.slice(-3).reverse() : []
   const nhanThaoTac = (code) => state.actionRules?.find((rule) => rule.hanh_dong === code)?.nhan || ACTION_CODE_TO_LABEL[code] || code || '—'
-  return <Khung>
-    <DauTrang phu={`${email} · ${tenVaiTro(role)}`} />
+  return <KhungEmail>
+    <DauTrangEmail phu={`${email} · ${tenVaiTro(role)}`} />
     <p className="mt-4 text-[12px] font-semibold uppercase tracking-wider text-muted">{readonly ? 'Xem phiếu' : 'Xác nhận thao tác'}</p>
     <h2 className="mt-1 text-base font-semibold text-strong">{moTaSuCo(incident)}</h2>
     <div className="mt-3 space-y-1 rounded-2xl bg-subtle p-3 text-[13px] text-body ring-1 ring-line">
@@ -112,6 +112,6 @@ export default function IncidentAction({ email, incidentId, intent, Khung, DauTr
         {submitting ? 'Đang ghi nhận…' : 'Xác nhận và ghi nhận'}
       </button>}
     </>}
-    <NutMoDashboard />
-  </Khung>
+    <NutMoDashboardEmail />
+  </KhungEmail>
 }
