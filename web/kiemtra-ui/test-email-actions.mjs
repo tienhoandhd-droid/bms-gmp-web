@@ -1,4 +1,4 @@
-// Browser contract test for action.html incident links.  It starts a local Vite
+// Browser contract test for incident.html links. It starts a local Vite
 // server and intercepts every fake Supabase request; it never contacts Supabase
 // or sends email.  Run: node kiemtra-ui/test-email-actions.mjs
 import { spawn } from 'node:child_process'
@@ -61,8 +61,8 @@ async function attachFixture(page, state) {
   })
 }
 
-async function login(page, intent, state, expectError = false, checkReload = true) {
-  await page.goto(`${BASE}/action.html?incident=123&intent=${intent}`, { waitUntil: 'networkidle2' })
+async function login(page, intent, state, expectError = false, checkReload = true, entry = 'incident.html') {
+  await page.goto(`${BASE}/${entry}?incident=123&intent=${intent}`, { waitUntil: 'networkidle2' })
   check(state.reads.length === 0 && state.writes.length === 0, `chưa đăng nhập intent=${intent} không đọc/ghi phiếu`)
   await page.type('#tt-email', EMAIL)
   await page.type('#tt-mat-khau', 'fixture-password')
@@ -70,13 +70,13 @@ async function login(page, intent, state, expectError = false, checkReload = tru
   try { await page.waitForFunction(() => document.body.innerText.includes('SC-123') || document.querySelector('[role="alert"]'), { timeout: 10000 }) }
   catch { throw new Error(`login timed out: ${await page.evaluate(() => document.body.innerText.slice(0, 500))}; requests=${state.requests.join(' | ')}`) }
   if (!expectError && !(await page.evaluate(() => document.body.innerText.includes('SC-123')))) throw new Error(`login fixture did not load incident: ${await page.evaluate(() => document.body.innerText.slice(0, 500))}; reads=${state.reads.join(' | ')}`)
-  check(page.url().endsWith(`/action.html?incident=123&intent=${intent}`), `login giữ nguyên URL intent=${intent}`, page.url())
+  check(page.url().endsWith(`/${entry}?incident=123&intent=${intent}`), `login giữ nguyên URL intent=${intent}`, page.url())
   if (!checkReload) {
     if (!expectError) check(state.reads.some((url) => /xem_su_co_dang_mo/.test(url) && new URL(url).searchParams.get('ma_su_co') === 'eq.123'), `đọc đúng sự cố #123 intent=${intent}`, state.reads.join(' | '))
     return state
   }
   await page.reload({ waitUntil: 'networkidle2' })
-  check(page.url().endsWith(`/action.html?incident=123&intent=${intent}`), `F5 giữ nguyên URL intent=${intent}`, page.url())
+  check(page.url().endsWith(`/${entry}?incident=123&intent=${intent}`), `F5 giữ nguyên URL intent=${intent}`, page.url())
   if (await page.$('#tt-email')) {
     await page.type('#tt-email', EMAIL); await page.type('#tt-mat-khau', 'fixture-password'); await page.click('button[type="submit"]')
     await page.waitForFunction(() => document.body.innerText.includes('SC-123') || document.querySelector('[role="alert"]'), { timeout: 10000 })
@@ -140,6 +140,11 @@ async function run() {
       check(state.writes.length === 0, 'view không gửi RPC')
       await context.close()
     }
+    { const state = fixture(); const { context, page } = await freshPage(browser, state)
+      await login(page, 'receive', state, false, false, 'action.html')
+      check(await page.$('input[name="incident-action"]:checked') !== null && state.writes.length === 0, 'action.html tương thích: mở phiếu sau đăng nhập, không tự ghi')
+      await context.close()
+    }
     for (const [name, state] of [['role', fixture({ role: null })], ['scope/missing/closed', fixture({ incident: null })]]) {
       const { context, page } = await freshPage(browser, state)
       await login(page, 'receive', state, true)
@@ -147,7 +152,7 @@ async function run() {
       await context.close()
     }
     { const state = fixture(); const { context, page } = await freshPage(browser, state)
-      await page.goto(`${BASE}/action.html?incident=0&intent=receive`, { waitUntil: 'networkidle2' })
+      await page.goto(`${BASE}/incident.html?incident=0&intent=receive`, { waitUntil: 'networkidle2' })
       await page.type('#tt-email', EMAIL); await page.type('#tt-mat-khau', 'fixture-password'); await page.click('button[type="submit"]'); await delay(400)
       check(await page.$('[role="alert"]') !== null && state.writes.length === 0, 'ID không hợp lệ báo lỗi và không ghi')
       await context.close()

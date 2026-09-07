@@ -243,6 +243,7 @@ function TheoVe({ email }) {
 export default function ActionApp() {
   const [user, setUser] = useState(undefined)   // undefined=đang tải · null=chưa đăng nhập
   useEffect(() => {
+    if (!supabase) return
     const capNhat = (session) => setUser(session?.user?.email ? { id: session.user.id, email: session.user.email } : null)
     return theoDoiPhienEmail(supabase.auth, capNhat)
   }, [])
