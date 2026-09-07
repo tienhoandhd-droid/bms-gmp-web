@@ -10,7 +10,7 @@ function HuongDanEmailNut() {
   return (
     <Card className="p-4 sm:p-5">
       <SectionTitle icon={Mail} hint="Email thông báo việc cần làm; cập nhật xử lý trên BMS">Email cảnh báo và xử lý phiếu</SectionTitle>
-      <p className="mt-2 text-[13px] leading-relaxed text-body">Email giúp nhận biết phiếu và mức ưu tiên. Mở <b>Sự cố</b> trên BMS, đối chiếu mã phiếu rồi cập nhật kết quả xử lý tại đó; hệ ghi nhận người thực hiện và lý do khi cần.</p>
+      <p className="mt-2 text-[13px] leading-relaxed text-body">Email giúp nhận biết phiếu và mức ưu tiên. Bấm <b>Nhận việc</b> hoặc <b>Cập nhật xử lý</b> ngay dưới từng sự cố trong email để mở đúng phiếu trên BMS. Đăng nhập nếu cần, kiểm tra trạng thái hiện tại rồi xác nhận; hệ ghi nhận người thực hiện và lý do khi cần.</p>
       <details className="mt-3 rounded-2xl bg-subtle p-3.5 ring-1 ring-line">
         <summary className="cursor-pointer select-none text-[13px] font-semibold text-body">Xem nhịp nhắc và đường xử lý</summary>
         <div className="mt-3 space-y-3 text-[12px] leading-relaxed text-muted">
@@ -18,7 +18,7 @@ function HuongDanEmailNut() {
           <p><b className="text-danger">QA:</b> nhắc tự động tối đa một lần trong mỗi ca 06–14h, 14–22h và 22–06h; hai lần nhắc cách nhau ít nhất 60 phút. Lần đầu xuất hiện khi quá 240 phút chưa có cập nhật thực chất; trường hợp bế tắc được báo ngay. Nhắc thủ công có khoảng chờ 5 phút.</p>
           <p><b className="text-body">Tổng hợp bàn giao:</b> gửi lúc 06:00, 14:00 và 22:00. Tổng hợp QA gửi từ 07:45 trong khung giờ cho phép. Người nhận và lịch gửi phụ thuộc cấu hình vận hành hiện hành.</p>
           <p><b className="text-body">QA và Trực HSL:</b> mở tab <b>Sự cố</b> để xem việc được giao và thao tác phù hợp theo quyền. Khi hiện trường đã sửa, phải ghi nhận kết quả trên BMS để hồ sơ có người thực hiện, thời điểm và lý do.</p>
-          <p>Không thao tác trực tiếp từ email. Dùng email mới nhất để nhận diện phiếu, sau đó xử lý trên BMS.</p>
+          <p>Nút email mở đúng phiếu; chỉ sau khi xác nhận trên BMS hệ mới ghi nhận thao tác. Nếu phiếu đã thay đổi hoặc bạn không có quyền, hệ sẽ báo để kiểm tra lại.</p>
         </div>
       </details>
     </Card>

@@ -12,8 +12,10 @@
 // ============================================================
 import React, { useEffect, useRef, useState } from 'react'
 import { supabase, moTaLoi } from '../lib/bmsClient'
-import { dangNhapMatKhau, dangXuat } from '../lib/auth'
+import { dangNhapMatKhau } from '../lib/auth'
 import { kiemVeThaoTac, thaoTacSuCoTuEmail } from '../lib/supabaseData'
+import { parseEmailIncidentSearch, scrubEmailActionSearch, theoDoiPhienEmail } from '../lib/emailIncident'
+import IncidentAction from './IncidentAction.jsx'
 // Import để Vite trả URL đã hash — đường dẫn cứng './assets/logo-cpc1hn.png' cũ
 // 404 trên bản build (asset bị hash tên). Ảnh 16KB tải lười, không chặn JS.
 import logoCpc1hn from '../assets/logo-cpc1hn.png'
@@ -29,17 +31,17 @@ const PAGE_BG = 'var(--bg-canvas)'
 // Đọc token NGAY khi nạp module rồi dọn URL (token là bí mật — không để nằm trên
 // thanh địa chỉ / lịch sử). sc/act chỉ để hiển thị, RPC lấy tất cả từ token.
 const params = new URLSearchParams(window.location.search)
-const TOKEN0 = params.get('token') || ''
+const LINK0 = parseEmailIncidentSearch(window.location.search)
+const TOKEN0 = LINK0.kind === 'token' ? LINK0.token : ''
 try {
-  const q = new URLSearchParams(window.location.search)
-  q.delete('token'); q.delete('sc'); q.delete('act')
-  window.history.replaceState(null, '', window.location.pathname + (q.toString() ? '?' + q.toString() : ''))
+  const q = scrubEmailActionSearch(window.location.search, LINK0.kind === 'token')
+  window.history.replaceState(null, '', window.location.pathname + (q ? '?' + q : ''))
 } catch { /* bỏ qua */ }
 
 // Link mở dashboard đầy đủ (cùng thư mục, base './').
 const URL_DASHBOARD = 'index.html?tab=events'
 
-function Khung({ children }) {
+export function Khung({ children }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: PAGE_BG }}>
       <div className="w-full max-w-md rounded-3xl bg-surface shadow-2xl ring-1 ring-line p-6">{children}</div>
@@ -47,7 +49,7 @@ function Khung({ children }) {
   )
 }
 
-function DauTrang({ phu }) {
+export function DauTrang({ phu }) {
   return (
     <div className="flex items-center gap-2.5">
       <div className="rounded-2xl bg-surface px-2 ring-1 ring-line flex items-center justify-center h-10 w-10 shrink-0">
@@ -61,7 +63,7 @@ function DauTrang({ phu }) {
   )
 }
 
-function NutMoDashboard() {
+export function NutMoDashboard() {
   return (
     <a href={URL_DASHBOARD}
       className="mt-4 inline-block rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: TEAL }}>
@@ -239,17 +241,16 @@ function TheoVe({ email }) {
 }
 
 export default function ActionApp() {
-  const [email, setEmail] = useState(undefined)   // undefined=đang tải · null=chưa đăng nhập · string=email
+  const [user, setUser] = useState(undefined)   // undefined=đang tải · null=chưa đăng nhập
   useEffect(() => {
-    let go = false
-    supabase?.auth.getSession().then(({ data }) => { if (!go) setEmail(data?.session?.user?.email || null) })
-      .catch(() => { if (!go) setEmail(null) })
-    const { data: sub } = supabase?.auth.onAuthStateChange((_e, s) => { if (!go) setEmail(s?.user?.email || null) }) || { data: null }
-    return () => { go = true; sub?.subscription?.unsubscribe?.() }
+    const capNhat = (session) => setUser(session?.user?.email ? { id: session.user.id, email: session.user.email } : null)
+    return theoDoiPhienEmail(supabase.auth, capNhat)
   }, [])
 
   if (!supabase) return <Khung><p className="text-sm text-muted py-4 text-center">Chưa cấu hình máy chủ.</p></Khung>
-  if (email === undefined) return <Khung><p className="text-sm text-muted py-6 text-center">Đang tải…</p></Khung>
-  if (!email) return <FormDangNhap />
-  return <TheoVe email={email} />
+  if (user === undefined) return <Khung><p className="text-sm text-muted py-6 text-center">Đang tải…</p></Khung>
+  if (!user) return <FormDangNhap />
+  if (LINK0.kind === 'incident') return <IncidentAction key={`${user.id || ''}:${user.email}`} email={user.email} incidentId={LINK0.incidentId} intent={LINK0.intent} Khung={Khung} DauTrang={DauTrang} NutMoDashboard={NutMoDashboard} tenVaiTro={tenVaiTro} />
+  if (LINK0.kind === 'invalid') return <Khung><DauTrang phu={user.email} /><p role="alert" className="mt-4 text-sm text-danger">Liên kết phiếu không hợp lệ.</p><NutMoDashboard /></Khung>
+  return <TheoVe email={user.email} />
 }
