@@ -4,57 +4,23 @@ import { createPortal } from "react-dom";
 import { Mail } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
 import { COLOR } from "../../lib/designTokens";
-// ═══ HƯỚNG DẪN NÚT EMAIL (17/07 — tab Nhiệm vụ, cho mọi người đọc) ═══
-// Nội dung TĨNH khớp bảng luật + sơ đồ vòng đời: email gửi nút gì, bấm mỗi nút phiếu đi đâu.
+// ═══ HƯỚNG DẪN VẬN HÀNH CẢNH BÁO (v16 — tab Nhiệm vụ, cho mọi người đọc) ═══
+// Email chỉ thông báo; mọi thao tác được ghi nhận và xác thực trên web theo bảng luật hiện hành.
 function HuongDanEmailNut() {
-  const Nut = ({ mau, khoa, children }) => (
-    <span className={`inline-block shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-bold ${khoa ? "bg-subtle text-muted ring-1 ring-dashed ring-line-strong" : mau}`}>{khoa ? "🔒 " : ""}{children}</span>
-  );
-  const Dong = ({ nut, mau, khoa, kq }) => (
-    <div className="flex items-start gap-2.5">
-      <Nut mau={mau} khoa={khoa}>{nut}</Nut>
-      <span className="pt-0.5 text-[12px] leading-snug text-body">→ {kq}</span>
-    </div>
-  );
   return (
     <Card className="p-4 sm:p-5">
-      <SectionTitle icon={Mail} hint="khớp bảng luật đang chạy — email nhắc 2 giờ/lần, chỉ gửi trong khung 07:45–16:45">Email cảnh báo — bấm nút nào, phiếu đi đâu</SectionTitle>
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        <div className="rounded-2xl ring-1 ring-info-line bg-info-soft/40 p-4">
-          <p className="text-[13px] font-bold text-info">📧 Email IPC — toàn cảnh khu · 4 nút</p>
-          <p className="mt-0.5 text-[12px] text-muted">nút hiện khi phiếu ở: Chưa xử lý · Mở lại (phiếu bế tắc: chỉ Cơ điện tự gỡ bằng "Đã có vật tư")</p>
-          <div className="mt-3 space-y-2">
-            <Dong nut="Chuyển Cơ điện xử lý" mau="bg-info-soft text-info" kq={<>phiếu sang <b>Đã báo Cơ điện</b> — đường duy nhất sang tay</>} />
-            <Dong nut="Đã kiểm tra — Bình thường ✍" mau="bg-info-soft text-info" kq={<><b>ĐÓNG phiếu</b> — cảnh báo giả (IPC đã ra tận nơi, bắt ghi lý do)</>} />
-            <Dong nut="Đã khắc phục sự cố ✍" mau="bg-info-soft text-info" kq={<><b>ĐÓNG phiếu</b> — IPC tự xử lý được tại chỗ</>} />
-            <Dong nut="Không tại hiện trường ⟳" mau="bg-info-soft text-info" kq={<>phiếu đứng yên · <b>ân hạn 1 giờ</b>, quá thì lên Trực</>} />
-          </div>
-          <p className="mt-3 text-[12px] leading-relaxed text-muted">Mail còn mục 2 <b>"Cơ điện đang xử lý"</b> — chỉ theo dõi, không nút. Phiếu đã sang Cơ điện thì IPC còn đúng 2 nút đóng (luật "mọi trạng thái" — không phải mất nút). <span className="text-danger font-medium">Nhận mail rồi im lặng quá 20′ → phiếu tự lên Trực.</span></p>
+      <SectionTitle icon={Mail} hint="Email thông báo việc cần làm; cập nhật xử lý trên BMS">Email cảnh báo và xử lý phiếu</SectionTitle>
+      <p className="mt-2 text-[13px] leading-relaxed text-body">Email giúp nhận biết phiếu và mức ưu tiên. Mở <b>Sự cố</b> trên BMS, đối chiếu mã phiếu rồi cập nhật kết quả xử lý tại đó; hệ ghi nhận người thực hiện và lý do khi cần.</p>
+      <details className="mt-3 rounded-2xl bg-subtle p-3.5 ring-1 ring-line">
+        <summary className="cursor-pointer select-none text-[13px] font-semibold text-body">Xem nhịp nhắc và đường xử lý</summary>
+        <div className="mt-3 space-y-3 text-[12px] leading-relaxed text-muted">
+          <p><b className="text-info">IPC:</b> chưa tiếp nhận sau 20 phút, hoặc <b className="text-warning">Cơ điện</b> chưa tiếp nhận sau 15 phút, thì hệ báo Trực HSL. Khi đã nhận việc nhưng 60 phút chưa có cập nhật thực chất, hệ gửi nhắc theo người phụ trách.</p>
+          <p><b className="text-danger">QA:</b> nhắc tự động tối đa một lần trong mỗi ca 06–14h, 14–22h và 22–06h; hai lần nhắc cách nhau ít nhất 60 phút. Lần đầu xuất hiện khi quá 240 phút chưa có cập nhật thực chất; trường hợp bế tắc được báo ngay. Nhắc thủ công có khoảng chờ 5 phút.</p>
+          <p><b className="text-body">Tổng hợp bàn giao:</b> gửi lúc 06:00, 14:00 và 22:00. Tổng hợp QA gửi từ 07:45 trong khung giờ cho phép. Người nhận và lịch gửi phụ thuộc cấu hình vận hành hiện hành.</p>
+          <p><b className="text-body">QA và Trực HSL:</b> mở tab <b>Sự cố</b> để xem việc được giao và thao tác phù hợp theo quyền. Khi hiện trường đã sửa, phải ghi nhận kết quả trên BMS để hồ sơ có người thực hiện, thời điểm và lý do.</p>
+          <p>Không thao tác trực tiếp từ email. Dùng email mới nhất để nhận diện phiếu, sau đó xử lý trên BMS.</p>
         </div>
-        <div className="rounded-2xl ring-1 ring-warning-line bg-warning-soft/40 p-4">
-          <p className="text-[13px] font-bold text-warning">📧 Email Cơ điện — theo khu/AHU · đủ 5 nút ngay từ mail đầu</p>
-          <p className="mt-0.5 text-[12px] text-muted">2 nút bấm được ngay + 3 nút 🔒 mở khóa SAU khi bấm "Đã nhận"</p>
-          <div className="mt-3 space-y-2">
-            <Dong nut="Đã nhận — đang xử lý" mau="bg-warning-soft text-warning" kq={<>phiếu sang <b>Đang xử lý</b> · đồng hồ im lặng nới thành 1 giờ</>} />
-            <Dong nut="Không tại hiện trường ⟳" mau="bg-warning-soft text-warning" kq={<>phiếu đứng yên · <b>ân hạn 1 giờ</b>, quá thì lên Trực</>} />
-            <Dong nut="Đã khắc phục ✍" khoa kq={<><b>ĐÓNG phiếu</b> — xong việc, hết email</>} />
-            <Dong nut="Không thể xử lý ✍" khoa kq={<span className="text-danger"><b>bế tắc</b> — Trực + QA được báo NGAY LẬP TỨC</span>} />
-            <Dong nut="Chờ xử lý (khi rảnh)" khoa kq={<>phiếu sang <b>Chờ xử lý</b> — vẫn nhắc 2h/lần, đồng hồ 1 giờ</>} />
-          </div>
-          <p className="mt-3 text-[12px] leading-relaxed text-muted">Nút 🔒 là link thật: bấm <b>sau khi</b> "Đã nhận" là chạy luôn; bấm sớm máy chủ từ chối đúng trình tự, <b>không mất lượt</b>. <span className="text-danger font-medium">Chưa nhận việc mà im lặng quá 15′ → phiếu lên Trực.</span></p>
-        </div>
-        <div className="rounded-2xl ring-1 ring-danger-line bg-danger-soft/40 p-4 lg:col-span-2">
-          <p className="text-[13px] font-bold text-danger">🚨 Nhiệm vụ Trực HSL — tầng điều phối cuối · 3 nút</p>
-          <p className="mt-0.5 text-[12px] text-muted">phiếu "kêu cứu" lên Trực khi: IPC im lặng &gt; 20′ · Cơ điện chưa nhận việc &gt; 15′ · đang/chờ xử lý &gt; 1 giờ · báo vắng quá 1 giờ · "không xử lý được" → lên NGAY + CC QA</p>
-          <div className="mt-3 grid gap-2 lg:grid-cols-3">
-            <Dong nut="Nhắc IPC ⟳" mau="bg-danger-soft text-danger" kq={<>phiếu giữ nguyên — IPC nhận thêm mail nhắc ra hiện trường (có ghi hồ sơ)</>} />
-            <Dong nut="Nhắc Cơ điện ⟳" mau="bg-danger-soft text-danger" kq={<>phiếu giữ nguyên — Cơ điện nhận thêm mail nhắc tiếp nhận / xử lý</>} />
-            <Dong nut="Tạm dừng cảnh báo 4 giờ ✍" mau="bg-danger-soft text-danger" kq={<>tắt chuông tối đa <b>4 giờ</b>, bắt ghi lý do — phiếu NGHIÊM TRỌNG / phòng P1 chỉ QA · Quản trị được hoãn</>} />
-          </div>
-          <p className="mt-3 text-[12px] leading-relaxed text-muted">Trực là <b>chốt chặn cuối</b>: chưa ai thao tác thì hệ nhắc Trực lại <b>mỗi 1 giờ</b> tới khi có người bấm nút. Ngoài phiếu leo thang, Trực còn nhận <b>email tổng quan ca 6h · 14h · 22h</b> điểm danh toàn bộ phiếu đang mở.</p>
-        </div>
-      </div>
-      <p className="mt-3 text-[12px] leading-relaxed text-muted">Mỗi nút trong email là liên kết dùng <b>1 lần</b>, sống <b>4 giờ</b> — phiếu để lâu thì dùng email nhắc mới nhất. Bấm nút sẽ mở trang xác nhận, yêu cầu đăng nhập đúng vai trò và đúng khu; nút có ✍ bắt buộc ghi lý do. Email "phiếu đã đóng" không có nút — hết việc để bấm. Mọi email chỉ gửi trong khung giờ <b>07:45–16:45</b>; ngoài giờ phiếu vẫn chạy, sáng hôm sau gửi dồn trong ≤ 5 phút.</p>
+      </details>
     </Card>
   );
 }

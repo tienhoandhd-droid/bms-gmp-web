@@ -874,6 +874,10 @@ export default function AppShell() {
           {tab === "tasks" && (
             <div className="space-y-5">
               <SectionTitle icon={ClipboardList} hint={user ? `vai trò: ${ROLE_VI[role] || "chưa phân quyền"}` : "đăng nhập để thao tác"}>Việc cần làm</SectionTitle>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-subtle p-4">
+                <p className="text-[13px] text-muted">Đối chiếu mã sự cố trong email và cập nhật kết quả xử lý trên BMS.</p>
+                <button type="button" onClick={() => setTab("events")} className="min-h-11 rounded-lg bg-surface px-4 py-2 text-[13px] font-semibold text-body ring-1 ring-line hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Mở danh sách sự cố</button>
+              </div>
               {/* Đợt A: tách 4 trạng thái — null + lỗi = LỖI; null = ĐANG TẢI; [] = KHÔNG CÓ VIỆC.
                   Trước đây `live.suCoPhuTrach || []` khiến tải lỗi hiện y hệt "không có việc". */}
               {isLive && live.suCoPhuTrach === null && live.loi && (
