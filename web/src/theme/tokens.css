@@ -12,50 +12,50 @@
   color-scheme: light;
 
   /* Canvas & surfaces */
-  --bg-canvas: #F3F7F7;
+  --bg-canvas: #E5EEEE;
   --bg-surface: #FFFFFF;
-  --bg-subtle: #EAF1F1;
+  --bg-subtle: #D7E5E5;
   --bg-raised: #FFFFFF;
 
   /* Text */
-  --text-strong: #142E38;
-  --text-default: #304A54;
-  --text-muted: #536C75;
+  --text-strong: #0D2530;
+  --text-default: #203C47;
+  --text-muted: #3B555F;
   --text-inverse: #FFFFFF;
 
   /* Borders */
-  --border: #D0DEE0;
-  --border-strong: #6A858F;
+  --border: #A2BABC;
+  --border-strong: #526F78;
 
   /* Brand / navigation */
   --anchor: #0C293B;
   --anchor-soft: #123B4D;
   --anchor-fg: #FFFFFF;
 
-  --primary: #086F6B;
-  --primary-hover: #065E59;
-  --primary-soft: #E0EFEC;
-  --primary-solid: #0A6E68;
+  --primary: #005B57;
+  --primary-hover: #004A47;
+  --primary-soft: #C9E5DF;
+  --primary-solid: #005B57;
 
-  --info: #1768A1;
-  --info-soft: #EAF3F8;
-  --info-line: #9CC4E2;
-  --info-solid: #1E72B8;
+  --info: #105A8E;
+  --info-soft: #DDECF6;
+  --info-line: #619AC2;
+  --info-solid: #155F99;
 
   /* Semantics */
-  --success: #0A6E68;
-  --success-soft: #E5F2ED;
-  --success-line: #7FC9BE;
-  --success-solid: #0E7C73;
+  --success: #075D53;
+  --success-soft: #D7EDE3;
+  --success-line: #479886;
+  --success-solid: #08685E;
 
-  --warning: #8A5300;
-  --warning-soft: #FBF0D8;
-  --warning-line: #E0B366;
+  --warning: #784700;
+  --warning-soft: #F6E7C3;
+  --warning-line: #B78631;
   --warning-solid: #C77E12;
 
-  --danger: #A72924;
-  --danger-soft: #FBEAE7;
-  --danger-line: #D9827E;
+  --danger: #99231E;
+  --danger-soft: #F8DDD8;
+  --danger-line: #BF645E;
   --danger-solid: #B3261E;
 
   --missing: #81501F;
@@ -64,8 +64,8 @@
   --focus: #0B67B2;
 
   /* Chart */
-  --chart-grid: #CCD9DF;
-  --chart-axis: #526878;
+  --chart-grid: #ADBDC3;
+  --chart-axis: #3B555F;
 }
 
 :root[data-theme="dark"] {
@@ -78,11 +78,11 @@
 
   --text-strong: #F4F9FB;
   --text-default: #DBE7EB;
-  --text-muted: #B4C6CD;
+  --text-muted: #C5D7DD;
   --text-inverse: #07131B;
 
-  --border: #355766;
-  --border-strong: #638594;
+  --border: #4B6C7A;
+  --border-strong: #7898A6;
 
   --anchor: #050E14;
   --anchor-soft: #0D2933;
@@ -118,8 +118,8 @@
 
   --focus: #77C7FF;
 
-  --chart-grid: #27424F;
-  --chart-axis: #AFC1C9;
+  --chart-grid: #3C5B68;
+  --chart-axis: #C5D7DD;
 }
 
 /* ---------- lớp tiện ích semantic (thay cho bg-white/ring-slate) ---------- */
@@ -138,35 +138,35 @@
 :root,
 :root[data-theme="light"] {
   --rgb-bg-surface: 255 255 255;
-  --rgb-bg-subtle: 234 241 241;
-  --rgb-bg-canvas: 243 247 247;
+  --rgb-bg-subtle: 215 229 229;
+  --rgb-bg-canvas: 229 238 238;
   --rgb-anchor: 12 41 59;
   --rgb-anchor-fg: 255 255 255;
-  --rgb-border: 208 222 224;
-  --rgb-border-strong: 106 133 143;
-  --rgb-text-strong: 20 46 56;
-  --rgb-text-default: 48 74 84;
-  --rgb-text-muted: 83 108 117;
+  --rgb-border: 162 186 188;
+  --rgb-border-strong: 82 111 120;
+  --rgb-text-strong: 13 37 48;
+  --rgb-text-default: 32 60 71;
+  --rgb-text-muted: 59 85 95;
   --rgb-text-inverse: 255 255 255;
-  --rgb-primary: 8 111 107;
-  --rgb-primary-soft: 224 239 236;
-  --rgb-primary-solid: 10 110 104;
-  --rgb-success: 10 110 104;
-  --rgb-success-soft: 229 242 237;
-  --rgb-success-line: 127 201 190;
-  --rgb-success-solid: 14 124 115;
-  --rgb-danger: 167 41 36;
-  --rgb-danger-soft: 251 234 231;
-  --rgb-danger-line: 217 130 126;
+  --rgb-primary: 0 91 87;
+  --rgb-primary-soft: 201 229 223;
+  --rgb-primary-solid: 0 91 87;
+  --rgb-success: 7 93 83;
+  --rgb-success-soft: 215 237 227;
+  --rgb-success-line: 71 152 134;
+  --rgb-success-solid: 8 104 94;
+  --rgb-danger: 153 35 30;
+  --rgb-danger-soft: 248 221 216;
+  --rgb-danger-line: 191 100 94;
   --rgb-danger-solid: 179 38 30;
-  --rgb-warning: 138 83 0;
-  --rgb-warning-soft: 251 240 216;
-  --rgb-warning-line: 224 179 102;
+  --rgb-warning: 120 71 0;
+  --rgb-warning-soft: 246 231 195;
+  --rgb-warning-line: 183 134 49;
   --rgb-warning-solid: 199 126 18;
-  --rgb-info: 23 104 161;
-  --rgb-info-soft: 234 243 248;
-  --rgb-info-line: 156 196 226;
-  --rgb-info-solid: 30 114 184;
+  --rgb-info: 16 90 142;
+  --rgb-info-soft: 221 236 246;
+  --rgb-info-line: 97 154 194;
+  --rgb-info-solid: 21 95 153;
   --rgb-missing: 129 80 31;
   --rgb-missing-soft: 241 226 211;
   --rgb-focus: 11 103 178;
@@ -177,11 +177,11 @@
   --rgb-bg-canvas: 6 19 27;
   --rgb-anchor: 5 14 20;
   --rgb-anchor-fg: 244 249 251;
-  --rgb-border: 53 87 102;
-  --rgb-border-strong: 99 133 148;
+  --rgb-border: 75 108 122;
+  --rgb-border-strong: 120 152 166;
   --rgb-text-strong: 244 249 251;
   --rgb-text-default: 219 231 235;
-  --rgb-text-muted: 180 198 205;
+  --rgb-text-muted: 197 215 221;
   --rgb-text-inverse: 7 19 27;
   --rgb-primary: 88 200 188;
   --rgb-primary-soft: 18 61 58;

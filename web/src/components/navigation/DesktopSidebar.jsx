@@ -46,8 +46,7 @@ export default function DesktopSidebar({ tab, setTab, role, badges = {} }) {
                   <button key={it.k} onClick={() => setTab(it.k)} title={gon ? it.label : undefined}
                     aria-label={it.label} aria-current={active ? "page" : undefined}
                     className={`bms-nav-link relative w-full flex items-center gap-2.5 text-left ${gon ? "justify-center" : ""}`}>
-                    {active && <span className="absolute left-0 top-3 bottom-3 w-[2px] rounded-r" style={{ background: "var(--primary)" }} />}
-                    <Icon className="w-4 h-4 shrink-0" strokeWidth={1.8} style={active ? { color: "var(--primary)" } : {}} />
+                    <Icon className="w-4 h-4 shrink-0" strokeWidth={1.8} />
                     {!gon && <span className="flex-1 truncate">{it.label}</span>}
                     {badge > 0 && !gon && <span className="bms-nav-badge tabular-nums">{badge}</span>}
                     {badge > 0 && gon && <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-danger-solid" />}
