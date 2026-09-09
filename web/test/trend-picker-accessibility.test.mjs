@@ -1,15 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import puppeteer from "puppeteer";
+import { createServer } from "vite";
+import { fileURLToPath } from "node:url";
 
-const BASE_URL = process.env.BMS_BASE_URL || "http://127.0.0.1:4190";
+const WEB_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 test("trend scope picker exposes combobox semantics and supports keyboard selection", async (t) => {
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
-  t.after(() => browser.close());
+  // Unit tests must also work on a fresh CI runner without a manually started preview.
+  const server = process.env.BMS_BASE_URL ? null : await createServer({
+    root: WEB_ROOT,
+    logLevel: "error",
+    server: { host: "127.0.0.1", strictPort: false },
+    define: {
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(""),
+      "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(""),
+    },
+  });
+  let browser;
+  t.after(async () => { await browser?.close(); await server?.close(); });
+  if (server) await server.listen();
+  const baseUrl = process.env.BMS_BASE_URL || `http://127.0.0.1:${server.httpServer.address().port}`;
+  if (server) t.diagnostic(`Isolated demo server: ${baseUrl}`);
+  browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
-  await page.goto(`${BASE_URL}/?tab=trend`, { waitUntil: "networkidle2" });
+  await page.goto(`${baseUrl}/?tab=trend`, { waitUntil: "networkidle2" });
 
   const dateControls = await page.evaluate(() => ({
     fromLabel: document.querySelector('label[for="trend-date-from"]')?.textContent,
