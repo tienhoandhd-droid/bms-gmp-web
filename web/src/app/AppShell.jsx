@@ -862,7 +862,7 @@ export default function AppShell() {
                   Tỉ lệ đạt của phòng = 100% − %thời gian ngoài khoảng (OOS) của <b className="text-muted">cảm biến kém nhất</b> (DP/RH/T) trong <b className="text-muted">khung giờ chốt gần nhất</b>. Chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt, dù các chỉ tiêu khác vẫn đẹp. Phòng <b className="text-muted">đạt</b> khi tỉ lệ đạt ≥ 80% <b className="text-muted">và</b> dữ liệu còn tươi (chốt giờ cách hiện tại ≤ {Math.round(FRESH_MIN / 60)}h); phòng thiếu dữ liệu/dữ liệu quá cũ không được tính là đạt. Giờ đang diễn ra chưa phải một kỳ đã chốt; việc chưa có số liệu của giờ đó không tự động có nghĩa là mất dữ liệu.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-muted">khu {khuChoPhep.join(", ")}</b>.</> : null}
                 </p>
               </details>
-              <FailingRoomCharts rooms={nhomPhong.khong} loading={isLive && !live.rooms && !live.loi} sourceInterrupted={matNguon} error={isLive && !live.rooms ? live.loi : null} onDetail={setRoomModal} />
+              <FailingRoomCharts rooms={[...nhomPhong.khong, ...nhomPhong.thieu]} loading={isLive && !live.rooms && !live.loi} sourceInterrupted={matNguon} error={isLive && !live.rooms ? live.loi : null} onDetail={setRoomModal} />
               <TheDungHinhTongQuan isLive={isLive} khuChoPhep={khuChoPhep} onXemChiTiet={roleCanSeeTab(role, "sensors") ? () => setTab("sensors") : null} />
               <div className="bms-home-columns">
                 <div><div className="bms-room-heading"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-line overflow-hidden text-[12px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={!xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Tất cả</button></div><span className="text-[12px] text-muted">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-muted">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : (() => {
@@ -1501,7 +1501,7 @@ export default function AppShell() {
           banner "Việc cần xử lý" hiện trên mọi tab — trước đây bấm "Lưu kết luận" từ
           tab khác thì state đặt xong mà modal không render (nút như chết). */}
       {cumKetLuan && <ModalKetLuanCum cum={cumKetLuan} dangChay={dangGhiCum} onDong={() => setCumKetLuan(null)} onLuu={luuKetLuanCum} />}
-      {roomModal && <RoomDetailModal room={roomModal} cfg={cfg} onClose={() => setRoomModal(null)} />}
+      {roomModal && <RoomDetailModal room={roomModal} cfg={cfg} sourceInterrupted={matNguon} freshnessMinutes={FRESH_MIN} onClose={() => setRoomModal(null)} />}
       {kpiModal && <KpiListModal kind={kpiModal} groups={nhomPhong} incidents={suCoP12} cfg={cfg}
         onClose={() => setKpiModal(null)}
         onPickRoom={(r) => { setKpiModal(null); setRoomModal(r); }}

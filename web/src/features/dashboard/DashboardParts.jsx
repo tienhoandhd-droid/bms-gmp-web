@@ -1,5 +1,5 @@
 // DashboardParts.jsx — thẻ phòng, modal chi tiết/KPI, quản lý phòng (tách move-only từ App.jsx 17/08/2026).
-import { missingSnapshot, hourlyMean, normalizeHourlyPoints } from "../../lib/overviewSnapshot";
+import { hasHourlyHistory, missingSnapshot, hourlyMean, normalizeHourlyPoints } from "../../lib/overviewSnapshot";
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Activity, AlertOctagon, AlertTriangle, Building2, CheckCircle2, ChevronRight, Clock, Eye, HelpCircle, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { Card, MucBadge, SectionTitle } from "../../components/ui/Card";
@@ -33,9 +33,8 @@ export function BangSensorPhong({ room, cfg }) {
   );
 }
 export function OosTheoGio8h({ room }) {
-  if (room.noData) return null;
   const oos8 = roomHourlyOOS(room); const tong8 = oos8.reduce((a, h) => a + (h.oos || 0), 0);
-  return <div className="mt-3"><div className="flex items-center justify-between"><span className="text-[12px] uppercase tracking-wider text-muted font-medium">Điểm OOS theo giờ — 8h</span>{oos8.length > 0 && tong8 === 0 && <span className="text-[12px] text-success font-medium">0 điểm OOS · đạt</span>}</div>{oos8.length === 0 ? <p className="text-[12px] text-muted italic py-3 text-center">chưa có dữ liệu 8h</p> : <OosMiniBars data={oos8} h={70} />}</div>;
+  return <div className="mt-3"><div className="flex items-center justify-between"><span className="text-[12px] uppercase tracking-wider text-muted font-medium">Điểm OOS theo giờ — 8h</span>{oos8.length > 0 && tong8 === 0 && <span className="text-[12px] text-success font-medium">0 điểm OOS trong lịch sử 8h</span>}</div>{oos8.length === 0 ? <p className="text-[12px] text-muted italic py-3 text-center">chưa có dữ liệu 8h</p> : <OosMiniBars data={oos8} h={70} />}</div>;
 }
 
 /* ===== THẺ PHÒNG =====
@@ -44,14 +43,15 @@ export function OosTheoGio8h({ room }) {
    hành vi không đổi giữa render, tránh 58 thẻ re-render mỗi lần bấm nút bất kỳ. */
 const RoomCard = React.memo(function RoomCard({ room, cfg, onDetail, onIncident, incident }) {
   const lvl = roomLevel(room, cfg); const comp = roomCompliance(room); const failing = comp != null && comp < 80; const lm = lvl < 0 ? null : LEVELS[lvl];
+  const snapshot = missingSnapshot(room);
   return (
     <Card className="p-5 transition hover:-translate-y-0.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0"><div className="flex items-center gap-2"><h3 className="text-[15px] font-semibold truncate" style={{ color: "var(--text-strong)" }}>{room.name}</h3><MucBadge p={room.priority} /></div><p className="text-[12px] text-muted mt-0.5 tracking-wide truncate">{room.id} · Khu {room.area} · {room.ahu}</p>{room.lastSeen && (() => { const a = room.agePhut; const tone = a == null ? "text-muted bg-subtle" : a <= 75 ? "text-success bg-success-soft" : a <= 150 ? "text-warning bg-warning-soft" : "text-danger bg-danger-soft"; const txt = a == null ? "—" : a < 60 ? `${a}′ trước` : `${(a / 60).toFixed(1)}h trước`; return <p className="text-[12px] text-muted mt-0.5 flex items-center gap-1 flex-wrap"><Clock className="w-3 h-3 shrink-0" strokeWidth={1.8} /> Cập nhật lúc <span className="tabular-nums text-body font-medium">{room.lastSeen}</span>{room.window && <span className="text-muted">· khung {room.window}</span>} <span className={`px-1.5 py-0.5 rounded-full font-semibold ${tone}`}>{txt}</span></p>; })()}</div>
-        <div className="text-right shrink-0">{room.duLieuCu ? <span title={room.lastSeen ? `Chưa có số liệu kỳ mới. Mốc cuối: ${room.lastSeen}` : "Chưa có số liệu kỳ chốt mới nhất"} className="inline-flex items-center gap-1 text-warning text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Chưa có số liệu kỳ mới</span> : room.noData ? <span className="inline-flex items-center gap-1 text-warning text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Mất dữ liệu</span> : comp == null ? <span className="inline-flex items-center gap-1 text-muted text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Chưa có dữ liệu</span> : (<><p className={`text-2xl font-light tabular-nums ${failing ? "text-danger" : "text-success"}`}>{comp}%</p><p className="text-[12px] text-muted">tỷ lệ đạt 1h</p></>)}</div>
+        <div className="text-right shrink-0">{snapshot ? <span title={snapshot.detail} className="inline-flex items-center gap-1 text-warning text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> {snapshot.label}</span> : comp == null ? <span className="inline-flex items-center gap-1 text-muted text-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Chưa có dữ liệu</span> : (<><p className={`text-2xl font-light tabular-nums ${failing ? "text-danger" : "text-success"}`}>{comp}%</p><p className="text-[12px] text-muted">tỷ lệ đạt 1h</p></>)}</div>
       </div>
 
-      {lm && <div className={`mt-3 rounded-2xl px-3 py-2 ring-1 ${lm.bg} ${lm.ring} flex items-center justify-between`}><span className="flex items-center gap-2 text-[12px] font-semibold"><span className={`w-2 h-2 rounded-full ${lm.dot}`} /><span className={lm.txt}>Mức cảnh báo: {lm.label}</span></span><span className="text-[12px] text-muted">8h</span></div>}
+      {!snapshot && lm && <div className={`mt-3 rounded-2xl px-3 py-2 ring-1 ${lm.bg} ${lm.ring} flex items-center justify-between`}><span className="flex items-center gap-2 text-[12px] font-semibold"><span className={`w-2 h-2 rounded-full ${lm.dot}`} /><span className={lm.txt}>Mức cảnh báo: {lm.label}</span></span><span className="text-[12px] text-muted">8h</span></div>}
 
       <BangSensorPhong room={room} cfg={cfg} />
       <OosTheoGio8h room={room} />
@@ -66,19 +66,20 @@ const RoomCard = React.memo(function RoomCard({ room, cfg, onDetail, onIncident,
 }, (t, s) => t.room === s.room && t.cfg === s.cfg && t.incident === s.incident);
 
 
-function RoomDetailModal({ room, cfg, onClose }) {
+function RoomDetailModal({ room, cfg, onClose, sourceInterrupted = false, freshnessMinutes = 120 }) {
+  const snapshot = missingSnapshot(room, { sourceInterrupted, freshnessMinutes });
   return (
     <InspectorDrawer onClose={onClose} eyebrow={`Khu ${room.area} · ${room.ahu} · ${MUC[room.priority]}`} title={`${room.id} — ${room.name}`}>
-      {cfg && <BangSensorPhong room={room} cfg={cfg} />}
+      {cfg && !snapshot && <BangSensorPhong room={room} cfg={cfg} />}
       <OosTheoGio8h room={room} />
-        <div className="space-y-4">{room.noData ? <p className="text-warning text-sm">{missingSnapshot(room)?.detail || "Chưa đủ số liệu để đánh giá phòng."}</p> : room.sensors.map((s) => { const st = sensorStats(room.id, s, room._isLive); const noDL = st.khongCoDL; const pts = normalizeHourlyPoints(st.hourly8); const mean = hourlyMean(pts); const unit = SENSOR_META[s.k].unit; return (
+        <div className="space-y-4">{snapshot && <p className="text-warning text-sm"><strong>{snapshot.label}.</strong> {snapshot.detail}</p>}{(room.sensors || []).map((s) => { const st = sensorStats(room.id, s, room._isLive); const pts = normalizeHourlyPoints(st.hourly8); const coLichSu8h = hasHourlyHistory(pts); const mean = hourlyMean(pts); const unit = SENSOR_META[s.k].unit; return (
           <div key={s.k} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-4">
             <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold" style={{ color: "var(--text-strong)" }}>{SENSOR_META[s.k].label} ({s.k})</p><p className="text-[12px] text-muted">Giới hạn: {s.min != null ? `≥ ${s.min}` : "—"}{s.max != null ? ` · ≤ ${s.max}` : ""} {unit}</p></div>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center">{[["Hiện tại", `${st.cur ?? "—"} ${unit}`], ["TB 1h", `${st.avg1h ?? "—"}`], ["TB 8h", mean == null ? "—" : `${mean}`], ["OOS 1h", st.oos1h == null ? "—" : `${st.oos1h}/60`], ["OOS 10′ cuối", st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-surface ring-1 ring-line py-1.5"><p className="text-[12px] uppercase text-muted font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{v}</p></div>)}</div>
-            {noDL ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-muted italic rounded-xl bg-surface ring-1 ring-line">Chưa có dữ liệu thật cho cảm biến này — được cấu hình nhưng FMS chưa gửi số liệu.</div> : <Chart type="roomDetail" pts={pts} smin={s.min} smax={s.max} mean={mean} unit={unit} group={`rm-${room.id}`} h={182} />}
-            {!noDL && <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: "var(--primary-solid)", opacity: 0.3 }} /> Khoảng đạt (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: "var(--info-solid)", opacity: 0.45 }} /> Dải min–max theo giờ</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--primary-solid)" }} /> trong khoảng</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--danger-solid)" }} /> ngoài khoảng</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: "var(--anchor)" }} /> Trung bình 8h</span></div>}
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center">{[["Hiện tại", snapshot ? "—" : `${st.cur ?? "—"} ${unit}`], ["TB 1h", snapshot ? "—" : `${st.avg1h ?? "—"}`], ["TB 8h", mean == null ? "—" : `${mean}`], ["OOS 1h", snapshot || st.oos1h == null ? "—" : `${st.oos1h}/60`], ["OOS 10′ cuối", snapshot || st.err10 == null ? "—" : `${st.err10}/10`]].map(([k, v]) => <div key={k} className="rounded-xl bg-surface ring-1 ring-line py-1.5"><p className="text-[12px] uppercase text-muted font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-strong)" }}>{v}</p></div>)}</div>
+            {!coLichSu8h ? <div className="h-[142px] flex items-center justify-center text-center px-4 text-[12px] text-muted italic rounded-xl bg-surface ring-1 ring-line">Chưa có chuỗi số liệu theo giờ để vẽ biểu đồ.</div> : <Chart type="roomDetail" pts={pts} smin={s.min} smax={s.max} mean={mean} unit={unit} group={`rm-${room.id}`} h={182} />}
+            {coLichSu8h && <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted"><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: "var(--primary-solid)", opacity: 0.3 }} /> Khoảng đạt (GHD–GHT)</span><span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: "var(--info-solid)", opacity: 0.45 }} /> Dải min–max theo giờ</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--primary-solid)" }} /> trong khoảng</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "var(--danger-solid)" }} /> ngoài khoảng</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t-2 border-dashed" style={{ borderColor: "var(--anchor)" }} /> Trung bình 8h</span></div>}
           </div>
-        ); })}</div>
+        ); })}{!(room.sensors || []).length && <p className="text-muted text-sm">Chưa có cảm biến để hiển thị lịch sử.</p>}</div>
     </InspectorDrawer>
   );
 }

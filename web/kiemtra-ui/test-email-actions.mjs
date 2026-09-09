@@ -49,6 +49,7 @@ async function attachFixture(page, state) {
     // metadata.  A body-less 200 is an equally valid CORS preflight response.
     if (request.method() === 'OPTIONS') return request.respond({ status: 200, headers: { ...CORS, 'access-control-allow-headers': request.headers()['access-control-request-headers'] || CORS['access-control-allow-headers'] }, body: '' })
     if (url.pathname === '/auth/v1/token') return json(request, { access_token: token, refresh_token: 'fixture-refresh-token', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: 'fixture-user', email: EMAIL } })
+    if (url.pathname === '/rest/v1/rpc/rpc_kiem_ve_thao_tac') return json(request, state.ticket)
     if (url.pathname === '/rest/v1/nguoi_dung') { state.reads.push(url.href); return json(request, state.role ? [{ vai_tro: state.role, kich_hoat: true }] : []) }
     if (url.pathname === '/rest/v1/xem_su_co_dang_mo') { state.reads.push(url.href); return json(request, state.incident ? [state.incident] : []) }
     if (url.pathname === '/rest/v1/xem_nut_thao_tac') { state.reads.push(url.href); return json(request, state.actions) }
@@ -166,6 +167,42 @@ async function run() {
       check(state.writes.length === 1, 'double-click và lỗi mơ hồ vẫn chỉ một RPC', String(state.writes.length))
       check(await page.evaluate(() => [...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === 'Xác nhận và ghi nhận').every((b) => b.disabled)), 'lỗi mơ hồ khóa thao tác đến khi F5')
       check(await page.$eval('input[name="incident-action"]', (e) => e.disabled) && await page.$eval('#incident-reason', (e) => e.disabled), 'lỗi mơ hồ khóa dữ liệu xác nhận')
+      await context.close()
+    }
+
+    for (const [act, next, label] of [
+      ['mep_xu_ly_xong', 'mep_tiep_nhan', 'Đã nhận thông tin — đang xử lý'],
+      ['mep_khong_xu_ly_duoc', 'mep_tiep_nhan', 'Đã nhận thông tin — đang xử lý'],
+      ['mep_vang', 'mep_cho_xu_ly', 'Chờ xử lý (khi rảnh)'],
+    ]) {
+      const state = fixture({ ticket: { ok: false, loi: 'THAO_TAC_KHONG_CON_HOP_LE', thong_bao: 'Thao tác chưa hợp lệ với trạng thái hiện tại.', nut_kha_dung: [{ hanh_dong: next, nhan: label }] } })
+      const { context, page } = await freshPage(browser, state)
+      await page.setViewport({width:390,height:900})
+      await page.goto(`${BASE}/action.html?sc=123&act=${act}&token=fixture-ticket`, {waitUntil:'networkidle2'})
+      await page.type('#tt-email', EMAIL); await page.type('#tt-mat-khau', 'fixture-password'); await page.click('button[type="submit"]')
+      await page.waitForFunction(() => document.body.innerText.includes('Thao tác chưa hợp lệ'))
+      check((await page.$eval('body', e=>e.innerText)).includes(`Cần bấm “${label}” trước`), `${act}: chỉ đúng bước cần làm trước`)
+      check(await page.$$eval('section[aria-label="Các bước cần thực hiện"] li', es=>es.length) === 3, `${act}: ba bước rõ ràng`)
+      const link = await page.$eval('section[aria-label="Các bước cần thực hiện"] a', e=>e.getAttribute('href'))
+      check(link === `incident.html?incident=123&intent=${next === 'mep_tiep_nhan' ? 'receive' : 'update'}`, `${act}: link đúng sự cố và không chuyển token`)
+      check(state.writes.length === 0, `${act}: không tự động thực thi khi bị chặn`)
+      check(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth), `${act}: hướng dẫn mobile không tràn`)
+      if (ARTIFACT_DIR) await page.screenshot({path:join(ARTIFACT_DIR, `${act}-guidance-390.png`),fullPage:true})
+      await context.close()
+    }
+
+    for (const act of ['mep_tiep_nhan', 'mep_xu_ly_xong', 'mep_vang']) {
+      const state=fixture({ticket:{ok:true,ma_su_co:123,ma_hien_thi:'SC-123',vai_tro_can:'MEP',hanh_dong:act,nhan:'Thao tác kiểm thử',bat_buoc_ly_do:act==='mep_xu_ly_xong'}})
+      const {context,page}=await freshPage(browser,state)
+      await page.goto(`${BASE}/action.html?sc=123&act=${act}&token=fixture-ticket`,{waitUntil:'networkidle2'})
+      await page.type('#tt-email',EMAIL);await page.type('#tt-mat-khau','fixture-password');await page.click('button[type="submit"]')
+      await page.waitForFunction(()=>document.body.innerText.includes('Thao tác kiểm thử'))
+      check(state.writes.length===0,`${act}: mở liên kết chưa ghi nhận`)
+      if(act==='mep_xu_ly_xong') await page.type('textarea','Đã thay van và kiểm tra lại thông số.')
+      await page.evaluate(()=>[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Xác nhận')?.click())
+      await page.waitForFunction(()=>document.body.innerText.includes('Fixture đã ghi nhận.'))
+      check((await page.$('section[aria-label="Bước tiếp theo"]')!==null)===(act==='mep_tiep_nhan'),`${act}: chỉ tiếp nhận thành công mới hướng dẫn cập nhật kết quả`)
+      check(state.writes.length===1,`${act}: xác nhận gửi đúng một RPC`)
       await context.close()
     }
 

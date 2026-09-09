@@ -111,7 +111,8 @@ export function useLiveData(dataSource, { tuDongMoiMs = TAO_MOI_MAC_DINH_MS, phi
 
   // Làm giàu phòng với thống kê 8h (cache + giới hạn đồng thời + abort)
   const lamGiauPhong = useCallback(async (ds, { batBuoc, signal }) => {
-    const canTai = ds.filter((r) => !r.noData)
+    // Lịch sử 8h vẫn hữu ích khi snapshot giờ mới nhất thiếu.
+    const canTai = ds
     const quaHan = Date.now() - cacheSensor.current.luc > ENRICH_TTL_MS
     const chuaCache = Object.keys(cacheSensor.current.theoPhong).length === 0
     if (batBuoc || quaHan || chuaCache) {
@@ -140,7 +141,6 @@ export function useLiveData(dataSource, { tuDongMoiMs = TAO_MOI_MAC_DINH_MS, phi
     }
     const theoPhong = cacheSensor.current.theoPhong
     return ds.map((room) => {
-      if (room.noData) return { ...room, _historyState: 'ready' }
       const live = theoPhong[room.id] || []
       const byK = {}
       live.forEach((s) => { byK[s.k] = s })
@@ -202,7 +202,7 @@ export function useLiveData(dataSource, { tuDongMoiMs = TAO_MOI_MAC_DINH_MS, phi
       // KHÔNG chờ enrichment sensor. Thẻ phòng + KPI hiện sớm; thanh OOS nhỏ đổ nền
       // sau. Enrichment KHÔNG còn chặn tier1 ⇒ Tổng quan/Sự cố hiện nhanh hơn, nhất
       // là trên điện thoại/4G (bớt 1 vòng mạng khỏi đường tới hạn).
-      if (con()) setRooms(x.rooms.map((room) => ({ ...room, _historyState: room.noData ? 'ready' : 'loading' })))
+      if (con()) setRooms(x.rooms.map((room) => ({ ...room, _historyState: 'loading' })))
       lamGiauPhong(x.rooms, { batBuoc: !tuDong, signal })   // manual ⇒ làm mới ngay; auto ⇒ theo TTL
         .then((full) => { if (con()) setRooms(full) })
         .catch(() => {

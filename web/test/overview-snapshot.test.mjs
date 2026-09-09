@@ -13,8 +13,9 @@ test('default sensor prioritizes highest hourly OOS among available history', ()
 });
 test('snapshot copy distinguishes interrupted source, overdue period and missing sensor', () => {
   const r={duLieuCu:true,window:'08:00–09:00',lastSeen:'09/09 09:00',agePhut:40};
-  assert.match(missingSnapshot(r).label,/kỳ mới/);
+  assert.match(missingSnapshot(r).label,/chưa thể đánh giá kỳ hiện tại/i);
   assert.match(missingSnapshot(r).detail,/08:00–09:00/);
+  assert.match(missingSnapshot(r).detail,/8 giờ/i);
   assert.match(missingSnapshot({...r,agePhut:180}).label,/quá cũ/);
   assert.match(missingSnapshot(r,{sourceInterrupted:true}).label,/gián đoạn/);
   assert.match(missingSnapshot({noData:true}).label,/Chưa có số liệu/);

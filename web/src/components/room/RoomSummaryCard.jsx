@@ -4,7 +4,7 @@
 // vẫn bình thường trong khi người trực đang tìm 3 thứ bất thường.
 // Bảng sensor 5 cột + cột OOS 8h nằm trong drawer "Xem chi tiết" (không ở card).
 import React from "react";
-import { missingSnapshot } from "../../lib/overviewSnapshot";
+import { hasHourlyHistory, missingSnapshot } from "../../lib/overviewSnapshot";
 import { Eye, AlertOctagon, ChevronRight, Clock, HelpCircle } from "lucide-react";
 import { Card, MucBadge } from "../ui/Card";
 import { LEVELS, SENSOR_META } from "../../lib/uiConst";
@@ -39,6 +39,7 @@ export const RoomSummaryCard = React.memo(function RoomSummaryCard({ room, cfg, 
   const lm = lvl < 0 ? null : LEVELS[lvl];
   const tuoi = tuoiTxt(room.agePhut);
   const snapshot = missingSnapshot(room, { sourceInterrupted, freshnessMinutes });
+  const coLichSu8h = (room.sensors || []).some(s => hasHourlyHistory(sensorStats(room.id, s, room._isLive).hourly8));
 
   if (!snapshot && !laBatThuong(room, cfg, incident)) {
     return (
@@ -74,6 +75,7 @@ export const RoomSummaryCard = React.memo(function RoomSummaryCard({ room, cfg, 
       </div>
 
       {snapshot && <p className="mt-3 text-[12px] text-warning">{snapshot.detail}</p>}
+      {snapshot && coLichSu8h && <p className="mt-1 text-[12px] text-muted">Có chuỗi số liệu 8 giờ gần nhất · mở chi tiết để xem biểu đồ.</p>}
       {!snapshot && xau && (
         <div className={`bms-room-reading mt-3 ${lm ? `${lm.bg} ${lm.ring}` : "bg-subtle ring-line"} flex items-baseline justify-between gap-2`}>
           <span className="text-[12px] font-semibold uppercase tracking-wide text-muted">{SENSOR_META[xau.s.k].label}</span>

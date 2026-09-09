@@ -10,12 +10,13 @@ const entry = String.raw`
   import React from 'react'
   import { createRoot } from 'react-dom/client'
   import { useLiveData } from '../src/hooks/useLiveData.js'
+  import { roomHourlyOOS } from '../src/lib/moPhong.js'
 
   const root = createRoot(document.getElementById('root'))
   function Harness({ account, interval }) {
     const live = useLiveData('live', { phienId: account, tuDongMoiMs: interval })
     window.__manual = live.lamMoi
-    return <pre id="state">{JSON.stringify({ rooms: live.rooms, incidents: live.incidents, actions: live.nutThaoTac })}</pre>
+    return <pre id="state">{JSON.stringify({ rooms: live.rooms, incidents: live.incidents, actions: live.nutThaoTac, oos: live.rooms?.[0] ? roomHourlyOOS(live.rooms[0]) : [] })}</pre>
   }
   window.__interval = 2000
   window.__renderAccount = (account) => root.render(<Harness account={account} interval={window.__interval} />)
@@ -54,11 +55,11 @@ const dataStub = String.raw`
   export const layCanhBaoHeThong = async () => ({ alerts: [] })
   export const layLichSuCauHinh = okRows
   export const layDanhSachPhong = async () => {
-    if (window.__holdRooms) return new Promise((resolve) => { roomResolver = () => resolve({ rooms: [{ id: window.__account, sensors: [] }] }) })
-    return { rooms: [{ id: window.__account, sensors: [] }] }
+    if (window.__holdRooms) return new Promise((resolve) => { roomResolver = () => resolve({ rooms: [{ id: window.__account, _isLive: true, noData: true, duLieuCu: true, sensors: [] }] }) })
+    return { rooms: [{ id: window.__account, _isLive: true, noData: true, duLieuCu: true, sensors: [] }] }
   }
   export const layThongKeSensorPhong = async () => ({ sensors: [] })
-  export const layThongKeSensorNhieuPhong = async () => { window.__counts.sensors++; return { theoPhong: {} } }
+  export const layThongKeSensorNhieuPhong = async (ids) => { window.__counts.sensors++; return { theoPhong: Object.fromEntries(ids.map(id=>[id,[{k:'T',cur:22,avg1h:22,oos1h:0,hourly8:Array.from({length:8},(_,i)=>({label:i+':00',avg:i===3?null:22,oos:0}))}]])) } }
   export const layXepHangRuiRo = okRows
   export const layQuyTrinhSop = okRows
   export const layBaoCaoAi = okRows
@@ -117,6 +118,12 @@ test('real hook coordinates hourly, visibility, auth, realtime, manual and accou
   })
   await page.addScriptTag({ path: bundle })
   await page.waitForFunction(() => window.__counts?.sensors === 1)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  const historicalRoom = await page.$eval('#state', node=>JSON.parse(node.textContent).rooms[0])
+  assert.equal(historicalRoom.sensors[0]?._live?.hourly8?.length, 8, 'missing current snapshot must still load eight-hour history')
+  assert.equal(historicalRoom.sensors[0]._live.hourly8[3].avg, null, 'missing historical point stays a gap')
+  assert.equal(historicalRoom.noData, true, 'history enrichment must not clear server noData flag')
+  assert.equal(await page.$eval('#state', node=>JSON.parse(node.textContent).oos.length), 8, 'live OOS history survives missing current snapshot')
   const initialCounts = await page.evaluate(() => ({ ...window.__counts }))
   await new Promise((resolve) => setTimeout(resolve, 80))
   await page.evaluate(() => {
