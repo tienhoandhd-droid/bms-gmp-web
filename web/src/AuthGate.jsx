@@ -41,25 +41,24 @@ export default function AuthGate() {
 
   const doCapsLock = (e) => { try { setCapsLock(e.getModifierState && e.getModifierState("CapsLock")); } catch { /* trình duyệt cũ */ } };
 
-  const O_INPUT = "w-full rounded-2xl surface--subtle ring-1 ring-line px-4 py-3 text-sm text-body outline-none focus:ring-2 focus:ring-[var(--focus)]";
+  const O_INPUT = "w-full rounded-lg surface ring-1 ring-line-strong px-4 py-3 text-sm text-body outline-none focus:ring-2 focus:ring-[var(--focus)]";
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 cleanroom-grid" style={{ background: "var(--bg-canvas)" }}>
-      <form className="w-full max-w-md rounded-3xl surface ring-1 ring-line overflow-hidden"
-        style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.4)" }}
+    <div className="bms-auth min-h-screen flex items-center justify-center p-4" style={{ background: "var(--bg-canvas)" }}>
+      <form className="bms-auth-form w-full max-w-md surface overflow-hidden"
         onSubmit={(e) => { e.preventDefault(); dangNhap(); }}>
-        <div className="px-7 pt-7 pb-5 surface--subtle">
+        <div className="px-7 pt-8 pb-2">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl surface p-2 ring-1 ring-line flex items-center justify-center h-[52px] w-[52px] shrink-0"><img src={logoCpc1hn} alt="CPC1 Hà Nội" className="h-11 w-11 object-contain select-none" draggable={false} /></div>
+            <div className="flex items-center justify-center h-[48px] w-[48px] shrink-0"><img src={logoCpc1hn} alt="CPC1 Hà Nội" className="h-11 w-11 object-contain select-none" draggable={false} /></div>
             <div>
               <h1 className="text-base font-bold" style={{ color: "var(--text-strong)" }}>Giám sát HVAC phòng sạch GMP</h1>
-              <p className="text-[12px] font-semibold" style={{ color: "var(--primary)" }}>Hệ thống giám sát môi trường phòng sạch</p>
+              <p className="text-[12px] font-semibold" style={{ color: "var(--primary)" }}>CPC1 Hà Nội · Phòng Quản lý chất lượng</p>
             </div>
           </div>
         </div>
         <div className="px-7 py-6 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--text-strong)" }}>Đăng nhập để tiếp tục</h2>
+            <h2 className="text-2xl font-semibold tracking-tight mb-1" style={{ color: "var(--text-strong)" }}>Đăng nhập để tiếp tục</h2>
             <p className="text-[12px] meta leading-relaxed">Đăng nhập bằng tài khoản CPC1 Hà Nội.</p>
           </div>
           <div>

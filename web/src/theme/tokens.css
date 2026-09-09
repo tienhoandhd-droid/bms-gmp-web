@@ -12,49 +12,49 @@
   color-scheme: light;
 
   /* Canvas & surfaces */
-  --bg-canvas: #E5EEF2;
-  --bg-surface: #FCFEFF;
-  --bg-subtle: #D9E7EC;
+  --bg-canvas: #F3F7F7;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #EAF1F1;
   --bg-raised: #FFFFFF;
 
   /* Text */
-  --text-strong: #0A1D2B;
-  --text-default: #213746;
-  --text-muted: #4C6372;
+  --text-strong: #142E38;
+  --text-default: #304A54;
+  --text-muted: #536C75;
   --text-inverse: #FFFFFF;
 
   /* Borders */
-  --border: #AFC4CE;
-  --border-strong: #6D8D9C;
+  --border: #D0DEE0;
+  --border-strong: #6A858F;
 
   /* Brand / navigation */
   --anchor: #0C293B;
   --anchor-soft: #123B4D;
   --anchor-fg: #FFFFFF;
 
-  --primary: #08736C;
+  --primary: #086F6B;
   --primary-hover: #065E59;
-  --primary-soft: #D8ECE9;
+  --primary-soft: #E0EFEC;
   --primary-solid: #0A6E68;
 
   --info: #1768A1;
-  --info-soft: #E0EEF8;
+  --info-soft: #EAF3F8;
   --info-line: #9CC4E2;
   --info-solid: #1E72B8;
 
   /* Semantics */
   --success: #0A6E68;
-  --success-soft: #DCEFEB;
+  --success-soft: #E5F2ED;
   --success-line: #7FC9BE;
   --success-solid: #0E7C73;
 
   --warning: #8A5300;
-  --warning-soft: #F7E7C1;
+  --warning-soft: #FBF0D8;
   --warning-line: #E0B366;
   --warning-solid: #C77E12;
 
   --danger: #A72924;
-  --danger-soft: #F7DEDC;
+  --danger-soft: #FBEAE7;
   --danger-line: #D9827E;
   --danger-solid: #B3261E;
 
@@ -137,34 +137,34 @@
    Bộ ba R G B cho Tailwind alpha: rgb(var(--rgb-x) / <alpha-value>). */
 :root,
 :root[data-theme="light"] {
-  --rgb-bg-surface: 252 254 255;
-  --rgb-bg-subtle: 217 231 236;
-  --rgb-bg-canvas: 229 238 242;
+  --rgb-bg-surface: 255 255 255;
+  --rgb-bg-subtle: 234 241 241;
+  --rgb-bg-canvas: 243 247 247;
   --rgb-anchor: 12 41 59;
   --rgb-anchor-fg: 255 255 255;
-  --rgb-border: 175 196 206;
-  --rgb-border-strong: 109 141 156;
-  --rgb-text-strong: 10 29 43;
-  --rgb-text-default: 33 55 70;
-  --rgb-text-muted: 76 99 114;
+  --rgb-border: 208 222 224;
+  --rgb-border-strong: 106 133 143;
+  --rgb-text-strong: 20 46 56;
+  --rgb-text-default: 48 74 84;
+  --rgb-text-muted: 83 108 117;
   --rgb-text-inverse: 255 255 255;
-  --rgb-primary: 8 115 108;
-  --rgb-primary-soft: 216 236 233;
+  --rgb-primary: 8 111 107;
+  --rgb-primary-soft: 224 239 236;
   --rgb-primary-solid: 10 110 104;
   --rgb-success: 10 110 104;
-  --rgb-success-soft: 220 239 235;
+  --rgb-success-soft: 229 242 237;
   --rgb-success-line: 127 201 190;
   --rgb-success-solid: 14 124 115;
   --rgb-danger: 167 41 36;
-  --rgb-danger-soft: 247 222 220;
+  --rgb-danger-soft: 251 234 231;
   --rgb-danger-line: 217 130 126;
   --rgb-danger-solid: 179 38 30;
   --rgb-warning: 138 83 0;
-  --rgb-warning-soft: 247 231 193;
+  --rgb-warning-soft: 251 240 216;
   --rgb-warning-line: 224 179 102;
   --rgb-warning-solid: 199 126 18;
   --rgb-info: 23 104 161;
-  --rgb-info-soft: 224 238 248;
+  --rgb-info-soft: 234 243 248;
   --rgb-info-line: 156 196 226;
   --rgb-info-solid: 30 114 184;
   --rgb-missing: 129 80 31;
@@ -207,3 +207,19 @@
   --rgb-focus: 119 199 255;
 }
 /* ===== hết khối sinh ===== */
+
+/* Product foundations: one scale for every BMS entry point. */
+:root {
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-6: 24px; --space-8: 32px; --space-12: 48px;
+  --text-xs: 12px; --text-sm: 13px; --text-base: 14px; --text-section: 16px;
+  --text-subhead: 20px; --text-title-mobile: 22px; --text-title: 28px; --text-metric: 36px;
+  --weight-normal: 400; --weight-medium: 500; --weight-semibold: 600; --weight-bold: 700;
+  --radius-sm: 6px; --radius-control: 8px; --radius-panel: 12px; --radius-overlay: 16px;
+  --control-height: 44px; --sidebar-width: 224px; --sidebar-collapsed: 72px;
+  --shadow-popover: 0 12px 40px -12px rgb(10 35 45 / 0.22);
+  --shadow-dialog: 0 24px 80px -24px rgb(10 35 45 / 0.3);
+  --motion-fast: 150ms; --motion-panel: 200ms;
+  --ease-standard: cubic-bezier(.2,.7,.2,1);
+}

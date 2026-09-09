@@ -44,7 +44,7 @@ export const RoomSummaryCard = React.memo(function RoomSummaryCard({ room, cfg, 
         <span className="font-semibold shrink-0" style={{ color: "var(--text-strong)" }}>{room.id}</span>
         <span className="text-success font-medium shrink-0">Đạt</span>
         <span className="text-muted truncate">· {room.ahu}{comp != null ? ` · ${comp}%` : ""}{tuoi ? ` · ${tuoi}` : ""}</span>
-        <button onClick={() => onDetail(room)} className="ml-auto text-[12px] font-medium text-info hover:underline shrink-0">Xem</button>
+        <button onClick={() => onDetail(room)} aria-label={`Xem phòng ${room.id}`} className="ml-auto min-h-11 px-2 text-[12px] font-medium text-info hover:underline shrink-0">Xem</button>
       </div>
     );
   }
@@ -58,7 +58,7 @@ export const RoomSummaryCard = React.memo(function RoomSummaryCard({ room, cfg, 
   }
 
   return (
-    <Card className="p-4">
+    <Card className="bms-room">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2"><h3 className="text-[15px] font-semibold truncate" style={{ color: "var(--text-strong)" }}>{room.id} · {room.name}</h3><MucBadge p={room.priority} /></div>
@@ -73,7 +73,7 @@ export const RoomSummaryCard = React.memo(function RoomSummaryCard({ room, cfg, 
       </div>
 
       {xau && (
-        <div className={`mt-3 rounded-xl px-3.5 py-2.5 ring-1 ${lm ? `${lm.bg} ${lm.ring}` : "bg-subtle ring-line"} flex items-baseline justify-between gap-2`}>
+        <div className={`bms-room-reading mt-3 ${lm ? `${lm.bg} ${lm.ring}` : "bg-subtle ring-line"} flex items-baseline justify-between gap-2`}>
           <span className="text-[12px] font-semibold uppercase tracking-wide text-muted">{SENSOR_META[xau.s.k].label}</span>
           <span className="text-right">
             <span className={`text-[18px] font-semibold tabular-nums ${lm ? lm.txt : "text-body"}`}>{xau.st.cur}<span className="text-[12px] font-normal">{SENSOR_META[xau.s.k].unit}</span></span>
@@ -87,7 +87,7 @@ export const RoomSummaryCard = React.memo(function RoomSummaryCard({ room, cfg, 
         {lm && <span className={`shrink-0 font-medium ${lm.txt}`}>{lm.label}</span>}
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="bms-room-actions mt-3 flex gap-2">
         <button onClick={() => onDetail(room)} className="flex-1 flex items-center justify-center gap-1.5 text-[13px] font-medium text-info bg-info-soft rounded-xl py-2 ring-1 ring-info-line"><Eye className="w-3.5 h-3.5" strokeWidth={1.8} /> Xem chi tiết</button>
         {incident && <button onClick={() => onIncident(room)} className="flex-1 flex items-center justify-center gap-1.5 text-[13px] font-medium text-danger bg-danger-soft rounded-xl py-2 ring-1 ring-danger-line" title={`Phiếu ${incident.id} · ${incident.status}`}><AlertOctagon className="w-3.5 h-3.5" strokeWidth={1.8} /> Phiếu {incident.id} <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.8} /></button>}
       </div>

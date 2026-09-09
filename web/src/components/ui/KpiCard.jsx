@@ -1,19 +1,18 @@
 // KpiCard.jsx — thẻ KPI + cột OOS mini (tách move-only từ App.jsx 17/08/2026).
 import React from "react";
-import { Eye } from "lucide-react";
-import { Card } from "./Card";
-import { COLOR } from "../../lib/designTokens";
+import { ArrowUpRight } from "lucide-react";
 
 export const KpiCard = React.memo(function KpiCard({ icon: Icon, label, value, total, sub, accent, onClick, loading }) {
   const clickable = typeof onClick === "function";
-  const tone = accent.tone || (accent.txt.includes("success") ? "success" : accent.txt.includes("danger") ? "danger" : accent.txt.includes("warning") ? "warning" : accent.txt.includes("info") ? "info" : "primary");
   return (
-    <Card className={`relative p-4 overflow-hidden border-l-4 ${clickable ? "cursor-pointer transition hover:ring-success-line" : ""}`} style={{ borderLeftColor: `var(--${tone}-solid)` }}>
+    <div className="bms-kpi" data-clickable={clickable} aria-busy={loading || undefined}>
       {clickable ? <button onClick={onClick} className="absolute inset-0 z-10" aria-label={`Xem danh sách: ${label}`} /> : null}
       {/* Mảng 4: skeleton pulse khi CHƯA có số → không hiện "0" rồi nhảy (giảm CLS). */}
-      <div className="relative flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-[12px] uppercase text-muted font-semibold">{label}</p>{loading ? <div className="mt-2 h-9 w-20 rounded-lg bg-subtle animate-pulse" /> : <p className="mt-2 text-[34px] font-semibold tabular-nums leading-none" style={{ color: "var(--text-strong)" }}>{value}{total != null && <span className="text-base text-muted font-medium">/{total}</span>}</p>}{loading ? <div className="mt-2 h-3 w-28 rounded bg-subtle animate-pulse" /> : <p className={`mt-2 text-xs font-medium leading-snug ${accent.txt}`}>{sub}</p>}</div><div className={`rounded-xl p-2 ${accent.bg}`}><Icon className={`w-5 h-5 ${accent.txt}`} strokeWidth={1.8} /></div></div>
-      {clickable && <div className="relative mt-2 flex items-center gap-1 text-[12px] font-medium text-muted"><Eye className="w-3 h-3" strokeWidth={1.8} /> bấm để xem danh sách phòng</div>}
-    </Card>
+      <div className="bms-kpi-label"><span>{label}</span><Icon className={`h-4 w-4 shrink-0 ${accent.txt}`} strokeWidth={1.8} aria-hidden="true" /></div>
+      {loading ? <div className="my-3 h-9 w-16 max-w-full rounded bg-subtle animate-pulse" /> : <p className="bms-kpi-value">{value}{total != null && <span className="text-[13px] text-muted font-normal tracking-normal"> / {total}</span>}</p>}
+      {loading ? <div className="h-3 w-20 max-w-full rounded bg-subtle animate-pulse" /> : <p className={`bms-kpi-sub ${accent.txt}`}>{sub}</p>}
+      {clickable && <div className="bms-kpi-hint">Xem phòng <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" /></div>}
+    </div>
   );
 }, (t, s) => t.label === s.label && t.value === s.value && t.total === s.total && t.sub === s.sub
    && t.loading === s.loading && t.icon === s.icon

@@ -191,9 +191,8 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
   // 17/08 (chủ hệ thống): dữ liệu 5′ phải là HIỆN SỐ (bảng 2 hàng giờ/giá trị) ngay
   // trên hàng — đây là tab CHỈNH chính của Cơ điện, không dùng biểu đồ thu nhỏ.
   const HangPhong = ({ r }) => (
-    <div key={r.maPhong} onClick={() => setChiTiet(r)} title="Bấm để xem chi tiết"
-      className={`rounded-xl px-3.5 py-2.5 flex items-center gap-x-5 gap-y-2 flex-wrap cursor-pointer ${oCls(r)}`}>
-      <div className="w-[168px] shrink-0">
+    <div className={`rounded-xl p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-x-5 ${oCls(r)}`}>
+      <div className="w-full min-w-0 sm:w-[168px] sm:shrink-0">
         <div className="flex items-center gap-1.5">
           <span className="text-[13.5px] font-semibold text-strong">{r.maPhong}</span>
           <span className="text-[12px] font-bold px-1.5 py-0.5 rounded-full bg-surface/80 text-muted">{r.uuTien}</span>
@@ -205,14 +204,16 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
           </div>
         )}
       </div>
-      <div className="w-[96px] shrink-0 rounded-lg bg-surface/80 px-2 py-1 text-center ring-1 ring-line/60">
+      <div className="w-full rounded-lg bg-surface/80 px-2 py-1 text-center ring-1 ring-line/60 sm:w-[96px] sm:shrink-0">
         <div className="text-[12px] font-semibold uppercase tracking-wider text-muted">Yêu cầu ({r.donVi})</div>
         <div className="text-[15px] font-bold text-strong tabular-nums leading-tight">{r.ghDuoi}–{r.ghTren}</div>
       </div>
       {/* 16/07 (user): chuỗi 5′ kẻ BẢNG 2 hàng — giờ trên, chênh áp dưới — dễ dò cột hơn dãy chữ liền */}
       {r.chuoi && r.chuoi.length > 0 && (
-        <div className="grow flex justify-center"><div className="rounded-lg overflow-hidden ring-1 ring-line bg-surface shrink-0">
-        <table className="border-collapse shrink-0">
+        <div className="min-w-0 grow">
+          <p className="mb-1 text-[12px] text-muted sm:hidden">Cuộn ngang để xem chuỗi 5 phút</p>
+          <div role="region" tabIndex={0} aria-label={`Chuỗi chênh áp 5 phút của ${r.maPhong}`} className="w-full overflow-x-auto rounded-lg ring-1 ring-line bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focusring">
+        <table className="min-w-max border-collapse">
           <tbody>
             <tr>
               {r.chuoi.map((p) => (
@@ -230,13 +231,17 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
             </tr>
           </tbody>
         </table>
-        </div></div>
+          </div>
+        </div>
       )}
-      <div className="ml-auto w-[132px] text-right shrink-0">
+      <div className="flex w-full items-center justify-between gap-3 sm:ml-auto sm:w-[220px] sm:shrink-0 sm:text-right">
+        <div>
         <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[12px] font-medium"> {r.donVi}</span></>}</div>
         <div className="text-[12px] text-muted mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-success font-semibold">● trực tiếp</span> : <span className="text-warning">giờ gần nhất</span>} {r.thoiDiem}{nhanTuoi(r)}{r.dat === false && (r.uuTien === "P3"
           ? <span className="font-medium text-muted"> · P3 — theo dõi</span>
           : <span className={`font-semibold ${vCls(r)}`}> · không đạt</span>)}</>}</div>
+        </div>
+        <button type="button" onClick={() => setChiTiet(r)} style={{ minHeight: "var(--control-height)" }} className="shrink-0 rounded-lg bg-surface px-3 text-[12px] font-semibold text-body ring-1 ring-line hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focusring">Xem chi tiết</button>
       </div>
     </div>
   );

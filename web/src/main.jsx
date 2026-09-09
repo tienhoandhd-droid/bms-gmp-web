@@ -5,6 +5,7 @@ import TVMode from './components/TVMode.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import { ThemeProvider } from './app/providers/ThemeProvider.jsx'
 import './index.css'
+import './theme/product.css'
 import { initWebVitals } from './lib/webVitals'
 
 ReactDOM.createRoot(document.getElementById('root')).render(

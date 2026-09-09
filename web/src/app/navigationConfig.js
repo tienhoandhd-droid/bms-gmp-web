@@ -28,4 +28,4 @@ export const NAV_GROUPS = [
 
 export const NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 // 4 mục cố định của bottom-nav mobile; mục thứ 5 là "Thêm" (mở sheet các mục còn lại).
-export const BOTTOM_NAV_KEYS = ["home", "events", "recent"];
+export const BOTTOM_NAV_KEYS = ["home", "events", "recent", "tasks"];

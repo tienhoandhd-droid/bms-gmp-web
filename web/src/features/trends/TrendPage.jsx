@@ -1,7 +1,7 @@
 // TrendPage.jsx — trang Xu hướng (tách move-only từ App.jsx 17/08/2026).
 import { AiSections } from "./AiSections";
 import InspectorDrawer from "../../components/layout/InspectorDrawer";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Activity, AlertOctagon, AlertTriangle, Check, CheckCircle2, ChevronDown, CircleDot, ClipboardCheck, FileBarChart, Gauge, LineChart as LineIcon, Mail, Minus, Printer, Save, Search, TrendingDown, TrendingUp, Wifi } from "lucide-react";
 import { KhungLoi } from "../../components/ui/KhungLoi";
@@ -116,7 +116,11 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
   const [hi, setHi] = useState(0);
   const [pos, setPos] = useState(null);
   const boxRef = useRef(null);
+  const inputRef = useRef(null);
   const listRef = useRef(null);
+  const scopeId = useId();
+  const listboxId = `trend-scope-listbox-${scopeId}`;
+  const labelId = `trend-scope-label-${scopeId}`;
   const cur = items.find((o) => o.id === value) || null;
 
   // click ngoài: bỏ qua cả ô input (boxRef) lẫn danh sách trong portal (listRef)
@@ -146,9 +150,9 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
 
   const pick = (o) => { if (!o) return; onPick(o.id); setOpen(false); setQ(""); };
   const onKey = (e) => {
-    if (!open && (e.key === "ArrowDown" || e.key === "Enter")) { setOpen(true); return; }
-    if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, filtered.length - 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+    if (!open && (e.key === "ArrowDown" || e.key === "Enter")) { e.preventDefault(); setOpen(true); return; }
+    if (e.key === "ArrowDown") { e.preventDefault(); if (filtered.length) setHi((h) => Math.min(h + 1, filtered.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); if (filtered.length) setHi((h) => Math.max(h - 1, 0)); }
     else if (e.key === "Enter") { e.preventDefault(); pick(filtered[hi]); }
     else if (e.key === "Escape") { setOpen(false); }
   };
@@ -169,34 +173,45 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
   };
 
   return (
-    <div className="relative flex-1 min-w-[260px]" ref={boxRef}>
+    <div className="relative flex-1 min-w-[260px]" ref={boxRef} onBlur={(e) => {
+      const next = e.relatedTarget;
+      if (boxRef.current?.contains(next) || listRef.current?.contains(next)) return;
+      setOpen(false);
+    }}>
+      <span id={labelId} className="sr-only">Tìm phạm vi theo mã hoặc tên</span>
       <div className={`flex items-center gap-2 rounded-xl bg-surface px-3 py-2 ring-1 ${open ? "ring-2 ring-success-line" : "ring-line"} transition`}>
         <Search className="w-4 h-4 text-muted shrink-0" strokeWidth={1.8} />
         <input
+          ref={inputRef}
+          id={`trend-scope-combobox-${scopeId}`}
           value={open ? q : (cur ? `${cur.id} — ${cur.name}` : q)}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKey}
           placeholder={placeholder}
-          aria-label="Tìm phạm vi theo mã hoặc tên"
-          className="w-full text-[13px] text-body outline-none bg-transparent placeholder:text-muted"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={listboxId}
+          aria-activedescendant={open && filtered[hi] ? `trend-scope-option-${scopeId}-${filtered[hi].id}` : undefined}
+          aria-labelledby={labelId}
+          className="min-h-[28px] w-full text-[13px] text-body outline-none bg-transparent placeholder:text-muted"
         />
         {cur && cur.latest && cur.latest.compliance != null && !open && (
           <span className="text-[12px] font-semibold tabular-nums shrink-0" style={{ color: pctTextColor(cur.latest.compliance) }}>{fmtPct(cur.latest.compliance)}</span>
         )}
-        {/* Nút thật (không phải svg bấm) để có tên truy cập; tabIndex -1 vì ô nhập đã điều khiển bằng phím */}
-        <button type="button" tabIndex={-1} aria-label={open ? "Đóng danh sách" : "Mở danh sách"} onClick={() => setOpen((v) => !v)} className="shrink-0 min-w-[24px] min-h-[24px] flex items-center justify-center text-muted"><ChevronDown className={`w-4 h-4 transition ${open ? "rotate-180" : ""}`} strokeWidth={1.8} /></button>
+        <button type="button" aria-label={open ? "Đóng danh sách phạm vi" : "Mở danh sách phạm vi"} onMouseDown={(e) => e.preventDefault()} onClick={() => { if (open) { setOpen(false); return; } setOpen(true); inputRef.current?.focus(); }} className="shrink-0 min-w-[44px] min-h-[44px] -my-2 -mr-3 flex items-center justify-center text-muted"><ChevronDown className={`w-4 h-4 transition ${open ? "rotate-180" : ""}`} strokeWidth={1.8} /></button>
       </div>
       {open && pos && createPortal(
-        <div ref={listRef} style={{ position: "fixed", left: pos.left, top: pos.top, width: pos.width, zIndex: 9999 }} className="max-h-72 overflow-auto rounded-2xl bg-surface ring-1 ring-line shadow-2xl shadow-slate-400/30 py-1.5">
-          <div className="px-3 py-1 text-[12px] uppercase tracking-wider text-muted font-semibold flex items-center justify-between"><span>{levelLabel}</span><span>{filtered.length} kết quả</span></div>
+        <div ref={listRef} id={listboxId} role="listbox" aria-labelledby={labelId} style={{ position: "fixed", left: pos.left, top: pos.top, width: pos.width, zIndex: 9999 }} className="max-h-72 overflow-auto rounded-2xl bg-surface ring-1 ring-line shadow-2xl shadow-slate-400/30 py-1.5">
+          <div className="px-3 py-1 text-[12px] uppercase tracking-wider text-muted font-semibold flex items-center justify-between"><span>{levelLabel}</span><span aria-live="polite">{filtered.length} kết quả</span></div>
           {filtered.length === 0 ? (
             <div className="px-3 py-4 text-center text-[12px] text-muted">Không tìm thấy — thử từ khoá khác</div>
           ) : filtered.map((o, i) => {
             const p = o.latest && o.latest.compliance != null ? o.latest.compliance : null;
             const isSel = o.id === value;
             return (
-              <button key={o.id} data-i={i} onMouseEnter={() => setHi(i)} onClick={() => pick(o)}
+              <div key={o.id} id={`trend-scope-option-${scopeId}-${o.id}`} role="option" aria-selected={isSel} data-i={i} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setHi(i)} onClick={() => pick(o)}
                 className={`w-full text-left px-3 py-2 flex items-center gap-2 ${i === hi ? "bg-success-soft" : ""} ${isSel ? "bg-success-soft/60" : ""}`}>
                 <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: pctColor(p) }} />
                 <span className="flex-1 min-w-0">
@@ -206,7 +221,7 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
                 </span>
                 {p != null && <span className="text-[12px] font-semibold tabular-nums shrink-0" style={{ color: pctTextColor(p) }}>{fmtPct(p)}</span>}
                 {isSel && <Check className="w-3.5 h-3.5 text-success shrink-0" strokeWidth={2.2} />}
-              </button>
+              </div>
             );
           })}
         </div>, document.body)}
@@ -229,6 +244,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [dtTo, setDtTo] = useState("");
   const [dtFromDraft, setDtFromDraft] = useState("");
   const [dtToDraft, setDtToDraft] = useState("");
+  const [dateStatus, setDateStatus] = useState("");
   const [aiResult, setAiResult] = useState(null);
   const [diemChon, setDiemChon] = useState(null);   // G3: điểm được click trên biểu đồ chính → inspector
   const [aiBusy, setAiBusy] = useState(false);        // đang gọi AI qua workflow
@@ -789,7 +805,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   };
 
   const Chip = ({ active, onClick, children, disabled, title }) => <button onClick={onClick} disabled={disabled} title={title} className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${disabled ? "text-muted bg-subtle ring-line cursor-not-allowed" : active ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`} style={active && !disabled ? { backgroundColor: "var(--primary-solid)" } : {}}>{children}</button>;
-  const sel = "rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[12px] text-body outline-none";
+  const sel = "min-h-[44px] rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[12px] text-body outline-none";
 
   // #4 — chuỗi giá trị TB + dải giới hạn của phòng (chỉ khi đang chọn 1 phòng + 1 chỉ tiêu DP/RH/T trong LIVE)
   const bandSeries = (wantRoomBand && roomBand[roomBandKey]) || [];
@@ -825,12 +841,13 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <div className="mt-3 rounded-2xl bg-info-soft/50 ring-1 ring-info-line px-3 py-2.5">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[12px] uppercase tracking-wider text-muted font-semibold">Từ → đến</span>
-            <input type="datetime-local" aria-label="Từ ngày giờ" value={dtFromDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtFromDraft(e.target.value)} className={sel} />
-            <span className="text-[12px] text-muted">đến</span>
-            <input type="datetime-local" aria-label="Đến ngày giờ" value={dtToDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtToDraft(e.target.value)} className={sel} />
-            <button onClick={() => { setDtFrom(dtFromDraft); setDtTo(dtToDraft); }} className="text-[12px] font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: "var(--primary-solid)" }}><Search className="w-3.5 h-3.5" strokeWidth={1.8} /> Áp dụng</button>
+            <label htmlFor="trend-date-from" className="text-[12px] font-medium text-muted">Từ</label>
+            <input id="trend-date-from" type="datetime-local" value={dtFromDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtFromDraft(e.target.value)} className={sel} />
+            <label htmlFor="trend-date-to" className="text-[12px] font-medium text-muted">Đến</label>
+            <input id="trend-date-to" type="datetime-local" value={dtToDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtToDraft(e.target.value)} className={sel} />
+            <button onClick={() => { setDtFrom(dtFromDraft); setDtTo(dtToDraft); setDateStatus("Đã áp dụng khoảng thời gian."); }} className="min-h-[44px] text-[12px] font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: "var(--primary-solid)" }}><Search className="w-3.5 h-3.5" strokeWidth={1.8} /> Áp dụng</button>
             {(dtFrom || dtTo || dtFromDraft || dtToDraft) && <button onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }} className="text-[12px] text-muted underline min-h-[24px] px-1">Đặt lại</button>}
-            <span className="text-[12px] text-muted ml-1">Đang xem {view.length}/{full.length} điểm ({resLbl})</span>
+            <span role="status" aria-live="polite" className="text-[12px] text-muted ml-1">{dateStatus ? `${dateStatus} ` : ""}Đang xem {view.length}/{full.length} điểm ({resLbl})</span>
           </div>
           {/* Khoảng đã chọn THIẾU dữ liệu → nói rõ (thay vì biểu đồ ngắn khó hiểu) */}
           {(() => {

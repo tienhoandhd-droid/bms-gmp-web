@@ -124,11 +124,14 @@ test('pressure viewer wrapper is fail-soft when the RPC client throws', async (t
 test('deploy workflow runs unit tests before UI tests', () => {
   const installIndex = workflow.indexOf('- run: npm ci')
   const unitIndex = workflow.indexOf('run: npm run test:unit')
-  const uiIndex = workflow.indexOf('run: |\n          npx puppeteer browsers install chrome\n          npm run test:ui')
+  const browserIndex = workflow.indexOf('npx puppeteer browsers install chrome')
+  const uiIndex = workflow.indexOf('npm run test:ui')
 
   assert.notEqual(installIndex, -1, 'workflow must install dependencies with npm ci')
   assert.notEqual(unitIndex, -1, 'workflow must run the unit-test gate')
   assert.notEqual(uiIndex, -1, 'workflow must retain the UI-test gate')
-  assert.ok(installIndex < unitIndex, 'unit tests must run after npm ci')
+  assert.notEqual(browserIndex, -1, 'workflow must install Chromium for component runtime tests')
+  assert.ok(installIndex < browserIndex, 'Chromium installation must run after npm ci')
+  assert.ok(browserIndex < unitIndex, 'component runtime tests require Chromium before unit tests')
   assert.ok(unitIndex < uiIndex, 'unit tests must run before UI tests')
 })

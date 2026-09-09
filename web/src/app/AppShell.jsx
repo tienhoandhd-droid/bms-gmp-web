@@ -79,7 +79,7 @@ import { RoomSummaryCard, laBatThuong } from "../components/room/RoomSummaryCard
 import GiaoDienCard from "../features/settings/GiaoDienCard";
 import StatusAnchor from "../components/layout/StatusAnchor";
 import DesktopSidebar from "../components/navigation/DesktopSidebar";
-import { NAV_ITEMS } from "./navigationConfig";
+import { NAV_ITEMS, NAV_GROUPS } from "./navigationConfig";
 import MobileBottomNav from "../components/navigation/MobileBottomNav";
 import MoreNavigationSheet from "../components/navigation/MoreNavigationSheet";
 import SystemHealthStrip from "../components/status/SystemHealthStrip";
@@ -150,6 +150,18 @@ export default function AppShell() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const lastTab = useRef(tab);
+  useEffect(() => {
+    if (lastTab.current === tab) return;
+    lastTab.current = tab;
+    const frame = requestAnimationFrame(() => {
+      // Back may change the page while a global dialog stays open; keep its focus trap.
+      if ([...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].some(el => el.getClientRects().length > 0)) return;
+      document.getElementById("bms-page-heading")?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [tab]);
   const [sheetThem, setSheetThem] = useState(false);   // sheet "Thêm" của bottom-nav mobile
   const [incChiTiet, setIncChiTiet] = useState(null);  // drawer chi tiết sự cố (bảng 7 cột — báo cáo 10)
   // KEEP-ALIVE tab nặng (Xu hướng, Sự cố gần đây): đã mở 1 lần thì GIỮ MOUNTED, chỉ ẩn
@@ -169,6 +181,7 @@ export default function AppShell() {
   const LIVE_MAC_DINH = DEFAULT_DATA_SOURCE === "live";   // LIVE → KHÔNG nhồi dữ liệu demo (tránh "thông tin không khớp")
   const [rooms, setRooms] = useState(LIVE_MAC_DINH ? [] : INITIAL_ROOMS);
   const [incidents, setIncidents] = useState(LIVE_MAC_DINH ? [] : INCIDENTS0);
+  const [evtSearch, setEvtSearch] = useState("");
   const [evtKhu, setEvtKhu] = useState("ALL");   // Sự cố: lọc theo khu (ALL/C1/C4/Q2)
   const [evtAhu, setEvtAhu] = useState("ALL");   // Sự cố: lọc theo AHU trong khu đã chọn
   const [cfg, setCfg] = useState({ warn: 20, action: 4 });   // ngưỡng ĐANG ÁP DỤNG (LIVE đọc từ cau_hinh)
@@ -776,28 +789,28 @@ export default function AppShell() {
   }
 
   return (
-    <div className="min-h-screen lg:flex" style={{ background: PAGE_BG, color: "var(--text-default)", fontFamily: "'Inter','Montserrat',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif" }}>
+    <div className="bms-app min-h-screen lg:flex" style={{ background: PAGE_BG, color: "var(--text-default)" }}>
       {/* Đợt B: skip-link WCAG 2.4.1 — chỉ hiện khi nhận focus bàn phím */}
       <a href="#noi-dung-chinh" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[70] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-body focus:ring-2 focus:ring-[var(--focus)]">Bỏ qua điều hướng, tới nội dung chính</a>
       {/* Phase A (báo cáo 9): sidebar desktop + bottom-nav mobile thay dải 10 tab; bỏ blob trang trí. */}
       <DesktopSidebar tab={tab} setTab={setTab} role={role} badges={{ events: p12Open }} />
-      <div className="relative flex-1 min-w-0 max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-24 lg:pb-6">
-        <header className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="bms-workspace relative flex-1 min-w-0 mx-auto">
+        <header className="bms-header flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
             <div className="lg:hidden rounded-2xl bg-surface px-2 ring-1 ring-line flex items-center justify-center h-[44px] w-[44px] shrink-0" style={cardShadow}><CpcLogo className="h-9 w-9" /></div>
-            <div className="flex flex-col justify-center min-w-0"><h1 className="text-lg sm:text-xl font-semibold tracking-tight leading-tight truncate" style={{ color: "var(--text-strong)" }}>{(NAV_ITEMS.find((t) => t.k === tab) || {}).label || "Giám sát HVAC phòng sạch"}</h1><p className="hidden sm:block text-[12px] font-medium tracking-wide mt-0.5 text-muted">Giám sát HVAC phòng sạch · Phòng Quản lý chất lượng</p></div>
+            <div className="flex flex-col justify-center min-w-0"><p className="bms-page-context"><span>{NAV_GROUPS.find(g => g.items.some(t => t.k === tab))?.label || "BMS"}</span><span aria-hidden="true">/</span><span>Phòng sạch</span></p><h1 id="bms-page-heading" tabIndex={-1} className="bms-page-title text-strong">{(NAV_ITEMS.find((t) => t.k === tab) || {}).label || "Giám sát HVAC phòng sạch"}</h1></div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap justify-end ml-auto">
             <div className="hidden md:block"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} /></div>
             {isLive && <SucKhoeWidget sk={live.sucKhoe} dangTai={live.dangTai} />}
             <button onClick={toggleTheme}
-              className="flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-surface text-muted ring-1 ring-line hover:bg-subtle hover:text-body"
+              className="bms-icon-button"
               title={resolvedTheme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
               aria-label={resolvedTheme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}>
               {resolvedTheme === "dark" ? <Sun className="h-4 w-4" strokeWidth={1.9} /> : <Moon className="h-4 w-4" strokeWidth={1.9} />}
             </button>
-            {user ? <div className="flex items-center gap-2.5 rounded-2xl bg-surface pl-2 pr-2 ring-1 ring-line h-[50px]" style={cardShadow}><div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: "var(--primary-solid)" }}>{user.name[0]}</div><div className="leading-tight"><p className="text-xs font-semibold" style={{ color: "var(--text-default)" }}>{user.name}</p><p className="text-[12px] font-medium" style={{ color: "var(--primary)" }}>{ROLE_VI[user.role] || user.role}</p></div><button onClick={() => setPwOpen(true)} className="ml-1 rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đổi mật khẩu"><KeyRound className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => { setUser(null); if (isLive) authDangXuat(); }} className="rounded-lg p-1.5 hover:bg-subtle text-muted" title="Đăng xuất"><LogOut className="w-4 h-4" strokeWidth={1.8} /></button></div>
-              : <button onClick={() => setLoginOpen(true)} aria-label="Đăng nhập" className="flex items-center gap-2 rounded-2xl px-3 sm:px-4 text-sm font-semibold text-white h-[44px] sm:h-[50px]" style={{ background: "var(--primary-solid)", ...cardShadow }}><LogIn className="w-4 h-4" strokeWidth={1.8} /> <span className="hidden sm:inline">Đăng nhập</span></button>}
+            {user ? <div className="bms-account" style={cardShadow}><div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: "var(--primary-solid)" }}>{user.name[0]}</div><div className="bms-account-name leading-tight"><p className="text-xs font-semibold" style={{ color: "var(--text-default)" }}>{user.name}</p><p className="text-[12px] font-medium" style={{ color: "var(--primary)" }}>{ROLE_VI[user.role] || user.role}</p></div><button onClick={() => setPwOpen(true)} className="bms-icon-button" aria-label="Đổi mật khẩu" title="Đổi mật khẩu"><KeyRound className="w-4 h-4" strokeWidth={1.8} /></button><button onClick={() => { setUser(null); if (isLive) authDangXuat(); }} className="bms-icon-button" aria-label="Đăng xuất" title="Đăng xuất"><LogOut className="w-4 h-4" strokeWidth={1.8} /></button></div>
+              : <button onClick={() => setLoginOpen(true)} aria-label="Đăng nhập" className="flex items-center gap-2 rounded-lg px-3 sm:px-4 text-[13px] font-semibold text-white h-11" style={{ background: "var(--primary-solid)", ...cardShadow }}><LogIn className="w-4 h-4" strokeWidth={1.8} /> <span className="hidden sm:inline">Đăng nhập</span></button>}
           </div>
           <div className="w-full md:hidden -mt-1"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} /></div>
         </header>
@@ -817,9 +830,9 @@ export default function AppShell() {
               Bật lại: đổi HIEN_VIEC_CUA_BAN = true (component + dữ liệu giữ nguyên). */}
           {HIEN_VIEC_CUA_BAN && isLive && user && role && <ViecCuaBan viecCuaToi={viecCuaToi} cumChoToi={cumChoToi} onXuLy={openApproval} onGhiKetLuan={ghiKetLuanCum} />}
           {tab === "home" && (
-            <div className="space-y-5">
+            <div className="bms-home-view space-y-5">
               <StatusAnchor p12Open={p12Open} matNguon={matNguon} isLive={isLive} capNhatLuc={live && live.capNhatLuc} khuChoPhep={khuChoPhep} onXemSuCo={() => setTab("events")} sucKhoe={live.sucKhoe} />
-              {!user && <div className="inline-flex items-center gap-2 text-xs text-warning bg-warning-soft ring-1 ring-warning-line px-3 py-1.5 rounded-xl font-medium"><LogIn className="w-3.5 h-3.5" strokeWidth={1.8} /> Đăng nhập để thao tác theo phân quyền.</div>}
+
               {/* 12/08 — BĂNG MẤT NGUỒN ĐẦU TRANG. Sự cố 09:39 (FMS + n8n cùng câm) cho thấy
                   người trực mở trang ra là thấy ngay các ô KPI đầy số, phải cuộn xuống thẻ
                   chênh áp mới biết nguồn đã chết. Trạng thái nguồn phải nằm TRÊN mọi con số
@@ -835,22 +848,22 @@ export default function AppShell() {
                   </p>
                 </div>
               )}
-              <div className="flex items-center justify-between px-1"><SectionTitle icon={Clock} hint="khung giờ chốt gần nhất · bấm vào từng nhóm để xem danh sách phòng">Cơ cấu phòng theo trạng thái — 1 giờ gần nhất</SectionTitle></div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex items-center justify-between px-1"><SectionTitle icon={Clock} hint="Khung giờ chốt gần nhất">Trạng thái phòng</SectionTitle></div>
+              <div className="bms-kpi-grid">
                 <KpiCard icon={CheckCircle2} label="Phòng đạt" value={matNguon ? "—" : kpis.dat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tỷ lệ đạt ≥ 80% (1h)"} accent={{ txt: "text-success", bg: "bg-success-soft", glow: "bg-success-soft" }} onClick={() => setKpiModal("dat")} loading={kpiLoading} />
                 <KpiCard icon={AlertTriangle} label="Phòng không đạt" value={matNguon ? "—" : kpis.khongDat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tỷ lệ đạt < 80%"} accent={{ txt: "text-danger", bg: "bg-danger-soft", glow: "bg-danger-soft" }} onClick={() => setKpiModal("khong")} loading={kpiLoading} />
                 <KpiCard icon={HelpCircle} label="Thiếu dữ liệu" value={kpis.thieuDL} total={kpis.tong} sub="không coi là đạt" accent={{ txt: "text-warning", bg: "bg-warning-soft", glow: "bg-warning-soft" }} onClick={() => setKpiModal("thieu")} loading={kpiLoading} />
               </div>
               {/* Chú thích cách tính — đặt gọn để màn vận hành ưu tiên kết luận trước. */}
-              <details className="rounded-xl bg-subtle px-3.5 py-2.5 ring-1 ring-line -mt-1">
+              <details className="bms-method">
                 <summary className="cursor-pointer select-none text-[12px] font-semibold text-muted">Cách tính tỉ lệ đạt phòng</summary>
                 <p className="mt-2 text-[13px] text-muted leading-relaxed">
                   Tỉ lệ đạt của phòng = 100% − %thời gian ngoài khoảng (OOS) của <b className="text-muted">cảm biến kém nhất</b> (DP/RH/T) trong <b className="text-muted">khung giờ chốt gần nhất</b>. Chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt, dù các chỉ tiêu khác vẫn đẹp. Phòng <b className="text-muted">đạt</b> khi tỉ lệ đạt ≥ 80% <b className="text-muted">và</b> dữ liệu còn tươi (chốt giờ cách hiện tại ≤ {Math.round(FRESH_MIN / 60)}h); phòng thiếu dữ liệu/dữ liệu quá cũ không được tính là đạt.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-muted">khu {khuChoPhep.join(", ")}</b>.</> : null}
                 </p>
               </details>
               <TheDungHinhTongQuan isLive={isLive} khuChoPhep={khuChoPhep} onXemChiTiet={roleCanSeeTab(role, "sensors") ? () => setTab("sensors") : null} />
-              <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
-                <div><div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-line overflow-hidden text-[12px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={!xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Tất cả</button></div><span className="text-[12px] text-muted">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-muted">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : (() => {
+              <div className="bms-home-columns">
+                <div><div className="bms-room-heading"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-line overflow-hidden text-[12px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={!xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Tất cả</button></div><span className="text-[12px] text-muted">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-muted">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : (() => {
                   // Phase B (báo cáo 9): phòng bất thường = card đủ; phòng đạt = một dòng gọn.
                   const incCua = (r) => incidentsXem.find((i) => i.room === r.id && i.status !== "Đã khắc phục") || null;
                   const batThuong = phongHienThi.filter((r) => laBatThuong(r, cfg, incCua(r)));
@@ -858,7 +871,7 @@ export default function AppShell() {
                   return (<>
                     {batThuong.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{batThuong.map((r) => <RoomSummaryCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incCua(r)} />)}</div>}
                     {batThuong.length === 0 && <Card className="p-5 text-center text-[13px] text-success font-medium">Không có phòng nào bất thường trong nhóm đang xem.</Card>}
-                    {dat.length > 0 && <div className="mt-4"><p className="px-1 mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted">Đang đạt · {dat.length} phòng</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{dat.map((r) => <RoomSummaryCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={null} />)}</div></div>}
+                    {dat.length > 0 && <div className="mt-4"><p className="px-1 mb-2 text-[12px] font-semibold text-muted">Đang đạt · {dat.length} phòng</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{dat.map((r) => <RoomSummaryCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={null} />)}</div></div>}
                   </>);
                 })()}</div>
                 <aside className="space-y-5" aria-label="Cảnh báo hệ thống">
@@ -932,7 +945,8 @@ export default function AppShell() {
             // Cặp khu|AHU (AHU01 có ở cả C1 lẫn C4 nên tên AHU trần là nhập nhằng);
             // đứng ở "Tất cả" vẫn chọn được AHU — chọn phát là áp luôn cả khu.
             const ahuPairs = [...new Set((roomsXem || []).filter((r) => (evtKhu === "ALL" || r.area === evtKhu) && r.ahu).map((r) => `${r.area}|${r.ahu}`))].sort();
-            const incFiltered = incidentsXem.filter((i) => (evtKhu === "ALL" || incKhu(i) === evtKhu) && (evtAhu === "ALL" || incAhu(i) === evtAhu));
+            const searchText = evtSearch.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("vi");
+            const incFiltered = incidentsXem.filter((i) => (evtKhu === "ALL" || incKhu(i) === evtKhu) && (evtAhu === "ALL" || incAhu(i) === evtAhu) && (!searchText || [i.id, i.room, i.sensor, i.status].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("vi").includes(searchText)));
             // Gom theo AHU — khớp cách email của Cơ điện được gom (mỗi AHU một mail),
             // nên đối chiếu web ↔ email không lệch. Thứ tự NHÓM: AHU chứa phòng quan
             // trọng nhất (P1) đang gặp sự cố lên đầu, đồng hạng thì nhiều CRITICAL hơn
@@ -954,7 +968,7 @@ export default function AppShell() {
             // luatSanSang = ĐÃ BIẾT bộ luật (mảng, kể cả rỗng). null = đang tải hoặc lỗi.
             const luatSanSang = Array.isArray(dsNut) && dsNut.length > 0;
             const luatHong = isLive && (dsNut === null || !!live.loiNut);
-            const locChip = (v, label, on, click) => <button key={v} onClick={click} className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${on ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}>{label}</button>;
+            const locChip = (v, label, on, click) => <button key={v} aria-pressed={on} onClick={click} className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${on ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}>{label}</button>;
             // Nút hành động của 1 sự cố — DÙNG CHUNG cho bảng (desktop) và thẻ (mobile)
             // để 2 giao diện không bao giờ lệch luật.
             const tinhNut = (inc) => {
@@ -1000,19 +1014,22 @@ export default function AppShell() {
                   </p>
                 </div>
               )}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Khu vực</span>
+              <div className="bms-filterbar">
+                <label className="bms-search"><span className="bms-field-label">Tìm sự cố</span><span className="bms-search-input"><Search className="h-4 w-4 text-muted shrink-0" aria-hidden="true" /><input type="search" aria-label="Tìm sự cố" placeholder="Mã phiếu, phòng, chỉ tiêu…" value={evtSearch} onChange={e => setEvtSearch(e.target.value)} /></span></label>
+                <div><span className="bms-field-label">Khu vực</span><div className="bms-filter-chips">
                 {locChip("ALL", "Tất cả", evtKhu === "ALL", () => { setEvtKhu("ALL"); setEvtAhu("ALL"); })}
                 {(khuChoPhep || DS_KHU).map((k) => locChip(k, `Khu ${k}`, evtKhu === k, () => { setEvtKhu(k); setEvtAhu("ALL"); }))}
+                </div></div>
                 {ahuPairs.length > 0 && (
                   <select aria-label="Lọc theo AHU" value={evtAhu === "ALL" ? "ALL" : `${evtKhu}|${evtAhu}`} onChange={(e) => { const v = e.target.value; if (v === "ALL") { setEvtAhu("ALL"); } else { const [k, a] = v.split("|"); setEvtKhu(k); setEvtAhu(a); } }} className="rounded-xl bg-surface ring-1 ring-line px-3 py-1.5 text-[12px] text-body outline-none ml-1">
                     <option value="ALL">AHU: tất cả</option>
                     {ahuPairs.map((p) => { const [k, a] = p.split("|"); return <option key={p} value={p}>{evtKhu === "ALL" ? `Khu ${k} · ${a}` : a}</option>; })}
                   </select>
                 )}
-                <span className="text-[12px] text-muted ml-auto tabular-nums">{incFiltered.length}/{incidentsXem.length} sự cố</span>
+                {(evtSearch || evtKhu !== "ALL" || evtAhu !== "ALL") && <button type="button" aria-label="Xóa bộ lọc sự cố" className="min-h-11 text-[12px] font-medium text-info px-2 hover:underline" onClick={() => { setEvtSearch(""); setEvtKhu("ALL"); setEvtAhu("ALL"); }}>Xóa bộ lọc</button>}
+                <span role="status" className="bms-filter-count">{incFiltered.length}/{incidentsXem.length} sự cố</span>
               </div>
-              <Card className="p-2 sm:p-4">{isLive && live.dangTai && incidentsXem.length === 0 ? (
+              <Card className="bms-table-panel">{isLive && live.dangTai && incidentsXem.length === 0 ? (
                 /* ĐANG TẢI + chưa có gì: skeleton — không được hiện "Chưa có sự cố nào"
                    khi thật ra là đang chờ mạng (15/07: gây hiểu lầm hệ trống phiếu). */
                 <div className="p-2 space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-20 rounded-2xl bg-subtle animate-pulse" />)}</div>
@@ -1024,7 +1041,7 @@ export default function AppShell() {
                   {isLive && <p className="mt-3 text-[12px] text-muted max-w-md mx-auto">Nếu bạn chắc chắn đang có cảnh báo mà vẫn trống, kiểm tra: lịch chấm điểm dữ liệu có đang chạy (Cài đặt → Hệ thống) · ngưỡng trong <b>Cài đặt</b> · và bạn đã <b>đăng nhập</b> đúng vai trò để xem.</p>}
                 </div>
               ) : (
-                <div className="px-5 py-8 text-center text-[13px] text-muted">Không có sự cố khớp bộ lọc{evtKhu !== "ALL" ? ` · Khu ${evtKhu}` : ""}{evtAhu !== "ALL" ? ` · ${evtAhu}` : ""}. <button onClick={() => { setEvtKhu("ALL"); setEvtAhu("ALL"); }} className="text-success font-semibold underline">Bỏ lọc</button></div>
+                <div className="px-5 py-8 text-center text-[13px] text-muted">Không có sự cố khớp bộ lọc{evtKhu !== "ALL" ? ` · Khu ${evtKhu}` : ""}{evtAhu !== "ALL" ? ` · ${evtAhu}` : ""}. <button onClick={() => { setEvtSearch(""); setEvtKhu("ALL"); setEvtAhu("ALL"); }} className="text-success font-semibold underline">Bỏ lọc</button></div>
               )) : (<>
               {/* ═══ MOBILE (<md): thẻ dọc — KHÔNG kéo ngang ═══ */}
               <div className="md:hidden space-y-2 p-1">
@@ -1221,9 +1238,9 @@ export default function AppShell() {
                 </div>
               </div>
               {/* Thanh tab con trên cùng — đỡ phải cuộn để chuyển mục */}
-              <div className="flex flex-wrap gap-2 sticky top-0 z-10 bg-surface/80 backdrop-blur rounded-2xl ring-1 ring-line p-1.5">
+              <div className="bms-subnav sticky top-0 z-10">
                 {subTabs.map((s) => { const Ic = s.icon; const on = auditTab === s.k; return (
-                  <button key={s.k} onClick={() => setAuditTab(s.k)} className={`flex-1 min-w-[140px] flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-medium transition ${on ? "text-white shadow-sm" : "text-body hover:bg-subtle"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}><Ic className="w-4 h-4" strokeWidth={1.8} /> {s.label}</button>
+                  <button key={s.k} aria-pressed={on} onClick={() => setAuditTab(s.k)} className="flex items-center justify-center gap-1.5 text-[13px] font-medium text-body hover:bg-subtle"><Ic className="w-4 h-4" strokeWidth={1.8} /> {s.label}</button>
                 ); })}
               </div>
 
@@ -1320,9 +1337,9 @@ export default function AppShell() {
             return (
             <div className="space-y-5">
               <SectionTitle icon={Cog}>Cài đặt</SectionTitle>
-              <div className="flex flex-wrap gap-2 sticky top-0 z-10 bg-surface/80 backdrop-blur rounded-2xl ring-1 ring-line p-1.5">
+              <div className="bms-subnav sticky top-0 z-10">
                 {cfgSubTabs.map((s) => { const Ic = s.icon; const on = cfgTab === s.k; return (
-                  <button key={s.k} onClick={() => setCfgTab(s.k)} className={`flex-1 min-w-[150px] flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-medium transition ${on ? "text-white shadow-sm" : "text-body hover:bg-subtle"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}><Ic className="w-4 h-4" strokeWidth={1.8} /> {s.label}</button>
+                  <button key={s.k} aria-pressed={on} onClick={() => setCfgTab(s.k)} className="flex items-center justify-center gap-1.5 text-[13px] font-medium text-body hover:bg-subtle"><Ic className="w-4 h-4" strokeWidth={1.8} /> {s.label}</button>
                 ); })}
               </div>
 
@@ -1474,7 +1491,7 @@ export default function AppShell() {
           })()}
         </main>
 
-        <footer className="mt-8 text-center text-[12px] text-muted tracking-wide leading-relaxed"><span className="font-semibold" style={{ color: "var(--text-default)" }}>Giám sát HVAC phòng sạch</span> · Phòng Quản lý chất lượng</footer>
+        <footer className="bms-footer"><span className="font-semibold" style={{ color: "var(--text-default)" }}>Giám sát HVAC phòng sạch</span> · Phòng Quản lý chất lượng</footer>
       </div>
 
       {modal && <ApprovalModal incident={modal.inc} action={modal.action} user={user} onClose={() => setModal(null)} onCommit={handleCommit} />}

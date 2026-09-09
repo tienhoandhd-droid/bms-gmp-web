@@ -187,25 +187,35 @@ const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
 
 
 function ApprovalModal({ incident, action, user, onClose, onCommit }) {
-  const [reason, setReason] = useState(""); const valid = reason.trim().length >= 6 && action && user;
+  const [reason, setReason] = useState("");
+  const [dangChay, setDangChay] = useState(false);
+  const dangChayRef = useRef(false);
+  const valid = reason.trim().length >= 6 && action && user;
   const hopRef = useRef(null);
   const idTieuDe = useId();
   const idLyDo = useId();
   // Giữ onClose ổn định: cha truyền arrow mới mỗi lần render, nếu đưa thẳng vào hook thì hook chạy lại và giật focus.
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
-  const dong = useCallback(() => { if (onCloseRef.current) onCloseRef.current(); }, []);
-  useHopThoai(hopRef, dong);
+  const dong = useCallback(() => { if (!dangChayRef.current && onCloseRef.current) onCloseRef.current(); }, []);
+  const xacNhan = async () => {
+    if (!valid || dangChayRef.current) return;
+    dangChayRef.current = true;
+    setDangChay(true);
+    try { await onCommit(incident, action, reason); }
+    finally { dangChayRef.current = false; setDangChay(false); }
+  };
+  useHopThoai(hopRef, dong, dangChay);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onClick={onClose}>
-      <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-lg rounded-3xl bg-surface ring-1 ring-line overflow-hidden outline-none" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 pt-6 pb-4 flex items-start justify-between" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center gap-3"><div className="rounded-2xl bg-surface p-2.5 ring-1 ring-success-line shadow-sm"><ShieldCheck className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 id={idTieuDe} className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>{action ? action.label : "Xem sự cố"}</h2><p className="text-[12px] text-muted">Ghi nhận bằng tài khoản đăng nhập · ALCOA+</p></div></div><button type="button" onClick={onClose} aria-label="Đóng hộp thoại" className="rounded-full p-1.5 hover:bg-subtle text-muted min-w-[28px] min-h-[28px] flex items-center justify-center"><X className="w-4 h-4" strokeWidth={1.8} /></button></div>
-        <div className="px-6 py-5 space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onMouseDown={(e) => { if (e.target === e.currentTarget) dong(); }}>
+      <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-lg max-h-[calc(100dvh-2rem)] flex flex-col bg-surface ring-1 ring-line overflow-hidden outline-none" style={{ borderRadius: "var(--radius-overlay)", boxShadow: "var(--shadow-dialog)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 pt-4 pb-3 shrink-0 flex items-start justify-between gap-3" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center gap-3"><div className="shrink-0"><ShieldCheck className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 id={idTieuDe} className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>{action ? action.label : "Xem sự cố"}</h2><p className="text-[12px] text-muted">Ghi nhận bằng tài khoản đăng nhập · ALCOA+</p></div></div><button type="button" onClick={dong} disabled={dangChay} aria-label="Đóng hộp thoại" className="rounded-full p-1.5 hover:bg-subtle text-muted min-w-11 min-h-11 disabled:opacity-40 flex items-center justify-center"><X className="w-4 h-4" strokeWidth={1.8} /></button></div>
+        <div className="px-5 py-4 space-y-4 min-h-0 overflow-y-auto overscroll-contain">
           <div className="grid grid-cols-3 gap-3 text-xs">{[["Mã sự cố", incident.id], ["Phòng", incident.room], ["Chỉ tiêu", incident.sensor]].map(([k, v]) => <div key={k}><p className="text-muted text-[12px] uppercase tracking-wider font-semibold">{k}</p><p className="mt-1 font-semibold" style={{ color: "var(--text-strong)" }}>{v}</p></div>)}</div>
-          <div className="rounded-2xl bg-success-soft ring-1 ring-success-line px-4 py-3 flex items-center gap-2 text-[13px]"><User className="w-4 h-4 text-success" strokeWidth={1.8} /><span className="text-body">Người thực hiện:</span> <span className="font-semibold" style={{ color: "var(--text-strong)" }}>{user ? `${user.name} (${user.role})` : "chưa đăng nhập"}</span></div>
-          <div className="rounded-2xl bg-subtle ring-1 ring-line/70 p-4"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" strokeWidth={1.8} /> Nhật ký truy vết</p><div className="space-y-2 max-h-32 overflow-y-auto pr-1">{incident.trail.map((e, i) => <div key={`${e.t}-${i}`} className="flex gap-3 text-xs"><span className="text-muted tabular-nums shrink-0">{e.t}</span><span className="text-muted">·</span><span className="text-body"><span className="font-semibold">{e.who}</span> — {e.act}</span></div>)}</div></div>
+          <div className="border-y border-line py-3 flex flex-wrap items-center gap-2 text-[13px]"><User className="w-4 h-4 text-success" strokeWidth={1.8} /><span className="text-body">Người thực hiện:</span> <span className="font-semibold" style={{ color: "var(--text-strong)" }}>{user ? `${user.name} (${user.role})` : "chưa đăng nhập"}</span></div>
+          <div className="rounded-lg bg-subtle p-3"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" strokeWidth={1.8} /> Nhật ký truy vết</p><div className="space-y-2 max-h-32 overflow-y-auto pr-1">{incident.trail.map((e, i) => <div key={`${e.t}-${i}`} className="flex gap-3 text-xs"><span className="text-muted tabular-nums shrink-0">{e.t}</span><span className="text-muted">·</span><span className="text-body"><span className="font-semibold">{e.who}</span> — {e.act}</span></div>)}</div></div>
           <div><label htmlFor={idLyDo} className="text-[12px] font-semibold text-body mb-2 block">Lý do / kết quả <span className="text-danger">*</span></label><textarea id={idLyDo} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ghi rõ lý do/kết quả (tối thiểu 6 ký tự)…" className="w-full rounded-2xl bg-subtle px-4 py-3 text-sm text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line resize-none placeholder:text-muted" /></div>
         </div>
-        <div className="px-6 py-4 bg-subtle flex items-center justify-between gap-3"><span className="text-[12px] text-muted">{action ? <>Trạng thái tiếp → <span className="font-semibold text-body">{action.next}</span></> : <span className="text-muted">Bạn không có quyền thao tác bước này</span>}</span><div className="flex gap-2"><button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-body hover:bg-subtle">{action ? "Hủy" : "Đóng"}</button>{action && <button disabled={!valid} onClick={() => onCommit(incident, action, reason)} className="px-5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 text-white disabled:bg-subtle disabled:text-muted" style={valid ? { backgroundColor: "var(--danger-solid)" } : {}}><Check className="w-4 h-4" strokeWidth={2} /> Xác nhận & lưu</button>}</div></div>
+        <div className="px-5 py-3 shrink-0 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3"><span className="text-[12px] text-muted">{action ? <>Trạng thái tiếp → <span className="font-semibold text-body">{action.next}</span></> : <span className="text-muted">Bạn không có quyền thao tác bước này</span>}</span><div className="flex justify-end gap-2"><button onClick={dong} disabled={dangChay} className="px-4 py-2 rounded-xl min-h-11 text-sm text-body hover:bg-subtle disabled:opacity-40">{action ? "Hủy" : "Đóng"}</button>{action && <button disabled={!valid || dangChay} onClick={xacNhan} className="px-4 py-2 rounded-lg min-h-11 whitespace-nowrap text-sm font-semibold flex items-center gap-1.5 text-white disabled:bg-subtle disabled:text-muted" style={valid && !dangChay ? { backgroundColor: "var(--danger-solid)" } : {}}><Check className="w-4 h-4" strokeWidth={2} /> {dangChay ? "Đang lưu…" : "Xác nhận & lưu"}</button>}</div></div>
       </div>
     </div>
   );

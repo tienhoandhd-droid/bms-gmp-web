@@ -56,10 +56,18 @@ function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
   const idNguyenNhan = useId(); const idKhacPhuc = useId(); const idPhongNgua = useId(); const idKetLuan = useId();
   // Giữ onDong ổn định: cha truyền arrow mới mỗi lần render, nếu đưa thẳng vào hook thì hook chạy lại và giật focus.
   const onDongRef = useRef(onDong); onDongRef.current = onDong;
-  const dong = useCallback(() => { if (onDongRef.current) onDongRef.current(); }, []);
+  const dangChayRef = useRef(dangChay); dangChayRef.current = dangChay;
+  const dangLuuRef = useRef(false);
+  const dong = useCallback(() => { if (!dangChayRef.current && !dangLuuRef.current && onDongRef.current) onDongRef.current(); }, []);
+  const luu = async () => {
+    if (thieu || dangChayRef.current || dangLuuRef.current) return;
+    dangLuuRef.current = true;
+    try { await onLuu({ nguyenNhan, khacPhuc, phongNgua, ketLuan }); }
+    finally { dangLuuRef.current = false; }
+  };
   useHopThoai(hopRef, dong, dangChay);
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onDong}>
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) dong(); }}>
       <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-surface shadow-2xl p-6 outline-none" onClick={(e) => e.stopPropagation()}>
         <h3 id={idTieuDe} className="text-[15px] font-semibold" style={{ color: "var(--text-strong)" }}>Kết luận điều tra · {cum.ma_hien_thi}</h3>
         <p className="mt-1 text-[12px] text-muted leading-relaxed">{cum.ahu || "—"} · {cum.loai_cam_bien} · {cum.su_co_dang_mo} sự cố đang mở. Kết luận ghi vào cụm và <b>một dòng audit cho từng sự cố</b> thuộc cụm — không hồ sơ nào mất dấu vết.</p>
@@ -72,9 +80,9 @@ function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
         <label htmlFor={idKetLuan} className="block mt-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Kết luận QA về ảnh hưởng chất lượng</label>
         <textarea id={idKetLuan} className={O_TEXTAREA} rows={2} value={ketLuan} onChange={(e) => setKetLuan(e.target.value)} placeholder="Có/không ảnh hưởng lô sản xuất, căn cứ… (bỏ trống được)" />
         <div className="mt-5 flex items-center justify-end gap-2">
-          <button onClick={onDong} className="rounded-xl bg-surface px-4 py-2 text-[13px] font-medium text-body ring-1 ring-line hover:bg-subtle">Huỷ</button>
-          <button disabled={thieu || dangChay} onClick={() => onLuu({ nguyenNhan, khacPhuc, phongNgua, ketLuan })}
-            className="rounded-xl px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40" style={{ background: "var(--primary-solid)" }}>{dangChay ? "Đang lưu…" : "Lưu kết luận"}</button>
+          <button onClick={dong} disabled={dangChay} className="rounded-xl bg-surface px-4 py-2 min-h-11 text-[13px] font-medium text-body ring-1 ring-line hover:bg-subtle disabled:opacity-40">Huỷ</button>
+          <button disabled={thieu || dangChay} onClick={luu}
+            className="rounded-xl px-4 py-2 min-h-11 text-[13px] font-semibold text-white disabled:opacity-40" style={{ background: "var(--primary-solid)" }}>{dangChay ? "Đang lưu…" : "Lưu kết luận"}</button>
         </div>
         {thieu && <p className="mt-2 text-right text-[12px] text-muted">Nguyên nhân gốc và khắc phục cần ≥ 10 ký tự.</p>}
       </div>

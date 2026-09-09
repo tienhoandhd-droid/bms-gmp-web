@@ -24,6 +24,11 @@ import { supabase } from "../lib/bmsClient";
 const MAN = ["TONG_QUAN", "SU_CO", "CUM"];
 const GIAY_MOI_MAN = 15;
 const CU_MS = 150 * 1000;   // >2,5 phút không làm mới được (poll 60s) → coi là dữ liệu cũ
+const TV = {
+  nen: { OK: "var(--bg-canvas)", CU: "var(--warning-soft)", LOI: "var(--danger-soft)", DANG_TAI: "var(--bg-canvas)", KIEM_PHIEN: "var(--bg-canvas)", CAN_DANG_NHAP: "var(--bg-canvas)" },
+  text: "var(--text-default)", muted: "var(--text-muted)", strong: "var(--text-strong)", line: "var(--border)",
+  primary: "var(--primary)", success: "var(--success)", warning: "var(--warning)", danger: "var(--danger)", subtle: "var(--bg-subtle)",
+};
 
 export default function TVMode() {
   const [phien, setPhien] = useState(undefined);   // undefined = đang kiểm · null = chưa đăng nhập
@@ -64,104 +69,109 @@ export default function TVMode() {
   const dungHinh = incidents.filter((i) => i.mucCanhBao === "SUPPRESSED");
   const cum = Array.isArray(live.cumSuCo) ? live.cumSuCo : [];
   const kpis = live.kpis || { dat: 0, khongDat: 0, thieuDL: 0, tong: 0 };
+  const moToanManHinh = () => {
+    const root = document.documentElement;
+    const ketQua = document.fullscreenElement ? document.exitFullscreen?.() : root.requestFullscreen?.();
+    ketQua?.catch?.(() => {});
+  };
 
   const So = ({ nhan, giaTri, mau }) => (
     <div style={{ flex: 1, textAlign: "center" }}>
-      <div style={{ fontSize: "9vw", fontWeight: 800, lineHeight: 1, color: mau, fontVariantNumeric: "tabular-nums" }}>{giaTri}</div>
-      <div style={{ fontSize: "1.6vw", color: "#94a3b8", marginTop: 8, textTransform: "uppercase", letterSpacing: "0.1em" }}>{nhan}</div>
+      <div style={{ fontSize: "clamp(2.25rem, 9vw, 9rem)", fontWeight: 800, lineHeight: 1, color: mau, fontVariantNumeric: "tabular-nums" }}>{giaTri}</div>
+      <div style={{ fontSize: "clamp(0.875rem, 1.6vw, 1.5rem)", color: TV.muted, marginTop: 8, textTransform: "uppercase", letterSpacing: "0.1em" }}>{nhan}</div>
     </div>
   );
 
   const khungManHinh = (tieuDe, mauTieuDe, thanNoiDung) => (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <h1 style={{ fontSize: "2.2vw", margin: 0, color: mauTieuDe, textTransform: "uppercase", letterSpacing: "0.08em" }}>{tieuDe}</h1>
-      <div style={{ flex: 1, marginTop: "1.5vw", overflow: "hidden" }}>{thanNoiDung}</div>
+      <h1 style={{ fontSize: "clamp(1.25rem, 2.2vw, 2.5rem)", margin: 0, color: mauTieuDe, textTransform: "uppercase", letterSpacing: "0.08em" }}>{tieuDe}</h1>
+      <div style={{ flex: 1, marginTop: "clamp(0.75rem, 1.5vw, 1.5rem)", minHeight: 0 }}>{thanNoiDung}</div>
     </div>
   );
 
   // Màn hình toàn khung cho các trạng thái KHÔNG xác minh được (không có dashboard xanh).
   const manToanKhung = (tieuDe, phu, mauChu) => (
     <div style={{ textAlign: "center", paddingTop: "16vh" }}>
-      <p style={{ fontSize: "3vw", fontWeight: 800, color: mauChu, textTransform: "uppercase", letterSpacing: "0.06em" }}>{tieuDe}</p>
-      {phu && <p style={{ fontSize: "1.7vw", color: "#cbd5e1", marginTop: 16, maxWidth: "70vw", marginLeft: "auto", marginRight: "auto" }}>{phu}</p>}
+      <p style={{ fontSize: "clamp(1.5rem, 3vw, 3.5rem)", fontWeight: 800, color: mauChu, textTransform: "uppercase", letterSpacing: "0.06em" }}>{tieuDe}</p>
+      {phu && <p style={{ fontSize: "clamp(1rem, 1.7vw, 1.75rem)", color: TV.text, marginTop: 16, maxWidth: "70vw", marginLeft: "auto", marginRight: "auto" }}>{phu}</p>}
     </div>
   );
 
   // Nền + băng cảnh báo theo trạng thái
-  const NEN = { OK: "#0b1220", CU: "#2a1e05", LOI: "#2a0b0b", DANG_TAI: "#0f1522", KIEM_PHIEN: "#0f1522", CAN_DANG_NHAP: "#0f1522" };
-  const nen = NEN[trangThai] || "#0b1220";
+  const nen = TV.nen[trangThai] || TV.nen.OK;
 
   let noiDung;
   if (trangThai === "KIEM_PHIEN") {
-    noiDung = manToanKhung("Đang xác minh phiên…", "Vui lòng đợi trong giây lát.", "#94a3b8");
+    noiDung = manToanKhung("Đang xác minh phiên…", "Vui lòng đợi trong giây lát.", TV.muted);
   } else if (trangThai === "CAN_DANG_NHAP") {
-    noiDung = manToanKhung("Chưa đăng nhập trên trình duyệt này", <>Mở chế độ thường (bỏ <code>?tv=1</code>), đăng nhập bằng tài khoản trực (nên dùng vai trò VIEWER), rồi quay lại đây.</>, "#e2e8f0");
+    noiDung = manToanKhung("Chưa đăng nhập trên trình duyệt này", <>Mở chế độ thường (bỏ <code>?tv=1</code>), đăng nhập bằng tài khoản trực (nên dùng vai trò VIEWER), rồi quay lại đây.</>, TV.strong);
   } else if (trangThai === "LOI") {
-    noiDung = manToanKhung("⚠ LỖI TẢI DỮ LIỆU — KHÔNG XÁC MINH ĐƯỢC", `Màn hình này KHÔNG phản ánh tình trạng phòng sạch lúc này. Kiểm tra mạng/máy chủ. ${String(live.loi?.message || live.loi || "").slice(0, 160)}`, "#f87171");
+    noiDung = manToanKhung("⚠ LỖI TẢI DỮ LIỆU — KHÔNG XÁC MINH ĐƯỢC", `Màn hình này KHÔNG phản ánh tình trạng phòng sạch lúc này. Kiểm tra mạng/máy chủ. ${String(live.loi?.message || live.loi || "").slice(0, 160)}`, TV.danger);
   } else if (trangThai === "DANG_TAI") {
-    noiDung = manToanKhung("Đang tải dữ liệu giám sát…", "Chưa hiển thị số liệu cho tới khi xác minh xong (không suy ra 'bình thường' khi chưa có dữ liệu).", "#94a3b8");
+    noiDung = manToanKhung("Đang tải dữ liệu giám sát…", "Chưa hiển thị số liệu cho tới khi xác minh xong (không suy ra 'bình thường' khi chưa có dữ liệu).", TV.muted);
   } else if (MAN[man] === "TONG_QUAN") {
-    noiDung = khungManHinh("Tổng quan phòng sạch", "#5eead4", (
-      <div style={{ display: "flex", alignItems: "center", height: "100%", gap: "2vw" }}>
-        <So nhan="Phòng đạt" giaTri={kpis.dat} mau="#34d399" />
-        <So nhan="Không đạt" giaTri={kpis.khongDat} mau={kpis.khongDat > 0 ? "#f87171" : "#34d399"} />
-        <So nhan="Thiếu dữ liệu" giaTri={kpis.thieuDL} mau={kpis.thieuDL > 0 ? "#fbbf24" : "#34d399"} />
-        <So nhan="Sự cố CRITICAL" giaTri={critical.length} mau={critical.length > 0 ? "#f87171" : "#34d399"} />
+    noiDung = khungManHinh("Tổng quan phòng sạch", TV.primary, (
+      <div style={{ display: "flex", alignItems: "center", height: "100%", gap: "clamp(0.75rem, 2vw, 2rem)", flexWrap: "wrap" }}>
+        <So nhan="Phòng đạt" giaTri={kpis.dat} mau={TV.success} />
+        <So nhan="Không đạt" giaTri={kpis.khongDat} mau={kpis.khongDat > 0 ? TV.danger : TV.success} />
+        <So nhan="Thiếu dữ liệu" giaTri={kpis.thieuDL} mau={kpis.thieuDL > 0 ? TV.warning : TV.success} />
+        <So nhan="Sự cố CRITICAL" giaTri={critical.length} mau={critical.length > 0 ? TV.danger : TV.success} />
       </div>
     ));
   } else if (MAN[man] === "SU_CO") {
     const ds = critical.slice(0, 9);
-    noiDung = khungManHinh(`Sự cố cần xử lý · ${critical.length}${dungHinh.length ? ` (+${dungHinh.length} cảm biến đứng tín hiệu)` : ""}`, "#f87171", (
+    noiDung = khungManHinh(`Sự cố cần xử lý · ${critical.length}${dungHinh.length ? ` (+${dungHinh.length} cảm biến đứng tín hiệu)` : ""}`, TV.danger, (
       ds.length === 0
-        ? <p style={{ fontSize: "3vw", color: "#34d399", textAlign: "center", paddingTop: "12vh" }}>✓ Không có sự cố CRITICAL</p>
-        : <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "1.7vw" }}>
+        ? <p style={{ fontSize: "clamp(1rem, 3vw, 3rem)", color: TV.success, textAlign: "center", paddingTop: "12vh" }}>✓ Không có sự cố CRITICAL</p>
+        : <div role="region" tabIndex={0} aria-label="Danh sách sự cố cần xử lý" style={{ overflowX: "auto" }}><table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", fontSize: "clamp(1rem, 1.7vw, 1.75rem)" }}>
             <tbody>{ds.map((i) => (
-                <tr key={i.id} style={{ borderBottom: "1px solid #1e293b" }}>
-                  <td style={{ padding: "0.8vw 0.5vw", color: "#e2e8f0", fontWeight: 700, whiteSpace: "nowrap" }}>{i.id}</td>
-                  <td style={{ padding: "0.8vw 0.5vw", color: "#cbd5e1" }}>{i.room} · {i.sensor}</td>
-                  <td style={{ padding: "0.8vw 0.5vw", color: "#94a3b8" }}>{i.status}</td>
-                  <td style={{ padding: "0.8vw 0.5vw", color: "#94a3b8", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                <tr key={i.id} style={{ borderBottom: `1px solid ${TV.line}` }}>
+                  <td style={{ padding: "0.8vw 0.5vw", color: TV.strong, fontWeight: 700, whiteSpace: "nowrap" }}>{i.id}</td>
+                  <td style={{ padding: "0.8vw 0.5vw", color: TV.text }}>{i.room} · {i.sensor}</td>
+                  <td style={{ padding: "0.8vw 0.5vw", color: TV.muted }}>{i.status}</td>
+                  <td style={{ padding: "0.8vw 0.5vw", color: TV.muted, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
                     {i.duration} giờ</td>
                 </tr>
             ))}</tbody>
-          </table>
+          </table></div>
     ));
   } else {
     const ds = cum.slice(0, 8);
-    noiDung = khungManHinh(`Cụm điều tra · ${cum.length}`, "#fbbf24", (
+    noiDung = khungManHinh(`Cụm điều tra · ${cum.length}`, TV.warning, (
       ds.length === 0
-        ? <p style={{ fontSize: "3vw", color: "#34d399", textAlign: "center", paddingTop: "12vh" }}>✓ Không có cụm nào đang mở</p>
-        : <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "1.7vw" }}>
+        ? <p style={{ fontSize: "clamp(1rem, 3vw, 3rem)", color: TV.success, textAlign: "center", paddingTop: "12vh" }}>✓ Không có cụm nào đang mở</p>
+        : <div role="region" tabIndex={0} aria-label="Danh sách cụm điều tra" style={{ overflowX: "auto" }}><table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", fontSize: "clamp(1rem, 1.7vw, 1.75rem)" }}>
             <tbody>{ds.map((c) => (
-              <tr key={c.ma_cum} style={{ borderBottom: "1px solid #1e293b" }}>
-                <td style={{ padding: "0.8vw 0.5vw", color: "#e2e8f0", fontWeight: 700, whiteSpace: "nowrap" }}>{c.ma_hien_thi}</td>
-                <td style={{ padding: "0.8vw 0.5vw", color: "#cbd5e1", whiteSpace: "nowrap" }}>{c.ahu || "?"} · {c.loai_cam_bien}</td>
-                <td style={{ padding: "0.8vw 0.5vw", color: (c.chan_doan || "").startsWith("HVAC") ? "#f87171" : "#94a3b8" }}>{c.chan_doan}</td>
-                <td style={{ padding: "0.8vw 0.5vw", color: c.da_co_ket_luan_qa ? "#34d399" : "#fbbf24", whiteSpace: "nowrap" }}>
+              <tr key={c.ma_cum} style={{ borderBottom: `1px solid ${TV.line}` }}>
+                <td style={{ padding: "0.8vw 0.5vw", color: TV.strong, fontWeight: 700, whiteSpace: "nowrap" }}>{c.ma_hien_thi}</td>
+                <td style={{ padding: "0.8vw 0.5vw", color: TV.text, whiteSpace: "nowrap" }}>{c.ahu || "?"} · {c.loai_cam_bien}</td>
+                <td style={{ padding: "0.8vw 0.5vw", color: (c.chan_doan || "").startsWith("HVAC") ? TV.danger : TV.muted }}>{c.chan_doan}</td>
+                <td style={{ padding: "0.8vw 0.5vw", color: c.da_co_ket_luan_qa ? TV.success : TV.warning, whiteSpace: "nowrap" }}>
                   {c.da_co_ket_luan_qa ? "đã kết luận" : "chưa kết luận"}</td>
               </tr>
             ))}</tbody>
-          </table>
+          </table></div>
     ));
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: nen, color: "#e2e8f0", padding: "2.5vw", fontFamily: "Inter,'Segoe UI',Arial,sans-serif", display: "flex", flexDirection: "column" }}
-         onDoubleClick={() => document.documentElement.requestFullscreen?.()}>
+    <div style={{ position: "fixed", inset: 0, background: nen, color: TV.text, padding: "clamp(1rem, 2.5vw, 3rem)", fontFamily: "Inter,'Segoe UI',Arial,sans-serif", display: "flex", flexDirection: "column" }}
+         onDoubleClick={moToanManHinh}>
       {/* Băng cảnh báo DỮ LIỆU CŨ — chỉ khi vẫn vẽ dashboard nhưng đã lâu không làm mới */}
       {trangThai === "CU" && (
-        <div style={{ background: "#b45309", color: "#fff", fontSize: "1.6vw", fontWeight: 700, textAlign: "center", padding: "0.8vw", borderRadius: "0.6vw", marginBottom: "1vw" }}>
+        <div style={{ background: TV.warning, color: "var(--text-inverse)", fontSize: "clamp(0.875rem, 1.6vw, 1.5rem)", fontWeight: 700, textAlign: "center", padding: "clamp(0.5rem, 0.8vw, 0.75rem)", borderRadius: 8, marginBottom: "clamp(0.5rem, 1vw, 1rem)" }}>
           ⚠ DỮ LIỆU CŨ — chưa cập nhật được {tuoiPhut} phút. Số liệu bên dưới có thể không phản ánh hiện trạng.
         </div>
       )}
       <div style={{ flex: 1, minHeight: 0 }}>{noiDung}</div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "1.3vw", color: "#94a3b8" /* đợt D: tương phản ≥ 4,5:1 trên nền tối */, borderTop: "1px solid #1e293b", paddingTop: "1vw" }}>
-        <span>BMS · HVAC phòng sạch — CPC1 Hà Nội <span style={{ color: "#94a3b8" }}>· nháy đúp để toàn màn hình</span></span>
-        <span style={{ display: "flex", gap: "1.5vw", alignItems: "center" }}>
-          {veDashboard && MAN.map((m, i) => <span key={m} style={{ width: "0.7vw", height: "0.7vw", borderRadius: "50%", background: i === man ? "#5eead4" : "#334155", display: "inline-block" }} />)}
-          <span style={{ fontVariantNumeric: "tabular-nums", color: trangThai === "CU" ? "#fbbf24" : "#94a3b8" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem", fontSize: "clamp(0.875rem, 1.3vw, 1.25rem)", color: TV.muted, borderTop: `1px solid ${TV.line}`, paddingTop: "clamp(0.5rem, 1vw, 1rem)" }}>
+        <span>BMS · HVAC phòng sạch — CPC1 Hà Nội</span>
+        <span style={{ display: "flex", gap: "clamp(0.75rem, 1.5vw, 1.5rem)", alignItems: "center", flexWrap: "wrap" }}>
+          {veDashboard && MAN.map((m, i) => <span key={m} aria-hidden="true" style={{ width: 10, height: 10, borderRadius: "50%", background: i === man ? TV.primary : TV.subtle, display: "inline-block" }} />)}
+          <span style={{ fontVariantNumeric: "tabular-nums", color: trangThai === "CU" ? TV.warning : TV.muted }}>
             {live.capNhatLuc ? `dữ liệu ${live.capNhatLuc.toLocaleTimeString("vi-VN")}${tuoiPhut != null && tuoiPhut >= 1 ? ` · ${tuoiPhut} phút trước` : ""}` : "chưa có dữ liệu"} · {gio.toLocaleTimeString("vi-VN")}
           </span>
+          <button type="button" onClick={moToanManHinh} aria-label="Bật hoặc tắt toàn màn hình" title="Bật hoặc tắt toàn màn hình" style={{ minWidth: 44, minHeight: 44, borderRadius: 8, border: `1px solid ${TV.line}`, background: TV.subtle, color: TV.text, padding: "0 0.75rem", font: "inherit", cursor: "pointer" }}>Toàn màn hình</button>
         </span>
       </div>
     </div>

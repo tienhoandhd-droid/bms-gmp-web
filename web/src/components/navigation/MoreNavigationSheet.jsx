@@ -9,13 +9,13 @@ export default function MoreNavigationSheet({ open, onClose, tab, setTab, role }
   const items = NAV_ITEMS.filter((it) => !BOTTOM_NAV_KEYS.includes(it.k) && roleCanSeeTab(role, it.k));
   return (
     <InspectorDrawer onClose={onClose} title="Thêm" eyebrow="Điều hướng">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="flex flex-col gap-1">
         {items.map((it) => {
           const Icon = it.icon;
           const active = tab === it.k;
           return (
-            <button key={it.k} onClick={() => { setTab(it.k); onClose(); }}
-              className={`flex items-center gap-2.5 rounded-2xl px-3.5 py-3 text-[13px] font-medium ring-1 ${active ? "bg-primarytk-soft ring-success-line" : "ring-line hover:bg-subtle text-body"}`}
+            <button key={it.k} aria-current={active ? "page" : undefined} onClick={() => { setTab(it.k); onClose(); }}
+              className={`flex items-center gap-2.5 rounded-lg px-3.5 py-3 min-h-11 text-[13px] font-medium ring-1 ${active ? "bg-primarytk-soft ring-success-line" : "ring-line hover:bg-subtle text-body"}`}
               style={active ? { color: "var(--text-strong)" } : {}}>
               <Icon className="w-4 h-4" strokeWidth={1.8} style={active ? { color: "var(--primary)" } : {}} /> {it.label}
             </button>

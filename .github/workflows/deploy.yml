@@ -39,6 +39,9 @@ jobs:
       # Đợt D 04/09/2026: ESLint (no-undef, luật hook) chặn deploy — trước đây chỉ chạy tay.
       - name: ESLint
         run: npm run lint
+      # Component runtime tests also need Chromium in a fresh CI runner.
+      - name: Install Chromium for browser tests
+        run: npx puppeteer browsers install chrome
       - name: Unit tests
         run: npm run test:unit
       # GMP: KHÔNG deploy production ở chế độ demo. Thiếu secret Supabase ⇒ FAIL, không
@@ -64,7 +67,6 @@ jobs:
       # và (đợt B 04/09/2026) axe-core WCAG 2.2 AA: 0 vi phạm critical/serious/moderate.
       - name: Bộ kiểm UX/UI runtime (test:ui)
         run: |
-          npx puppeteer browsers install chrome
           npm run test:ui
       # Đợt E 04/09/2026: kiểm đầu-cuối luồng người dùng ở chế độ demo (bấm tab, modal + Esc, lọc, theme,
       # bottom-nav, skip-link, trang phụ). Luồng sau đăng nhập cần tài khoản test — chưa có trong CI.

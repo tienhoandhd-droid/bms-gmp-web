@@ -1,8 +1,9 @@
 // EmailParts.jsx — hướng dẫn nút email + modal phiếu email (tách 17/08/2026: AppShell dùng, không kéo cả ReportsPage vào bundle đầu).
-import React, { useId, useState } from "react";
+import React, { useCallback, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Mail } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
+import { useHopThoai } from "../../components/ui/HopThoai";
 import { COLOR } from "../../lib/designTokens";
 // ═══ HƯỚNG DẪN VẬN HÀNH CẢNH BÁO (v16 — tab Nhiệm vụ, cho mọi người đọc) ═══
 // Email chỉ thông báo; mọi thao tác được ghi nhận và xác thực trên web theo bảng luật hiện hành.
@@ -35,20 +36,26 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
   const [lyDo, setLyDo] = useState("");
   const [dangChay, setDangChay] = useState(false);
   const [ketQua, setKetQua] = useState(null);
+  const hopRef = useRef(null);
+  const dangChayRef = useRef(false);
+  const onDongRef = useRef(onDong); onDongRef.current = onDong;
+  const dong = useCallback(() => { if (!dangChayRef.current && onDongRef.current) onDongRef.current(); }, []);
   const idLyDo = useId();
+  useHopThoai(hopRef, dong, dangChay);
   if (!trangThai) return null;
   const ve = trangThai.ve;
   const canNote = !!ve?.bat_buoc_ly_do;
   const thieuNote = canNote && !lyDo.trim();
   const xacNhan = async () => {
-    if (thieuNote || dangChay) return;
+    if (thieuNote || dangChayRef.current) return;
+    dangChayRef.current = true;
     setDangChay(true);
-    setKetQua(await onChay(lyDo.trim() || null));
-    setDangChay(false);
+    try { setKetQua(await onChay(lyDo.trim() || null)); }
+    finally { dangChayRef.current = false; setDangChay(false); }
   };
   const Khung = ({ children }) => createPortal(
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Xác nhận thao tác từ email">
-      <div className="w-full max-w-md rounded-3xl bg-surface shadow-2xl p-6">{children}</div>
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) dong(); }}>
+      <div ref={hopRef} role="dialog" aria-modal="true" aria-label="Xác nhận thao tác từ email" tabIndex={-1} className="w-full max-w-md rounded-3xl bg-surface shadow-2xl p-6 outline-none">{children}</div>
     </div>, document.body);
 
   if (trangThai.dangTai) return <Khung><p className="text-sm text-muted py-6 text-center">Đang kiểm tra liên kết…</p></Khung>;
@@ -80,7 +87,7 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
             </ul>
           </div>)}
         <p className="text-[12px] text-muted mt-3">Bạn vẫn có thể xử lý sự cố trực tiếp ở tab <b>Sự cố</b>.</p>
-        <button onClick={onDong} className="mt-5 w-full rounded-xl bg-subtle py-2.5 text-sm font-medium text-body">Đóng</button>
+        <button onClick={dong} className="mt-5 w-full rounded-xl bg-subtle py-2.5 min-h-11 text-sm font-medium text-body">Đóng</button>
       </Khung>);
   }
 
@@ -88,7 +95,7 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
     <Khung>
       <h3 className="text-base font-semibold text-success">✓ Đã ghi nhận</h3>
       <p className="text-sm text-body mt-2 leading-relaxed">{ketQua.thong_bao}</p>
-      <button onClick={onDong} className="mt-5 w-full rounded-xl py-2.5 text-sm font-medium text-white" style={{ backgroundColor: "var(--primary-solid)" }}>Xong</button>
+      <button onClick={dong} className="mt-5 w-full rounded-xl py-2.5 min-h-11 text-sm font-medium text-white" style={{ backgroundColor: "var(--primary-solid)" }}>Xong</button>
     </Khung>);
 
   return (
@@ -120,9 +127,9 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
           <p className="text-[12px] text-muted mt-1">Bắt buộc — ghi vào hồ sơ kiểm toán ALCOA+.</p>
         </div>)}
       <div className="flex gap-2 mt-5">
-        <button onClick={onDong} className="flex-1 rounded-xl bg-subtle py-2.5 text-sm font-medium text-body">Huỷ</button>
+        <button onClick={dong} disabled={dangChay} className="flex-1 rounded-xl bg-subtle py-2.5 min-h-11 text-sm font-medium text-body disabled:opacity-40">Huỷ</button>
         <button onClick={xacNhan} disabled={thieuNote || dangChay}
-          className="flex-1 rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-40"
+          className="flex-1 rounded-xl py-2.5 min-h-11 text-sm font-medium text-white disabled:opacity-40"
           style={{ backgroundColor: "var(--primary-solid)" }}>{dangChay ? "Đang lưu…" : "Xác nhận"}</button>
       </div>
     </Khung>);

@@ -62,22 +62,22 @@ export function HopThoai({ tieuDe, moTa, icon: Icon, onDong, dangChay = false, r
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(12,41,59,0.38)", backdropFilter: "blur(4px)" }}
       onMouseDown={(e) => { if (e.target === e.currentTarget && !dangChay) onDong(); }}>
       <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={tieuDeId} aria-describedby={moTa ? moTaId : undefined} tabIndex={-1}
-        className={`w-full ${rong} rounded-3xl bg-surface ring-1 ring-line overflow-hidden outline-none`} style={{ boxShadow: "0 30px 80px -20px rgba(12,41,59,0.5)" }}>
-        <div className="px-6 pt-5 pb-4 flex items-start justify-between gap-3 bg-subtle">
+        className={`w-full ${rong} max-h-[calc(100dvh-2rem)] flex flex-col bg-surface ring-1 ring-line overflow-hidden outline-none`} style={{ borderRadius: "var(--radius-overlay)", boxShadow: "var(--shadow-dialog)" }}>
+        <div className="px-5 pt-4 pb-3 shrink-0 flex items-start justify-between gap-3 bg-subtle">
           <div className="flex items-center gap-3 min-w-0">
-            {Icon && <div className="rounded-2xl bg-surface p-2.5 ring-1 ring-line shrink-0"><Icon className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div>}
+            {Icon && <div className="shrink-0 pt-1"><Icon className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div>}
             <div className="min-w-0">
               <h2 id={tieuDeId} className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>{tieuDe}</h2>
               {moTa && <p id={moTaId} className="text-[12px] text-muted">{moTa}</p>}
             </div>
           </div>
           <button type="button" onClick={onDong} disabled={dangChay} aria-label="Đóng hộp thoại"
-            className="rounded-full p-2 hover:bg-surface text-muted disabled:opacity-50 min-w-[36px] min-h-[36px] flex items-center justify-center">
+            className="rounded-lg p-2 hover:bg-surface text-muted disabled:opacity-50 min-w-[44px] min-h-[44px] flex items-center justify-center">
             <X className="w-4 h-4" strokeWidth={1.8} />
           </button>
         </div>
-        <div className="px-6 py-5">{children}</div>
-        {chanTrang && <div className="px-6 py-4 bg-subtle flex items-center justify-end gap-2 flex-wrap">{chanTrang}</div>}
+        <div className="px-5 py-4 min-h-0 overflow-y-auto overscroll-contain">{children}</div>
+        {chanTrang && <div className="px-5 py-3 shrink-0 border-t border-line flex items-center justify-end gap-2 flex-wrap">{chanTrang}</div>}
       </div>
     </div>
   );
