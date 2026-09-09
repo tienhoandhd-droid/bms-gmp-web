@@ -41,6 +41,7 @@ import { RAW, ROOM_BIAS, rawSeries, sensorStats, sensorLevel, roomLevel, roomCom
 import { A_TEAL, A_AMBER, A_INFO, A_ROSE, A_SLATE, A_IPC, A_MEP_NHAN, A_MEP_XONG, A_MEP_KHONG, STATUS_ACTIONS, rolesOfStatus, firstActionFor, nutKhopTrangThai, nutChoVaiTro, STATUS_DOT } from "../lib/nutThaoTac";
 import CpcLogo from "../components/ui/CpcLogo";
 import Chart from "../components/ui/Chart";
+import FailingRoomCharts from "../components/overview/FailingRoomCharts";
 import { Card, SectionTitle, MucBadge, HeaderChip } from "../components/ui/Card";
 import ServerClock from "../components/ui/ServerClock";
 import { BannerCapNhat } from "../components/ui/BannerCapNhat";
@@ -440,7 +441,7 @@ export default function AppShell() {
         : "Mất dữ liệu";
   const phanLoaiPhong = (r) => {
     const comp = roomCompliance(r);
-    if (r.noData || comp == null || (r.agePhut != null && r.agePhut > FRESH_MIN)) return "thieu";
+    if (matNguon || r.noData || comp == null || (r.agePhut != null && r.agePhut > FRESH_MIN)) return "thieu";
     return comp >= 80 ? "dat" : "khong";
   };
   const nhomPhong = useMemo(() => {
@@ -450,7 +451,7 @@ export default function AppShell() {
     g.dat.sort((a, b) => (roomCompliance(b) ?? 0) - (roomCompliance(a) ?? 0)); // đạt: cao→thấp
     g.khong.sort(sx); g.thieu.sort((a, b) => (a.id < b.id ? -1 : 1));          // không đạt: thấp→cao
     return g;
-  }, [roomsXem, isLive, FRESH_MIN]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roomsXem, isLive, FRESH_MIN, matNguon]); // eslint-disable-line react-hooks/exhaustive-deps
   // Sự cố Mức 1 & 2 đang mở — để link từ ô KPI (P1 xếp trước P2, rồi theo lúc mở)
   const suCoP12 = [...suCoP12ds].sort((a, b) => (a.priority === b.priority ? String(a.start).localeCompare(String(b.start)) : a.priority === "P1" ? -1 : 1));
   // #9 — "Phòng trọng điểm" xếp theo NGUY CƠ để tập trung theo dõi:
@@ -848,7 +849,7 @@ export default function AppShell() {
                   </p>
                 </div>
               )}
-              <div className="flex items-center justify-between px-1"><SectionTitle icon={Clock} hint="Khung giờ chốt gần nhất">Trạng thái phòng</SectionTitle></div>
+              <div className="flex items-center justify-between px-1"><SectionTitle icon={Clock} hint="Kỳ chốt gần nhất · tự cập nhật mỗi 1 giờ">Trạng thái phòng</SectionTitle></div>
               <div className="bms-kpi-grid">
                 <KpiCard icon={CheckCircle2} label="Phòng đạt" value={matNguon ? "—" : kpis.dat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tỷ lệ đạt ≥ 80% (1h)"} accent={{ txt: "text-success", bg: "bg-success-soft", glow: "bg-success-soft" }} onClick={() => setKpiModal("dat")} loading={kpiLoading} />
                 <KpiCard icon={AlertTriangle} label="Phòng không đạt" value={matNguon ? "—" : kpis.khongDat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tỷ lệ đạt < 80%"} accent={{ txt: "text-danger", bg: "bg-danger-soft", glow: "bg-danger-soft" }} onClick={() => setKpiModal("khong")} loading={kpiLoading} />
@@ -858,9 +859,10 @@ export default function AppShell() {
               <details className="bms-method">
                 <summary className="cursor-pointer select-none text-[12px] font-semibold text-muted">Cách tính tỉ lệ đạt phòng</summary>
                 <p className="mt-2 text-[13px] text-muted leading-relaxed">
-                  Tỉ lệ đạt của phòng = 100% − %thời gian ngoài khoảng (OOS) của <b className="text-muted">cảm biến kém nhất</b> (DP/RH/T) trong <b className="text-muted">khung giờ chốt gần nhất</b>. Chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt, dù các chỉ tiêu khác vẫn đẹp. Phòng <b className="text-muted">đạt</b> khi tỉ lệ đạt ≥ 80% <b className="text-muted">và</b> dữ liệu còn tươi (chốt giờ cách hiện tại ≤ {Math.round(FRESH_MIN / 60)}h); phòng thiếu dữ liệu/dữ liệu quá cũ không được tính là đạt.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-muted">khu {khuChoPhep.join(", ")}</b>.</> : null}
+                  Tỉ lệ đạt của phòng = 100% − %thời gian ngoài khoảng (OOS) của <b className="text-muted">cảm biến kém nhất</b> (DP/RH/T) trong <b className="text-muted">khung giờ chốt gần nhất</b>. Chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt, dù các chỉ tiêu khác vẫn đẹp. Phòng <b className="text-muted">đạt</b> khi tỉ lệ đạt ≥ 80% <b className="text-muted">và</b> dữ liệu còn tươi (chốt giờ cách hiện tại ≤ {Math.round(FRESH_MIN / 60)}h); phòng thiếu dữ liệu/dữ liệu quá cũ không được tính là đạt. Giờ đang diễn ra chưa phải một kỳ đã chốt; việc chưa có số liệu của giờ đó không tự động có nghĩa là mất dữ liệu.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-muted">khu {khuChoPhep.join(", ")}</b>.</> : null}
                 </p>
               </details>
+              <FailingRoomCharts rooms={nhomPhong.khong} loading={isLive && !live.rooms && !live.loi} sourceInterrupted={matNguon} error={isLive && !live.rooms ? live.loi : null} onDetail={setRoomModal} />
               <TheDungHinhTongQuan isLive={isLive} khuChoPhep={khuChoPhep} onXemChiTiet={roleCanSeeTab(role, "sensors") ? () => setTab("sensors") : null} />
               <div className="bms-home-columns">
                 <div><div className="bms-room-heading"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-line overflow-hidden text-[12px] font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={!xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Tất cả</button></div><span className="text-[12px] text-muted">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-[13px] text-muted">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : (() => {
@@ -869,9 +871,9 @@ export default function AppShell() {
                   const batThuong = phongHienThi.filter((r) => laBatThuong(r, cfg, incCua(r)));
                   const dat = phongHienThi.filter((r) => !laBatThuong(r, cfg, incCua(r)));
                   return (<>
-                    {batThuong.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{batThuong.map((r) => <RoomSummaryCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incCua(r)} />)}</div>}
+                    {batThuong.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{batThuong.map((r) => <RoomSummaryCard key={r.id} room={r} cfg={cfg} sourceInterrupted={matNguon} freshnessMinutes={FRESH_MIN} onDetail={setRoomModal} onIncident={openRoomIncident} incident={incCua(r)} />)}</div>}
                     {batThuong.length === 0 && <Card className="p-5 text-center text-[13px] text-success font-medium">Không có phòng nào bất thường trong nhóm đang xem.</Card>}
-                    {dat.length > 0 && <div className="mt-4"><p className="px-1 mb-2 text-[12px] font-semibold text-muted">Đang đạt · {dat.length} phòng</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{dat.map((r) => <RoomSummaryCard key={r.id} room={r} cfg={cfg} onDetail={setRoomModal} onIncident={openRoomIncident} incident={null} />)}</div></div>}
+                    {dat.length > 0 && <div className="mt-4"><p className="px-1 mb-2 text-[12px] font-semibold text-muted">Đang đạt · {dat.length} phòng</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{dat.map((r) => <RoomSummaryCard key={r.id} room={r} cfg={cfg} sourceInterrupted={matNguon} freshnessMinutes={FRESH_MIN} onDetail={setRoomModal} onIncident={openRoomIncident} incident={null} />)}</div></div>}
                   </>);
                 })()}</div>
                 <aside className="space-y-5" aria-label="Cảnh báo hệ thống">

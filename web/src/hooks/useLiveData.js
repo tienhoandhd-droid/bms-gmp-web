@@ -3,8 +3,8 @@
 // CẢI TIẾN hiệu năng & độ bền:
 //  • Diệt N+1 "burst": làm giàu thống kê 8h từng phòng chạy theo LÔ giới hạn
 //    đồng thời (mặc định 6) thay vì bắn N request cùng lúc.
-//  • CACHE thống kê 8h có TTL (4') — dữ liệu giờ chỉ đổi mỗi giờ nên không
-//    cần kéo lại mỗi nhịp 60s; nhịp tự động dùng lại cache, chỉ làm mới khi
+//  • CACHE thống kê 8h có TTL (4') — dữ liệu giờ chỉ đổi mỗi giờ nên nhịp tự
+//    động dùng lại cache và chỉ làm mới khi
 //    quá hạn. Thao tác ghi (manual) ép làm mới ngay.
 //  • HỦY request đang chờ khi unmount/đổi nguồn (AbortController) → tránh
 //    race & cập nhật state sau khi component đã gỡ (rò rỉ).
@@ -13,6 +13,7 @@
 // ============================================================
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/bmsClient'
+import { TAO_MOI_MAC_DINH_MS, taoChinhSachLamMoi } from '../lib/refreshPolicy'
 import {
   layTongQuan, laySuCoDangMo, layCanhBaoHeThong, layLichSuCauHinh,
   layDanhSachPhong, layThongKeSensorPhong, layThongKeSensorNhieuPhong, layXepHangRuiRo, layQuyTrinhSop, layBaoCaoAi,
@@ -22,7 +23,7 @@ import {
 const ENRICH_TTL_MS = 4 * 60 * 1000   // thống kê 8h chỉ đổi mỗi giờ → cache 4'
 const SO_SONG = 6                      // số request thống kê phòng chạy đồng thời tối đa
 // Dữ liệu tab phụ (cấu hình/rủi ro/SOP/AI/GMP) đổi CHẬM (mỗi giờ hoặc do
-// job đêm). Ở nhịp tự động 60s KHÔNG cần kéo lại mỗi phút — chỉ làm mới khi quá
+// job đêm). Ở nhịp tự động KHÔNG cần kéo lại khi chưa quá
 // hạn để giảm tải mạng & tránh giật. Lần nạp đầu và thao tác thủ công luôn kéo đủ.
 const TIER2_TTL_MS = 5 * 60 * 1000
 
@@ -35,14 +36,14 @@ async function chayTheoLo(items, fn, soSong = SO_SONG) {
   return out
 }
 
-export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, batDau = true } = {}) {
+export function useLiveData(dataSource, { tuDongMoiMs = TAO_MOI_MAC_DINH_MS, phienId = null, batDau = true } = {}) {
   const isLive = dataSource === 'live'
   // batDau=false ⇒ TẠM DỪNG mọi tải dữ liệu (dùng cho "chế độ thao tác nhẹ" khi mở web
   // từ nút trong email: chỉ soi vé + xác nhận, KHÔNG bung dashboard nặng). Khi người dùng
   // chủ động vào bảng điều khiển, batDau=true và các effect dưới tự nạp như thường.
   const dangBat = isLive && batDau
   // Bộ nút thao tác đọc từ view xem_nut_thao_tac (bảng luật = nguồn sự thật duy nhất).
-  // Đổi rất hiếm (chỉ khi sửa quy trình) → nạp MỘT lần, không nằm trong nhịp 60s.
+  // Đổi rất hiếm (chỉ khi sửa quy trình) → nạp MỘT lần, không nằm trong nhịp tự động.
   // P0-2: null = CHƯA BIẾT bộ luật (đang tải hoặc lỗi) ⇒ giao diện phải khoá nút.
   //        [] = DB trả về rỗng thật. Không bao giờ rơi về bảng nút hard-code.
   const [nutThaoTac, setNutThaoTac] = useState(null)
@@ -70,7 +71,16 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
 
   const huy = useRef(false)
   const ctrlRef = useRef(null)
+  const ctrlSuCoRef = useRef(null)
   const cacheSensor = useRef({ luc: 0, theoPhong: {} })
+  const tier2Luc = useRef(0)
+  const lanNapLuc = useRef(0)
+  const theHeSuCo = useRef(0)
+  const theHeNut = useRef(0)
+  const chinhSachRef = useRef(null)
+  if (!chinhSachRef.current || chinhSachRef.current.khoangMs !== tuDongMoiMs) {
+    chinhSachRef.current = { khoangMs: tuDongMoiMs, api: taoChinhSachLamMoi({ khoangMs: tuDongMoiMs }) }
+  }
 
   // ============================================================
   // P0-3 — RÒ DỮ LIỆU GIỮA HAI TÀI KHOẢN TRÊN CÙNG TRÌNH DUYỆT.
@@ -85,15 +95,19 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     phienRef.current = phienId
     theHe.current += 1
     if (ctrlRef.current) ctrlRef.current.abort()
+    if (ctrlSuCoRef.current) ctrlSuCoRef.current.abort()
+    cacheSensor.current = { luc: 0, theoPhong: {} }
+    tier2Luc.current = 0
+    lanNapLuc.current = 0
+    theHeSuCo.current += 1
+    theHeNut.current += 1
+    chinhSachRef.current.api.datLai()
     setKpis(null); setIncidents(null); setSystemAlerts(null)
     setConfigHistory(null); setRooms(null); setRiskRows(null); setSopRows(null)
     // 17/08: bỏ setSuCoQuaHan — state đã xoá trong đợt bỏ SLA 17/07, gọi nữa là ReferenceError khi đổi tài khoản
-    setAiRows(null); setSucKhoe(null); setCumSuCo(null); setSuCoDongGanDay(null); setGmpMkt(null); setGmpSpc(null)
-    setLoi(null)
+    setAiRows(null); setNguong(null); setSucKhoe(null); setSuCoPhuTrach(null); setCumSuCo(null); setSuCoDongGanDay(null); setGmpMkt(null); setGmpSpc(null)
+    setNutThaoTac(null); setLoiNut(null); setCapNhatLuc(null); setLoi(null)
   }
-
-  const tier2Luc = useRef(0)   // lần cuối nạp dữ liệu tab phụ (để bỏ qua trong TTL ở nhịp tự động)
-  const lanNapLuc = useRef(0)  // lần lamMoi gần nhất — chặn INITIAL_SESSION nạp TRÙNG ngay sau mount (15/07)
 
   // Làm giàu phòng với thống kê 8h (cache + giới hạn đồng thời + abort)
   const lamGiauPhong = useCallback(async (ds, { batBuoc, signal }) => {
@@ -107,18 +121,26 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
       const batch = await layThongKeSensorNhieuPhong(canTai.map((r) => r.id), signal)
       if (signal?.aborted) return ds
       let theoPhong = {}
+      const loiTheoPhong = new Set()
       if (!batch.error && batch.theoPhong) {
         canTai.forEach((r) => { theoPhong[r.id] = batch.theoPhong[r.id] || cacheSensor.current.theoPhong[r.id] || [] })
       } else {
         const ket = await chayTheoLo(canTai, (r) => layThongKeSensorPhong(r.id, signal))
         if (signal?.aborted) return ds
-        canTai.forEach((r, i) => { theoPhong[r.id] = (ket[i] && ket[i].sensors) || cacheSensor.current.theoPhong[r.id] || [] })
+        canTai.forEach((r, i) => {
+          if (ket[i]?.error) {
+            loiTheoPhong.add(r.id)
+            theoPhong[r.id] = cacheSensor.current.theoPhong[r.id] || []
+          } else {
+            theoPhong[r.id] = ket[i]?.sensors || []
+          }
+        })
       }
-      cacheSensor.current = { luc: Date.now(), theoPhong }
+      cacheSensor.current = { luc: Date.now(), theoPhong, loiTheoPhong }
     }
     const theoPhong = cacheSensor.current.theoPhong
     return ds.map((room) => {
-      if (room.noData) return room
+      if (room.noData) return { ...room, _historyState: 'ready' }
       const live = theoPhong[room.id] || []
       const byK = {}
       live.forEach((s) => { byK[s.k] = s })
@@ -134,12 +156,13 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
         if (!hourlyOOS[i]) hourlyOOS[i] = { label: h.label, oos: 0 }
         hourlyOOS[i].oos += h.oos || 0
       }))
-      return { ...room, sensors, _hourlyOOS: hourlyOOS }
+      return { ...room, sensors, _hourlyOOS: hourlyOOS, _historyState: cacheSensor.current.loiTheoPhong?.has(room.id) ? 'error' : 'ready' }
     })
   }, [])
 
   const lamMoi = useCallback(async ({ nen = false, tuDong = false } = {}) => {
     if (!dangBat) return
+    chinhSachRef.current.api.ghiNhan()
     // Hủy chu kỳ trước (nếu còn chờ) để tránh chồng request & race
     if (ctrlRef.current) ctrlRef.current.abort()
     const ctrl = new AbortController()
@@ -152,6 +175,8 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     // Còn hiệu lực? (component chưa gỡ · request chưa bị hủy · CHƯA đổi tài khoản)
     const genLucGoi = theHe.current
     const con = () => !huy.current && !signal.aborted && theHe.current === genLucGoi
+    const genSuCo = ++theHeSuCo.current
+    const conSuCo = () => con() && theHeSuCo.current === genSuCo
     // Ghi nhận lỗi ĐẦU TIÊN không phải abort (giữ hành vi cũ: chỉ báo 1 lỗi ra UI)
     const nhanLoi = (x) => { if (con() && x && x.error && x.error.name !== 'AbortError') setLoi((cur) => cur || x.error); return x }
 
@@ -161,10 +186,10 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     // rendering) → màn hình đầu KHÔNG chờ các truy vấn nặng của tab phụ.
     // ============================================================
     const pTongQuan = layTongQuan(signal).then((x) => { nhanLoi(x); if (con() && x.kpis) setKpis(x.kpis); return x })
-    const pSuCo     = laySuCoDangMo(signal).then((x) => { nhanLoi(x); if (con() && x.incidents) setIncidents(x.incidents); return x })
+    const pSuCo     = laySuCoDangMo(signal).then((x) => { nhanLoi(x); if (conSuCo() && x.incidents) setIncidents(x.incidents); return x })
     // 17/07: suCoPhuTrach LÊN TẦNG 1 (trước ở tầng 2 TTL 5' → tab Nhiệm vụ lệch tab Sự cố
     // vài phút sau mỗi thao tác). View gọn ~20 dòng, rẻ; realtime su_co đổi → khớp ngay.
-    const pPhuTrach = laySuCoPhuTrach(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoPhuTrach(x.rows); return x })
+    const pPhuTrach = laySuCoPhuTrach(signal).then((x) => { nhanLoi(x); if (conSuCo() && x.rows) setSuCoPhuTrach(x.rows); return x })
     const pCanhBao  = layCanhBaoHeThong(signal).then((x) => { nhanLoi(x); if (con() && x.alerts) setSystemAlerts(x.alerts); return x })
     const pSucKhoe  = laySucKhoeHeThong(null, signal).then((x) => { nhanLoi(x); if (con() && x.suc_khoe) setSucKhoe(x.suc_khoe); return x })
     const pNguong   = layNguongCanhBao(signal).then((x) => { nhanLoi(x); if (con() && x.cfg) setNguong(x.cfg); return x })
@@ -177,10 +202,12 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
       // KHÔNG chờ enrichment sensor. Thẻ phòng + KPI hiện sớm; thanh OOS nhỏ đổ nền
       // sau. Enrichment KHÔNG còn chặn tier1 ⇒ Tổng quan/Sự cố hiện nhanh hơn, nhất
       // là trên điện thoại/4G (bớt 1 vòng mạng khỏi đường tới hạn).
-      if (con()) setRooms(x.rooms)
+      if (con()) setRooms(x.rooms.map((room) => ({ ...room, _historyState: room.noData ? 'ready' : 'loading' })))
       lamGiauPhong(x.rooms, { batBuoc: !tuDong, signal })   // manual ⇒ làm mới ngay; auto ⇒ theo TTL
         .then((full) => { if (con()) setRooms(full) })
-        .catch(() => { /* giữ bản cơ bản đã hiện */ })
+        .catch(() => {
+          if (con()) setRooms((cur) => cur?.map((room) => room._historyState === 'loading' ? { ...room, _historyState: 'error' } : room))
+        })
       return x
     })
 
@@ -203,8 +230,8 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
       const chayTier2 = () => {
         if (!con()) return
         layLichSuCauHinh(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setConfigHistory(x.rows) })
-        layCumSuCo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setCumSuCo(x.rows) })
-        laySuCoDongGanDay(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoDongGanDay(x.rows) })
+        layCumSuCo(signal).then((x) => { nhanLoi(x); if (conSuCo() && x.rows) setCumSuCo(x.rows) })
+        laySuCoDongGanDay(signal).then((x) => { nhanLoi(x); if (conSuCo() && x.rows) setSuCoDongGanDay(x.rows) })
         layXepHangRuiRo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setRiskRows(x.rows) })
         layQuyTrinhSop(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSopRows(x.rows) })
         layBaoCaoAi(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setAiRows(x.rows) })
@@ -220,66 +247,103 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
     }
   }, [dangBat, lamGiauPhong])
 
+  const thuLamMoiTuDong = useCallback(() => {
+    chinhSachRef.current.api.thuTuDong(() => lamMoi({ nen: true, tuDong: true }))
+  }, [lamMoi])
+
+  const lamMoiSuCo = useCallback(() => {
+    if (!dangBat) return
+    if (ctrlSuCoRef.current) ctrlSuCoRef.current.abort()
+    const ctrl = new AbortController()
+    ctrlSuCoRef.current = ctrl
+    const genLucGoi = theHe.current
+    const genSuCo = ++theHeSuCo.current
+    const con = () => !huy.current && !ctrl.signal.aborted && theHe.current === genLucGoi && theHeSuCo.current === genSuCo
+    const nhanLoi = (x) => {
+      if (con() && x?.error && x.error.name !== 'AbortError') setLoi((cur) => cur || x.error)
+      return x
+    }
+    const signal = ctrl.signal
+    laySuCoDangMo(signal).then((x) => { nhanLoi(x); if (con() && x.incidents) setIncidents(x.incidents) })
+    laySuCoPhuTrach(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoPhuTrach(x.rows) })
+    layCumSuCo(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setCumSuCo(x.rows) })
+    laySuCoDongGanDay(signal).then((x) => { nhanLoi(x); if (con() && x.rows) setSuCoDongGanDay(x.rows) })
+  }, [dangBat])
+
   // P0-2: nạp lại bộ luật MỖI KHI phiên sẵn sàng, không chỉ lúc mount. Trước đây
   // layNutThaoTac() chạy một lần trước khi Supabase khôi phục phiên; hỏng một lần là
   // hỏng cả phiên, và giao diện lặng lẽ rơi về STATUS_ACTIONS hard-code.
   const napNut = useCallback(() => {
+    const genLucGoi = theHe.current
+    const genNut = ++theHeNut.current
+    const con = () => !huy.current && theHe.current === genLucGoi && theHeNut.current === genNut
     layNutThaoTac().then((r) => {
-      if (huy.current) return
+      if (!con()) return
       if (r.error) { setLoiNut(r.error); setNutThaoTac(null) }
       else { setLoiNut(null); setNutThaoTac(r.rows) }
-    }).catch((e) => { if (!huy.current) { setLoiNut(e); setNutThaoTac(null) } })
+    }).catch((e) => { if (con()) { setLoiNut(e); setNutThaoTac(null) } })
   }, [])
 
   useEffect(() => {
     huy.current = false
+    let conEffect = true
+    const genEffect = theHe.current
+    const lanKhiBatDau = lanNapLuc.current
+    const conPhien = () => conEffect && !huy.current && theHe.current === genEffect
     if (dangBat) {
       // MỞ NGUỘI (15/07): chờ supabase khôi phục phiên từ localStorage (cục bộ,
       // không tốn vòng mạng) rồi mới nạp. Trước đây lamMoi() bắn ngay khi mount —
       // chưa có JWT nên cả loạt request đi vai anon bị RLS trả rỗng, rồi
       // INITIAL_SESSION nạp lại từ đầu ⇒ điện thoại trả giá 2 lượt mạng cho 1 lần
       // mở app, tab Sự cố chờ lâu gấp đôi. getSession() lỗi vẫn nạp (finally).
-      if (supabase) supabase.auth.getSession().finally(() => { if (!huy.current) lamMoi() })
+      if (supabase) supabase.auth.getSession().finally(() => { if (conPhien() && lanNapLuc.current === lanKhiBatDau) lamMoi() })
       else lamMoi()
-      // Cờ bắt buộc đăng nhập: đọc 1 lần (hiếm đổi), không nằm trong nhịp 60s
-      layCoBatBuocDangNhap().then((r) => { if (!huy.current) setBatBuocDangNhap(!!r.batBuoc) }).catch(() => {})
+      // Cờ bắt buộc đăng nhập: đọc 1 lần (hiếm đổi), không nằm trong nhịp tự động
+      layCoBatBuocDangNhap().then((r) => { if (conPhien()) setBatBuocDangNhap(!!r.batBuoc) }).catch(() => {})
       napNut()
     }
     let timer = null
     if (dangBat && tuDongMoiMs > 0) {
-      timer = setInterval(() => { if (document.visibilityState === 'visible') lamMoi({ nen: true, tuDong: true }) }, tuDongMoiMs)
+      const henLanTiep = (treMs) => {
+        const conLai = treMs ?? chinhSachRef.current.api.conLaiMs()
+        timer = setTimeout(() => {
+          const dangHien = document.visibilityState === 'visible'
+          if (dangHien) thuLamMoiTuDong()
+          henLanTiep(dangHien ? undefined : tuDongMoiMs)
+        }, Math.max(1, conLai ?? tuDongMoiMs))
+      }
+      henLanTiep()
     }
-    // Mở lại app (điện thoại chuyển app / khoá màn hình) → làm mới NGAY, không đợi
-    // hết chu kỳ 60s. Chặn dồn: bỏ qua nếu vừa làm mới trong 20s.
-    let lanMoiCuoi = Date.now()
+    // Mở lại app sau hạn snapshot → bắt kịp ngay; cùng guard với timer và auth.
     const onHien = () => {
       if (document.visibilityState !== 'visible') return
-      if (Date.now() - lanMoiCuoi < 20000) return
-      lanMoiCuoi = Date.now()
-      lamMoi({ nen: true, tuDong: true })
+      lamMoiSuCo()
+      thuLamMoiTuDong()
     }
     if (dangBat) document.addEventListener('visibilitychange', onHien)
     return () => {
+      conEffect = false
       huy.current = true
-      if (timer) clearInterval(timer)
+      if (timer) clearTimeout(timer)
       document.removeEventListener('visibilitychange', onHien)
       if (ctrlRef.current) ctrlRef.current.abort()    // hủy request đang chờ khi unmount
+      if (ctrlSuCoRef.current) ctrlSuCoRef.current.abort()
     }
-  }, [dangBat, lamMoi, tuDongMoiMs])
+  }, [dangBat, lamMoi, lamMoiSuCo, napNut, phienId, thuLamMoiTuDong, tuDongMoiMs])
 
   // ═══ Realtime: su_co đổi → nạp lại sau 1.5s (gom burst — WF1 cập nhật hàng chục
   // sự cố trong một nhịp :02). Sự kiện chỉ là tiếng gõ cửa; dữ liệu vẫn đi qua
-  // đúng các view thường dùng. Poll 60s giữ nguyên làm lưới đỡ khi WebSocket rớt.
+  // đúng các view thường dùng. Snapshot giờ giữ vai trò lưới đỡ khi WebSocket rớt.
   const rtTimer = useRef(null)
   useEffect(() => {
     if (!dangBat) return
     const huyDangKy = dangKyRealtimeSuCo(() => {
       if (document.visibilityState !== 'visible') return
       if (rtTimer.current) clearTimeout(rtTimer.current)
-      rtTimer.current = setTimeout(() => { lamMoi({ nen: true }) }, 1500)
+      rtTimer.current = setTimeout(lamMoiSuCo, 1500)
     })
     return () => { if (rtTimer.current) clearTimeout(rtTimer.current); huyDangKy() }
-  }, [dangBat, lamMoi])
+  }, [dangBat, lamMoiSuCo])
 
   // ============================================================
   // KHẮC PHỤC TRIỆT ĐỂ "phải F5 mới hiện dữ liệu":
@@ -303,12 +367,12 @@ export function useLiveData(dataSource, { tuDongMoiMs = 60000, phienId = null, b
         setTimeout(() => {
           if (huy.current) return
           napNut()
-          if (Date.now() - lanNapLuc.current > 2000) lamMoi()
+          thuLamMoiTuDong()
         }, 0)
       }
     })
     return () => sub?.subscription?.unsubscribe?.()
-  }, [dangBat, lamMoi, napNut])
+  }, [dangBat, napNut, thuLamMoiTuDong])
 
   // P1 — TRƯỚC ĐÂY có kênh 'bms-su-co' thứ hai đăng ký TRÙNG bảng su_co (song song với
   // 'rt-su-co' ở trên), debounce lệch (1200ms vs 1500ms), không kiểm visibility. Mỗi thay

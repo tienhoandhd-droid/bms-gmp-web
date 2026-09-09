@@ -19,7 +19,7 @@ import {
   DataZoomComponent, ToolboxComponent, CalendarComponent, VisualMapComponent, AriaComponent
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-import { SENSOR_COLOR, SENSOR_META_BASE as SENSOR_META, COMPLY_OK, COMPLY_BAD, COMPLY_SCALE, complyColor, fmtPct } from "../lib/designTokens";
+import { SENSOR_META_BASE as SENSOR_META, COMPLY_SCALE, complyColor, fmtPct } from "../lib/designTokens";
 import { chartTokens, useThemeVersion, layToken } from "../theme/chartTheme";
 // CHEX — màu series/tooltip đọc token ĐÃ RESOLVE tại thời điểm truy cập (canvas
 // không hiểu var()); getter để đổi theme là option dựng lại có màu mới.
@@ -38,6 +38,7 @@ const CHEX = {
 };
 // T() — token biểu đồ đọc từ CSS var tại thời điểm DỰNG option (re-render khi đổi theme).
 const T = () => chartTokens();
+const sensorColor = (key) => ({ DP: CHEX.teal, RH: CHEX.sky, T: CHEX.sand }[key] || CHEX.teal);
 
 // Mảng 3: pieces cho visualMap piecewise dựng TỪ thang màu chuẩn duy nhất
 // (COMPLY_SCALE) → mọi heatmap dùng chung ngưỡng, sửa 1 chỗ đồng bộ.
@@ -46,7 +47,7 @@ const complyPieces = () => COMPLY_SCALE.map((b) => ({ ...(b.gte != null ? { gte:
 echarts.use([LineChart, BarChart, CustomChart, HeatmapChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, MarkPointComponent, LegendComponent, DataZoomComponent, ToolboxComponent, CalendarComponent, VisualMapComponent, AriaComponent, CanvasRenderer]);
 
 // Toolbox (xuất PNG) + dataZoom (kéo–thu phóng) dùng chung cho biểu đồ xu hướng lớn.
-const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Tải ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: "#fff" /* chart-color-exception: print-export */ } }, iconStyle: { borderColor: T().textMuted }, emphasis: { iconStyle: { borderColor: CHEX.tealLine } } });
+const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Tải ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: T().exportBackground } }, iconStyle: { borderColor: T().textMuted }, emphasis: { iconStyle: { borderColor: CHEX.tealLine } } });
 const dataZoomTruot = (bottom = 6) => ([
   { type: "inside", filterMode: "none" },
   { type: "slider", height: 15, bottom, filterMode: "none", brushSelect: false, borderColor: "transparent", fillerColor: echarts.color.modifyAlpha(CHEX.teal, 0.10), handleSize: "80%", moveHandleSize: 4, dataBackground: { lineStyle: { color: T().chartGrid }, areaStyle: { color: T().chartGrid } }, textStyle: { fontSize: 8, color: T().textMuted } },
@@ -61,9 +62,10 @@ function complyDomain(values) {
   const pad = Math.max(4, (hi - lo) * 0.18);
   return [Math.max(0, Math.floor(lo - pad)), Math.min(100, Math.ceil(hi + pad))];
 }
-const chartWrap = "rounded-xl bg-surface ring-1 ring-line p-2";
-const TT_CSS = "border-radius:12px;box-shadow:0 10px 30px -8px rgba(35,80,110,0.4);padding:8px 12px;"; // chart-color-exception: tooltip DOM shadow
-const tooltipBase = () => ({ backgroundColor: T().surface, borderColor: T().border, borderWidth: 1, textStyle: { fontSize: 11, color: T().textStrong }, extraCssText: TT_CSS });
+const chartWrap = "rounded-lg bg-surface p-1 sm:p-2";
+const TT_CSS = "border-radius:10px;box-shadow:0 10px 30px -8px rgba(35,80,110,0.4);padding:8px 10px;max-width:min(240px,calc(100vw - 24px));white-space:normal;"; // chart-color-exception: tooltip DOM shadow
+const tooltipBase = () => ({ confine: true, enterable: false, transitionDuration: 0, backgroundColor: T().surface, borderColor: T().border, borderWidth: 1, textStyle: { fontSize: 12, lineHeight: 18, color: T().textStrong }, extraCssText: TT_CSS });
+const chartPointValue = (data) => (data && typeof data === "object" && "value" in data ? data.value : data);
 const gradient = (c, top = 0.30, bot = 0.02) => new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: echarts.color.modifyAlpha(c, top) }, { offset: 1, color: echarts.color.modifyAlpha(c, bot) }]);
 const tooltipEvidence = ({ title, verdict, tone = CHEX.teal, rows = [], notes = [] }) => {
   const rowHtml = rows.filter(Boolean).map(([k, v, c]) => `<div style="display:flex;justify-content:space-between;gap:18px;margin-top:3px"><span style="color:${T().textMuted}">${k}</span><b style="color:${c || T().textStrong};font-weight:700">${v}</b></div>`).join("");
@@ -137,7 +139,7 @@ function bandCustomSeries({ name, points, color, alpha = 0.13, z = 1 }) {
 const axisX = (labels, interval = 0, show = true) => ({
   type: "category", data: labels, boundaryGap: true,
   axisTick: { show: false }, axisLine: { show, lineStyle: { color: T().chartGrid } },
-  axisLabel: show ? { fontSize: 9, color: T().chartAxis, interval } : { show: false },
+  axisLabel: show ? { fontSize: 10, color: T().chartAxis, interval, hideOverlap: true, margin: 9 } : { show: false },
 });
 
 // ====== Mini cột "điểm OOS theo giờ (8h)" — thẻ phòng ở tab Tổng quan ======
@@ -163,8 +165,8 @@ export function MiniArea({ data }) {
     xAxis: { ...axisX(data.map((d) => d.label), 0, false) },
     yAxis: { type: "value", show: false, scale: true, max: 100 },
     series: [{
-      type: "line", data: comps, smooth: true, showSymbol: false, connectNulls: true,
-      lineStyle: { color: COMPLY_OK, width: 2 }, areaStyle: { color: gradient(COMPLY_OK, 0.28, 0.02) },
+      type: "line", data: comps, smooth: true, showSymbol: false, connectNulls: false,
+      lineStyle: { color: CHEX.teal, width: 2 }, areaStyle: { color: gradient(CHEX.teal, 0.28, 0.02) },
       markLine: { silent: true, symbol: "none", label: { show: false }, data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1 } },
     }],
   };
@@ -230,18 +232,18 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
       },
     },
     xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
-    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" } },
+    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" } },
     series: [
       // "Bóng" KỲ TRƯỚC (xám đứt, canh theo index) — bật qua nút So kỳ trước.
       ...(prevVals.length ? [{
-        name: "Kỳ trước", type: "line", smooth: true, connectNulls: true, showSymbol: false, silent: true, z: 1,
+        name: "Kỳ trước", type: "line", smooth: true, connectNulls: false, showSymbol: false, silent: true, z: 1,
         data: data.map((_, i) => (prevVals[i] != null ? prevVals[i] : null)),
         lineStyle: { color: T().textMuted, width: 1.6, type: "dashed" },
       }] : []),
       {
         name: "Kỳ này", type: "line", smooth: true, connectNulls: false, showSymbol: true, symbolSize: 5, z: 3,
-        data: data.map((d) => ({ value: d.comp, symbol: d.comp != null && d.comp < 80 ? "diamond" : "circle", symbolSize: d.comp != null && d.comp < 80 ? 8 : 5, itemStyle: { color: d.comp != null && d.comp < 80 ? COMPLY_BAD : COMPLY_OK, borderColor: T().surface, borderWidth: 1.2 } })),
-        lineStyle: { color: COMPLY_OK, width: 2.4 },
+        data: data.map((d) => ({ value: d.comp, symbol: d.comp != null && d.comp < 80 ? "diamond" : "circle", symbolSize: d.comp != null && d.comp < 80 ? 8 : 5, itemStyle: { color: d.comp != null && d.comp < 80 ? CHEX.coral : CHEX.teal, borderColor: T().surface, borderWidth: 1.2 } })),
+        lineStyle: { color: CHEX.teal, width: 2.4 },
         markArea: ymin < 80 ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(CHEX.coralDeep, 0.055) }, data: [[{ yAxis: ymin }, { yAxis: 80 }]] } : undefined,
         markLine: { silent: true, symbol: "none", data: markLineData },
       },
@@ -274,10 +276,10 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
       },
     },
     xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
-    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" } },
+    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" } },
     series: ks.map((k) => ({
       name: SENSOR_META[k].label, type: "line", smooth: true, connectNulls: false, showSymbol: false,
-      data: data.map((d) => d[`comp_${k}`]), lineStyle: { color: SENSOR_COLOR[k], width: 2.3 }, itemStyle: { color: SENSOR_COLOR[k] },
+      data: data.map((d) => d[`comp_${k}`]), lineStyle: { color: sensorColor(k), width: 2.3 }, itemStyle: { color: sensorColor(k) },
       ...(k === ks[0] ? { markArea: ymin < 80 ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(CHEX.coralDeep, 0.04) }, data: [[{ yAxis: ymin }, { yAxis: 80 }]] } : undefined, markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1.4 }, label: { formatter: "Ngưỡng GMP 80%", fontSize: 10, color: CHEX.sand, position: "insideEndTop" } } } : {}),
     })),
   };
@@ -287,7 +289,7 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
 // ====== Giá trị TB + dải P5–P95 + trung vị P50 + GHD/GHT + baseline 30 ngày ======
 export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
   const unit = SENSOR_META[sensorKey]?.unit || "";
-  const color = SENSOR_COLOR[sensorKey] || CHEX.teal;
+  const color = sensorColor(sensorKey) || CHEX.teal;
   const lo = [...series].reverse().find((p) => p.lo != null)?.lo ?? null;
   const hi = [...series].reverse().find((p) => p.hi != null)?.hi ?? null;
   const vals = series.filter((p) => p.avg != null);
@@ -331,13 +333,18 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
       },
     },
     xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
-    yAxis: { type: "value", scale: true, ...(hasDomain ? { min: +(yLo - pad).toFixed(1), max: +(yHi + pad).toFixed(1) } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => `${+(+v).toFixed(1)}` } },
+    yAxis: { type: "value", scale: true, ...(hasDomain ? { min: +(yLo - pad).toFixed(1), max: +(yHi + pad).toFixed(1) } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => `${+(+v).toFixed(1)}` } },
     series: [
       ...bandSeries,
-      ...(hasPct ? [{ name: "P50", type: "line", data: series.map((p) => (p.p50 != null ? p.p50 : null)), connectNulls: true, showSymbol: false, symbol: "none", lineStyle: { color: echarts.color.modifyAlpha(color, 0.55), width: 1, type: "dashed" }, tooltip: { show: false }, z: 2 }] : []),
+      ...(hasPct ? [{ name: "P50", type: "line", data: series.map((p) => (p.p50 != null ? p.p50 : null)), connectNulls: false, showSymbol: false, symbol: "none", lineStyle: { color: echarts.color.modifyAlpha(color, 0.55), width: 1, type: "dashed" }, tooltip: { show: false }, z: 2 }] : []),
       {
-        name: "TB", type: "line", smooth: true, connectNulls: true, showSymbol: true, symbolSize: 5, z: 3,
-        data: series.map((p) => ({ value: p.avg, itemStyle: { color: (lo != null && p.avg < lo) || (hi != null && p.avg > hi) ? CHEX.coralDeep : color, borderColor: T().surface, borderWidth: 0.9 } })),
+        name: "TB", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 5, z: 3,
+        data: series.map((p) => {
+          const value = p.avg == null ? null : +p.avg;
+          if (value == null) return { value };
+          const outOfLimit = (lo != null && value < lo) || (hi != null && value > hi);
+          return { value, itemStyle: { color: outOfLimit ? CHEX.coralDeep : color, borderColor: T().surface, borderWidth: 0.9 } };
+        }),
         lineStyle: { color, width: 2.4 }, areaStyle: hasPct ? undefined : { color: gradient(color, 0.16, 0.03) },
         markArea: (lo != null && hi != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(color, 0.06) }, data: [[{ yAxis: lo }, { yAxis: hi }]] } : undefined,
         markLine: markLineData.length ? { silent: true, symbol: "none", data: markLineData } : undefined,
@@ -363,30 +370,35 @@ export function RoomDetailMiniChart({ pts, smin, smax, mean, unit, group = null 
   const span = hi - lo; const dec = span >= 10 ? 0 : span >= 2 ? 1 : 2;
   const hasBand = pts.some((p) => p.vmin != null && p.vmax != null);
   const markLineData = [];
-  if (smin != null) markLineData.push({ yAxis: smin, label: { formatter: `GHD ${smin}`, fontSize: 9, color: CHEX.coral, position: "insideStartBottom" }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.3 } });
-  if (smax != null) markLineData.push({ yAxis: smax, label: { formatter: `GHT ${smax}`, fontSize: 9, color: CHEX.coral, position: "insideStartTop" }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.3 } });
+  if (smin != null) markLineData.push({ yAxis: smin, label: { formatter: `GHD ${smin} ${unit}`, fontSize: 10, color: CHEX.coral, position: "insideStartBottom" }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.4 } });
+  if (smax != null) markLineData.push({ yAxis: smax, label: { formatter: `GHT ${smax} ${unit}`, fontSize: 10, color: CHEX.coral, position: "insideStartTop" }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.4 } });
   if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: CHEX.navy, position: "insideEndTop" }, lineStyle: { color: CHEX.navy, type: "dashed", width: 1.2 } });
   const option = {
     animation: false,
-    grid: { top: 8, right: 14, bottom: 20, left: 8, containLabel: true },
+    grid: { top: 18, right: 14, bottom: 30, left: 8, containLabel: true },
     tooltip: {
       trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
         const byName = {}; ps.forEach((p) => { byName[p.seriesName] = p; });
-        const avg = byName["TB giờ"] ? byName["TB giờ"].data : null;
+        const avg = chartPointValue(byName["TB giờ"]?.data);
         const f = (x) => (x == null ? "—" : (+x).toFixed(2));
         const lohi = hasBand ? `<div style="color:${T().textMuted}">Min–Max: ${f(pts[ps[0].dataIndex]?.vmin)}–${f(pts[ps[0].dataIndex]?.vmax)} ${unit}</div>` : "";
-        return `<div style="font-weight:600;color:${CHEX.navy}">${ps[0].axisValue}</div><div>TB giờ: <b>${f(avg)} ${unit}</b></div>${lohi}`;
+        return `<div style="font-weight:700;color:${CHEX.navy}">${ps[0].axisValue}</div><div>TB giờ: <b>${avg == null ? "Chưa có số đo" : `${f(avg)} ${unit}`}</b></div>${lohi}`;
       },
     },
     xAxis: axisX(pts.map((p) => p.label)),
-    yAxis: { type: "value", min: +lo.toFixed(dec), max: +hi.toFixed(dec), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => (+v).toFixed(dec) } },
+    yAxis: { type: "value", min: +lo.toFixed(dec), max: +hi.toFixed(dec), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } }, axisLabel: { fontSize: 10, color: T().chartAxis, formatter: (v) => (+v).toFixed(dec) } },
     series: [
       // Dải min–max: custom polygon (chịu null, không cần stack)
       ...(hasBand ? [bandCustomSeries({ name: "_minmax", points: pts.map((p) => (p.vmin != null && p.vmax != null ? { lo: p.vmin, hi: p.vmax } : null)), color: CHEX.sky, alpha: 0.14 })] : []),
       {
-        name: "TB giờ", type: "line", smooth: true, connectNulls: true, showSymbol: true, symbolSize: 6, z: 3,
-        data: pts.map((p) => ({ value: p.avg, itemStyle: { color: (smin != null && p.avg < smin) || (smax != null && p.avg > smax) ? CHEX.coralDeep : CHEX.teal, borderColor: T().surface, borderWidth: 1 } })),
+        name: "TB giờ", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 6, z: 3,
+        data: pts.map((p) => {
+          const value = p.avg == null ? null : +p.avg;
+          if (value == null) return { value };
+          const outOfLimit = (smin != null && value < smin) || (smax != null && value > smax);
+          return { value, symbol: outOfLimit ? "diamond" : "circle", symbolSize: outOfLimit ? 8 : 6, itemStyle: { color: outOfLimit ? CHEX.coralDeep : CHEX.teal, borderColor: T().surface, borderWidth: 1 } };
+        }),
         lineStyle: { color: CHEX.teal, width: 2.2 },
         markArea: (smin != null && smax != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(CHEX.teal, 0.10) }, data: [[{ yAxis: smin }, { yAxis: smax }]] } : undefined,
         markLine: markLineData.length ? { silent: true, symbol: "none", data: markLineData } : undefined,
@@ -406,7 +418,7 @@ export function TrendMainChart({ data, range }) {
     legend: { show: false },
     xAxis: axisX(data.map((d) => d.label), interval),
     yAxis: [
-      { type: "value", axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 10, color: T().chartAxis } },
+      { type: "value", axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } }, axisLabel: { fontSize: 10, color: T().chartAxis } },
       { type: "value", min: 0, max: 100, position: "right", axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 10, color: T().chartAxis } },
     ],
     series: [
@@ -441,7 +453,7 @@ export function nelsonViolations(vals, tb, sigma) {
 }
 export function SpcChart({ sensorKey, series, baseline, height = 230, group = null }) {
   const unit = SENSOR_META[sensorKey]?.unit || "";
-  const color = SENSOR_COLOR[sensorKey] || CHEX.teal;
+  const color = sensorColor(sensorKey) || CHEX.teal;
   const tb = baseline && baseline.tb != null ? +baseline.tb : null;
   const sig = baseline && baseline.sigma != null && +baseline.sigma > 0 ? +baseline.sigma : null;
   const vals = series.map((p) => (p.avg != null ? +p.avg : null));
@@ -479,8 +491,11 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
     xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
     yAxis: { type: "value", min: +(yLo - pad).toFixed(2), max: +(yHi + pad).toFixed(2), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 9, color: T().chartAxis } },
     series: [{
-      name: "Giá trị", type: "line", smooth: false, connectNulls: true, showSymbol: true, symbolSize: 6, z: 3,
-      data: vals.map((v, i) => ({ value: v, itemStyle: { color: vio[i].some((r) => r.startsWith("R1")) ? CHEX.coralDeep : vio[i].length ? CHEX.sand : color, borderColor: T().surface, borderWidth: 1 } })),
+      name: "Giá trị", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 6, z: 3,
+      data: vals.map((v, i) => {
+        if (v == null) return { value: null };
+        return { value: v, itemStyle: { color: vio[i].some((r) => r.startsWith("R1")) ? CHEX.coralDeep : vio[i].length ? CHEX.sand : color, borderColor: T().surface, borderWidth: 1 } };
+      }),
       lineStyle: { color, width: 1.8 },
       markArea: { silent: true, data: zones.map(([lo, hi, a]) => [{ yAxis: lo, itemStyle: { color: echarts.color.modifyAlpha(color, a) } }, { yAxis: hi }]) },
       markLine: { silent: true, symbol: "none", data: sigLines },
@@ -597,12 +612,12 @@ export function ForecastChart({ chuoi, duBao, height = 180 }) {
       },
     },
     xAxis: { ...axisX(labels, xTickEvery(labels.length), true) },
-    yAxis: { type: "value", scale: true, min: ymin, max: ymax, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => v + "%" }, splitLine: { lineStyle: { color: T().chartGrid } } },
+    yAxis: { type: "value", scale: true, min: ymin, max: ymax, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => v + "%" }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } } },
     series: [
       { name: "band-nen", type: "line", data: bandLow, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 }, silent: true, tooltip: { show: false } },
-      { name: "band-to", type: "line", data: bandDelta, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: echarts.color.modifyAlpha(COMPLY_OK, 0.13) }, silent: true, tooltip: { show: false } },
-      { name: "Lịch sử", type: "line", data: histData, showSymbol: false, connectNulls: false, lineStyle: { color: COMPLY_OK, width: 2.2 } },
-      { name: "Ước tính", type: "line", data: fcData, showSymbol: false, connectNulls: true, lineStyle: { color: COMPLY_OK, width: 2, type: "dashed" } },
+      { name: "band-to", type: "line", data: bandDelta, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: echarts.color.modifyAlpha(CHEX.teal, 0.13) }, silent: true, tooltip: { show: false } },
+      { name: "Lịch sử", type: "line", data: histData, showSymbol: false, connectNulls: false, lineStyle: { color: CHEX.teal, width: 2.2 } },
+      { name: "Ước tính", type: "line", data: fcData, showSymbol: false, connectNulls: true, lineStyle: { color: CHEX.teal, width: 2, type: "dashed" } },
       { name: "nguong", type: "line", data: [], markLine: { silent: true, symbol: "none", label: { formatter: "80%", fontSize: 9, color: CHEX.sand, position: "insideEndTop" }, data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1 } } },
     ],
   };
@@ -636,7 +651,7 @@ export function PhanHoiTheoNgayChart({ ngay, series, height = 260 }) {
     legend: { top: 0, itemWidth: 14, itemHeight: 8, textStyle: { fontSize: 11, color: T().chartAxis } },
     xAxis: axisX(ngay, xTickEvery(ngay.length)),
     yAxis: { type: "value", min: 0, max: 100, axisLine: { show: false }, axisTick: { show: false },
-             splitLine: { lineStyle: { color: T().chartGrid } },
+             splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } },
              axisLabel: { fontSize: 10, color: T().chartAxis, formatter: "{value}%" } },
     series: series.map((s) => ({
       name: s.nhan, type: "line", smooth: false, connectNulls: false,

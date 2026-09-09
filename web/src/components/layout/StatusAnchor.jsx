@@ -17,8 +17,8 @@ export default function StatusAnchor({ p12Open, matNguon, isLive, capNhatLuc, kh
       : bmsKhongCoDuLieu ? "API có kết nối, không có dữ liệu BMS"
       : apiItKhongKetNoi ? "Không kết nối được API nguồn"
       : "Nguồn dữ liệu gián đoạn")
-    : isLive ? "Dữ liệu đang cập nhật" : "Dữ liệu mô phỏng";
-  const ghiChuDuLieu = matNguon ? (sucKhoe?.tomTat || "Tạm dừng kết luận đạt/không đạt cho tới khi nguồn ổn định.") : gioCapNhat ? `Cập nhật gần nhất lúc ${gioCapNhat}.` : "Theo khung giờ chốt gần nhất.";
+    : isLive ? "Số liệu chốt theo giờ" : "Dữ liệu mô phỏng";
+  const ghiChuDuLieu = matNguon ? (sucKhoe?.tomTat || "Tạm dừng kết luận đạt/không đạt cho tới khi nguồn ổn định.") : gioCapNhat ? `Lần tải trên web: ${gioCapNhat} · tự cập nhật mỗi 1 giờ.` : "Theo khung giờ chốt gần nhất.";
   const phamVi = khuChoPhep ? `Khu ${khuChoPhep.join(", ")} theo phân quyền tài khoản.` : "Toàn bộ phòng sạch trong hệ thống BMS.";
   return (
     <section aria-label="Ưu tiên vận hành" className="bms-priority">
