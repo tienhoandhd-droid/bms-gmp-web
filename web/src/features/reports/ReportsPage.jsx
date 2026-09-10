@@ -5,11 +5,12 @@ import { ClipboardCheck, FileBarChart, History, Mail, Printer } from "lucide-rea
 import { Card, SectionTitle } from "../../components/ui/Card";
 import { KhungLoi } from "../../components/ui/KhungLoi";
 import { guiBaoCaoBu, layWebhookBaoCaoBu } from "../../lib/supabaseData";
+import ResponseRateSection from './ResponseRateSection';
 import { AiSections } from "../trends/AiSections";
 
 
 /* ===== BÁO CÁO ===== */
-function ReportsPage({ ai, aiRows = null }) {
+function ReportsPage({ ai, aiRows = null, isLive = false, responseScopeKey = "demo" }) {
   // ==== Gửi báo cáo bù qua WF5 v2 (n8n) — kỳ LIỀN TRƯỚC, chọn để gửi ====
   const [wf5Url, setWf5Url] = useState("");
   const [kyBu, setKyBu] = useState("THANG");           // mặc định: bù THÁNG trước
@@ -50,6 +51,8 @@ function ReportsPage({ ai, aiRows = null }) {
         </div>
         <span className="rounded-full bg-subtle px-3 py-1 text-[12px] font-semibold text-muted ring-1 ring-line">Hồ sơ kiểm soát</span>
       </div>
+
+      <ResponseRateSection key={responseScopeKey} isLive={isLive} />
 
       <Card className="p-6"><SectionTitle icon={Mail} hint="báo cáo quản trị — kỳ liền trước">Gửi lại báo cáo (email)</SectionTitle>
         <p className="text-[12px] text-muted mt-3">Dùng khi cần gửi lại báo cáo của kỳ đã qua. Hệ thống tổng hợp số liệu đo, lập báo cáo PDF và gửi email theo danh sách người nhận đã cấu hình.</p>

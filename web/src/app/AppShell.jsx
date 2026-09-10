@@ -1206,7 +1206,7 @@ export default function AppShell() {
           )}
           {tab === "sensors" && <CamBienPage isLive={isLive} />}
           {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /></React.Suspense><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
-          {tab === "reports" && <div className="space-y-5"><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} /></React.Suspense><DanhGiaHieuQuaCanhBao isLive={isLive} /></div>}
+          {tab === "reports" && <div className="space-y-5"><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} isLive={isLive} responseScopeKey={JSON.stringify([user?.email, user?.role, user?.khuVuc])} /></React.Suspense><DanhGiaHieuQuaCanhBao isLive={isLive} hideResponse /></div>}
 
           {tab === "audit" && (() => {
             const subTabs = [

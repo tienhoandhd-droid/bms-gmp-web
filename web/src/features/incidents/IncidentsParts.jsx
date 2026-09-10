@@ -335,7 +335,7 @@ function PhieuVongDoiVe({ chang, tuanMoc, soTuan, dmy }) {
 }
 
 
-function DanhGiaHieuQuaCanhBao({ isLive }) {
+function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
   const [soTuan, setSoTuan] = React.useState(3);
   const [bc, setBc] = React.useState(null);      // luật + bộ phận + phòng ngoài phạm vi
   const [tuanBc, setTuanBc] = React.useState(null); // bổ theo tuần, chia theo khu
@@ -446,9 +446,9 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
     ? { nhan: "Chờ dữ liệu", cls: "text-muted bg-subtle ring-line", mo: "Chưa đủ số liệu để kết luận kỳ báo cáo." }
     : pctDuoiSanTb >= 25 || muP1P2.length > 0
     ? { nhan: "Cần điều tra", cls: "text-danger bg-danger-soft ring-danger-line", mo: "Có sai lệch đáng chú ý hoặc phòng ngoài phạm vi cần xem xét." }
-    : pctDuoiSanTb >= 10 || soCanLuuY > 0
-    ? { nhan: "Cần theo dõi", cls: "text-warning bg-warning-soft ring-warning-line", mo: "Có điểm cần theo dõi về sai lệch hoặc phản hồi bộ phận." }
-    : { nhan: "Trong kiểm soát", cls: "text-success bg-success-soft ring-success-line", mo: "Sai lệch và phản hồi trong kỳ ở mức chấp nhận được." };
+    : pctDuoiSanTb >= 10 || (!hideResponse && soCanLuuY > 0)
+    ? { nhan: "Cần theo dõi", cls: "text-warning bg-warning-soft ring-warning-line", mo: hideResponse ? "Có sai lệch cần theo dõi trong kỳ." : "Có điểm cần theo dõi về sai lệch hoặc phản hồi bộ phận." }
+    : { nhan: "Trong kiểm soát", cls: "text-success bg-success-soft ring-success-line", mo: hideResponse ? "Các chỉ số sai lệch trong kỳ ở mức chấp nhận được." : "Sai lệch và phản hồi trong kỳ ở mức chấp nhận được." };
   const oTuan = (r, t) => (r.tuan || []).find((w) => w.tuan === t);
   const DU = 84;   // nửa tuần — dưới mức này không đủ tin cậy để so sánh
   // Xu hướng = tuần CUỐI so tuần ĐẦU, và chỉ tính khi cả hai đầu mút đủ dữ liệu.
@@ -507,11 +507,13 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
               <p className={`mt-0.5 text-lg font-bold tabular-nums ${mauKhongDat(pctDuoiSanTb)}`}>{pctDuoiSanTb == null ? "—" : `${pctDuoiSanTb}%`}</p>
               <p className="text-[12px] text-muted">theo giờ có dữ liệu</p>
             </div>
+            {!hideResponse && <>
             <div className="rounded-xl bg-subtle px-3 py-2 ring-1 ring-line">
               <p className="text-[11px] font-semibold uppercase text-muted">Phản hồi chung</p>
               <p className="mt-0.5 text-lg font-bold tabular-nums text-success">{tyLeChung == null ? "—" : `${tyLeChung}%`}</p>
               <p className="text-[12px] text-muted">{soCanLuuY} bộ phận cần theo dõi</p>
             </div>
+            </>}
             <div className="rounded-xl bg-subtle px-3 py-2 ring-1 ring-line">
               <p className="text-[11px] font-semibold uppercase text-muted">Phòng ngoài phạm vi</p>
               <p className={`mt-0.5 text-lg font-bold tabular-nums ${muP1P2.length ? "text-danger" : "text-success"}`}>{muP1P2.length}</p>
@@ -543,6 +545,7 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
           </p>
         </div>
 
+        {!hideResponse && <>
         {/* ── Tỉ lệ phản hồi ── */}
         <div className="mt-4 overflow-hidden rounded-2xl bg-surface ring-1 ring-line">
           <div className="border-b border-line bg-subtle px-3.5 py-3 sm:px-4">
@@ -781,6 +784,8 @@ function DanhGiaHieuQuaCanhBao({ isLive }) {
             </div>
           );
         })()}
+
+        </>}
 
         {/* ── Phễu vòng đời phiếu — "phiếu kia đi đâu" ── */}
         {Array.isArray(bc.phieu_vong_doi) && bc.phieu_vong_doi.length > 0 && (
