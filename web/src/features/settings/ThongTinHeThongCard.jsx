@@ -8,6 +8,7 @@ import { Info } from "lucide-react";
 import { Card, SectionTitle } from "../../components/ui/Card";
 import { HAS_SUPABASE, SUPABASE_URL } from "../../lib/config";
 import { PHIEN_BAN_GIAO_THUC } from "../../lib/supabaseData";
+import { fmtVN } from "../../lib/dinhDang";
 
 const PHIEN_BAN = typeof __BMS_VERSION__ === "string" ? __BMS_VERSION__ : "dev";
 const BUILD_LUC = typeof __BMS_BUILD_TIME__ === "string" ? __BMS_BUILD_TIME__ : "";
@@ -18,7 +19,7 @@ function mayChu() {
 }
 
 export function ThongTinHeThongCard({ giaoDien }) {
-  const buildLuc = BUILD_LUC ? new Date(BUILD_LUC).toLocaleString("vi-VN") : "bản chạy thử (chưa build)";
+  const buildLuc = BUILD_LUC ? fmtVN(BUILD_LUC, "dayDu") : "bản chạy thử (chưa build)";
   const dong = [
     ["Phiên bản phần mềm", `v${PHIEN_BAN}`],
     ["Thời điểm build", buildLuc],
@@ -31,7 +32,7 @@ export function ThongTinHeThongCard({ giaoDien }) {
   return (
     <Card className="p-6">
       <SectionTitle icon={Info} hint="đọc khi thanh tra hỏi 'hệ thống này phiên bản nào'">Thông tin hệ thống</SectionTitle>
-      <dl className="mt-4 grid gap-y-2 gap-x-4 text-[13px] sm:grid-cols-[220px_1fr]">
+      <dl className="mt-4 grid gap-y-2 gap-x-4 text-tk-sm sm:grid-cols-[220px_1fr]">
         {dong.map(([k, v]) => (
           <React.Fragment key={k}>
             <dt className="text-muted">{k}</dt>
@@ -39,7 +40,7 @@ export function ThongTinHeThongCard({ giaoDien }) {
           </React.Fragment>
         ))}
       </dl>
-      <p className="mt-3 text-[12px] text-muted">Mã nguồn và nhật ký thay đổi phần mềm lưu trên kho mã của công ty; mỗi lần phát hành đều qua bộ kiểm tự động trước khi lên máy chủ.</p>
+      <p className="mt-3 text-tk-xs text-muted">Mã nguồn và nhật ký thay đổi phần mềm lưu trên kho mã của công ty; mỗi lần phát hành đều qua bộ kiểm tự động trước khi lên máy chủ.</p>
     </Card>
   );
 }

@@ -41,36 +41,35 @@ export default function AuthGate() {
 
   const doCapsLock = (e) => { try { setCapsLock(e.getModifierState && e.getModifierState("CapsLock")); } catch { /* trình duyệt cũ */ } };
 
-  const O_INPUT = "w-full rounded-2xl surface--subtle ring-1 ring-line px-4 py-3 text-sm text-body outline-none focus:ring-2 focus:ring-[var(--focus)]";
+  const O_INPUT = "w-full rounded-lg surface ring-1 ring-line-strong px-4 py-3 text-sm text-body outline-none focus:ring-2 focus:ring-[var(--focus)]";
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 cleanroom-grid" style={{ background: "var(--bg-canvas)" }}>
-      <form className="w-full max-w-md rounded-3xl surface ring-1 ring-line overflow-hidden"
-        style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.4)" }}
+    <div className="bms-auth min-h-screen flex items-center justify-center p-4" style={{ background: "var(--bg-canvas)" }}>
+      <form className="bms-auth-form w-full max-w-md surface overflow-hidden"
         onSubmit={(e) => { e.preventDefault(); dangNhap(); }}>
-        <div className="px-7 pt-7 pb-5 surface--subtle">
+        <div className="px-7 pt-8 pb-2">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl surface p-2 ring-1 ring-line flex items-center justify-center h-[52px] w-[52px] shrink-0"><img src={logoCpc1hn} alt="CPC1 Hà Nội" className="h-11 w-11 object-contain select-none" draggable={false} /></div>
+            <div className="flex items-center justify-center h-[48px] w-[48px] shrink-0"><img src={logoCpc1hn} alt="CPC1 Hà Nội" className="h-11 w-11 object-contain select-none" draggable={false} /></div>
             <div>
-              <h1 className="text-base font-bold" style={{ color: "var(--text-strong)" }}>Giám sát HVAC phòng sạch GMP</h1>
-              <p className="text-[12px] font-semibold" style={{ color: "var(--primary)" }}>Hệ thống giám sát môi trường phòng sạch</p>
+              <h1 className="text-base font-bold text-strong">Giám sát HVAC phòng sạch GMP</h1>
+              <p className="text-tk-xs font-semibold" style={{ color: "var(--primary)" }}>CPC1 Hà Nội · Phòng Quản lý chất lượng</p>
             </div>
           </div>
         </div>
         <div className="px-7 py-6 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--text-strong)" }}>Đăng nhập để tiếp tục</h2>
-            <p className="text-[12px] meta leading-relaxed">Đăng nhập bằng tài khoản CPC1 Hà Nội.</p>
+            <h2 className="text-2xl font-semibold tracking-tight mb-1 text-strong">Đăng nhập để tiếp tục</h2>
+            <p className="text-tk-xs meta leading-relaxed">Đăng nhập bằng tài khoản CPC1 Hà Nội.</p>
           </div>
           <div>
-            <label htmlFor="dn-email" className="block text-[13px] font-medium text-body mb-1">Email công việc</label>
+            <label htmlFor="dn-email" className="block text-tk-sm font-medium text-body mb-1">Email công việc</label>
             <input id="dn-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               placeholder="email@cpc1hn.vn" autoComplete="username"
               aria-invalid={Boolean(loi) || undefined} aria-describedby={loi ? "dn-loi" : undefined}
               className={O_INPUT} />
           </div>
           <div>
-            <label htmlFor="dn-matkhau" className="block text-[13px] font-medium text-body mb-1">Mật khẩu</label>
+            <label htmlFor="dn-matkhau" className="block text-tk-sm font-medium text-body mb-1">Mật khẩu</label>
             <div className="relative">
               <input id="dn-matkhau" type={hienMk ? "text" : "password"} value={matKhau}
                 onChange={(e) => setMatKhau(e.target.value)}
@@ -84,11 +83,11 @@ export default function AuthGate() {
                 {hienMk ? <EyeOff className="w-4 h-4" strokeWidth={1.8} /> : <Eye className="w-4 h-4" strokeWidth={1.8} />}
               </button>
             </div>
-            {capsLock && <p className="mt-1.5 text-[12px] font-medium text-warning" role="status">Đang bật Caps Lock.</p>}
+            {capsLock && <p className="mt-1.5 text-tk-xs font-medium text-warning" role="status">Đang bật Caps Lock.</p>}
           </div>
-          {loi && <p id="dn-loi" role="alert" aria-live="assertive" className="text-[12px] font-medium text-danger bg-danger-soft ring-1 ring-danger-line rounded-xl px-3 py-2">{loi}</p>}
+          {loi && <p id="dn-loi" role="alert" aria-live="assertive" className="text-tk-xs font-medium text-danger bg-danger-soft ring-1 ring-danger-line rounded-xl px-3 py-2">{loi}</p>}
           {kp === "da_gui" && (
-            <p className="text-[12px] text-success bg-success-soft ring-1 ring-success-line rounded-xl px-3 py-2 leading-relaxed" role="status">
+            <p className="text-tk-xs text-success bg-success-soft ring-1 ring-success-line rounded-xl px-3 py-2 leading-relaxed" role="status">
               Nếu email <b>{email}</b> có trong hệ thống, thư đặt lại mật khẩu đã được gửi —
               mở thư và bấm liên kết trong vòng 1 giờ. Không thấy thư? Kiểm tra mục Spam.
             </p>
@@ -99,10 +98,10 @@ export default function AuthGate() {
             <LogIn className="w-4 h-4" strokeWidth={1.8} /> {dangXuLy ? "Đang đăng nhập…" : "Đăng nhập"}
           </button>
           <button type="button" onClick={quenMatKhau} disabled={kp === "dang_gui"}
-            className="w-full text-[12px] font-medium text-muted hover:text-success disabled:opacity-50">
+            className="w-full text-tk-xs font-medium text-muted hover:text-success disabled:opacity-50">
             {kp === "dang_gui" ? "Đang gửi email khôi phục…" : "Quên mật khẩu? Gửi email đặt lại"}
           </button>
-          <p className="text-[12px] meta leading-relaxed">Tài khoản nội bộ do Quản trị hệ thống cấp.</p>
+          <p className="text-tk-xs meta leading-relaxed">Tài khoản nội bộ do Quản trị hệ thống cấp.</p>
         </div>
       </form>
     </div>

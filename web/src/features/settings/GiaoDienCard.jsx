@@ -21,8 +21,8 @@ export default function GiaoDienCard() {
             style={{ borderColor: "var(--border)", boxShadow: "none", ["--tw-ring-color"]: preference === o.k ? "var(--primary)" : "var(--border)" }}>
             <input type="radio" name="bms-theme" className="mt-0.5 accent-[var(--primary)]" checked={preference === o.k} onChange={() => setPreference(o.k)} />
             <span>
-              <span className="block text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>{o.label}</span>
-              <span className="block text-[12px] meta">{o.mo}</span>
+              <span className="block text-tk-sm font-semibold text-strong">{o.label}</span>
+              <span className="block text-tk-xs meta">{o.mo}</span>
             </span>
           </label>
         ))}

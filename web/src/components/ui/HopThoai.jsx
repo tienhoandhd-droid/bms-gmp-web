@@ -59,25 +59,25 @@ export function HopThoai({ tieuDe, moTa, icon: Icon, onDong, dangChay = false, r
   useHopThoai(hopRef, onDong, dangChay);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(12,41,59,0.38)", backdropFilter: "blur(4px)" }}
+    <div className="bms-backdrop"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !dangChay) onDong(); }}>
       <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={tieuDeId} aria-describedby={moTa ? moTaId : undefined} tabIndex={-1}
-        className={`w-full ${rong} rounded-3xl bg-surface ring-1 ring-line overflow-hidden outline-none`} style={{ boxShadow: "0 30px 80px -20px rgba(12,41,59,0.5)" }}>
-        <div className="px-6 pt-5 pb-4 flex items-start justify-between gap-3 bg-subtle">
+        className={`w-full ${rong} max-h-[calc(100dvh-2rem)] flex flex-col bg-surface ring-1 ring-line overflow-hidden outline-none`} style={{ borderRadius: "var(--radius-overlay)", boxShadow: "var(--shadow-dialog)" }}>
+        <div className="px-5 pt-4 pb-3 shrink-0 flex items-start justify-between gap-3 bg-subtle">
           <div className="flex items-center gap-3 min-w-0">
-            {Icon && <div className="rounded-2xl bg-surface p-2.5 ring-1 ring-line shrink-0"><Icon className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div>}
+            {Icon && <div className="shrink-0 pt-1"><Icon className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div>}
             <div className="min-w-0">
-              <h2 id={tieuDeId} className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>{tieuDe}</h2>
-              {moTa && <p id={moTaId} className="text-[12px] text-muted">{moTa}</p>}
+              <h2 id={tieuDeId} className="text-base font-semibold text-strong">{tieuDe}</h2>
+              {moTa && <p id={moTaId} className="text-tk-xs text-muted">{moTa}</p>}
             </div>
           </div>
           <button type="button" onClick={onDong} disabled={dangChay} aria-label="Đóng hộp thoại"
-            className="rounded-full p-2 hover:bg-surface text-muted disabled:opacity-50 min-w-[36px] min-h-[36px] flex items-center justify-center">
+            className="rounded-lg p-2 hover:bg-surface text-muted disabled:opacity-50 min-w-[44px] min-h-[44px] flex items-center justify-center">
             <X className="w-4 h-4" strokeWidth={1.8} />
           </button>
         </div>
-        <div className="px-6 py-5">{children}</div>
-        {chanTrang && <div className="px-6 py-4 bg-subtle flex items-center justify-end gap-2 flex-wrap">{chanTrang}</div>}
+        <div className="px-5 py-4 min-h-0 overflow-y-auto overscroll-contain">{children}</div>
+        {chanTrang && <div className="px-5 py-3 shrink-0 border-t border-line flex items-center justify-end gap-2 flex-wrap">{chanTrang}</div>}
       </div>
     </div>
   );
@@ -110,31 +110,31 @@ export function HopThoaiTamHoan({ suCo, dangChay = false, onDong, onXacNhan }) {
         {suCo && (
           <div className="grid grid-cols-3 gap-3 text-xs">
             {[["Mã sự cố", suCo.id], ["Phòng", suCo.room], ["Chỉ tiêu", suCo.sensor]].map(([k, v]) => (
-              <div key={k}><p className="text-muted text-[12px] uppercase tracking-wider font-semibold">{k}</p><p className="mt-1 font-semibold" style={{ color: "var(--text-strong)" }}>{v || "—"}</p></div>
+              <div key={k}><p className="text-muted text-tk-xs uppercase tracking-wider font-semibold">{k}</p><p className="mt-1 font-semibold text-strong">{v || "—"}</p></div>
             ))}
           </div>
         )}
         <div>
-          <label htmlFor="tam-hoan-ly-do" className="text-[12px] font-semibold text-body mb-2 block">Lý do tạm hoãn <span className="text-danger" aria-hidden="true">*</span></label>
+          <label htmlFor="tam-hoan-ly-do" className="text-tk-xs font-semibold text-body mb-2 block">Lý do tạm hoãn <span className="text-danger" aria-hidden="true">*</span></label>
           <textarea id="tam-hoan-ly-do" rows={3} value={lyDo} onChange={(e) => setLyDo(e.target.value)} required minLength={LY_DO_TOI_THIEU}
             aria-invalid={thieu && daBam ? true : undefined} aria-describedby={`tam-hoan-goi-y${thieu && daBam ? " " + loiId : ""}`}
             placeholder="Ví dụ: Cơ điện đang thay lọc HEPA AHU-K01, dự kiến xong 15:30"
             className="w-full rounded-2xl bg-subtle px-4 py-3 text-sm text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-[var(--focus)] resize-none placeholder:text-muted" />
-          <p id="tam-hoan-goi-y" className="mt-1.5 text-[12px] text-muted">Tối thiểu {LY_DO_TOI_THIEU} ký tự · còn {Math.max(0, LY_DO_TOI_THIEU - lyDoSach.length)} ký tự nữa. Lý do được ghi nguyên văn vào nhật ký.</p>
-          {thieu && daBam && <p id={loiId} role="alert" className="mt-1.5 text-[12px] font-medium text-danger">Chưa đủ lý do — cần ít nhất {LY_DO_TOI_THIEU} ký tự để ghi hồ sơ.</p>}
+          <p id="tam-hoan-goi-y" className="mt-1.5 text-tk-xs text-muted">Tối thiểu {LY_DO_TOI_THIEU} ký tự · còn {Math.max(0, LY_DO_TOI_THIEU - lyDoSach.length)} ký tự nữa. Lý do được ghi nguyên văn vào nhật ký.</p>
+          {thieu && daBam && <p id={loiId} role="alert" className="mt-1.5 text-tk-xs font-medium text-danger">Chưa đủ lý do — cần ít nhất {LY_DO_TOI_THIEU} ký tự để ghi hồ sơ.</p>}
         </div>
         <fieldset>
-          <legend className="text-[12px] font-semibold text-body mb-2">Thời lượng</legend>
+          <legend className="text-tk-xs font-semibold text-body mb-2">Thời lượng</legend>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Thời lượng tạm hoãn">
             {PHUT_TAM_HOAN.map((p) => (
               <button key={p} type="button" role="radio" aria-checked={phut === p} onClick={() => setPhut(p)}
-                className={`px-3.5 py-2 rounded-xl text-[13px] font-medium ring-1 min-h-[40px] ${phut === p ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-line-strong"}`}
+                className={`px-3.5 py-2 rounded-xl text-tk-sm font-medium ring-1 min-h-[40px] ${phut === p ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-line-strong"}`}
                 style={phut === p ? { backgroundColor: "var(--anchor)" } : {}}>
                 {p < 60 ? `${p} phút` : `${p / 60} giờ`}
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[12px] text-muted">Hết hạn hệ thống tự bật lại cảnh báo. Sự cố mức nghiêm trọng hoặc phòng P1 chỉ QA / Quản trị được hoãn — máy chủ tự kiểm.</p>
+          <p className="mt-2 text-tk-xs text-muted">Hết hạn hệ thống tự bật lại cảnh báo. Sự cố mức nghiêm trọng hoặc phòng P1 chỉ QA / Quản trị được hoãn — máy chủ tự kiểm.</p>
         </fieldset>
       </form>
     </HopThoai>

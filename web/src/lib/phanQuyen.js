@@ -17,14 +17,15 @@ export const docTenVaiTro = (s, khuHoacPhong) => (s == null ? s : String(s).repl
 export const FULL_ACCESS = ["QA", "ADMIN", "IT"];                 // QA và IT: xem TẤT CẢ các tab
 export const canManageRooms = (role) => FULL_ACCESS.includes(role);
 // PHÂN QUYỀN TAB (yêu cầu #5):
-//   • IPC, Cơ điện (MEP): chỉ Tổng quan + Sự cố (để kích hoạt sự cố liên quan).
-//   • Trực (LOT): Tổng quan + Sự cố + Xu hướng.
+//   • IPC, Cơ điện (MEP): Tổng quan + Sự cố + Việc cần làm.
+//   • Trực (LOT): Tổng quan + Sự cố + Xu hướng + Việc cần làm.
 //   • QA, IT (ADMIN): tất cả các tab.
 //   • ĐỔI MẬT KHẨU: mọi vai trò đều có (nút riêng ở góc phải, không phụ thuộc tab).
 export const TAB_ROLES = {
   home:     ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   events:   ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   recent:   ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
+  tasks:    ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   sensors:  ["MEP", "LOT", "QA", "ADMIN", "IT"],   // theo dõi cảm biến đứng hình — Cơ điện xử lý
   trend:    ["LOT", "QA", "ADMIN", "IT"],
   reports:  FULL_ACCESS,

@@ -100,12 +100,12 @@ export const AUDIT_ACTION_OPTIONS = Object.entries(ACTION_CODE_TO_LABEL)
   .sort((a, b) => a.label.localeCompare(b.label, 'vi'))
 
 const SENSOR_LABEL = { DP: 'Chênh áp (DP)', RH: 'Độ ẩm (RH)', T: 'Nhiệt độ (T)' }
-// timestamptz ISO (UTC) → "YYYY-MM-DD HH:MM:SS" theo giờ địa phương trình duyệt (VN)
+// timestamptz ISO (UTC) → "YYYY-MM-DD HH:MM:SS" theo giờ VN (cố định UTC+7, không theo máy)
 const fmtTS = (s, dai = 19) => {
   if (!s) return ''
   const d = new Date(s)
   if (isNaN(d)) return String(s).replace('T', ' ').slice(0, dai)
-  return d.toLocaleString('sv-SE').slice(0, dai)   // 'sv-SE' = "YYYY-MM-DD HH:MM:SS"
+  return d.toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, dai)   // 'sv-SE' = "YYYY-MM-DD HH:MM:SS"
 }
 
 // ============================================================

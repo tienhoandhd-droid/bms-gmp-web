@@ -19,7 +19,7 @@ import {
   DataZoomComponent, ToolboxComponent, CalendarComponent, VisualMapComponent, AriaComponent
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-import { SENSOR_COLOR, SENSOR_META_BASE as SENSOR_META, COMPLY_OK, COMPLY_BAD, COMPLY_SCALE, complyColor, fmtPct } from "../lib/designTokens";
+import { SENSOR_META_BASE as SENSOR_META, COMPLY_SCALE, complyColor, fmtPct } from "../lib/designTokens";
 import { chartTokens, useThemeVersion, layToken } from "../theme/chartTheme";
 // CHEX — màu series/tooltip đọc token ĐÃ RESOLVE tại thời điểm truy cập (canvas
 // không hiểu var()); getter để đổi theme là option dựng lại có màu mới.
@@ -38,6 +38,7 @@ const CHEX = {
 };
 // T() — token biểu đồ đọc từ CSS var tại thời điểm DỰNG option (re-render khi đổi theme).
 const T = () => chartTokens();
+const sensorColor = (key) => ({ DP: CHEX.teal, RH: CHEX.sky, T: CHEX.sand }[key] || CHEX.teal);
 
 // Mảng 3: pieces cho visualMap piecewise dựng TỪ thang màu chuẩn duy nhất
 // (COMPLY_SCALE) → mọi heatmap dùng chung ngưỡng, sửa 1 chỗ đồng bộ.
@@ -46,7 +47,7 @@ const complyPieces = () => COMPLY_SCALE.map((b) => ({ ...(b.gte != null ? { gte:
 echarts.use([LineChart, BarChart, CustomChart, HeatmapChart, GridComponent, TooltipComponent, MarkLineComponent, MarkAreaComponent, MarkPointComponent, LegendComponent, DataZoomComponent, ToolboxComponent, CalendarComponent, VisualMapComponent, AriaComponent, CanvasRenderer]);
 
 // Toolbox (xuất PNG) + dataZoom (kéo–thu phóng) dùng chung cho biểu đồ xu hướng lớn.
-const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Tải ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: "#fff" /* chart-color-exception: print-export */ } }, iconStyle: { borderColor: T().textMuted }, emphasis: { iconStyle: { borderColor: CHEX.tealLine } } });
+const toolboxLuuAnh = (ten) => ({ show: true, right: 6, top: -4, feature: { saveAsImage: { title: "Tải ảnh", name: ten || "xu-huong", pixelRatio: 2, backgroundColor: T().exportBackground } }, iconStyle: { borderColor: T().textMuted }, emphasis: { iconStyle: { borderColor: CHEX.tealLine } } });
 const dataZoomTruot = (bottom = 6) => ([
   { type: "inside", filterMode: "none" },
   { type: "slider", height: 15, bottom, filterMode: "none", brushSelect: false, borderColor: "transparent", fillerColor: echarts.color.modifyAlpha(CHEX.teal, 0.10), handleSize: "80%", moveHandleSize: 4, dataBackground: { lineStyle: { color: T().chartGrid }, areaStyle: { color: T().chartGrid } }, textStyle: { fontSize: 8, color: T().textMuted } },
@@ -54,16 +55,33 @@ const dataZoomTruot = (bottom = 6) => ([
 
 // ---- Hằng số thiết kế: DÙNG CHUNG qua lib/designTokens (hết lặp App/charts) ----
 const xTickEvery = (n) => Math.max(0, Math.floor(n / 12));
+// Trục Y "đẹp": min/max làm tròn về BỘI SỐ của bước chia (1·2·2,5·5·10 × 10ⁿ) và trả
+// luôn `interval`. Trước đây min/max lẻ (vd max 97 khi vạch là 96, 93…) nên ECharts in
+// thêm nhãn 97 dính vào 96. `chan` = [sàn, trần] tuyệt đối (vd % đạt: 0–100).
+function trucDep(lo, hi, soVach = 5, chan = null) {
+  if (!isFinite(lo) || !isFinite(hi)) return {};
+  if (hi <= lo) { lo -= 1; hi += 1; }
+  const tho = (hi - lo) / soVach;
+  const mu = Math.pow(10, Math.floor(Math.log10(tho)));
+  const buoc = [1, 2, 2.5, 5, 10].map((b) => b * mu).find((b) => b >= tho - 1e-9);
+  let min = Math.floor(lo / buoc + 1e-9) * buoc, max = Math.ceil(hi / buoc - 1e-9) * buoc;
+  if (chan) { min = Math.max(chan[0], min); max = Math.min(chan[1], max); }
+  const tron = (x) => +x.toFixed(6);
+  const soLe = (String(tron(buoc)).split(".")[1] || "").length;   // số chữ số thập phân cho nhãn
+  return { min: tron(min), max: tron(max), interval: tron(buoc), soLe };
+}
 function complyDomain(values) {
   const ys = values.filter((v) => v != null);
-  if (!ys.length) return [0, 100];
+  if (!ys.length) return [0, 100, 20];
   const lo = Math.min(...ys), hi = Math.max(...ys);
   const pad = Math.max(4, (hi - lo) * 0.18);
-  return [Math.max(0, Math.floor(lo - pad)), Math.min(100, Math.ceil(hi + pad))];
+  const t = trucDep(lo - pad, hi + pad, 5, [0, 100]);
+  return [t.min, t.max, t.interval];
 }
-const chartWrap = "rounded-xl bg-surface ring-1 ring-line p-2";
-const TT_CSS = "border-radius:12px;box-shadow:0 10px 30px -8px rgba(35,80,110,0.4);padding:8px 12px;"; // chart-color-exception: tooltip DOM shadow
-const tooltipBase = () => ({ backgroundColor: T().surface, borderColor: T().border, borderWidth: 1, textStyle: { fontSize: 11, color: T().textStrong }, extraCssText: TT_CSS });
+const chartWrap = "rounded-lg bg-surface p-1 sm:p-2";
+const TT_CSS = "border-radius:10px;box-shadow:0 10px 30px -8px rgba(35,80,110,0.4);padding:8px 10px;max-width:min(240px,calc(100vw - 24px));white-space:normal;"; // chart-color-exception: tooltip DOM shadow
+const tooltipBase = () => ({ confine: true, enterable: false, transitionDuration: 0, backgroundColor: T().surface, borderColor: T().border, borderWidth: 1, textStyle: { fontSize: 12, lineHeight: 18, color: T().textStrong }, extraCssText: TT_CSS });
+const chartPointValue = (data) => (data && typeof data === "object" && "value" in data ? data.value : data);
 const gradient = (c, top = 0.30, bot = 0.02) => new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: echarts.color.modifyAlpha(c, top) }, { offset: 1, color: echarts.color.modifyAlpha(c, bot) }]);
 const tooltipEvidence = ({ title, verdict, tone = CHEX.teal, rows = [], notes = [] }) => {
   const rowHtml = rows.filter(Boolean).map(([k, v, c]) => `<div style="display:flex;justify-content:space-between;gap:18px;margin-top:3px"><span style="color:${T().textMuted}">${k}</span><b style="color:${c || T().textStrong};font-weight:700">${v}</b></div>`).join("");
@@ -77,6 +95,7 @@ function EChart({ option, height = 200, width = "100%", className = "", group = 
   const instRef = useRef(null);
   const clickRef = useRef(onPointClick);
   clickRef.current = onPointClick;
+  const chuKyRef = useRef(null);   // chữ ký option đã vẽ — xem effect setOption bên dưới
   useEffect(() => {
     const inst = echarts.init(elRef.current, null, { renderer: "canvas" });
     instRef.current = inst;
@@ -100,9 +119,20 @@ function EChart({ option, height = 200, width = "100%", className = "", group = 
     });
     const ro = new ResizeObserver(() => instRef.current && instRef.current.resize());
     ro.observe(elRef.current);
-    return () => { ro.disconnect(); reg.delete(elRef.current); inst.dispose(); instRef.current = null; };
+    // instance bị hủy → instance mới phải vẽ lại dù option không đổi
+    return () => { ro.disconnect(); reg.delete(elRef.current); inst.dispose(); instRef.current = null; chuKyRef.current = null; };
   }, [group]);
-  useEffect(() => { if (instRef.current && option) instRef.current.setOption({ aria: { enabled: true, decal: { show: true } }, ...option }, true); }, [option]);
+  // Mỗi lần trang cha render, các hàm biểu đồ dựng `option` MỚI dù dữ liệu không đổi
+  // (nhịp poll, gõ phím…). setOption(notMerge) khi đó vẽ lại từ đầu → mất vùng zoom,
+  // chú giải đang ẩn, tooltip. So "chữ ký" nội dung (dữ liệu, màu, nhãn; JSON bỏ qua
+  // hàm formatter) — giống hệt lần trước thì KHÔNG vẽ lại. Đổi theme → màu đổi → vẽ lại.
+  useEffect(() => {
+    if (!instRef.current || !option) return;
+    const chuKy = JSON.stringify(option);
+    if (chuKy === chuKyRef.current) return;
+    chuKyRef.current = chuKy;
+    instRef.current.setOption({ aria: { enabled: true, decal: { show: true } }, ...option }, true);
+  }, [option, group]);
   return <div ref={elRef} className={className} style={{ width, height }} />;
 }
 
@@ -120,6 +150,8 @@ function bandCustomSeries({ name, points, color, alpha = 0.13, z = 1 }) {
   if (cur) runs.push(cur);
   return {
     name, type: "custom", silent: true, z, tooltip: { show: false },
+    // ECharts bỏ qua khóa lạ này; để chữ ký JSON của EChart thấy dải đổi (renderItem là hàm, JSON không thấy).
+    bmsDai: runs,
     // 1 phần tử dữ liệu "mồi" — toàn bộ polygon vẽ trong renderItem từ closure `runs`.
     data: [0],
     renderItem: (params, api) => ({
@@ -137,7 +169,7 @@ function bandCustomSeries({ name, points, color, alpha = 0.13, z = 1 }) {
 const axisX = (labels, interval = 0, show = true) => ({
   type: "category", data: labels, boundaryGap: true,
   axisTick: { show: false }, axisLine: { show, lineStyle: { color: T().chartGrid } },
-  axisLabel: show ? { fontSize: 9, color: T().chartAxis, interval } : { show: false },
+  axisLabel: show ? { fontSize: 10, color: T().chartAxis, interval, hideOverlap: true, margin: 9 } : { show: false },
 });
 
 // ====== Mini cột "điểm OOS theo giờ (8h)" — thẻ phòng ở tab Tổng quan ======
@@ -163,8 +195,8 @@ export function MiniArea({ data }) {
     xAxis: { ...axisX(data.map((d) => d.label), 0, false) },
     yAxis: { type: "value", show: false, scale: true, max: 100 },
     series: [{
-      type: "line", data: comps, smooth: true, showSymbol: false, connectNulls: true,
-      lineStyle: { color: COMPLY_OK, width: 2 }, areaStyle: { color: gradient(COMPLY_OK, 0.28, 0.02) },
+      type: "line", data: comps, smooth: true, smoothMonotone: "x", showSymbol: false, connectNulls: false,
+      lineStyle: { color: CHEX.teal, width: 2 }, areaStyle: { color: gradient(CHEX.teal, 0.28, 0.02) },
       markLine: { silent: true, symbol: "none", label: { show: false }, data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1 } },
     }],
   };
@@ -173,7 +205,7 @@ export function MiniArea({ data }) {
 
 // ====== Sparkline (bảng xếp hạng rủi ro) — màu theo chiều tăng/giảm ======
 export function Sparkline({ chuoi }) {
-  if (!chuoi || chuoi.length < 2) return <span className="text-[12px] text-muted">—</span>;
+  if (!chuoi || chuoi.length < 2) return <span className="text-tk-xs text-muted">—</span>;
   const last = chuoi[chuoi.length - 1]?.comp, first = chuoi[0]?.comp;
   const stroke = (last != null && first != null) ? (last >= first ? CHEX.teal : CHEX.coral) : CHEX.teal;
   const option = {
@@ -182,7 +214,7 @@ export function Sparkline({ chuoi }) {
     tooltip: { trigger: "axis", ...tooltipBase(), formatter: (p) => `${p[0].axisValue}<br/>${fmtPct(p[0].data)} đạt` },
     xAxis: { ...axisX(chuoi.map((d) => d.label), 0, false) },
     yAxis: { type: "value", show: false, scale: true },
-    series: [{ type: "line", data: chuoi.map((d) => d.comp), smooth: true, showSymbol: false, lineStyle: { color: stroke, width: 1.6 }, areaStyle: { color: echarts.color.modifyAlpha(stroke, 0.12) } }],
+    series: [{ type: "line", data: chuoi.map((d) => d.comp), smooth: true, smoothMonotone: "x", showSymbol: false, lineStyle: { color: stroke, width: 1.6 }, areaStyle: { color: echarts.color.modifyAlpha(stroke, 0.12) } }],
   };
   return <EChart option={option} height={30} width={96} />;
 }
@@ -190,12 +222,12 @@ export function Sparkline({ chuoi }) {
 // ====== (A) % đạt TOÀN PHẦN + vùng OOS + ngưỡng 80% (chấm đỏ khi < 80) ======
 export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents = null, prevData = null, onPointClick = null }) {
   const prevVals = (prevData || []).map((v) => (v == null ? null : +v));
-  const [ymin, ymax] = complyDomain([...data.map((d) => d.comp), ...prevVals]);
+  const [ymin, ymax, ybuoc] = complyDomain([...data.map((d) => d.comp), ...prevVals]);
   // Overlay SỰ CỐ: vạch dọc ⚑ tại thời điểm mở sự cố — incidents = [{idx, name}]
   const markLineData = [
     { yAxis: 80, lineStyle: { color: CHEX.sand, type: "dashed", width: 1.5 }, label: { formatter: "Ngưỡng GMP 80%", fontSize: 10, color: CHEX.sand, position: "insideEndTop" } },
     ...(incidents || []).filter((sc) => sc.idx >= 0 && sc.idx < data.length).map((sc) => ({
-      xAxis: sc.idx,
+      xAxis: sc.idx, name: sc.name,   // name: để chữ ký vẽ lại khi tên sự cố đổi (tooltip đọc incByIdx)
       lineStyle: { color: CHEX.coral, type: "solid", width: 1.1, opacity: 0.65 },
       label: { formatter: "⚑", fontSize: 11, color: CHEX.coral, position: "insideEndTop", distance: 2 },
     })),
@@ -230,18 +262,18 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
       },
     },
     xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
-    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" } },
+    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" }, interval: ybuoc },
     series: [
       // "Bóng" KỲ TRƯỚC (xám đứt, canh theo index) — bật qua nút So kỳ trước.
       ...(prevVals.length ? [{
-        name: "Kỳ trước", type: "line", smooth: true, connectNulls: true, showSymbol: false, silent: true, z: 1,
+        name: "Kỳ trước", type: "line", smooth: true, smoothMonotone: "x", connectNulls: false, showSymbol: false, silent: true, z: 1,
         data: data.map((_, i) => (prevVals[i] != null ? prevVals[i] : null)),
         lineStyle: { color: T().textMuted, width: 1.6, type: "dashed" },
       }] : []),
       {
-        name: "Kỳ này", type: "line", smooth: true, connectNulls: false, showSymbol: true, symbolSize: 5, z: 3,
-        data: data.map((d) => ({ value: d.comp, symbol: d.comp != null && d.comp < 80 ? "diamond" : "circle", symbolSize: d.comp != null && d.comp < 80 ? 8 : 5, itemStyle: { color: d.comp != null && d.comp < 80 ? COMPLY_BAD : COMPLY_OK, borderColor: T().surface, borderWidth: 1.2 } })),
-        lineStyle: { color: COMPLY_OK, width: 2.4 },
+        name: "Kỳ này", type: "line", smooth: true, smoothMonotone: "x", connectNulls: false, showSymbol: true, symbolSize: 5, z: 3,
+        data: data.map((d) => ({ value: d.comp, symbol: d.comp != null && d.comp < 80 ? "diamond" : "circle", symbolSize: d.comp != null && d.comp < 80 ? 8 : 5, itemStyle: { color: d.comp != null && d.comp < 80 ? CHEX.coral : CHEX.teal, borderColor: T().surface, borderWidth: 1.2 } })),
+        lineStyle: { color: CHEX.teal, width: 2.4 },
         markArea: ymin < 80 ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(CHEX.coralDeep, 0.055) }, data: [[{ yAxis: ymin }, { yAxis: 80 }]] } : undefined,
         markLine: { silent: true, symbol: "none", data: markLineData },
       },
@@ -255,7 +287,7 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
   const ks = ["DP", "RH", "T"].filter((k) => present.includes(k));
   const allVals = [];
   data.forEach((d) => ks.forEach((k) => { if (d[`comp_${k}`] != null) allVals.push(d[`comp_${k}`]); }));
-  const [ymin, ymax] = complyDomain(allVals);
+  const [ymin, ymax, ybuoc] = complyDomain(allVals);
   const option = {
     animation: false,
     grid: { top: 20, right: 16, bottom: 34, left: 8, containLabel: true },
@@ -274,10 +306,10 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
       },
     },
     xAxis: axisX(data.map((d) => d.label), xTickEvery(data.length)),
-    yAxis: { type: "value", min: ymin, max: ymax, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" } },
+    yAxis: { type: "value", min: ymin, max: ymax, interval: ybuoc, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: "{value}%" } },
     series: ks.map((k) => ({
-      name: SENSOR_META[k].label, type: "line", smooth: true, connectNulls: false, showSymbol: false,
-      data: data.map((d) => d[`comp_${k}`]), lineStyle: { color: SENSOR_COLOR[k], width: 2.3 }, itemStyle: { color: SENSOR_COLOR[k] },
+      name: SENSOR_META[k].label, type: "line", smooth: true, smoothMonotone: "x", connectNulls: false, showSymbol: false,
+      data: data.map((d) => d[`comp_${k}`]), lineStyle: { color: sensorColor(k), width: 2.3 }, itemStyle: { color: sensorColor(k) },
       ...(k === ks[0] ? { markArea: ymin < 80 ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(CHEX.coralDeep, 0.04) }, data: [[{ yAxis: ymin }, { yAxis: 80 }]] } : undefined, markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1.4 }, label: { formatter: "Ngưỡng GMP 80%", fontSize: 10, color: CHEX.sand, position: "insideEndTop" } } } : {}),
     })),
   };
@@ -287,7 +319,7 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
 // ====== Giá trị TB + dải P5–P95 + trung vị P50 + GHD/GHT + baseline 30 ngày ======
 export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
   const unit = SENSOR_META[sensorKey]?.unit || "";
-  const color = SENSOR_COLOR[sensorKey] || CHEX.teal;
+  const color = sensorColor(sensorKey) || CHEX.teal;
   const lo = [...series].reverse().find((p) => p.lo != null)?.lo ?? null;
   const hi = [...series].reverse().find((p) => p.hi != null)?.hi ?? null;
   const vals = series.filter((p) => p.avg != null);
@@ -331,13 +363,18 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
       },
     },
     xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
-    yAxis: { type: "value", scale: true, ...(hasDomain ? { min: +(yLo - pad).toFixed(1), max: +(yHi + pad).toFixed(1) } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => `${+(+v).toFixed(1)}` } },
+    yAxis: { type: "value", scale: true, ...(hasDomain ? (({ min, max, interval }) => ({ min, max, interval }))(trucDep(yLo - pad, yHi + pad)) : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => `${+(+v).toFixed(1)}` } },
     series: [
       ...bandSeries,
-      ...(hasPct ? [{ name: "P50", type: "line", data: series.map((p) => (p.p50 != null ? p.p50 : null)), connectNulls: true, showSymbol: false, symbol: "none", lineStyle: { color: echarts.color.modifyAlpha(color, 0.55), width: 1, type: "dashed" }, tooltip: { show: false }, z: 2 }] : []),
+      ...(hasPct ? [{ name: "P50", type: "line", data: series.map((p) => (p.p50 != null ? p.p50 : null)), connectNulls: false, showSymbol: false, symbol: "none", lineStyle: { color: echarts.color.modifyAlpha(color, 0.55), width: 1, type: "dashed" }, tooltip: { show: false }, z: 2 }] : []),
       {
-        name: "TB", type: "line", smooth: true, connectNulls: true, showSymbol: true, symbolSize: 5, z: 3,
-        data: series.map((p) => ({ value: p.avg, itemStyle: { color: (lo != null && p.avg < lo) || (hi != null && p.avg > hi) ? CHEX.coralDeep : color, borderColor: T().surface, borderWidth: 0.9 } })),
+        name: "TB", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 5, z: 3,
+        data: series.map((p) => {
+          const value = p.avg == null ? null : +p.avg;
+          if (value == null) return { value };
+          const outOfLimit = (lo != null && value < lo) || (hi != null && value > hi);
+          return { value, itemStyle: { color: outOfLimit ? CHEX.coralDeep : color, borderColor: T().surface, borderWidth: 0.9 } };
+        }),
         lineStyle: { color, width: 2.4 }, areaStyle: hasPct ? undefined : { color: gradient(color, 0.16, 0.03) },
         markArea: (lo != null && hi != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(color, 0.06) }, data: [[{ yAxis: lo }, { yAxis: hi }]] } : undefined,
         markLine: markLineData.length ? { silent: true, symbol: "none", data: markLineData } : undefined,
@@ -347,9 +384,9 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h3 className="text-[14px] font-semibold" style={{ color: CHEX.navy }}>{SENSOR_META[sensorKey]?.label} ({sensorKey})</h3></div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Nền 30n", bTb == null ? "—" : `${bTb}${bSig != null ? `±${bSig}` : ""}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-subtle ring-1 ring-line py-1.5"><p className="text-[12px] uppercase text-muted font-semibold leading-tight">{k}</p><p className="text-[13px] font-semibold tabular-nums" style={{ color: CHEX.navy }}>{v}</p></div>)}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Nền 30n", bTb == null ? "—" : `${bTb}${bSig != null ? `±${bSig}` : ""}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-subtle ring-1 ring-line py-1.5"><p className="text-tk-xs uppercase text-muted font-semibold leading-tight">{k}</p><p className="text-tk-sm font-semibold tabular-nums" style={{ color: CHEX.navy }}>{v}</p></div>)}</div>
       <EChart option={option} height={210} group={group} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted">{hasPct && <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.28 }} /> Dải P5–P95</span>}<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CHEX.coralDeep }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dotted" style={{ borderColor: CHEX.skyLine }} /> Nền 30 ngày ±σ</span></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-tk-xs text-muted">{hasPct && <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.28 }} /> Dải P5–P95</span>}<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CHEX.coralDeep }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dotted" style={{ borderColor: CHEX.skyLine }} /> Nền 30 ngày ±σ</span></div>
     </div>
   );
 }
@@ -359,34 +396,41 @@ export function RoomDetailMiniChart({ pts, smin, smax, mean, unit, group = null 
   const vals = []; pts.forEach((p) => { [p.avg, p.vmin, p.vmax].forEach((x) => { if (x != null) vals.push(+x); }); });
   if (smin != null) vals.push(+smin); if (smax != null) vals.push(+smax);
   let lo = vals.length ? Math.min(...vals) : 0, hi = vals.length ? Math.max(...vals) : 1;
-  if (lo === hi) { lo -= 1; hi += 1; } const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
-  const span = hi - lo; const dec = span >= 10 ? 0 : span >= 2 ? 1 : 2;
+  if (lo === hi) { lo -= 1; hi += 1; } const pad = (hi - lo) * 0.08;
+  const truc = trucDep(lo - pad, hi + pad, 5); const dec = Math.min(2, truc.soLe);
   const hasBand = pts.some((p) => p.vmin != null && p.vmax != null);
   const markLineData = [];
-  if (smin != null) markLineData.push({ yAxis: smin, label: { formatter: `GHD ${smin}`, fontSize: 9, color: CHEX.coral, position: "insideStartBottom" }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.3 } });
-  if (smax != null) markLineData.push({ yAxis: smax, label: { formatter: `GHT ${smax}`, fontSize: 9, color: CHEX.coral, position: "insideStartTop" }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.3 } });
+  // Nhãn giới hạn đặt NGOÀI vùng vẽ (lề phải, position "end") — đặt bên trong thì đè lên đường dữ liệu
+  // đúng lúc dữ liệu sát giới hạn (trường hợp cần đọc rõ nhất). Đơn vị đã ghi ở chú giải.
+  if (smin != null) markLineData.push({ yAxis: smin, label: { formatter: `GHD\n${smin}`, fontSize: 9, lineHeight: 11, color: CHEX.coral, position: "end", distance: 4 }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.4 } });
+  if (smax != null) markLineData.push({ yAxis: smax, label: { formatter: `GHT\n${smax}`, fontSize: 9, lineHeight: 11, color: CHEX.coral, position: "end", distance: 4 }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.4 } });
   if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: CHEX.navy, position: "insideEndTop" }, lineStyle: { color: CHEX.navy, type: "dashed", width: 1.2 } });
   const option = {
     animation: false,
-    grid: { top: 8, right: 14, bottom: 20, left: 8, containLabel: true },
+    grid: { top: 18, right: (smin != null || smax != null) ? 40 : 14, bottom: 30, left: 8, containLabel: true },
     tooltip: {
       trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
         const byName = {}; ps.forEach((p) => { byName[p.seriesName] = p; });
-        const avg = byName["TB giờ"] ? byName["TB giờ"].data : null;
+        const avg = chartPointValue(byName["TB giờ"]?.data);
         const f = (x) => (x == null ? "—" : (+x).toFixed(2));
         const lohi = hasBand ? `<div style="color:${T().textMuted}">Min–Max: ${f(pts[ps[0].dataIndex]?.vmin)}–${f(pts[ps[0].dataIndex]?.vmax)} ${unit}</div>` : "";
-        return `<div style="font-weight:600;color:${CHEX.navy}">${ps[0].axisValue}</div><div>TB giờ: <b>${f(avg)} ${unit}</b></div>${lohi}`;
+        return `<div style="font-weight:700;color:${CHEX.navy}">${ps[0].axisValue}</div><div>TB giờ: <b>${avg == null ? "Chưa có số đo" : `${f(avg)} ${unit}`}</b></div>${lohi}`;
       },
     },
     xAxis: axisX(pts.map((p) => p.label)),
-    yAxis: { type: "value", min: +lo.toFixed(dec), max: +hi.toFixed(dec), axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => (+v).toFixed(dec) } },
+    yAxis: { type: "value", min: truc.min, max: truc.max, interval: truc.interval, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } }, axisLabel: { fontSize: 10, color: T().chartAxis, formatter: (v) => (+v).toFixed(dec) } },
     series: [
       // Dải min–max: custom polygon (chịu null, không cần stack)
       ...(hasBand ? [bandCustomSeries({ name: "_minmax", points: pts.map((p) => (p.vmin != null && p.vmax != null ? { lo: p.vmin, hi: p.vmax } : null)), color: CHEX.sky, alpha: 0.14 })] : []),
       {
-        name: "TB giờ", type: "line", smooth: true, connectNulls: true, showSymbol: true, symbolSize: 6, z: 3,
-        data: pts.map((p) => ({ value: p.avg, itemStyle: { color: (smin != null && p.avg < smin) || (smax != null && p.avg > smax) ? CHEX.coralDeep : CHEX.teal, borderColor: T().surface, borderWidth: 1 } })),
+        name: "TB giờ", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 6, z: 3,
+        data: pts.map((p) => {
+          const value = p.avg == null ? null : +p.avg;
+          if (value == null) return { value };
+          const outOfLimit = (smin != null && value < smin) || (smax != null && value > smax);
+          return { value, symbol: outOfLimit ? "diamond" : "circle", symbolSize: outOfLimit ? 8 : 6, itemStyle: { color: outOfLimit ? CHEX.coralDeep : CHEX.teal, borderColor: T().surface, borderWidth: 1 } };
+        }),
         lineStyle: { color: CHEX.teal, width: 2.2 },
         markArea: (smin != null && smax != null) ? { silent: true, itemStyle: { color: echarts.color.modifyAlpha(CHEX.teal, 0.10) }, data: [[{ yAxis: smin }, { yAxis: smax }]] } : undefined,
         markLine: markLineData.length ? { silent: true, symbol: "none", data: markLineData } : undefined,
@@ -406,13 +450,13 @@ export function TrendMainChart({ data, range }) {
     legend: { show: false },
     xAxis: axisX(data.map((d) => d.label), interval),
     yAxis: [
-      { type: "value", axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid } }, axisLabel: { fontSize: 10, color: T().chartAxis } },
+      { type: "value", axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } }, axisLabel: { fontSize: 10, color: T().chartAxis } },
       { type: "value", min: 0, max: 100, position: "right", axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 10, color: T().chartAxis } },
     ],
     series: [
       { name: "Warning", type: "bar", stack: "h", data: data.map((d) => d.warnH), barMaxWidth: 26, itemStyle: { color: CHEX.sand } },
       { name: "Critical", type: "bar", stack: "h", data: data.map((d) => d.critH), barMaxWidth: 26, itemStyle: { color: CHEX.softCoral, borderRadius: [4, 4, 0, 0] } },
-      { name: "Tỷ lệ đạt", type: "line", yAxisIndex: 1, smooth: true, showSymbol: false, data: data.map((d) => d.comp), lineStyle: { color: CHEX.teal, width: 2.6 }, itemStyle: { color: CHEX.teal }, markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1.5 } } },
+      { name: "Tỷ lệ đạt", type: "line", yAxisIndex: 1, smooth: true, smoothMonotone: "x", showSymbol: false, data: data.map((d) => d.comp), lineStyle: { color: CHEX.teal, width: 2.6 }, itemStyle: { color: CHEX.teal }, markLine: { silent: true, symbol: "none", data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1.5 } } },
     ],
   };
   return <EChart option={option} height={300} />;
@@ -441,13 +485,13 @@ export function nelsonViolations(vals, tb, sigma) {
 }
 export function SpcChart({ sensorKey, series, baseline, height = 230, group = null }) {
   const unit = SENSOR_META[sensorKey]?.unit || "";
-  const color = SENSOR_COLOR[sensorKey] || CHEX.teal;
+  const color = sensorColor(sensorKey) || CHEX.teal;
   const tb = baseline && baseline.tb != null ? +baseline.tb : null;
   const sig = baseline && baseline.sigma != null && +baseline.sigma > 0 ? +baseline.sigma : null;
   const vals = series.map((p) => (p.avg != null ? +p.avg : null));
   const vio = nelsonViolations(vals, tb, sig);
   if (tb == null || sig == null) {
-    return <p className="text-[12px] text-muted italic">Chưa đủ nền 30 ngày (TB/σ) để dựng biểu đồ kiểm soát cho {SENSOR_META[sensorKey]?.label}.</p>;
+    return <p className="text-tk-xs text-muted italic">Chưa đủ nền 30 ngày (TB/σ) để dựng biểu đồ kiểm soát cho {SENSOR_META[sensorKey]?.label}.</p>;
   }
   const zones = [ // vùng sigma tô nhạt dần từ trong ra
     [tb - sig, tb + sig, 0.10], [tb - 2 * sig, tb - sig, 0.05], [tb + sig, tb + 2 * sig, 0.05],
@@ -477,10 +521,13 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
       },
     },
     xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
-    yAxis: { type: "value", min: +(yLo - pad).toFixed(2), max: +(yHi + pad).toFixed(2), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 9, color: T().chartAxis } },
+    yAxis: { type: "value", ...(({ min, max, interval }) => ({ min, max, interval }))(trucDep(yLo - pad, yHi + pad)), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 9, color: T().chartAxis } },
     series: [{
-      name: "Giá trị", type: "line", smooth: false, connectNulls: true, showSymbol: true, symbolSize: 6, z: 3,
-      data: vals.map((v, i) => ({ value: v, itemStyle: { color: vio[i].some((r) => r.startsWith("R1")) ? CHEX.coralDeep : vio[i].length ? CHEX.sand : color, borderColor: T().surface, borderWidth: 1 } })),
+      name: "Giá trị", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 6, z: 3,
+      data: vals.map((v, i) => {
+        if (v == null) return { value: null };
+        return { value: v, itemStyle: { color: vio[i].some((r) => r.startsWith("R1")) ? CHEX.coralDeep : vio[i].length ? CHEX.sand : color, borderColor: T().surface, borderWidth: 1 } };
+      }),
       lineStyle: { color, width: 1.8 },
       markArea: { silent: true, data: zones.map(([lo, hi, a]) => [{ yAxis: lo, itemStyle: { color: echarts.color.modifyAlpha(color, a) } }, { yAxis: hi }]) },
       markLine: { silent: true, symbol: "none", data: sigLines },
@@ -489,7 +536,7 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
   return (
     <div>
       <EChart option={option} height={height} group={group} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-muted">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-tk-xs text-muted">
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> Trong kiểm soát</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CHEX.sandDeep }} /> Tín hiệu Nelson R2/R3</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CHEX.coralDeep }} /> Vượt 3σ (R1)</span>
@@ -503,7 +550,7 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
 // days: [{date:'YYYY-MM-DD', value:comp|null}]
 export function CalendarHeat({ days, height = 190 }) {
   const valid = (days || []).filter((d) => d.value != null && d.date);
-  if (!valid.length) return <p className="text-[12px] text-muted italic">Chưa có dữ liệu ngày để dựng lịch tỷ lệ đạt.</p>;
+  if (!valid.length) return <p className="text-tk-xs text-muted italic">Chưa có dữ liệu ngày để dựng lịch tỷ lệ đạt.</p>;
   const dates = valid.map((d) => d.date).sort();
   const option = {
     animation: false,
@@ -535,7 +582,7 @@ export function CalendarHeat({ days, height = 190 }) {
 //   days   : ['01/07', …]            (nhãn trục X)
 //   values : number[rooms][days]     (%-đạt hoặc null nếu thiếu dữ liệu)
 export function RoomDayHeatmap({ rooms, days, values, height, cellH = 18 }) {
-  if (!rooms?.length || !days?.length) return <p className="text-[12px] text-muted italic">Chưa đủ dữ liệu phòng×ngày để dựng bản đồ tỷ lệ đạt.</p>;
+  if (!rooms?.length || !days?.length) return <p className="text-tk-xs text-muted italic">Chưa đủ dữ liệu phòng×ngày để dựng bản đồ tỷ lệ đạt.</p>;
   const data = [];
   for (let y = 0; y < rooms.length; y++) {
     const row = values[y] || [];
@@ -571,7 +618,7 @@ export function RoomDayHeatmap({ rooms, days, values, height, cellH = 18 }) {
 export function ForecastChart({ chuoi, duBao, height = 180 }) {
   const hist = (chuoi || []).map((p) => (p.y == null ? null : +p.y));
   const fc = duBao || [];
-  if (!hist.length || !fc.length) return <p className="text-[12px] text-muted italic">Chưa đủ dữ liệu để vẽ dự báo.</p>;
+  if (!hist.length || !fc.length) return <p className="text-tk-xs text-muted italic">Chưa đủ dữ liệu để vẽ dự báo.</p>;
   const fmtD = (s) => String(s).slice(5).split("-").reverse().join("/");
   const N = hist.length, F = fc.length;
   const labels = [...(chuoi || []).map((p) => fmtD(p.ngay)), ...fc.map((p) => fmtD(p.ngay))];
@@ -581,8 +628,7 @@ export function ForecastChart({ chuoi, duBao, height = 180 }) {
   const bandLow = [...Array(N).fill(null), ...fc.map((p) => +p.canh_duoi)];               // nền dải (ẩn)
   const bandDelta = [...Array(N).fill(null), ...fc.map((p) => +p.canh_tren - +p.canh_duoi)]; // phần tô = trên − dưới
   const allV = [...hist.filter((v) => v != null), ...fc.map((p) => +p.canh_duoi), ...fc.map((p) => +p.canh_tren)];
-  const ymin = Math.max(0, Math.floor(Math.min.apply(null, allV) - 2));
-  const ymax = Math.min(100, Math.ceil(Math.max.apply(null, allV) + 2));
+  const { min: ymin, max: ymax, interval: ybuoc } = trucDep(Math.min.apply(null, allV) - 2, Math.max.apply(null, allV) + 2, 4, [0, 100]);
   const option = {
     animation: false,
     grid: { top: 10, right: 12, bottom: 22, left: 8, containLabel: true },
@@ -597,12 +643,12 @@ export function ForecastChart({ chuoi, duBao, height = 180 }) {
       },
     },
     xAxis: { ...axisX(labels, xTickEvery(labels.length), true) },
-    yAxis: { type: "value", scale: true, min: ymin, max: ymax, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => v + "%" }, splitLine: { lineStyle: { color: T().chartGrid } } },
+    yAxis: { type: "value", scale: true, min: ymin, max: ymax, interval: ybuoc, axisLabel: { fontSize: 9, color: T().chartAxis, formatter: (v) => v + "%" }, splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } } },
     series: [
       { name: "band-nen", type: "line", data: bandLow, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 }, silent: true, tooltip: { show: false } },
-      { name: "band-to", type: "line", data: bandDelta, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: echarts.color.modifyAlpha(COMPLY_OK, 0.13) }, silent: true, tooltip: { show: false } },
-      { name: "Lịch sử", type: "line", data: histData, showSymbol: false, connectNulls: false, lineStyle: { color: COMPLY_OK, width: 2.2 } },
-      { name: "Ước tính", type: "line", data: fcData, showSymbol: false, connectNulls: true, lineStyle: { color: COMPLY_OK, width: 2, type: "dashed" } },
+      { name: "band-to", type: "line", data: bandDelta, stack: "cf", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: echarts.color.modifyAlpha(CHEX.teal, 0.13) }, silent: true, tooltip: { show: false } },
+      { name: "Lịch sử", type: "line", data: histData, showSymbol: false, connectNulls: false, lineStyle: { color: CHEX.teal, width: 2.2 } },
+      { name: "Ước tính", type: "line", data: fcData, showSymbol: false, connectNulls: true, lineStyle: { color: CHEX.teal, width: 2, type: "dashed" } },
       { name: "nguong", type: "line", data: [], markLine: { silent: true, symbol: "none", label: { formatter: "80%", fontSize: 9, color: CHEX.sand, position: "insideEndTop" }, data: [{ yAxis: 80 }], lineStyle: { color: CHEX.sand, type: "dashed", width: 1 } } },
     ],
   };
@@ -636,7 +682,7 @@ export function PhanHoiTheoNgayChart({ ngay, series, height = 260 }) {
     legend: { top: 0, itemWidth: 14, itemHeight: 8, textStyle: { fontSize: 11, color: T().chartAxis } },
     xAxis: axisX(ngay, xTickEvery(ngay.length)),
     yAxis: { type: "value", min: 0, max: 100, axisLine: { show: false }, axisTick: { show: false },
-             splitLine: { lineStyle: { color: T().chartGrid } },
+             splitLine: { lineStyle: { color: T().chartGrid, type: "dashed", opacity: 0.55 } },
              axisLabel: { fontSize: 10, color: T().chartAxis, formatter: "{value}%" } },
     series: series.map((s) => ({
       name: s.nhan, type: "line", smooth: false, connectNulls: false,

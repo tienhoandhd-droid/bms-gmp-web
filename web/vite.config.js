@@ -202,6 +202,8 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         action: resolve(__dirname, 'action.html'),
+        // Entry mới tránh HTML action cũ được SW cache-first trên máy đã dùng BMS.
+        incident: resolve(__dirname, 'incident.html'),
         // Trang đặt lại mật khẩu từ email khôi phục — siêu nhẹ như action.
         datlai: resolve(__dirname, 'datlai.html'),
       },

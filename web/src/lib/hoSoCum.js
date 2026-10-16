@@ -8,13 +8,12 @@
 //
 // Mọi giá trị đều đi qua esc() — lý do/ghi chú là văn bản người nhập.
 // ============================================================
+import { fmtVN } from './dinhDang'
 
 const esc = (v) => String(v == null ? '' : v)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-const ts = (v) => (v ? new Date(v).toLocaleString('vi-VN', {
-  day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-}) : '—')
+const ts = (v) => fmtVN(v, 'ngayGio')
 
 export function moHoSoCumBanIn(hoSo) {
   const c = hoSo.cum || {}

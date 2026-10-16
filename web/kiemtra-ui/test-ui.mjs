@@ -1,10 +1,10 @@
 // test-ui.mjs — BỘ KIỂM UX/UI RUNTIME (báo cáo 10 §Automated visual testing).
 // Chạy app ở CHẾ ĐỘ DEMO (không cần đăng nhập) rồi kiểm bằng trình duyệt thật:
-//   1. Không pageerror (ReferenceError/undefined…) trên 10 tab × 2 theme × 3 viewport.
+//   1. Không pageerror (ReferenceError/undefined…) trên 14 trang × 2 theme × 5 viewport.
 //   2. Không tràn ngang toàn trang (scrollWidth ≤ viewport).
 //   3. Dark mode: nền body phải TỐI thật (không kẹt light).
 //   4. Không lộ thuật ngữ hạ tầng trong văn bản render (Supabase/n8n/WF*/rpc_).
-//   5. Tap target bottom-nav mobile ≥ 40px cao.
+//   5. Tap target bottom-nav mobile ≥ 44px cao.
 //   6. Focus hiển thị: phần tử đầu nhận Tab phải có outline.
 //   7. (đợt B 04/09/2026) axe-core WCAG 2.2 AA: 0 vi phạm mức critical/serious/moderate
 //      trên 10 tab × 2 theme × 2 viewport (1440, 390). axe tải từ cdnjs, GHIM phiên bản +
@@ -34,8 +34,8 @@ const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 const GOC = new URL("..", import.meta.url).pathname;
 const TABS = ["home", "tasks", "events", "recent", "sensors", "trend", "reports", "audit", "recipients", "settings"];
 // Đợt D 04/09/2026: kiểm cả 3 trang ngoài dashboard (trước đây là vùng mù): bấm từ email, đặt lại mật khẩu, màn treo tường.
-const TRANG = [...TABS.map((t) => ({ ten: t, url: `/?tab=${t}` })), { ten: "action", url: "/action.html" }, { ten: "datlai", url: "/datlai.html" }, { ten: "tv", url: "/?tv=1" }];
-const VIEWPORTS = [[1440, 900], [768, 1024], [390, 844]];
+const TRANG = [...TABS.map((t) => ({ ten: t, url: `/?tab=${t}` })), { ten: "action", url: "/action.html" }, { ten: "incident", url: "/incident.html" }, { ten: "datlai", url: "/datlai.html" }, { ten: "tv", url: "/?tv=1" }];
+const VIEWPORTS = [[1440, 900], [1280, 900], [1024, 900], [768, 1024], [390, 844]];
 const CAM_RUNTIME = ["Supabase", "n8n", "WF1", "WF5", "WF6", "WF7", "WF8", "rpc_", "webhook"];
 
 async function timChrome() {
@@ -94,7 +94,7 @@ try {
         }, CAM_RUNTIME); } catch { ghi(`${theme} ${w}px ${tab}: evaluate thất bại (trang reload giữa chừng)`); continue; }
         if (kq.sw > w) ghi(`${theme} ${w}px ${tab}: tràn ngang (scrollWidth=${kq.sw})`);
         if (kq.cam.length) ghi(`${theme} ${w}px ${tab}: lộ thuật ngữ hạ tầng: ${kq.cam.join(", ")}`);
-        // 7. axe-core — chỉ 1440 và 390 (768 trùng kết quả, tiết kiệm thời gian CI)
+        // 7. axe-core — desktop/tablet hẹp/mobile; 768 vẫn kiểm overflow, runtime và theme.
         if (axeSrc && w !== 768) {
           try {
             await page.evaluate(axeSrc);
@@ -118,7 +118,7 @@ try {
             const btn = el.querySelector("button");
             return btn ? btn.getBoundingClientRect().height : null;
           });
-          if (nav != null && nav < 40) ghi(`mobile bottom-nav tap target thấp: ${Math.round(nav)}px < 40px`);
+          if (nav != null && nav < 44) ghi(`mobile bottom-nav tap target thấp: ${Math.round(nav)}px < 44px`);
         }
       }
     }
@@ -140,5 +140,5 @@ try {
 } finally {
   if (server) server.kill();
 }
-console.log(loi.length ? `✗ test:ui — ${loi.length} lỗi` : "✓ test:ui — 13 trang × 2 theme × 3 viewport + axe WCAG 2.2 AA đạt");
+console.log(loi.length ? `✗ test:ui — ${loi.length} lỗi` : `✓ test:ui — ${TRANG.length} trang × 2 theme × ${VIEWPORTS.length} viewport + axe WCAG 2.2 AA đạt`);
 process.exit(loi.length ? 1 : 0);
