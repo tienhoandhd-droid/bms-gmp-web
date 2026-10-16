@@ -170,3 +170,39 @@ tbody tr { transition: background-color var(--motion-fast); }
 .bms-chart-alert-key { color:var(--danger); margin-left:var(--space-2); }
 
 .bms-chart-band-key { display:inline-block; width:16px; height:8px; background:var(--info-soft); border:1px solid var(--info-line); margin-left:var(--space-2); }
+
+/* ============================================================
+   Nâng thẩm mỹ 16/10/2026 — chỉ chỉnh ở tầng hệ thống, mọi trang hưởng chung.
+   Nguyên tắc ISA-101 giữ nguyên: màu chỉ dành cho bất thường; phần trang trí dùng
+   bóng/khoảng cách/độ đậm, không thêm màu trạng thái.
+   ============================================================ */
+/* Thẻ: bóng rất nhẹ. Đặt qua --tw-shadow vì Card dùng ring-1 (Tailwind vẽ ring bằng
+   box-shadow và ghép thêm var(--tw-shadow)) — đặt box-shadow trực tiếp sẽ xoá mất viền. */
+.bms-panel, .bms-kpi-grid, .bms-priority, .bms-filterbar { --tw-shadow: var(--shadow-card); }
+.bms-kpi-grid, .bms-priority, .bms-filterbar { box-shadow: var(--shadow-card); }
+.bms-panel { transition: box-shadow var(--motion-fast) var(--ease-standard); }
+.bms-overview-chart:hover { --tw-shadow: var(--shadow-card-hover); }
+
+/* Tiêu đề khối: ô biểu tượng nhỏ giúp mắt dò nhanh các khối dài (Xu hướng, Cấu hình…) */
+.bms-section-heading { align-items: center; gap: var(--space-3); }
+.bms-section-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: var(--radius-control); background: var(--primary-soft); color: var(--primary); }
+
+/* Số liệu & tiêu đề: chữ số đều cột, tiêu đề chặt hơn một chút */
+.bms-page-title { color: var(--text-strong); }
+.bms-kpi-value, .bms-priority-count, .bms-chart-verdict strong { font-feature-settings: "tnum" 1, "ss01" 1; }
+
+/* Bảng: đầu bảng có nền nhạt để tách khỏi thân bảng */
+.bms-table-panel thead tr, .bms-chart-table thead tr { background: color-mix(in srgb, var(--bg-subtle) 55%, transparent); }
+
+/* Thẻ biểu đồ phòng: cột dọc để khung "chưa có dữ liệu" lấp đầy gọn khi thẻ bên cạnh cao hơn */
+.bms-overview-chart { display: flex; flex-direction: column; }
+.bms-overview-chart figure { flex: 1; display: flex; flex-direction: column; }
+.bms-chart-empty--placeholder { flex: 1; flex-direction: column; gap: var(--space-2); margin: var(--space-2) 0 var(--space-4); border: 1px dashed var(--border); border-radius: var(--radius-panel); background: color-mix(in srgb, var(--bg-subtle) 40%, transparent); font-size: var(--text-xs); }
+.bms-chart-empty--placeholder svg { color: var(--text-muted); opacity: .7; }
+
+/* Nền mờ hộp thoại DÙNG CHUNG (trước: 3 màu nền khác nhau, z 50/60/90 lẫn lộn ở 7 hộp thoại) */
+.bms-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: rgb(var(--rgb-anchor) / .40); backdrop-filter: blur(4px); animation: bms-mo-nen var(--motion-panel) var(--ease-standard); }
+.bms-backdrop--tren { z-index: 60; }   /* hộp thoại mở chồng lên một hộp thoại khác */
+.bms-backdrop > [role="dialog"] { animation: bms-mo-hop var(--motion-panel) var(--ease-standard); }
+@keyframes bms-mo-nen { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bms-mo-hop { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: none; } }

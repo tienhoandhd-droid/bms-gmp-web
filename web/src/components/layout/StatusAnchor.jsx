@@ -4,10 +4,11 @@
 // KHÔNG thêm truy vấn — chỉ bày lại số liệu AppShell đã có.
 import React from "react";
 import { ArrowRight, Clock3 } from "lucide-react";
+import { fmtVN } from "../../lib/dinhDang";
 
 export default function StatusAnchor({ p12Open, matNguon, isLive, capNhatLuc, khuChoPhep, onXemSuCo, sucKhoe = null }) {
   const coViec = (p12Open || 0) > 0;
-  const gioCapNhat = capNhatLuc ? new Date(capNhatLuc).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : null;
+  const gioCapNhat = capNhatLuc ? fmtVN(capNhatLuc, "gio") : null;
   const maTrangThai = sucKhoe?.maTrangThai || null;
   const loiN8n = maTrangThai === "N8N_PIPELINE_ERROR" || maTrangThai === "WF1_PIPELINE_ERROR";
   const apiItKhongKetNoi = maTrangThai === "IT_API_UNREACHABLE" || maTrangThai === "FMS_UNREACHABLE";
@@ -23,7 +24,7 @@ export default function StatusAnchor({ p12Open, matNguon, isLive, capNhatLuc, kh
   return (
     <section aria-label="Ưu tiên vận hành" className="bms-priority">
       <div className="bms-priority-main">
-        <p className="text-[12px] text-muted font-medium mb-2">Cần chú ý</p>
+        <p className="text-tk-xs text-muted font-medium mb-2">Cần chú ý</p>
         <div className="bms-priority-title">
           <span className={`bms-priority-count ${coViec ? "text-danger" : "text-success"}`}>{p12Open ?? "—"}</span>
           <span>{coViec ? "sự cố cần xử lý" : "sự cố mở"}</span>

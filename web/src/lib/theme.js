@@ -89,8 +89,8 @@ export const priorityToStatus = { P1: STATUS.critical, P2: STATUS.warning, P3: S
 
 // ---------- 3. THANG CHỮ (typography) — không dùng 10–11px cho thông tin quan trọng ----------
 export const TYPE = {
-  micro:      "text-[12px]",            // nhỏ nhất cho phép (chú thích phụ)
-  small:      "text-[13px]",            // label/badge
+  micro:      "text-tk-xs",             // nhỏ nhất cho phép (chú thích phụ)
+  small:      "text-tk-sm",             // label/badge
   body:       "text-[14px] leading-relaxed",
   bodyStrong: "text-[14px] font-medium",
   cardTitle:  "text-[16px] font-semibold",   // tiêu đề thẻ 15–18px

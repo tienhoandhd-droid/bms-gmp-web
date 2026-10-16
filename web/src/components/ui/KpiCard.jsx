@@ -9,7 +9,7 @@ export const KpiCard = React.memo(function KpiCard({ icon: Icon, label, value, t
       {clickable ? <button onClick={onClick} className="absolute inset-0 z-10" aria-label={`Xem danh sách: ${label}`} /> : null}
       {/* Mảng 4: skeleton pulse khi CHƯA có số → không hiện "0" rồi nhảy (giảm CLS). */}
       <div className="bms-kpi-label"><span>{label}</span><Icon className={`h-4 w-4 shrink-0 ${accent.txt}`} strokeWidth={1.8} aria-hidden="true" /></div>
-      {loading ? <div className="my-3 h-9 w-16 max-w-full rounded bg-subtle animate-pulse" /> : <p className="bms-kpi-value">{value}{total != null && <span className="text-[13px] text-muted font-normal tracking-normal"> / {total}</span>}</p>}
+      {loading ? <div className="my-3 h-9 w-16 max-w-full rounded bg-subtle animate-pulse" /> : <p className="bms-kpi-value">{value}{total != null && <span className="text-tk-sm text-muted font-normal tracking-normal"> / {total}</span>}</p>}
       {loading ? <div className="h-3 w-20 max-w-full rounded bg-subtle animate-pulse" /> : <p className={`bms-kpi-sub ${accent.txt}`}>{sub}</p>}
       {clickable && <div className="bms-kpi-hint">Xem phòng <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" /></div>}
     </div>
@@ -35,7 +35,7 @@ export const OosMiniBars = React.memo(function OosMiniBars({ data, h = 70 }) {
           </div>
         ); })}
       </div>
-      <div className="flex gap-[3px] mt-1">{data.map((d, i) => <div key={i} className="flex-1 text-center text-[12px] text-muted tabular-nums leading-none truncate">{i % 2 === 0 ? d.label : ""}</div>)}</div>
+      <div className="flex gap-[3px] mt-1">{data.map((d, i) => <div key={i} className="flex-1 text-center text-tk-xs text-muted tabular-nums leading-none truncate">{i % 2 === 0 ? d.label : ""}</div>)}</div>
     </div>
   );
 });

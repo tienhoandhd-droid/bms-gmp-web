@@ -44,7 +44,7 @@ export function ThongBaoStack({ items, onDong }) {
 function MotThongBao({ id, loai, text, onDong }) {
   const k = KIEU[loai] || KIEU.info;
   return (
-    <div className={`pointer-events-auto w-full max-w-md rounded-2xl ring-1 px-4 py-3 flex items-start gap-3 text-[13px] leading-snug ${k.lop}`} style={{ boxShadow: "0 12px 32px -12px rgba(12,41,59,0.45)", background: "var(--bg-surface)" }}>
+    <div className={`pointer-events-auto w-full max-w-md rounded-2xl ring-1 px-4 py-3 flex items-start gap-3 text-tk-sm leading-snug ${k.lop}`} style={{ boxShadow: "0 12px 32px -12px rgba(12,41,59,0.45)", background: "var(--bg-surface)" }}>
       <k.Icon className="w-4 h-4 mt-0.5 shrink-0" strokeWidth={1.9} aria-hidden="true" />
       <p className="flex-1 whitespace-pre-line text-body"><span className="sr-only">{k.nhan}: </span>{text}</p>
       <button type="button" onClick={() => onDong(id)} aria-label="Đóng thông báo" className="shrink-0 rounded-full p-1.5 -m-1 hover:bg-subtle text-muted min-w-[32px] min-h-[32px] flex items-center justify-center">

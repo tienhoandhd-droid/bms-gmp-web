@@ -22,9 +22,9 @@ export default function IncidentProcessOverview({ dsNut = null, role = null }) {
   const Node = ({ b }) => (
     <button onClick={() => setBuoc(b)}
       className="flex-1 min-w-[150px] text-left rounded-2xl ring-1 ring-line bg-surface hover:bg-subtle px-4 py-3">
-      <p className="text-[14px] font-semibold" style={{ color: "var(--text-strong)" }}>{b.label}</p>
-      <p className="text-[12px] text-muted mt-0.5">{b.owner}</p>
-      <p className="text-[13px] text-body mt-1 leading-snug">{b.mo}</p>
+      <p className="text-[14px] font-semibold text-strong">{b.label}</p>
+      <p className="text-tk-xs text-muted mt-0.5">{b.owner}</p>
+      <p className="text-tk-sm text-body mt-1 leading-snug">{b.mo}</p>
     </button>
   );
 
@@ -46,32 +46,32 @@ export default function IncidentProcessOverview({ dsNut = null, role = null }) {
           </React.Fragment>
         ))}
       </div>
-      <p className="mt-2 text-[12px] text-muted">Bấm một bước để xem trạng thái và thao tác của từng bộ phận.</p>
+      <p className="mt-2 text-tk-xs text-muted">Bấm một bước để xem trạng thái và thao tác của từng bộ phận.</p>
 
       {buoc && (
         <InspectorDrawer onClose={() => setBuoc(null)} eyebrow={`Phụ trách: ${buoc.owner}`} title={buoc.label}>
-          <p className="text-[13px] text-body">{buoc.mo}.</p>
+          <p className="text-tk-sm text-body">{buoc.mo}.</p>
           {buoc.codes.length > 0 && (
             <div>
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted mb-1.5">Trạng thái có thể gặp</p>
+              <p className="text-tk-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Trạng thái có thể gặp</p>
               <ul className="space-y-1">
-                {[...new Set(buoc.codes.map((c) => TRANG_THAI_CODE_TO_LABEL[c] || c))].map((nhan) => <li key={nhan} className="text-[13px] text-body">• {nhan}</li>)}
+                {[...new Set(buoc.codes.map((c) => TRANG_THAI_CODE_TO_LABEL[c] || c))].map((nhan) => <li key={nhan} className="text-tk-sm text-body">• {nhan}</li>)}
               </ul>
             </div>
           )}
           {buoc.codes.length > 0 && (dsNut && dsNut.length ? (
             <div>
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted mb-1.5">Thao tác theo bộ phận</p>
+              <p className="text-tk-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Thao tác theo bộ phận</p>
               <div className="space-y-2">
                 {buoc.codes.map((c) => {
                   const nut = nutKhopTrangThai(dsNut, c);
                   if (!nut.length) return null;
                   return (
                     <div key={c} className="rounded-xl ring-1 ring-line px-3 py-2">
-                      <p className="text-[12px] text-muted mb-1">{TRANG_THAI_CODE_TO_LABEL[c] || c}</p>
+                      <p className="text-tk-xs text-muted mb-1">{TRANG_THAI_CODE_TO_LABEL[c] || c}</p>
                       <ul className="space-y-0.5">
                         {nut.filter((n) => n.nhan).map((n) => (
-                          <li key={`${c}-${n.vai_tro}-${n.hanh_dong}`} className="text-[13px] text-body">
+                          <li key={`${c}-${n.vai_tro}-${n.hanh_dong}`} className="text-tk-sm text-body">
                             <b className="text-strong">{tenVaiTro(n.vai_tro)}</b>: {n.nhan}
                           </li>
                         ))}
@@ -82,18 +82,18 @@ export default function IncidentProcessOverview({ dsNut = null, role = null }) {
               </div>
             </div>
           ) : (
-            <p className="text-[12px] text-muted italic">Đăng nhập chế độ dữ liệu thật để xem nút thao tác theo bảng quy tắc đang chạy.</p>
+            <p className="text-tk-xs text-muted italic">Đăng nhập chế độ dữ liệu thật để xem nút thao tác theo bảng quy tắc đang chạy.</p>
           ))}
           {buoc.id === "detect" && (
-            <p className="text-[13px] text-body">Hệ thống chấm điểm dữ liệu mỗi giờ theo ngưỡng trong <b>Cài đặt → Quy tắc cảnh báo</b>; vượt ngưỡng thì phiếu sự cố tự mở và giao cho IPC.</p>
+            <p className="text-tk-sm text-body">Hệ thống chấm điểm dữ liệu mỗi giờ theo ngưỡng trong <b>Cài đặt → Quy tắc cảnh báo</b>; vượt ngưỡng thì phiếu sự cố tự mở và giao cho IPC.</p>
           )}
           {buoc.id === "close" && (
-            <p className="text-[13px] text-body">Phiếu đóng khi bộ phận xác nhận đã khắc phục, hoặc hệ thống tự đóng khi số liệu về ngưỡng đủ lâu. Hồ sơ và nhật ký thao tác được giữ nguyên phục vụ GMP.</p>
+            <p className="text-tk-sm text-body">Phiếu đóng khi bộ phận xác nhận đã khắc phục, hoặc hệ thống tự đóng khi số liệu về ngưỡng đủ lâu. Hồ sơ và nhật ký thao tác được giữ nguyên phục vụ GMP.</p>
           )}
           {["ADMIN", "IT"].includes(role) && buoc.codes.length > 0 && (
             <details className="rounded-xl ring-1 ring-line px-3 py-2">
-              <summary className="cursor-pointer text-[12px] font-medium text-muted select-none">Thông tin kỹ thuật</summary>
-              <p className="mt-1.5 text-[12px] text-muted">Mã trạng thái: {buoc.codes.join(" · ")}</p>
+              <summary className="cursor-pointer text-tk-xs font-medium text-muted select-none">Thông tin kỹ thuật</summary>
+              <p className="mt-1.5 text-tk-xs text-muted">Mã trạng thái: {buoc.codes.join(" · ")}</p>
             </details>
           )}
         </InspectorDrawer>

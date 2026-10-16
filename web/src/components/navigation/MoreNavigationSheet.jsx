@@ -15,7 +15,7 @@ export default function MoreNavigationSheet({ open, onClose, tab, setTab, role }
           const active = tab === it.k;
           return (
             <button key={it.k} aria-current={active ? "page" : undefined} onClick={() => { setTab(it.k); onClose(); }}
-              className={`flex items-center gap-2.5 rounded-lg px-3.5 py-3 min-h-11 text-[13px] font-medium ring-1 ${active ? "bg-primarytk-soft ring-success-line" : "ring-line hover:bg-subtle text-body"}`}
+              className={`flex items-center gap-2.5 rounded-lg px-3.5 py-3 min-h-11 text-tk-sm font-medium ring-1 ${active ? "bg-primarytk-soft ring-success-line" : "ring-line hover:bg-subtle text-body"}`}
               style={active ? { color: "var(--text-strong)" } : {}}>
               <Icon className="w-4 h-4" strokeWidth={1.8} style={active ? { color: "var(--primary)" } : {}} /> {it.label}
             </button>

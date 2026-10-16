@@ -21,16 +21,16 @@ export default function MobileBottomNav({ tab, setTab, role, badges = {}, onMoTh
           const badge = badges[it.k];
           return (
             <button key={it.k} onClick={() => setTab(it.k)} aria-current={active ? "page" : undefined}
-              className="relative flex flex-col items-center gap-0.5 py-2 text-[12px] font-medium"
+              className="relative flex flex-col items-center gap-0.5 py-2 text-tk-xs font-medium"
               style={{ color: active ? "var(--primary)" : "var(--text-muted)" }}>
               <Icon className="w-5 h-5" strokeWidth={active ? 2 : 1.8} />
               <span>{it.label}</span>
-              {badge > 0 && <span className="absolute top-1 right-1/2 translate-x-4 text-[12px] leading-none font-bold px-1 py-0.5 rounded-full bg-danger-soft text-danger tabular-nums">{badge}</span>}
+              {badge > 0 && <span className="absolute top-1 right-1/2 translate-x-4 text-tk-xs leading-none font-bold px-1 py-0.5 rounded-full bg-danger-soft text-danger tabular-nums">{badge}</span>}
             </button>
           );
         })}
         {conLai.length > 0 && (
-          <button onClick={onMoThem} className="flex flex-col items-center gap-0.5 py-2 text-[12px] font-medium"
+          <button onClick={onMoThem} className="flex flex-col items-center gap-0.5 py-2 text-tk-xs font-medium"
             style={{ color: themActive ? "var(--primary)" : "var(--text-muted)" }}>
             <Menu className="w-5 h-5" strokeWidth={themActive ? 2 : 1.8} />
             <span>Thêm</span>

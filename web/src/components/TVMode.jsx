@@ -7,6 +7,7 @@
 // P0 GMP — "KHÔNG XÁC MINH ĐƯỢC" TUYỆT ĐỐI KHÔNG ĐƯỢC HIỂN THỊ THÀNH "BÌNH THƯỜNG":
 // màn treo tường điều khiển sản xuất, một ô xanh sai đọc như "mọi phòng đạt". Vì vậy
 // TV có 6 trạng thái TÁCH BẠCH, chỉ 2 trạng thái cuối mới vẽ dashboard xanh:
+//   CHUA_CAU_HINH  — bản build không có Supabase (xám; trước đây kẹt mãi ở KIEM_PHIEN)
 //   KIEM_PHIEN     — đang kiểm phiên đăng nhập (xám)
 //   CAN_DANG_NHAP  — chưa đăng nhập trên trình duyệt này (xám)
 //   LOI            — lỗi tải dữ liệu (ĐỎ toàn màn, KHÔNG hiện số 0 như bình thường)
@@ -20,25 +21,49 @@
 import React, { useEffect, useState } from "react";
 import { useLiveData } from "../hooks/useLiveData";
 import { supabase } from "../lib/bmsClient";
+import { fmtVN } from "../lib/dinhDang";
 
 const MAN = ["TONG_QUAN", "SU_CO", "CUM"];
 const GIAY_MOI_MAN = 15;
 const CU_MS = 150 * 1000;   // >2,5 phút không làm mới được (poll 60s) → coi là dữ liệu cũ
 const TV = {
-  nen: { OK: "var(--bg-canvas)", CU: "var(--warning-soft)", LOI: "var(--danger-soft)", DANG_TAI: "var(--bg-canvas)", KIEM_PHIEN: "var(--bg-canvas)", CAN_DANG_NHAP: "var(--bg-canvas)" },
+  nen: { OK: "var(--bg-canvas)", CU: "var(--warning-soft)", LOI: "var(--danger-soft)", DANG_TAI: "var(--bg-canvas)", KIEM_PHIEN: "var(--bg-canvas)", CAN_DANG_NHAP: "var(--bg-canvas)", CHUA_CAU_HINH: "var(--bg-canvas)" },
   text: "var(--text-default)", muted: "var(--text-muted)", strong: "var(--text-strong)", line: "var(--border)",
   primary: "var(--primary)", success: "var(--success)", warning: "var(--warning)", danger: "var(--danger)", subtle: "var(--bg-subtle)",
 };
 
+// Đồng hồ tách riêng: chỉ ô giờ cập nhật mỗi giây, không kéo cả màn TV render lại.
+function DongHo() {
+  const [gio, setGio] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setGio(new Date()), 1000); return () => clearInterval(t); }, []);
+  return <span style={{ fontVariantNumeric: "tabular-nums", color: TV.strong, fontWeight: 700 }}>{fmtVN(gio, "gioGiay")}</span>;
+}
+
+// Ô số lớn — khai báo NGOÀI TVMode: khai báo bên trong thì mỗi lần render là một component mới → React dựng lại DOM.
+function So({ nhan, giaTri, mau }) {
+  return (
+    <div style={{ flex: "1 1 12rem", textAlign: "center", background: "var(--bg-surface)", border: `1px solid ${TV.line}`, borderTop: `6px solid ${mau}`, borderRadius: 20, padding: "clamp(1rem, 2.5vw, 2.5rem) 0.5rem", boxShadow: "var(--shadow-card)" }}>
+      <div style={{ fontSize: "clamp(2.25rem, 8vw, 8rem)", fontWeight: 800, lineHeight: 1, color: mau, fontVariantNumeric: "tabular-nums" }}>{giaTri}</div>
+      <div style={{ fontSize: "clamp(0.875rem, 1.5vw, 1.4rem)", color: TV.muted, marginTop: 12, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600 }}>{nhan}</div>
+    </div>
+  );
+}
+
 export default function TVMode() {
   const [phien, setPhien] = useState(undefined);   // undefined = đang kiểm · null = chưa đăng nhập
+  const [loiPhien, setLoiPhien] = useState(null);   // getSession() lỗi (mạng/máy chủ) — không được kẹt im ở "đang xác minh"
   const live = useLiveData("live", { tuDongMoiMs: 60000, phienId: phien?.user?.id || null });
   const [man, setMan] = useState(0);
-  const [gio, setGio] = useState(new Date());
+  // Mốc "bây giờ" để tính tuổi dữ liệu — 10 giây là đủ (ngưỡng dữ liệu cũ 150 giây); đồng hồ giây nằm ở <DongHo>.
+  const [bayGio, setBayGio] = useState(() => Date.now());
 
   useEffect(() => {
     let dung = false;
-    supabase?.auth.getSession().then(({ data }) => { if (!dung) setPhien(data?.session || null); });
+    if (supabase) {
+      supabase.auth.getSession()
+        .then(({ data }) => { if (!dung) setPhien(data?.session || null); })
+        .catch((e) => { console.error("[BMS TV] Không kiểm được phiên đăng nhập:", e); if (!dung) setLoiPhien(e); });
+    }
     // Không chỉ đọc một lần: nghe SIGNED_OUT (đăng xuất tab khác/thu hồi) để xoá phiên ngay.
     const sub = supabase?.auth.onAuthStateChange((event, session) => {
       if (dung) return;
@@ -46,16 +71,18 @@ export default function TVMode() {
       else if (session) setPhien(session);
     });
     const t1 = setInterval(() => setMan((m) => (m + 1) % MAN.length), GIAY_MOI_MAN * 1000);
-    const t2 = setInterval(() => setGio(new Date()), 1000);
+    const t2 = setInterval(() => setBayGio(Date.now()), 10000);
     return () => { dung = true; clearInterval(t1); clearInterval(t2); sub?.data?.subscription?.unsubscribe?.(); };
   }, []);
 
   // ===== Phân loại TRẠNG THÁI XÁC MINH (fail-safe) =====
   const chuaTaiXong = live.kpis == null || live.incidents == null;   // null = đang tải/lỗi, KHÁC rỗng thật ([])
-  const tuoiMs = live.capNhatLuc ? (gio - live.capNhatLuc) : null;
+  const tuoiMs = live.capNhatLuc ? (bayGio - live.capNhatLuc) : null;
   const tuoiPhut = tuoiMs != null ? Math.floor(tuoiMs / 60000) : null;
   let trangThai;
-  if (phien === undefined) trangThai = "KIEM_PHIEN";
+  if (!supabase) trangThai = "CHUA_CAU_HINH";
+  else if (loiPhien) trangThai = "LOI";
+  else if (phien === undefined) trangThai = "KIEM_PHIEN";
   else if (phien === null) trangThai = "CAN_DANG_NHAP";
   else if (live.loi) trangThai = "LOI";
   else if (chuaTaiXong) trangThai = "DANG_TAI";
@@ -72,19 +99,13 @@ export default function TVMode() {
   const moToanManHinh = () => {
     const root = document.documentElement;
     const ketQua = document.fullscreenElement ? document.exitFullscreen?.() : root.requestFullscreen?.();
-    ketQua?.catch?.(() => {});
+    ketQua?.catch?.((e) => console.warn("[BMS TV] Trình duyệt từ chối toàn màn hình:", e));
   };
-
-  const So = ({ nhan, giaTri, mau }) => (
-    <div style={{ flex: 1, textAlign: "center" }}>
-      <div style={{ fontSize: "clamp(2.25rem, 9vw, 9rem)", fontWeight: 800, lineHeight: 1, color: mau, fontVariantNumeric: "tabular-nums" }}>{giaTri}</div>
-      <div style={{ fontSize: "clamp(0.875rem, 1.6vw, 1.5rem)", color: TV.muted, marginTop: 8, textTransform: "uppercase", letterSpacing: "0.1em" }}>{nhan}</div>
-    </div>
-  );
 
   const khungManHinh = (tieuDe, mauTieuDe, thanNoiDung) => (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <h1 style={{ fontSize: "clamp(1.25rem, 2.2vw, 2.5rem)", margin: 0, color: mauTieuDe, textTransform: "uppercase", letterSpacing: "0.08em" }}>{tieuDe}</h1>
+      <h1 style={{ fontSize: "clamp(1.25rem, 2.2vw, 2.5rem)", margin: 0, color: mauTieuDe, textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: "0.6em" }}>
+        <span aria-hidden="true" style={{ width: "0.35em", height: "1.1em", borderRadius: 4, background: mauTieuDe, display: "inline-block" }} />{tieuDe}</h1>
       <div style={{ flex: 1, marginTop: "clamp(0.75rem, 1.5vw, 1.5rem)", minHeight: 0 }}>{thanNoiDung}</div>
     </div>
   );
@@ -101,12 +122,14 @@ export default function TVMode() {
   const nen = TV.nen[trangThai] || TV.nen.OK;
 
   let noiDung;
-  if (trangThai === "KIEM_PHIEN") {
+  if (trangThai === "CHUA_CAU_HINH") {
+    noiDung = manToanKhung("Chưa cấu hình máy chủ dữ liệu", "Bản web này chưa được cấp địa chỉ máy chủ dữ liệu nên màn TV không có dữ liệu để hiển thị. Liên hệ quản trị hệ thống.", TV.strong);
+  } else if (trangThai === "KIEM_PHIEN") {
     noiDung = manToanKhung("Đang xác minh phiên…", "Vui lòng đợi trong giây lát.", TV.muted);
   } else if (trangThai === "CAN_DANG_NHAP") {
     noiDung = manToanKhung("Chưa đăng nhập trên trình duyệt này", <>Mở chế độ thường (bỏ <code>?tv=1</code>), đăng nhập bằng tài khoản trực (nên dùng vai trò VIEWER), rồi quay lại đây.</>, TV.strong);
   } else if (trangThai === "LOI") {
-    noiDung = manToanKhung("⚠ LỖI TẢI DỮ LIỆU — KHÔNG XÁC MINH ĐƯỢC", `Màn hình này KHÔNG phản ánh tình trạng phòng sạch lúc này. Kiểm tra mạng/máy chủ. ${String(live.loi?.message || live.loi || "").slice(0, 160)}`, TV.danger);
+    noiDung = manToanKhung("⚠ LỖI TẢI DỮ LIỆU — KHÔNG XÁC MINH ĐƯỢC", `Màn hình này KHÔNG phản ánh tình trạng phòng sạch lúc này. Kiểm tra mạng/máy chủ. ${String(loiPhien?.message || live.loi?.message || live.loi || "").slice(0, 160)}`, TV.danger);
   } else if (trangThai === "DANG_TAI") {
     noiDung = manToanKhung("Đang tải dữ liệu giám sát…", "Chưa hiển thị số liệu cho tới khi xác minh xong (không suy ra 'bình thường' khi chưa có dữ liệu).", TV.muted);
   } else if (MAN[man] === "TONG_QUAN") {
@@ -155,7 +178,7 @@ export default function TVMode() {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: nen, color: TV.text, padding: "clamp(1rem, 2.5vw, 3rem)", fontFamily: "Inter,'Segoe UI',Arial,sans-serif", display: "flex", flexDirection: "column" }}
+    <div style={{ position: "fixed", inset: 0, background: nen, color: TV.text, padding: "clamp(1rem, 2.5vw, 3rem)", fontFamily: "var(--font-ui)", display: "flex", flexDirection: "column" }}
          onDoubleClick={moToanManHinh}>
       {/* Băng cảnh báo DỮ LIỆU CŨ — chỉ khi vẫn vẽ dashboard nhưng đã lâu không làm mới */}
       {trangThai === "CU" && (
@@ -169,7 +192,8 @@ export default function TVMode() {
         <span style={{ display: "flex", gap: "clamp(0.75rem, 1.5vw, 1.5rem)", alignItems: "center", flexWrap: "wrap" }}>
           {veDashboard && MAN.map((m, i) => <span key={m} aria-hidden="true" style={{ width: 10, height: 10, borderRadius: "50%", background: i === man ? TV.primary : TV.subtle, display: "inline-block" }} />)}
           <span style={{ fontVariantNumeric: "tabular-nums", color: trangThai === "CU" ? TV.warning : TV.muted }}>
-            {live.capNhatLuc ? `dữ liệu ${live.capNhatLuc.toLocaleTimeString("vi-VN")}${tuoiPhut != null && tuoiPhut >= 1 ? ` · ${tuoiPhut} phút trước` : ""}` : "chưa có dữ liệu"} · {gio.toLocaleTimeString("vi-VN")}
+            {/* Chưa cấu hình: mốc "dữ liệu" là của dữ liệu mẫu — không hiện, tránh hiểu là có dữ liệu thật */}
+            {trangThai !== "CHUA_CAU_HINH" && live.capNhatLuc ? `dữ liệu ${fmtVN(live.capNhatLuc, "gioGiay")}${tuoiPhut != null && tuoiPhut >= 1 ? ` · ${tuoiPhut} phút trước` : ""}` : "chưa có dữ liệu"} · <DongHo />
           </span>
           <button type="button" onClick={moToanManHinh} aria-label="Bật hoặc tắt toàn màn hình" title="Bật hoặc tắt toàn màn hình" style={{ minWidth: 44, minHeight: 44, borderRadius: 8, border: `1px solid ${TV.line}`, background: TV.subtle, color: TV.text, padding: "0 0.75rem", font: "inherit", cursor: "pointer" }}>Toàn màn hình</button>
         </span>

@@ -23,12 +23,12 @@ function ThanDrawer({ onClose, eyebrow, title, actions, children }) {
         className="absolute inset-x-0 bottom-0 h-[92dvh] rounded-t-3xl md:inset-x-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:rounded-none overflow-y-auto bg-surface shadow-2xl outline-none">
         <div className="sticky top-0 bg-surface/95 backdrop-blur px-5 py-4 border-b border-line flex items-start justify-between gap-3">
           <div className="min-w-0">
-            {eyebrow && <p className="text-[12px] uppercase tracking-[0.16em] text-muted font-semibold">{eyebrow}</p>}
-            <h3 id={idTieuDe} className="mt-0.5 text-[17px] font-semibold" style={{ color: "var(--text-strong)" }}>{title}</h3>
+            {eyebrow && <p className="text-tk-xs uppercase tracking-[0.16em] text-muted font-semibold">{eyebrow}</p>}
+            <h3 id={idTieuDe} className="mt-0.5 text-[17px] font-semibold text-strong">{title}</h3>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {actions}
-            <button type="button" aria-label="Đóng hộp thoại" onClick={onClose} className="min-h-11 rounded-lg px-3 py-2 text-[13px] text-muted ring-1 ring-line hover:bg-subtle">Đóng</button>
+            <button type="button" aria-label="Đóng hộp thoại" onClick={onClose} className="min-h-11 rounded-lg px-3 py-2 text-tk-sm text-muted ring-1 ring-line hover:bg-subtle">Đóng</button>
           </div>
         </div>
         <div className="px-5 py-5 pb-10 space-y-5">{children}</div>

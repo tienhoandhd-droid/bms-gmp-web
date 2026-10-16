@@ -80,26 +80,26 @@ export default function IncidentAction({ email, incidentId, intent, Khung: Khung
   const nhanThaoTac = (code) => state.actionRules?.find((rule) => rule.hanh_dong === code)?.nhan || ACTION_CODE_TO_LABEL[code] || code || '—'
   return <KhungEmail>
     <DauTrangEmail phu={`${email} · ${tenVaiTro(role)}`} />
-    <p className="mt-4 text-[12px] font-semibold uppercase tracking-wider text-muted">{readonly ? 'Xem phiếu' : 'Xác nhận thao tác'}</p>
+    <p className="mt-4 text-tk-xs font-semibold uppercase tracking-wider text-muted">{readonly ? 'Xem phiếu' : 'Xác nhận thao tác'}</p>
     <h2 className="mt-1 text-base font-semibold text-strong">{moTaSuCo(incident)}</h2>
-    <div className="mt-3 space-y-1 rounded-2xl bg-subtle p-3 text-[13px] text-body ring-1 ring-line">
+    <div className="mt-3 space-y-1 rounded-2xl bg-subtle p-3 text-tk-sm text-body ring-1 ring-line">
       <div>Khu vực: <b>{incident.khu_vuc || '—'}</b> · Cảm biến: <b>{incident.cam_bien_vi || incident.loai_cam_bien || '—'}</b></div>
       <div>Trạng thái hiện tại: <b>{TRANG_THAI_CODE_TO_LABEL[incident.trang_thai] || incident.trang_thai || '—'}</b></div>
-      <div className="text-[12px] text-muted">Người thực hiện: {email} · {tenVaiTro(role)}</div>
+      <div className="text-tk-xs text-muted">Người thực hiện: {email} · {tenVaiTro(role)}</div>
     </div>
-    {history.length > 0 && <div className="mt-3 rounded-2xl bg-subtle p-3 text-[12px] text-body ring-1 ring-line"><p className="font-semibold uppercase tracking-wider text-muted">Thao tác gần nhất</p><ul className="mt-1.5 space-y-1">{history.map((entry, index) => <li key={`${entry.t || ''}:${entry.act || ''}:${index}`}>{entry.t || '—'} · {entry.who || 'Hệ thống'}{entry.role ? ` (${entry.role})` : ''} · {nhanThaoTac(entry.act)}{entry.ly_do ? `: ${entry.ly_do}` : ''}</li>)}</ul></div>}
+    {history.length > 0 && <div className="mt-3 rounded-2xl bg-subtle p-3 text-tk-xs text-body ring-1 ring-line"><p className="font-semibold uppercase tracking-wider text-muted">Thao tác gần nhất</p><ul className="mt-1.5 space-y-1">{history.map((entry, index) => <li key={`${entry.t || ''}:${entry.act || ''}:${index}`}>{entry.t || '—'} · {entry.who || 'Hệ thống'}{entry.role ? ` (${entry.role})` : ''} · {nhanThaoTac(entry.act)}{entry.ly_do ? `: ${entry.ly_do}` : ''}</li>)}</ul></div>}
     {readonly ? <p className="mt-4 text-sm leading-relaxed text-muted">{state.closed ? 'Sự cố này không còn mở. Trang chỉ hiển thị thông tin hồ sơ đã đóng.' : 'Đây là chế độ chỉ xem. Không có thao tác nào được gửi từ trang này.'}</p> : <>
       <fieldset className="mt-4">
-        <legend className="text-[12px] font-semibold uppercase tracking-wider text-muted">Thao tác</legend>
+        <legend className="text-tk-xs font-semibold uppercase tracking-wider text-muted">Thao tác</legend>
         {actions.length === 0 ? <p role="alert" className="mt-2 text-sm text-danger">Vai trò hiện tại không có thao tác phù hợp với trạng thái này.</p> : <div className="mt-2 space-y-2">
           {actions.map((action) => <label key={action.code} className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl bg-surface px-3 py-2 text-sm ring-1 ring-line">
             <input type="radio" name="incident-action" value={action.code} disabled={locked} checked={selected?.code === action.code} onChange={() => { setSelected(action); setConfirmed(false) }} />
-            <span><b>{action.label}</b><span className="block text-[12px] text-muted">Trạng thái sau: {action.next}</span></span>
+            <span><b>{action.label}</b><span className="block text-tk-xs text-muted">Trạng thái sau: {action.next}</span></span>
           </label>)}
         </div>}
       </fieldset>
       {selected && <div className="mt-4">
-        <label htmlFor="incident-reason" className="text-[12px] font-semibold uppercase tracking-wider text-muted">Lý do / ghi chú{selected.batBuocLyDo ? ' *' : ' (nếu có)'}</label>
+        <label htmlFor="incident-reason" className="text-tk-xs font-semibold uppercase tracking-wider text-muted">Lý do / ghi chú{selected.batBuocLyDo ? ' *' : ' (nếu có)'}</label>
         <textarea id="incident-reason" value={reason} disabled={locked} onChange={(e) => { setReason(e.target.value); setConfirmed(false) }} rows={3} required={selected.batBuocLyDo}
           className="mt-1.5 w-full rounded-xl bg-surface px-3 py-2 text-sm ring-1 ring-line" />
         <label className="mt-3 flex min-h-[44px] items-center gap-2 text-sm text-body"><input type="checkbox" disabled={locked} checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} /> Tôi xác nhận {selected.label.toLowerCase()} cho {incident.ma_hien_thi || `SC-${incident.ma_su_co}`}.</label>

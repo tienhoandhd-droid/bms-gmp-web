@@ -9,7 +9,12 @@ import { COLOR } from "../../lib/designTokens";
 import { docTenVaiTro } from "../../lib/phanQuyen";
 import { layCamBienDungHinh } from "../../lib/supabaseData";
 import { SENSOR_META } from "../../lib/uiConst";
-const O_TEXTAREA = "w-full mt-1 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-[13px] text-body focus:outline-none focus:ring-2 focus:ring-success-line";
+import { fmtVN } from "../../lib/dinhDang";
+import { ChiCoLive } from "../../components/ui/ChiCoLive";
+
+// Số giờ cảm biến đứng → "5 giờ" / "3 ngày"; tuDau = chưa từng thấy cảm biến sống trong dữ liệu còn lưu ⇒ "≥".
+const fmtGio = (h, tuDau) => (h == null ? "—" : `${tuDau ? "≥ " : ""}${h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`}`);
+const O_TEXTAREA = "w-full mt-1 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-tk-sm text-body focus:outline-none focus:ring-2 focus:ring-success-line";
 function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
   const [rows, setRows] = useState(null);
   useEffect(() => {
@@ -21,21 +26,20 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
   const ds = (rows || []).filter((r) => (!khuChoPhep || khuChoPhep.includes(r.khu_vuc)) && (r.so_gio_dung ?? 99) >= 3);
   if (!isLive || ds.length === 0) return null;
   // tu_dau_lich_su = chưa từng thấy cảm biến sống trong dữ liệu còn lưu ⇒ "≥", không phải "="
-  const fmtGio = (h, tuDau) => (h == null ? "—" : `${tuDau ? "≥ " : ""}${h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`}`);
   return (
     <Card className="p-5" style={{ background: "var(--warning-soft)" }}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <SectionTitle icon={Gauge} hint="theo dõi riêng · không tính vào chấm điểm">Cảm biến đứng tín hiệu — {ds.length} điểm đo</SectionTitle>
-          <p className="mt-1.5 text-[13px] text-body leading-relaxed max-w-3xl">
+          <p className="mt-1.5 text-tk-sm text-body leading-relaxed max-w-3xl">
             Giá trị không thay đổi ít nhất 3 giờ — tạm không dùng để đánh giá trạng thái phòng, chờ Cơ điện khôi phục đầu đo.
           </p>
         </div>
-        {onXemChiTiet && <button onClick={onXemChiTiet} className="shrink-0 flex items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 text-[12px] font-semibold text-warning ring-1 ring-warning-line hover:bg-warning-soft">Xem chi tiết → tab Cảm biến</button>}
+        {onXemChiTiet && <button onClick={onXemChiTiet} className="shrink-0 flex items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 text-tk-xs font-semibold text-warning ring-1 ring-warning-line hover:bg-warning-soft">Xem chi tiết → tab Cảm biến</button>}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {ds.map((r) => (
-          <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium ring-1 ${r.so_gio_dung >= 168 ? "text-danger bg-danger-soft ring-danger-line" : "text-warning bg-warning-soft ring-warning-line"}`}>
+          <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-tk-xs font-medium ring-1 ${r.so_gio_dung >= 168 ? "text-danger bg-danger-soft ring-danger-line" : "text-warning bg-warning-soft ring-warning-line"}`}>
             <b>{r.ma_phong}</b> · {r.loai_cam_bien} · đứng {fmtGio(r.so_gio_dung, r.tu_dau_lich_su)} (giữ nguyên ở {r.gia_tri_dung})
           </span>
         ))}
@@ -67,24 +71,24 @@ function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
   };
   useHopThoai(hopRef, dong, dangChay);
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) dong(); }}>
+    <div className="bms-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) dong(); }}>
       <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-surface shadow-2xl p-6 outline-none" onClick={(e) => e.stopPropagation()}>
-        <h3 id={idTieuDe} className="text-[15px] font-semibold" style={{ color: "var(--text-strong)" }}>Kết luận điều tra · {cum.ma_hien_thi}</h3>
-        <p className="mt-1 text-[12px] text-muted leading-relaxed">{cum.ahu || "—"} · {cum.loai_cam_bien} · {cum.su_co_dang_mo} sự cố đang mở. Kết luận ghi vào cụm và <b>một dòng audit cho từng sự cố</b> thuộc cụm — không hồ sơ nào mất dấu vết.</p>
-        <label htmlFor={idNguyenNhan} className="block mt-4 text-[12px] font-semibold uppercase tracking-wider text-muted">Nguyên nhân gốc <span className="text-danger">*</span></label>
+        <h3 id={idTieuDe} className="text-[15px] font-semibold text-strong">Kết luận điều tra · {cum.ma_hien_thi}</h3>
+        <p className="mt-1 text-tk-xs text-muted leading-relaxed">{cum.ahu || "—"} · {cum.loai_cam_bien} · {cum.su_co_dang_mo} sự cố đang mở. Kết luận ghi vào cụm và <b>một dòng audit cho từng sự cố</b> thuộc cụm — không hồ sơ nào mất dấu vết.</p>
+        <label htmlFor={idNguyenNhan} className="block mt-4 text-tk-xs font-semibold uppercase tracking-wider text-muted">Nguyên nhân gốc <span className="text-danger">*</span></label>
         <textarea id={idNguyenNhan} className={O_TEXTAREA} rows={2} value={nguyenNhan} onChange={(e) => setNguyenNhan(e.target.value)} placeholder="Vì sao xảy ra? (ít nhất 10 ký tự)" />
-        <label htmlFor={idKhacPhuc} className="block mt-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Hành động khắc phục <span className="text-danger">*</span></label>
+        <label htmlFor={idKhacPhuc} className="block mt-3 text-tk-xs font-semibold uppercase tracking-wider text-muted">Hành động khắc phục <span className="text-danger">*</span></label>
         <textarea id={idKhacPhuc} className={O_TEXTAREA} rows={2} value={khacPhuc} onChange={(e) => setKhacPhuc(e.target.value)} placeholder="Đã/sẽ làm gì để hết lệch? (ít nhất 10 ký tự)" />
-        <label htmlFor={idPhongNgua} className="block mt-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Hành động phòng ngừa</label>
+        <label htmlFor={idPhongNgua} className="block mt-3 text-tk-xs font-semibold uppercase tracking-wider text-muted">Hành động phòng ngừa</label>
         <textarea id={idPhongNgua} className={O_TEXTAREA} rows={2} value={phongNgua} onChange={(e) => setPhongNgua(e.target.value)} placeholder="Làm gì để không tái diễn? (bỏ trống được)" />
-        <label htmlFor={idKetLuan} className="block mt-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Kết luận QA về ảnh hưởng chất lượng</label>
+        <label htmlFor={idKetLuan} className="block mt-3 text-tk-xs font-semibold uppercase tracking-wider text-muted">Kết luận QA về ảnh hưởng chất lượng</label>
         <textarea id={idKetLuan} className={O_TEXTAREA} rows={2} value={ketLuan} onChange={(e) => setKetLuan(e.target.value)} placeholder="Có/không ảnh hưởng lô sản xuất, căn cứ… (bỏ trống được)" />
         <div className="mt-5 flex items-center justify-end gap-2">
-          <button onClick={dong} disabled={dangChay} className="rounded-xl bg-surface px-4 py-2 min-h-11 text-[13px] font-medium text-body ring-1 ring-line hover:bg-subtle disabled:opacity-40">Huỷ</button>
+          <button onClick={dong} disabled={dangChay} className="rounded-xl bg-surface px-4 py-2 min-h-11 text-tk-sm font-medium text-body ring-1 ring-line hover:bg-subtle disabled:opacity-40">Huỷ</button>
           <button disabled={thieu || dangChay} onClick={luu}
-            className="rounded-xl px-4 py-2 min-h-11 text-[13px] font-semibold text-white disabled:opacity-40" style={{ background: "var(--primary-solid)" }}>{dangChay ? "Đang lưu…" : "Lưu kết luận"}</button>
+            className="rounded-xl px-4 py-2 min-h-11 text-tk-sm font-semibold text-white disabled:opacity-40" style={{ background: "var(--primary-solid)" }}>{dangChay ? "Đang lưu…" : "Lưu kết luận"}</button>
         </div>
-        {thieu && <p className="mt-2 text-right text-[12px] text-muted">Nguyên nhân gốc và khắc phục cần ≥ 10 ký tự.</p>}
+        {thieu && <p className="mt-2 text-right text-tk-xs text-muted">Nguyên nhân gốc và khắc phục cần ≥ 10 ký tự.</p>}
       </div>
     </div>, document.body);
 }
@@ -108,10 +112,9 @@ function CamBienPage({ isLive }) {
   useEffect(() => { if (isLive) taiVe(); }, [isLive, taiVe]);
   // 27/07: cờ tu_dau_lich_su = cảm biến chưa từng cho một giờ "còn sống" nào trong dữ liệu
   // còn lưu ⇒ chỉ khẳng định được "đứng TỪ TRƯỚC mốc đầu dữ liệu", không khẳng định đúng bằng.
-  const fmtGio = (h, tuDau) => (h == null ? "—" : `${tuDau ? "≥ " : ""}${h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`}`);
-  const fmtTu = (iso, tuDau) => (iso ? `${tuDau ? "trước " : ""}${new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}` : "—");
+  const fmtTu = (iso, tuDau) => (iso ? `${tuDau ? "trước " : ""}${fmtVN(iso, "ngayGio")}` : "—");
   const doDam = (h) => (h >= 168 ? "text-danger bg-danger-soft ring-danger-line" : h >= 24 ? "text-warning bg-warning-soft ring-warning-line" : "text-body bg-subtle ring-line");
-  if (!isLive) return <Card className="p-6"><SectionTitle icon={Gauge}>Cảm biến đứng tín hiệu</SectionTitle><p className="mt-3 text-sm text-muted">Chế độ xem trước — chưa kết nối dữ liệu thật.</p></Card>;
+  if (!isLive) return <Card className="p-6"><SectionTitle icon={Gauge}>Cảm biến đứng tín hiệu</SectionTitle><ChiCoLive className="mt-4">Danh sách cảm biến đứng tín hiệu được đọc từ dữ liệu thật; chế độ dữ liệu mẫu không có danh sách này.</ChiCoLive></Card>;
   // 16/07 (user hỏi "sao ghi 1 giờ?"): cờ đứng-trong-giờ bật NGAY từ giờ đầu (60 điểm
   // y hệt), nhưng chỉ ≥3 giờ liên tiếp mới TÁCH khỏi chấm điểm. Tab tách 2 tầng cho khớp.
   const duNguong = (rows || []).filter((r) => (r.so_gio_dung ?? 99) >= 3);
@@ -121,12 +124,12 @@ function CamBienPage({ isLive }) {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <SectionTitle icon={Gauge}>Cảm biến đứng tín hiệu</SectionTitle>
-          <p className="mt-1.5 text-[13px] text-body leading-relaxed max-w-3xl">
+          <p className="mt-1.5 text-tk-sm text-body leading-relaxed max-w-3xl">
             Giá trị không thay đổi ít nhất 3 giờ. Các điểm này tạm không dùng để đánh giá trạng thái phòng — Cơ điện kiểm tra hoặc thay đầu đo.
           </p>
           <details className="mt-1.5 max-w-3xl">
-            <summary className="cursor-pointer text-[12px] font-medium text-muted select-none">Xem giải thích</summary>
-            <p className="mt-1.5 text-[12px] text-muted leading-relaxed">
+            <summary className="cursor-pointer text-tk-xs font-medium text-muted select-none">Xem giải thích</summary>
+            <p className="mt-1.5 text-tk-xs text-muted leading-relaxed">
               Nguyên nhân thường gặp: hỏng đầu đo, mất kết nối hoặc treo tín hiệu tại nguồn dữ liệu. Phòng có cảm biến
               đứng tín hiệu được tách riêng như phòng thiếu dữ liệu: không chấm mức, không mở sự cố, không tính vào báo
               cáo chung; cảm biến sống lại sẽ tự trở lại chấm điểm bình thường. Dấu <b>≥</b> nghĩa là cảm biến chưa từng
@@ -135,25 +138,25 @@ function CamBienPage({ isLive }) {
           </details>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {luc && <span className="text-[12px] text-muted">Cập nhật {luc.toLocaleTimeString("vi-VN")}</span>}
-          <button onClick={taiVe} className="flex items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 text-[12px] font-semibold text-success ring-1 ring-success-line hover:bg-success-soft">
+          {luc && <span className="text-tk-xs text-muted">Cập nhật {fmtVN(luc, "gioGiay")}</span>}
+          <button onClick={taiVe} className="flex items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 text-tk-xs font-semibold text-success ring-1 ring-success-line hover:bg-success-soft">
             <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} /> Làm mới
           </button>
         </div>
       </div>
-      {loi && <p className="mt-3 text-[12px] text-danger">Không tải được danh sách: {loi.thong_bao || loi.message || "lỗi kết nối"}. Bấm Làm mới để thử lại.</p>}
+      {loi && <p className="mt-3 text-tk-xs text-danger">Không tải được danh sách: {loi.thong_bao || loi.message || "lỗi kết nối"}. Bấm Làm mới để thử lại.</p>}
       {rows === null ? (
         <div className="mt-4 space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-12 rounded-2xl bg-subtle animate-pulse" />)}</div>
       ) : duNguong.length === 0 && nghi.length === 0 && !loi ? (
         <div className="mt-4 rounded-2xl bg-success-soft ring-1 ring-success-line px-4 py-6 text-center">
           <p className="text-sm font-semibold text-success">Không có cảm biến nào đang đứng tín hiệu</p>
-          <p className="mt-1 text-[12px] text-muted">Mọi cảm biến đều đang gửi giá trị thay đổi bình thường.</p>
+          <p className="mt-1 text-tk-xs text-muted">Mọi cảm biến đều đang gửi giá trị thay đổi bình thường.</p>
         </div>
       ) : duNguong.length > 0 && (
         <div tabIndex={0} role="region" aria-label="Bảng cảm biến đứng tín hiệu, cuộn ngang để xem thêm" className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <caption className="sr-only">Cảm biến đứng tín hiệu từ 3 giờ trở lên — {duNguong.length} điểm đo</caption>
-            <thead><tr className="text-[12px] uppercase tracking-wider text-muted border-b border-line">
+            <thead><tr className="text-tk-xs uppercase tracking-wider text-muted border-b border-line">
               <th scope="col" className="py-2 pr-4 font-semibold">Phòng</th>
               <th scope="col" className="py-2 pr-4 font-semibold">Khu · AHU</th>
               <th scope="col" className="py-2 pr-4 font-semibold">Cảm biến</th>
@@ -165,16 +168,16 @@ function CamBienPage({ isLive }) {
               {duNguong.map((r) => {
                 const meta = SENSOR_META[r.loai_cam_bien] || {};
                 return (
-                  <tr key={`${r.ma_phong}-${r.loai_cam_bien}`} className="text-[13px]">
-                    <td className="py-2.5 pr-4"><b style={{ color: "var(--text-strong)" }}>{r.ma_phong}</b>{r.ten_phong && <span className="text-muted text-[12px]"> — {r.ten_phong}</span>}</td>
+                  <tr key={`${r.ma_phong}-${r.loai_cam_bien}`} className="text-tk-sm">
+                    <td className="py-2.5 pr-4"><b style={{ color: "var(--text-strong)" }}>{r.ma_phong}</b>{r.ten_phong && <span className="text-muted text-tk-xs"> — {r.ten_phong}</span>}</td>
                     <td className="py-2.5 pr-4 text-body">{r.khu_vuc} · {r.ahu || "—"}</td>
                     <td className="py-2.5 pr-4 text-body">{meta.label || r.loai_cam_bien}</td>
                     <td className="py-2.5 pr-4 tabular-nums text-body">
                       {r.gia_tri_dung != null ? `${r.gia_tri_dung} ${meta.unit || ""}` : "—"}
-                      {(r.gioi_han_duoi != null || r.gioi_han_tren != null) && <span className="text-[12px] text-muted"> (giới hạn {r.gioi_han_duoi ?? "—"}–{r.gioi_han_tren ?? "—"})</span>}
+                      {(r.gioi_han_duoi != null || r.gioi_han_tren != null) && <span className="text-tk-xs text-muted"> (giới hạn {r.gioi_han_duoi ?? "—"}–{r.gioi_han_tren ?? "—"})</span>}
                     </td>
                     <td className="py-2.5 pr-4 text-body tabular-nums">{fmtTu(r.dung_tu, r.tu_dau_lich_su)}</td>
-                    <td className="py-2.5"><span className={`inline-block rounded-full px-2.5 py-1 text-[12px] font-semibold ring-1 ${doDam(r.so_gio_dung)}`}>{fmtGio(r.so_gio_dung, r.tu_dau_lich_su)}</span></td>
+                    <td className="py-2.5"><span className={`inline-block rounded-full px-2.5 py-1 text-tk-xs font-semibold ring-1 ${doDam(r.so_gio_dung)}`}>{fmtGio(r.so_gio_dung, r.tu_dau_lich_su)}</span></td>
                   </tr>
                 );
               })}
@@ -184,11 +187,11 @@ function CamBienPage({ isLive }) {
       )}
       {rows !== null && nghi.length > 0 && (
         <div className="mt-5 rounded-2xl bg-subtle ring-1 ring-line px-4 py-3">
-          <p className="text-[12px] font-semibold text-body">Nghi đứng tín hiệu — mới dưới 3 giờ ({nghi.length} điểm đo)</p>
-          <p className="mt-0.5 text-[12px] text-muted leading-relaxed">Giá trị vừa lặp y hệt trong 1–2 giờ gần nhất. <b>Chưa đủ ngưỡng 3 giờ</b> nên vẫn chấm điểm và mở phiếu như thường; nếu tiếp tục đứng, đủ 3 giờ sẽ tự chuyển lên bảng trên và được tách khỏi cảnh báo.</p>
+          <p className="text-tk-xs font-semibold text-body">Nghi đứng tín hiệu — mới dưới 3 giờ ({nghi.length} điểm đo)</p>
+          <p className="mt-0.5 text-tk-xs text-muted leading-relaxed">Giá trị vừa lặp y hệt trong 1–2 giờ gần nhất. <b>Chưa đủ ngưỡng 3 giờ</b> nên vẫn chấm điểm và mở phiếu như thường; nếu tiếp tục đứng, đủ 3 giờ sẽ tự chuyển lên bảng trên và được tách khỏi cảnh báo.</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {nghi.map((r) => (
-              <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium ring-1 text-body bg-surface ring-line">
+              <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-tk-xs font-medium ring-1 text-body bg-surface ring-line">
                 <b>{r.ma_phong}</b> · {r.loai_cam_bien} · {r.so_gio_dung} giờ (giữ nguyên ở {r.gia_tri_dung})
               </span>
             ))}
@@ -212,18 +215,18 @@ function ModalMoLai({ row, act, dangChay, onDong, onLuu }) {
   const dong = useCallback(() => { if (onDongRef.current) onDongRef.current(); }, []);
   useHopThoai(hopRef, dong, dangChay);
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onDong}>
+    <div className="bms-backdrop" onClick={onDong}>
       <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-md rounded-3xl bg-surface shadow-2xl p-6 outline-none" onClick={(e) => e.stopPropagation()}>
-        <h3 id={idTieuDe} className="text-[15px] font-semibold" style={{ color: "var(--text-strong)" }}>Mở lại {row.ma_hien_thi} · {row.phong}</h3>
-        <p className="mt-1 text-[12px] text-muted leading-relaxed">{row.cam_bien_vi} · đã đóng {row.dong_luc ? new Date(row.dong_luc).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"} ({row.nhan_trang_thai || row.trang_thai}). Sự cố sẽ quay lại danh sách đang mở và nhập vào cụm điều tra hiện hành.</p>
-        <label htmlFor={idLyDo} className="block mt-4 text-[12px] font-semibold uppercase tracking-wider text-muted">Lý do mở lại <span className="text-danger">*</span></label>
+        <h3 id={idTieuDe} className="text-[15px] font-semibold text-strong">Mở lại {row.ma_hien_thi} · {row.phong}</h3>
+        <p className="mt-1 text-tk-xs text-muted leading-relaxed">{row.cam_bien_vi} · đã đóng {fmtVN(row.dong_luc, "ngayGioNgan")} ({row.nhan_trang_thai || row.trang_thai}). Sự cố sẽ quay lại danh sách đang mở và nhập vào cụm điều tra hiện hành.</p>
+        <label htmlFor={idLyDo} className="block mt-4 text-tk-xs font-semibold uppercase tracking-wider text-muted">Lý do mở lại <span className="text-danger">*</span></label>
         <textarea id={idLyDo} className={O_TEXTAREA} rows={3} value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Vì sao hồ sơ này chưa thể khép? (ít nhất 10 ký tự — ghi vào audit)" />
         <div className="mt-5 flex items-center justify-end gap-2">
-          <button onClick={onDong} className="rounded-xl bg-surface px-4 py-2 text-[13px] font-medium text-body ring-1 ring-line hover:bg-subtle">Huỷ</button>
+          <button onClick={onDong} className="rounded-xl bg-surface px-4 py-2 text-tk-sm font-medium text-body ring-1 ring-line hover:bg-subtle">Huỷ</button>
           <button disabled={thieu || dangChay} onClick={() => onLuu(lyDo.trim())}
-            className="rounded-xl px-4 py-2 text-[13px] font-semibold" style={act?.style || {}}>{dangChay ? "Đang mở lại…" : (act?.label || "Mở lại sự cố")}</button>
+            className="rounded-xl px-4 py-2 text-tk-sm font-semibold" style={act?.style || {}}>{dangChay ? "Đang mở lại…" : (act?.label || "Mở lại sự cố")}</button>
         </div>
-        {thieu && <p className="mt-2 text-right text-[12px] text-muted">Lý do cần ≥ 10 ký tự.</p>}
+        {thieu && <p className="mt-2 text-right text-tk-xs text-muted">Lý do cần ≥ 10 ký tự.</p>}
       </div>
     </div>, document.body);
 }
@@ -237,39 +240,39 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo })
   return (
     <InspectorDrawer onClose={onDong} eyebrow="Cụm điều tra"
       title={`${cum.ma_hien_thi} — ${cum.ahu || "Không rõ AHU"} · ${cum.loai_cam_bien}`}
-      actions={<button onClick={onInHoSo} title="Hồ sơ đầy đủ: CAPA + mọi sự cố thành viên + audit — in hoặc lưu PDF cho thanh tra" className="rounded-xl px-2.5 py-1 text-[13px] font-medium text-success ring-1 ring-success-line bg-success-soft hover:bg-success-soft">In hồ sơ</button>}>
+      actions={<button onClick={onInHoSo} title="Hồ sơ đầy đủ: CAPA + mọi sự cố thành viên + audit — in hoặc lưu PDF cho thanh tra" className="rounded-xl px-2.5 py-1 text-tk-sm font-medium text-success ring-1 ring-success-line bg-success-soft hover:bg-success-soft">In hồ sơ</button>}>
       <div className="space-y-4">
-          <span className={`inline-block rounded-lg px-2.5 py-1 text-[12px] leading-tight ${hh ? "text-body bg-subtle" : honHop ? "text-warning bg-warning-soft" : "text-danger bg-danger-soft"}`}>{docTenVaiTro(cum.chan_doan, cum.khu_vuc)}</span>
-          <div className="grid grid-cols-2 gap-2 text-[12px]">
-            <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Khu · mở</span><span className="font-semibold text-body tabular-nums">{cum.khu_vuc} · {Math.round(cum.gio_mo)} giờ</span></div>
-            <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Sự cố mở</span><span className="font-semibold text-body tabular-nums">{cum.su_co_dang_mo}{cum.so_chua_tiep_nhan > 0 && <span className="text-danger font-medium"> · {cum.so_chua_tiep_nhan} chưa tiếp nhận</span>}</span></div>
+          <span className={`inline-block rounded-lg px-2.5 py-1 text-tk-xs leading-tight ${hh ? "text-body bg-subtle" : honHop ? "text-warning bg-warning-soft" : "text-danger bg-danger-soft"}`}>{docTenVaiTro(cum.chan_doan, cum.khu_vuc)}</span>
+          <div className="grid grid-cols-2 gap-2 text-tk-xs">
+            <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-tk-xs uppercase tracking-wider">Khu · mở</span><span className="font-semibold text-body tabular-nums">{cum.khu_vuc} · {Math.round(cum.gio_mo)} giờ</span></div>
+            <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-tk-xs uppercase tracking-wider">Sự cố mở</span><span className="font-semibold text-body tabular-nums">{cum.su_co_dang_mo}{cum.so_chua_tiep_nhan > 0 && <span className="text-danger font-medium"> · {cum.so_chua_tiep_nhan} chưa tiếp nhận</span>}</span></div>
           </div>
           <div className="rounded-2xl ring-1 ring-line p-3">
             <div className="flex items-center justify-between">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Hồ sơ điều tra (CAPA)</p>
-              {coQuyenKetLuan && <button onClick={onKetLuan} className="rounded-lg bg-surface px-2 py-1 text-[12px] font-medium text-body ring-1 ring-line hover:bg-subtle">{cum.da_co_ket_luan_qa ? "Sửa kết luận" : "Lưu kết luận"}</button>}
+              <p className="text-tk-xs font-semibold uppercase tracking-wider text-muted">Hồ sơ điều tra (CAPA)</p>
+              {coQuyenKetLuan && <button onClick={onKetLuan} className="rounded-lg bg-surface px-2 py-1 text-tk-xs font-medium text-body ring-1 ring-line hover:bg-subtle">{cum.da_co_ket_luan_qa ? "Sửa kết luận" : "Lưu kết luận"}</button>}
             </div>
             {cum.da_co_ket_luan_qa ? (
-              <dl className="mt-2 space-y-2 text-[12px] leading-relaxed">
+              <dl className="mt-2 space-y-2 text-tk-xs leading-relaxed">
                 <div><dt className="text-muted">Nguyên nhân gốc</dt><dd className="text-body">{cum.nguyen_nhan_goc}</dd></div>
                 <div><dt className="text-muted">Khắc phục</dt><dd className="text-body">{cum.hanh_dong_khac_phuc}</dd></div>
                 {cum.hanh_dong_phong_ngua && <div><dt className="text-muted">Phòng ngừa</dt><dd className="text-body">{cum.hanh_dong_phong_ngua}</dd></div>}
                 {cum.qa_ket_luan && <div><dt className="text-muted">Kết luận QA</dt><dd className="text-body">{cum.qa_ket_luan}</dd></div>}
-                <p className="text-[12px] text-muted">bởi {cum.qa_boi} · {cum.qa_luc ? new Date(cum.qa_luc).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}</p>
+                <p className="text-tk-xs text-muted">bởi {cum.qa_boi} · {fmtVN(cum.qa_luc, "ngayGioNgan", "")}</p>
               </dl>
-            ) : <p className="mt-2 text-[12px] text-muted italic">Chưa có kết luận QA.</p>}
+            ) : <p className="mt-2 text-tk-xs text-muted italic">Chưa có kết luận QA.</p>}
           </div>
           <div>
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Sự cố đang mở trong cụm</p>
+            <p className="text-tk-xs font-semibold uppercase tracking-wider text-muted">Sự cố đang mở trong cụm</p>
             <div className="mt-2 space-y-2">
-              {dsSuCo.length === 0 && <p className="text-[12px] text-muted italic">Không còn sự cố mở (cụm sắp tự đóng).</p>}
+              {dsSuCo.length === 0 && <p className="text-tk-xs text-muted italic">Không còn sự cố mở (cụm sắp tự đóng).</p>}
               {dsSuCo.map((i) => (
-                <div key={i.id} className="rounded-xl ring-1 ring-line px-3 py-2 text-[12px]">
+                <div key={i.id} className="rounded-xl ring-1 ring-line px-3 py-2 text-tk-xs">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold" style={{ color: "var(--text-strong)" }}>{i.id} · {i.room}</span>
+                    <span className="font-semibold text-strong">{i.id} · {i.room}</span>
                     {i.mucCanhBao === "SUPPRESSED"
-                      ? <span className="rounded-lg bg-subtle px-1.5 py-0.5 text-[12px] text-muted">cảm biến đứng tín hiệu</span>
-                      : <span className="rounded-lg bg-danger-soft px-1.5 py-0.5 text-[12px] text-danger">{i.sensor}</span>}
+                      ? <span className="rounded-lg bg-subtle px-1.5 py-0.5 text-tk-xs text-muted">cảm biến đứng tín hiệu</span>
+                      : <span className="rounded-lg bg-danger-soft px-1.5 py-0.5 text-tk-xs text-danger">{i.sensor}</span>}
                   </div>
                   <p className="mt-0.5 text-muted">{i.status} · kéo dài {i.duration} giờ{i.giaTriGanNhat != null && <> · TB 5′ cuối <b className="tabular-nums text-body">{i.giaTriGanNhat}{i.donVi}</b>{i.cuaSo5p && <span className="tabular-nums"> ({i.cuaSo5p}{i.ngay5p ? ` · ${i.ngay5p}` : ""})</span>}</>}</p>
                 </div>

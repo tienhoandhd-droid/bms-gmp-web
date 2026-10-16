@@ -6,7 +6,7 @@ import React from "react";
 
 export default function PressureRange({ value, min, max, stale = false, missing = false, donVi = "Pa", w = 220 }) {
   if (missing || value == null) {
-    return <div className="h-6 flex items-center text-[12px] text-muted italic">Thiếu dữ liệu</div>;
+    return <div className="h-6 flex items-center text-tk-xs text-muted italic">Thiếu dữ liệu</div>;
   }
   const span = (max - min) || 1;
   const lo = min - span * 0.25, hi = max + span * 0.25;

@@ -120,6 +120,9 @@
 
   --chart-grid: #3C5B68;
   --chart-axis: #C5D7DD;
+
+  --shadow-card: 0 0 #0000;
+  --shadow-card-hover: 0 0 #0000;
 }
 
 /* ---------- lớp tiện ích semantic (thay cho bg-white/ring-slate) ---------- */
@@ -220,6 +223,9 @@
   --control-height: 44px; --sidebar-width: 224px; --sidebar-collapsed: 72px;
   --shadow-popover: 0 12px 40px -12px rgb(10 35 45 / 0.22);
   --shadow-dialog: 0 24px 80px -24px rgb(10 35 45 / 0.3);
+  /* Nâng thẩm mỹ 16/10/2026: bóng rất nhẹ tách thẻ khỏi nền (light). Dark: tắt — nền tối tách lớp bằng màu surface. */
+  --shadow-card: 0 1px 2px rgb(10 35 45 / 0.05), 0 6px 20px -12px rgb(10 35 45 / 0.16);
+  --shadow-card-hover: 0 2px 4px rgb(10 35 45 / 0.06), 0 12px 28px -14px rgb(10 35 45 / 0.22);
   --motion-fast: 150ms; --motion-panel: 200ms;
   --ease-standard: cubic-bezier(.2,.7,.2,1);
 }

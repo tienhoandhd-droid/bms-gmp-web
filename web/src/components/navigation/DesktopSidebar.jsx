@@ -25,7 +25,7 @@ export default function DesktopSidebar({ tab, setTab, role, badges = {} }) {
         <CpcLogo className="h-9 w-9 shrink-0" />
         {!gon && (
           <div className="min-w-0 leading-tight">
-            <p className="bms-brand-name">BMS<span className="ml-1.5 text-[12px] font-medium text-muted tracking-normal">/ HVAC</span></p>
+            <p className="bms-brand-name">BMS<span className="ml-1.5 text-tk-xs font-medium text-muted tracking-normal">/ HVAC</span></p>
             <p className="bms-brand-caption mt-1">CPC1 Hà Nội</p>
           </div>
         )}
@@ -59,7 +59,7 @@ export default function DesktopSidebar({ tab, setTab, role, badges = {} }) {
       </nav>
 
       {!gon && <div className="bms-sidebar-bottom"><strong>Giám sát phòng sạch</strong><span>Phòng Quản lý chất lượng</span></div>}
-      <button onClick={doiGon} className="flex items-center justify-center gap-2 h-11 border-t border-line text-muted hover:bg-subtle text-[12px]"
+      <button onClick={doiGon} className="flex items-center justify-center gap-2 h-11 border-t border-line text-muted hover:bg-subtle text-tk-xs"
         aria-label={gon ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}>
         {gon ? <ChevronsRight className="w-4 h-4" strokeWidth={1.8} /> : <><ChevronsLeft className="w-4 h-4" strokeWidth={1.8} /> Thu gọn</>}
       </button>

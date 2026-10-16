@@ -102,12 +102,12 @@ function BuocSuCo({ tt }) {
           return (
             <div key={t} className="flex-1 min-w-0">
               <div className={`h-1.5 rounded-full ${qua ? "bg-success-solid" : hien ? (nd.tac ? "bg-danger-solid" : "bg-warning-solid") : "bg-subtle"}`} />
-              <p className={`mt-1 text-[12px] leading-tight truncate ${hien ? (nd.tac ? "text-danger font-bold" : "text-warning font-bold") : qua ? "text-success font-medium" : "text-muted"}`}>{qua ? "✓ " : hien ? "● " : ""}{t}</p>
+              <p className={`mt-1 text-tk-xs leading-tight truncate ${hien ? (nd.tac ? "text-danger font-bold" : "text-warning font-bold") : qua ? "text-success font-medium" : "text-muted"}`}>{qua ? "✓ " : hien ? "● " : ""}{t}</p>
             </div>
           );
         })}
       </div>
-      <p className={`mt-1 text-[12px] leading-snug ${nd.tac ? "text-danger font-medium" : "text-muted"}`}>➜ {nd.mo}</p>
+      <p className={`mt-1 text-tk-xs leading-snug ${nd.tac ? "text-danger font-medium" : "text-muted"}`}>➜ {nd.mo}</p>
     </div>
   );
 }
@@ -132,7 +132,7 @@ const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
     <Card className="p-4 sm:p-5" style={{ background: "var(--bg-subtle)" }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <SectionTitle icon={Eye} hint="bấm vào ô bộ phận để xem danh sách phiếu của bộ phận đó">Kiểm soát xử lý — phiếu ở đâu, ai quá thời hạn</SectionTitle>
-        <span className="text-[12px] text-muted tabular-nums">{rows.length} phiếu mở · <b className={chamTong ? "text-danger" : "text-success"}>{chamTong} quá thời hạn</b> · {daBaoTruc} đã báo Trực</span>
+        <span className="text-tk-xs text-muted tabular-nums">{rows.length} phiếu mở · <b className={chamTong ? "text-danger" : "text-success"}>{chamTong} quá thời hạn</b> · {daBaoTruc} đã báo Trực</span>
       </div>
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         {boPhan.map(([vai, ten, mau, vien]) => {
@@ -145,32 +145,32 @@ const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
               onClick={() => setLocVai(chon ? null : vai)}
               className={`rounded-xl px-3.5 py-2.5 text-left transition ring-1 ${mau} ${chon ? `ring-2 ${vien} shadow-md` : "hover:ring-2 hover:shadow-sm"}`}>
               <div className="flex items-baseline justify-between">
-                <span className="text-[12px] font-bold">{ten}</span>
-                <span className="text-[18px] font-bold tabular-nums">{ds.length}<span className="text-[12px] font-medium opacity-60"> phiếu</span></span>
+                <span className="text-tk-xs font-bold">{ten}</span>
+                <span className="text-[18px] font-bold tabular-nums">{ds.length}<span className="text-tk-xs font-medium opacity-60"> phiếu</span></span>
               </div>
-              <p className="text-[12px] mt-0.5 opacity-80">{ds.length === 0 ? "không giữ phiếu nào" : soCham > 0 ? <><b>{soCham} quá thời hạn</b> · im lặng lâu nhất {fmtPhut(lauNhat)}</> : "tất cả trong nhịp"}</p>
-              <p className="text-[12px] mt-1 opacity-60">{chon ? "▲ đang xem — bấm để đóng" : "▼ bấm xem danh sách"}</p>
+              <p className="text-tk-xs mt-0.5 opacity-80">{ds.length === 0 ? "không giữ phiếu nào" : soCham > 0 ? <><b>{soCham} quá thời hạn</b> · im lặng lâu nhất {fmtPhut(lauNhat)}</> : "tất cả trong nhịp"}</p>
+              <p className="text-tk-xs mt-1 opacity-60">{chon ? "▲ đang xem — bấm để đóng" : "▼ bấm xem danh sách"}</p>
             </button>
           );
         })}
       </div>
       {locVai && (
         <div className="mt-3">
-          <p className="text-[12px] font-semibold text-muted">Phiếu {tenChon} đang giữ ({dsChon.length}) — chậm xếp trên</p>
+          <p className="text-tk-xs font-semibold text-muted">Phiếu {tenChon} đang giữ ({dsChon.length}) — chậm xếp trên</p>
           {dsChon.length === 0 ? (
-            <p className="mt-1.5 text-[12px] text-muted">{tenChon} không giữ phiếu nào. 👍</p>
+            <p className="mt-1.5 text-tk-xs text-muted">{tenChon} không giữ phiếu nào. 👍</p>
           ) : (
             <div className="mt-1.5 max-h-[52vh] overflow-y-auto overscroll-contain pr-1 space-y-1.5">
               {dsChon.map((r) => (
                 <div key={r.ma_su_co} className={`rounded-xl px-3 py-2 ring-1 ${r.dang_cham ? "bg-surface/80 ring-danger-line" : "bg-surface/60 ring-line"}`}>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px]">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-tk-xs">
                     <b style={{ color: "var(--text-strong)" }}>SC-{String(r.ma_su_co).padStart(4, "0")}</b>
                     <span className="text-muted">{r.khu_vuc}</span>
                     {r.dang_cham
                       ? <span className="font-semibold text-danger">im lặng {fmtPhut(r.phut_im_lang)}{r.nguong_phut > 0 ? ` / ngưỡng ${fmtPhut(r.nguong_phut)}` : ""}</span>
                       : <span className="text-success">trong nhịp · {fmtPhut(r.phut_im_lang)}/{fmtPhut(r.nguong_phut)}</span>}
-                    {r.da_bao_truc && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[12px] font-bold text-danger">đã lên Trực</span>}
-                    {r.vang_hien_truong && <span className="rounded-full bg-subtle px-2 py-0.5 text-[12px] text-muted">báo vắng ({r.vang_boi || "?"})</span>}
+                    {r.da_bao_truc && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-tk-xs font-bold text-danger">đã lên Trực</span>}
+                    {r.vang_hien_truong && <span className="rounded-full bg-subtle px-2 py-0.5 text-tk-xs text-muted">báo vắng ({r.vang_boi || "?"})</span>}
                     <span className="ml-auto text-muted">mở {r.gio_mo}h · cuối: {r.nguoi_thao_tac_cuoi ? `${r.nguoi_thao_tac_cuoi === "system" ? "hệ thống" : r.nguoi_thao_tac_cuoi}${r.hanh_dong_cuoi ? ` (${docTenVaiTro(r.hanh_dong_cuoi)})` : ""}` : "chưa ai thao tác"}</span>
                   </div>
                   <div className="mt-1.5"><BuocSuCo tt={r.trang_thai_hien_tai} /></div>
@@ -180,7 +180,7 @@ const KiemSoatXuLy = React.memo(function KiemSoatXuLy({ rows }) {
           )}
         </div>
       )}
-      <p className="mt-2.5 text-[12px] text-muted">"Chậm" = im lặng vượt ngưỡng leo thang của trạng thái hiện tại (IPC 20′ · Cơ điện chưa nhận việc 15′ · đang/chờ xử lý 1 giờ). Đồng hồ tính từ mốc gần nhất: thao tác cuối · lần nhận email · mở phiếu — nên phiếu "chậm" nghĩa là đã nhận nhắc mà vẫn im.</p>
+      <p className="mt-2.5 text-tk-xs text-muted">"Chậm" = im lặng vượt ngưỡng leo thang của trạng thái hiện tại (IPC 20′ · Cơ điện chưa nhận việc 15′ · đang/chờ xử lý 1 giờ). Đồng hồ tính từ mốc gần nhất: thao tác cuối · lần nhận email · mở phiếu — nên phiếu "chậm" nghĩa là đã nhận nhắc mà vẫn im.</p>
     </Card>
   );
 });
@@ -206,16 +206,16 @@ function ApprovalModal({ incident, action, user, onClose, onCommit }) {
   };
   useHopThoai(hopRef, dong, dangChay);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(30,58,86,0.28)", backdropFilter: "blur(4px)" }} onMouseDown={(e) => { if (e.target === e.currentTarget) dong(); }}>
+    <div className="bms-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) dong(); }}>
       <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-lg max-h-[calc(100dvh-2rem)] flex flex-col bg-surface ring-1 ring-line overflow-hidden outline-none" style={{ borderRadius: "var(--radius-overlay)", boxShadow: "var(--shadow-dialog)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 pt-4 pb-3 shrink-0 flex items-start justify-between gap-3" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center gap-3"><div className="shrink-0"><ShieldCheck className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 id={idTieuDe} className="text-base font-semibold" style={{ color: "var(--text-strong)" }}>{action ? action.label : "Xem sự cố"}</h2><p className="text-[12px] text-muted">Ghi nhận bằng tài khoản đăng nhập · ALCOA+</p></div></div><button type="button" onClick={dong} disabled={dangChay} aria-label="Đóng hộp thoại" className="rounded-full p-1.5 hover:bg-subtle text-muted min-w-11 min-h-11 disabled:opacity-40 flex items-center justify-center"><X className="w-4 h-4" strokeWidth={1.8} /></button></div>
+        <div className="px-5 pt-4 pb-3 shrink-0 flex items-start justify-between gap-3" style={{ background: "var(--bg-subtle)" }}><div className="flex items-center gap-3"><div className="shrink-0"><ShieldCheck className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 id={idTieuDe} className="text-base font-semibold text-strong">{action ? action.label : "Xem sự cố"}</h2><p className="text-tk-xs text-muted">Ghi nhận bằng tài khoản đăng nhập · ALCOA+</p></div></div><button type="button" onClick={dong} disabled={dangChay} aria-label="Đóng hộp thoại" className="rounded-full p-1.5 hover:bg-subtle text-muted min-w-11 min-h-11 disabled:opacity-40 flex items-center justify-center"><X className="w-4 h-4" strokeWidth={1.8} /></button></div>
         <div className="px-5 py-4 space-y-4 min-h-0 overflow-y-auto overscroll-contain">
-          <div className="grid grid-cols-3 gap-3 text-xs">{[["Mã sự cố", incident.id], ["Phòng", incident.room], ["Chỉ tiêu", incident.sensor]].map(([k, v]) => <div key={k}><p className="text-muted text-[12px] uppercase tracking-wider font-semibold">{k}</p><p className="mt-1 font-semibold" style={{ color: "var(--text-strong)" }}>{v}</p></div>)}</div>
-          <div className="border-y border-line py-3 flex flex-wrap items-center gap-2 text-[13px]"><User className="w-4 h-4 text-success" strokeWidth={1.8} /><span className="text-body">Người thực hiện:</span> <span className="font-semibold" style={{ color: "var(--text-strong)" }}>{user ? `${user.name} (${user.role})` : "chưa đăng nhập"}</span></div>
-          <div className="rounded-lg bg-subtle p-3"><p className="text-[12px] uppercase tracking-wider text-muted font-semibold mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" strokeWidth={1.8} /> Nhật ký truy vết</p><div className="space-y-2 max-h-32 overflow-y-auto pr-1">{incident.trail.map((e, i) => <div key={`${e.t}-${i}`} className="flex gap-3 text-xs"><span className="text-muted tabular-nums shrink-0">{e.t}</span><span className="text-muted">·</span><span className="text-body"><span className="font-semibold">{e.who}</span> — {e.act}</span></div>)}</div></div>
-          <div><label htmlFor={idLyDo} className="text-[12px] font-semibold text-body mb-2 block">Lý do / kết quả <span className="text-danger">*</span></label><textarea id={idLyDo} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ghi rõ lý do/kết quả (tối thiểu 6 ký tự)…" className="w-full rounded-2xl bg-subtle px-4 py-3 text-sm text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line resize-none placeholder:text-muted" /></div>
+          <div className="grid grid-cols-3 gap-3 text-xs">{[["Mã sự cố", incident.id], ["Phòng", incident.room], ["Chỉ tiêu", incident.sensor]].map(([k, v]) => <div key={k}><p className="text-muted text-tk-xs uppercase tracking-wider font-semibold">{k}</p><p className="mt-1 font-semibold text-strong">{v}</p></div>)}</div>
+          <div className="border-y border-line py-3 flex flex-wrap items-center gap-2 text-tk-sm"><User className="w-4 h-4 text-success" strokeWidth={1.8} /><span className="text-body">Người thực hiện:</span> <span className="font-semibold text-strong">{user ? `${user.name} (${user.role})` : "chưa đăng nhập"}</span></div>
+          <div className="rounded-lg bg-subtle p-3"><p className="text-tk-xs uppercase tracking-wider text-muted font-semibold mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" strokeWidth={1.8} /> Nhật ký truy vết</p><div className="space-y-2 max-h-32 overflow-y-auto pr-1">{incident.trail.map((e, i) => <div key={`${e.t}-${i}`} className="flex gap-3 text-xs"><span className="text-muted tabular-nums shrink-0">{e.t}</span><span className="text-muted">·</span><span className="text-body"><span className="font-semibold">{e.who}</span> — {e.act}</span></div>)}</div></div>
+          <div><label htmlFor={idLyDo} className="text-tk-xs font-semibold text-body mb-2 block">Lý do / kết quả <span className="text-danger">*</span></label><textarea id={idLyDo} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ghi rõ lý do/kết quả (tối thiểu 6 ký tự)…" className="w-full rounded-2xl bg-subtle px-4 py-3 text-sm text-body outline-none ring-1 ring-line focus:ring-2 focus:ring-success-line resize-none placeholder:text-muted" /></div>
         </div>
-        <div className="px-5 py-3 shrink-0 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3"><span className="text-[12px] text-muted">{action ? <>Trạng thái tiếp → <span className="font-semibold text-body">{action.next}</span></> : <span className="text-muted">Bạn không có quyền thao tác bước này</span>}</span><div className="flex justify-end gap-2"><button onClick={dong} disabled={dangChay} className="px-4 py-2 rounded-xl min-h-11 text-sm text-body hover:bg-subtle disabled:opacity-40">{action ? "Hủy" : "Đóng"}</button>{action && <button disabled={!valid || dangChay} onClick={xacNhan} className="px-4 py-2 rounded-lg min-h-11 whitespace-nowrap text-sm font-semibold flex items-center gap-1.5 text-white disabled:bg-subtle disabled:text-muted" style={valid && !dangChay ? { backgroundColor: "var(--danger-solid)" } : {}}><Check className="w-4 h-4" strokeWidth={2} /> {dangChay ? "Đang lưu…" : "Xác nhận & lưu"}</button>}</div></div>
+        <div className="px-5 py-3 shrink-0 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3"><span className="text-tk-xs text-muted">{action ? <>Trạng thái tiếp → <span className="font-semibold text-body">{action.next}</span></> : <span className="text-muted">Bạn không có quyền thao tác bước này</span>}</span><div className="flex justify-end gap-2"><button onClick={dong} disabled={dangChay} className="px-4 py-2 rounded-xl min-h-11 text-sm text-body hover:bg-subtle disabled:opacity-40">{action ? "Hủy" : "Đóng"}</button>{action && <button disabled={!valid || dangChay} onClick={xacNhan} className="px-4 py-2 rounded-lg min-h-11 whitespace-nowrap text-sm font-semibold flex items-center gap-1.5 text-white disabled:bg-subtle disabled:text-muted" style={valid && !dangChay ? { backgroundColor: "var(--danger-solid)" } : {}}><Check className="w-4 h-4" strokeWidth={2} /> {dangChay ? "Đang lưu…" : "Xác nhận & lưu"}</button>}</div></div>
       </div>
     </div>
   );
@@ -252,7 +252,7 @@ function PhieuVongDoiVe({ chang, tuanMoc, soTuan, dmy }) {
   };
   const chipTuan = (v, label) => (
     <button key={String(v)} onClick={() => { setTuan(v); setMoKhu(null); }}
-      className={`px-2.5 py-1 rounded-full text-[12px] font-medium ring-1 transition ${tuan === v ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`}
+      className={`px-2.5 py-1 rounded-full text-tk-xs font-medium ring-1 transition ${tuan === v ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`}
       style={tuan === v ? { backgroundColor: "var(--anchor)" } : {}}>{label}</button>
   );
   const CON = { ipc_bao_cd: 1, ipc_ket_luan: 1, ipc_chi_vang: 1, mep_nhan: 2, mep_xong: 2 };
@@ -263,11 +263,11 @@ function PhieuVongDoiVe({ chang, tuanMoc, soTuan, dmy }) {
   };
   return (
     <div className="mt-4">
-      <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Phiếu đi đâu — phễu vòng đời</p>
+      <p className="text-tk-xs font-semibold uppercase tracking-wider text-muted">Phiếu đi đâu — phễu vòng đời</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {chipTuan(null, "Cả kỳ")}
         {dsTuan.map((t) => chipTuan(t, nhanTuan(t)))}
-        <span className="ml-1 text-[12px] text-muted">phiếu xếp theo tuần MỞ VÉ</span>
+        <span className="ml-1 text-tk-xs text-muted">phiếu xếp theo tuần MỞ VÉ</span>
       </div>
       <div className="mt-2 grid gap-3 lg:grid-cols-2">
         {dsKhu.map((k) => {
@@ -276,14 +276,14 @@ function PhieuVongDoiVe({ chang, tuanMoc, soTuan, dmy }) {
           // chặng bằng 0" — nên phải nói rõ, đừng vẽ phễu rỗng gây hiểu nhầm.
           if (ds.length === 0) return (
             <div key={k} className="rounded-xl bg-subtle p-3 ring-1 ring-line">
-              <p className="text-[12.5px] font-bold" style={{ color: "var(--text-strong)" }}>Khu {k}</p>
-              <p className="mt-1 text-[12px] text-muted">Không có phiếu nào {tuan == null ? "trong kỳ" : `trong tuần ${tuan}`}.</p>
+              <p className="text-[12.5px] font-bold text-strong">Khu {k}</p>
+              <p className="mt-1 text-tk-xs text-muted">Không có phiếu nào {tuan == null ? "trong kỳ" : `trong tuần ${tuan}`}.</p>
             </div>
           );
           const tong = ds.find((c) => c.ma === "mo")?.so_ve || 0;
           return (
             <div key={k} className="rounded-xl bg-surface p-3 ring-1 ring-line">
-              <p className="text-[12.5px] font-bold" style={{ color: "var(--text-strong)" }}>
+              <p className="text-[12.5px] font-bold text-strong">
                 Khu {k} · {tong} phiếu {tuan == null ? "trong kỳ" : nhanTuan(tuan).toLowerCase()}
               </p>
               <div className="mt-2 space-y-1">
@@ -299,9 +299,9 @@ function PhieuVongDoiVe({ chang, tuanMoc, soTuan, dmy }) {
                         title={c.giai_thich}
                         className={`w-full text-left rounded-md px-1.5 py-1 ${co ? "hover:bg-subtle cursor-pointer" : "cursor-default"}`}>
                         <span className="flex items-baseline gap-2">
-                          <span className={`text-[12px] ${muc ? "text-body" : "font-semibold text-body"}`}>{c.nhan}</span>
+                          <span className={`text-tk-xs ${muc ? "text-body" : "font-semibold text-body"}`}>{c.nhan}</span>
                           <span className="ml-auto tabular-nums text-[12.5px] font-bold text-strong">{c.so_ve}</span>
-                          <span className="tabular-nums text-[12px] text-muted w-10 text-right">
+                          <span className="tabular-nums text-tk-xs text-muted w-10 text-right">
                             {tong > 0 ? `${Math.round((c.so_ve / tong) * 100)}%` : ""}
                           </span>
                         </span>
@@ -310,7 +310,7 @@ function PhieuVongDoiVe({ chang, tuanMoc, soTuan, dmy }) {
                         </span>
                       </button>
                       {moKhu === khoa && co && (
-                        <p className="mt-0.5 mb-1 rounded-md bg-subtle px-2 py-1 text-[12px] leading-snug text-muted ring-1 ring-line">
+                        <p className="mt-0.5 mb-1 rounded-md bg-subtle px-2 py-1 text-tk-xs leading-snug text-muted ring-1 ring-line">
                           <b className="text-body">Mã phiếu:</b> {c.ma_ve.join(", ")}
                           {c.ma_ve.length >= 50 && <span className="text-muted"> … (chỉ liệt kê 50 phiếu đầu)</span>}
                           <br /><span className="text-muted">{c.giai_thich}</span>
@@ -324,7 +324,7 @@ function PhieuVongDoiVe({ chang, tuanMoc, soTuan, dmy }) {
           );
         })}
       </div>
-      <p className="mt-1.5 text-[12px] text-muted leading-snug">
+      <p className="mt-1.5 text-tk-xs text-muted leading-snug">
         Các dòng <b>thụt vào</b> là nhánh con: "chuyển Cơ điện" / "IPC tự kết luận" / "chỉ báo vắng" nằm trong
         "IPC/QC có động vào"; "Cơ điện bấm…" nằm trong "chuyển Cơ điện". Nên đừng cộng dồn tất cả các dòng.
         Một phiếu có thể vào nhiều nhánh (vừa báo vắng vừa chuyển Cơ điện), và <b>hệ thống tự đóng</b> chồng lên mọi nhánh —
@@ -421,7 +421,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
   })();
   const chip = (v, label) => (
     <button key={v} onClick={() => setSoTuan(v)}
-      className={`px-3 py-1.5 rounded-full text-[12px] font-medium ring-1 transition ${soTuan === v ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`}
+      className={`px-3 py-1.5 rounded-full text-tk-xs font-medium ring-1 transition ${soTuan === v ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`}
       style={soTuan === v ? { backgroundColor: "var(--primary-solid)" } : {}}>{label}</button>
   );
 
@@ -469,19 +469,19 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
         Đánh giá hiệu quả cảnh báo
       </SectionTitle>
       <div className="flex flex-wrap items-center gap-2 mt-3">
-        <span className="text-[12px] font-semibold text-muted uppercase tracking-wider mr-1">Kỳ đánh giá</span>
+        <span className="text-tk-xs font-semibold text-muted uppercase tracking-wider mr-1">Kỳ đánh giá</span>
         {chip(2, "2 tuần")}{chip(3, "3 tuần")}{chip(6, "6 tuần")}
-        <span className="text-[12px] text-muted">
+        <span className="text-tk-xs text-muted">
           T2-T7 · từ <b className="text-body">{dmy(chuKy.tu)}</b> đến <b className="text-body">{dmy(chuKy.denKeHoach)}</b>
           {chuKy.chuaChot ? <span> · đang trong tuần, chốt T7</span> : null}
         </span>
-        {dangTai && !bc && !tuanBc && <span className="text-[12px] text-info">đang nạp số liệu lần đầu…</span>}
-        {dangTai && (bc || tuanBc) && <span className="text-[12px] text-muted">đang cập nhật nền</span>}
+        {dangTai && !bc && !tuanBc && <span className="text-tk-xs text-info">đang nạp số liệu lần đầu…</span>}
+        {dangTai && (bc || tuanBc) && <span className="text-tk-xs text-muted">đang cập nhật nền</span>}
       </div>
       {loi && <p className="mt-3 text-[12.5px] text-danger">Không đọc được báo cáo: {loi}</p>}
 
       {bc && tuanBc && (<>
-        <div className="mt-3 rounded-lg bg-success-soft px-3 py-2 text-[12px] text-success ring-1 ring-success-line">
+        <div className="mt-3 rounded-lg bg-success-soft px-3 py-2 text-tk-xs text-success ring-1 ring-success-line">
           <b>Thước đo:</b> % số giờ chênh áp <b>TỤT DƯỚI SÀN</b>. Đây đúng là hướng mà cảnh báo đang canh
           (<code>canh_bao_huong</code> DP = <b>DUOI</b>), nên cột % và cột số phiếu nói cùng một chuyện.
           Phần <b>vượt trần</b> để riêng ở cột cuối — không sinh phiếu nhưng vẫn là sai lệch.
@@ -490,34 +490,34 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
         <div className="mt-3 rounded-2xl bg-surface p-3.5 ring-1 ring-line">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Tóm tắt kết luận GMP</p>
-              <h3 className="mt-1 text-base font-semibold" style={{ color: "var(--text-strong)" }}>{mucKetLuan.nhan}</h3>
+              <p className="text-tk-xs font-semibold uppercase tracking-wider text-muted">Tóm tắt kết luận GMP</p>
+              <h3 className="mt-1 text-base font-semibold text-strong">{mucKetLuan.nhan}</h3>
               <p className="mt-0.5 text-[12.5px] text-muted">{mucKetLuan.mo}</p>
             </div>
-            <span className={`rounded-full px-3 py-1 text-[12px] font-semibold ring-1 ${mucKetLuan.cls}`}>Kỳ {soTuan} tuần</span>
+            <span className={`rounded-full px-3 py-1 text-tk-xs font-semibold ring-1 ${mucKetLuan.cls}`}>Kỳ {soTuan} tuần</span>
           </div>
           <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
             <div className="rounded-xl bg-subtle px-3 py-2 ring-1 ring-line">
               <p className="text-[11px] font-semibold uppercase text-muted">Phiếu mở</p>
-              <p className="mt-0.5 text-lg font-bold tabular-nums" style={{ color: "var(--text-strong)" }}>{tk.ve_mo_trong_ky}</p>
-              <p className="text-[12px] text-muted">{tk.ve_he_thong_dong} phiếu hệ thống tự đóng</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-strong">{tk.ve_mo_trong_ky}</p>
+              <p className="text-tk-xs text-muted">{tk.ve_he_thong_dong} phiếu hệ thống tự đóng</p>
             </div>
             <div className="rounded-xl bg-subtle px-3 py-2 ring-1 ring-line">
               <p className="text-[11px] font-semibold uppercase text-muted">Dưới sàn TB</p>
               <p className={`mt-0.5 text-lg font-bold tabular-nums ${mauKhongDat(pctDuoiSanTb)}`}>{pctDuoiSanTb == null ? "—" : `${pctDuoiSanTb}%`}</p>
-              <p className="text-[12px] text-muted">theo giờ có dữ liệu</p>
+              <p className="text-tk-xs text-muted">theo giờ có dữ liệu</p>
             </div>
             {!hideResponse && <>
             <div className="rounded-xl bg-subtle px-3 py-2 ring-1 ring-line">
               <p className="text-[11px] font-semibold uppercase text-muted">Phản hồi chung</p>
               <p className="mt-0.5 text-lg font-bold tabular-nums text-success">{tyLeChung == null ? "—" : `${tyLeChung}%`}</p>
-              <p className="text-[12px] text-muted">{soCanLuuY} bộ phận cần theo dõi</p>
+              <p className="text-tk-xs text-muted">{soCanLuuY} bộ phận cần theo dõi</p>
             </div>
             </>}
             <div className="rounded-xl bg-subtle px-3 py-2 ring-1 ring-line">
               <p className="text-[11px] font-semibold uppercase text-muted">Phòng ngoài phạm vi</p>
               <p className={`mt-0.5 text-lg font-bold tabular-nums ${muP1P2.length ? "text-danger" : "text-success"}`}>{muP1P2.length}</p>
-              <p className="text-[12px] text-muted">P1/P2 đạt dưới 90%</p>
+              <p className="text-tk-xs text-muted">P1/P2 đạt dưới 90%</p>
             </div>
           </div>
           <ul className="mt-3 space-y-1 text-[12.5px] text-body list-disc pl-4">
@@ -530,14 +530,14 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
 
         {/* ── Luật cảnh báo ── */}
         <div className="mt-3 rounded-xl bg-subtle p-3.5 ring-1 ring-line">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Luật cảnh báo đang áp</p>
+          <p className="text-tk-xs font-semibold uppercase tracking-wider text-muted">Luật cảnh báo đang áp</p>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-[12.5px] text-body">
             <span>Khu: <b>{luat.khu_vuc || "—"}</b></span>
             <span>Mức ưu tiên: <b>{luat.muc_uu_tien || "—"}</b></span>
             <span>Loại cảm biến: <b>{luat.loai_cam_bien || "—"}</b></span>
             <span>Hướng vi phạm: <b>{luat.huong_dp === "DUOI" ? "chỉ khi DƯỚI sàn" : luat.huong_dp}</b></span>
           </div>
-          <p className="mt-2.5 text-[13px] text-body">
+          <p className="mt-2.5 text-tk-sm text-body">
             <b className="text-strong">{tuanBc.tong_ket.so_phong}</b> phòng trong danh sách sự cố, thuộc{" "}
             <b className="text-strong">{tuanBc.tong_ket.so_khu}</b> khu · trung bình{" "}
             <b className={mauKhongDat(tuanBc.tong_ket.pct_duoi_san_tb)}>{tuanBc.tong_ket.pct_duoi_san_tb}%</b> thời gian dưới sàn ·{" "}
@@ -551,11 +551,11 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
           <div className="border-b border-line bg-subtle px-3.5 py-3 sm:px-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="flex items-center gap-2 text-[12px] font-semibold uppercase text-muted">
+                <p className="flex items-center gap-2 text-tk-xs font-semibold uppercase text-muted">
                   <ClipboardCheck className="h-3.5 w-3.5 text-success" strokeWidth={2} />
                   Xác nhận tỉ lệ phản hồi
                 </p>
-                <h3 className="mt-1 text-base font-semibold leading-snug" style={{ color: "var(--text-strong)" }}>
+                <h3 className="mt-1 text-base font-semibold leading-snug text-strong">
                   Tình trạng tiếp nhận và xử lý phiếu đã gửi thông báo
                 </h3>
               </div>
@@ -566,7 +566,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                 </div>
                 <div className="rounded-xl bg-surface px-3 py-2 ring-1 ring-line">
                   <p className="text-[11px] font-semibold uppercase text-muted">Đã xử lý</p>
-                  <p className="text-lg font-bold tabular-nums" style={{ color: "var(--text-strong)" }}>{tongTuPhanHoi}/{tongMauPhanHoi}</p>
+                  <p className="text-lg font-bold tabular-nums text-strong">{tongTuPhanHoi}/{tongMauPhanHoi}</p>
                 </div>
                 <div className="rounded-xl bg-surface px-3 py-2 ring-1 ring-line">
                   <p className="text-[11px] font-semibold uppercase text-muted">Cần lưu ý</p>
@@ -574,7 +574,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                 </div>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-muted">
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-tk-xs text-muted">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 ring-1 ring-line">
                 <BellRing className="h-3.5 w-3.5 text-success" strokeWidth={1.8} />
                 {khungGio ? `Phiếu có báo: ${khungGio}` : "Chưa có cấu hình khung giờ báo"}
@@ -588,7 +588,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
 
           <div className="p-3.5 sm:p-4">
             {dsBoPhan.length === 0 ? (
-              <div className="rounded-xl bg-subtle px-3.5 py-4 text-[13px] text-muted ring-1 ring-line">
+              <div className="rounded-xl bg-subtle px-3.5 py-4 text-tk-sm text-muted ring-1 ring-line">
                 Chưa có dữ liệu phản hồi theo bộ phận trong kỳ này. Khi RPC trả `bo_phan`, thẻ IPC/Cơ điện/Trực HSL/QA sẽ hiện tại đây.
               </div>
             ) : (
@@ -600,14 +600,14 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                     <div key={khoaBoPhan(b)} className="min-h-[172px] rounded-xl bg-subtle p-3.5 ring-1 ring-line">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>{ROLE[b.vai_tro] || b.vai_tro}</p>
-                          <p className="text-[12px] text-muted">Vai trò giám sát</p>
+                          <p className="text-tk-sm font-semibold text-strong">{ROLE[b.vai_tro] || b.vai_tro}</p>
+                          <p className="text-tk-xs text-muted">Vai trò giám sát</p>
                         </div>
                         <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-muted ring-1 ring-line">không chấm %</span>
                       </div>
                       <p className="mt-3 text-3xl font-bold tabular-nums leading-none text-body">{b.ve_da_thao_tac}</p>
-                      <p className="mt-1 text-[12px] text-muted leading-snug">phiếu đã ghi nhận xử lý · {b.tong_thao_tac} thao tác</p>
-                      <p className="mt-2 text-[12px] text-muted leading-snug">Chỉ vào khi xác nhận khắc phục hoặc mở lại phiếu, nên không có mẫu số hàng đợi để tính tỉ lệ.</p>
+                      <p className="mt-1 text-tk-xs text-muted leading-snug">phiếu đã ghi nhận xử lý · {b.tong_thao_tac} thao tác</p>
+                      <p className="mt-2 text-tk-xs text-muted leading-snug">Chỉ vào khi xác nhận khắc phục hoặc mở lại phiếu, nên không có mẫu số hàng đợi để tính tỉ lệ.</p>
                     </div>
                   );
                   const tCoBao = coBao(b);        // trên phiếu bộ phận thực sự được báo
@@ -623,28 +623,28 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                     <div key={khoaBoPhan(b)} className="min-h-[172px] rounded-xl bg-surface p-3.5 ring-1 ring-line">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>{nhanBoPhan(b)}</p>
-                          <p className="text-[12px] text-muted">{mauHien || 0} phiếu có trong mẫu</p>
+                          <p className="truncate text-tk-sm font-semibold text-strong">{nhanBoPhan(b)}</p>
+                          <p className="text-tk-xs text-muted">{mauHien || 0} phiếu có trong mẫu</p>
                         </div>
                         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${t == null ? "bg-subtle text-muted ring-line" : t < 50 ? "bg-warning-soft text-warning ring-warning-line" : "bg-success-soft text-success ring-success-line"}`}>{nhanMuc}</span>
                       </div>
                       <div className="mt-3 flex items-end justify-between gap-3">
                         <p className={`text-3xl font-bold tabular-nums leading-none ${mau}`}>{t == null ? "—" : `${t}%`}</p>
-                        <p className="pb-0.5 text-right text-[12px] text-muted leading-tight">
+                        <p className="pb-0.5 text-right text-tk-xs text-muted leading-tight">
                           <b>{tuHien}</b>/{mauHien || 0} phiếu<br />{b.tong_thao_tac} thao tác
                         </p>
                       </div>
                       <div className="mt-3 h-2 overflow-hidden rounded-full bg-subtle">
                         <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, Number(t) || 0))}%`, backgroundColor: nen }} />
                       </div>
-                      <p className="mt-2 text-[12px] text-muted">{b.gio_phan_hoi_tb == null ? "chưa có phản hồi nào" : `phản hồi sau TB ${b.gio_phan_hoi_tb} giờ`}</p>
+                      <p className="mt-2 text-tk-xs text-muted">{b.gio_phan_hoi_tb == null ? "chưa có phản hồi nào" : `phản hồi sau TB ${b.gio_phan_hoi_tb} giờ`}</p>
                       {boSot > 0 && (
-                        <p className="mt-1 text-[12px] text-muted leading-snug">
+                        <p className="mt-1 text-tk-xs text-muted leading-snug">
                           ngoài khung giờ báo: <b>{boSot}</b> phiếu · số cũ <b>{tTong}%</b> ({b.ve_da_thao_tac}/{b.ve_can_xu_ly})
                         </p>
                       )}
                       {b.gio_ipc_giu_tb != null && (
-                        <p className="mt-1 text-[12px] text-warning">IPC giữ TB <b>{b.gio_ipc_giu_tb} giờ</b> trước khi chuyển</p>
+                        <p className="mt-1 text-tk-xs text-warning">IPC giữ TB <b>{b.gio_ipc_giu_tb} giờ</b> trước khi chuyển</p>
                       )}
                     </div>
                   );
@@ -652,7 +652,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
               </div>
             )}
 
-            <p className="mt-2.5 text-[12px] text-muted leading-snug">
+            <p className="mt-2.5 text-tk-xs text-muted leading-snug">
               <b>"Phiếu có báo"</b> = phiếu còn mở trong khung giờ cảnh báo, đã có thông báo để bộ phận phụ trách tiếp nhận.
               Phiếu phát sinh ngoài khung giờ và tự đóng trước khi có thông báo được tách riêng, không đưa vào mẫu số đánh giá phản hồi.
               Số tính trên toàn bộ phiếu vẫn được giữ ở dòng phụ để phục vụ truy vết. Riêng <b>Cơ điện</b> tính từ thời điểm phiếu được <b>chuyển sang</b>, không tính từ lúc mở phiếu.
@@ -679,22 +679,22 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
               return (
                 <div className="mt-4 rounded-xl bg-subtle p-3 ring-1 ring-line">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="flex items-center gap-2 text-[12px] font-semibold uppercase text-muted">
+                    <p className="flex items-center gap-2 text-tk-xs font-semibold uppercase text-muted">
                       <Activity className="h-3.5 w-3.5 text-success" strokeWidth={2} />
                       Diễn biến theo ngày
                     </p>
-                    {coNgay && <span className="text-[12px] text-muted tabular-nums">{dsNgay.length} ngày có dữ liệu</span>}
+                    {coNgay && <span className="text-tk-xs text-muted tabular-nums">{dsNgay.length} ngày có dữ liệu</span>}
                   </div>
                   {coNgay && chuoi.length > 0 ? (
                     <>
                       <Chart type="phanHoiNgay" h={270} ngay={dsNgay.map((n) => n.slice(5))} series={chuoi} />
-                      <p className="mt-1.5 text-[12px] text-muted leading-snug">
+                      <p className="mt-1.5 text-tk-xs text-muted leading-snug">
                         Mỗi điểm = nhóm phiếu <b>mở trong ngày đó</b> và đã <b>gửi thông báo</b> cho bộ phận phụ trách, tính tỉ lệ có thao tác xử lý.
                         Ngày <b>không có phiếu</b> được để trống để phân biệt với ngày có phiếu nhưng chưa phản hồi. Cơ điện xếp theo <b>ngày được chuyển</b>.
                       </p>
                     </>
                   ) : (
-                    <div className="mt-2 rounded-lg bg-surface px-3.5 py-4 text-[13px] text-muted ring-1 ring-line">
+                    <div className="mt-2 rounded-lg bg-surface px-3.5 py-4 text-tk-sm text-muted ring-1 ring-line">
                       Chưa có dữ liệu phản hồi theo ngày trong kỳ này. Các thẻ tổng theo bộ phận phía trên vẫn là căn cứ xác nhận tỉ lệ hiện tại.
                     </div>
                   )}
@@ -724,9 +724,9 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
           };
           return (
             <div className="mt-4">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Tình trạng phản hồi từng tuần</p>
+              <p className="text-tk-xs font-semibold uppercase tracking-wider text-muted">Tình trạng phản hồi từng tuần</p>
               <div tabIndex={0} role="region" aria-label="Bảng tình trạng phản hồi từng tuần, cuộn ngang để xem thêm" className="mt-2 overflow-x-auto">
-                <table className="w-full border-collapse text-[12px]">
+                <table className="w-full border-collapse text-tk-xs">
                   <caption className="sr-only">Tỉ lệ phản hồi phiếu của từng bộ phận theo tuần</caption>
                   <thead>
                     <tr className="bg-subtle text-muted">
@@ -735,7 +735,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                         const m = mocTuan(t);
                         return (
                           <th key={t} scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">
-                            Tuần {t}{m && <><br /><span className="font-normal text-[12px] text-muted">{dmy(m.tu)}–{dmy(m.den)}</span></>}
+                            Tuần {t}{m && <><br /><span className="font-normal text-tk-xs text-muted">{dmy(m.tu)}–{dmy(m.den)}</span></>}
                           </th>
                         );
                       })}
@@ -747,17 +747,17 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                       const tb = tienBo(b);
                       return (
                         <tr key={khoaBoPhan(b)}>
-                          <td className="border border-line px-2 py-1.5 font-semibold" style={{ color: "var(--text-strong)" }}>{nhanBoPhan(b)}</td>
+                          <td className="border border-line px-2 py-1.5 font-semibold text-strong">{nhanBoPhan(b)}</td>
                           {dsTuan.map((t) => {
                             const o = lay(b, t);
                             return (
                               <td key={t} className={`border border-line px-2 py-1.5 text-center tabular-nums ${mauPct(pct(o))}`}>
                                 {!o || !o.ve_can_xu_ly
-                                  ? <span className="text-muted text-[12px]">không có phiếu</span>
+                                  ? <span className="text-muted text-tk-xs">không có phiếu</span>
                                   : !mauSo(o)
-                                  ? <span className="text-muted text-[12px]" title={`${o.ve_can_xu_ly} phiếu nhưng không phiếu nào rơi vào khung giờ báo`}>không phiếu nào được báo<br /><span className="text-[12px]">({o.ve_can_xu_ly} phiếu ngoài giờ)</span></span>
+                                  ? <span className="text-muted text-tk-xs" title={`${o.ve_can_xu_ly} phiếu nhưng không phiếu nào rơi vào khung giờ báo`}>không phiếu nào được báo<br /><span className="text-tk-xs">({o.ve_can_xu_ly} phiếu ngoài giờ)</span></span>
                                   : <>{pct(o)}%<br />
-                                      <span className="text-[12px] font-normal text-muted">
+                                      <span className="text-tk-xs font-normal text-muted">
                                         {tuSo(o)}/{mauSo(o)} phiếu{o.gio_phan_hoi_tb != null && ` · ${o.gio_phan_hoi_tb}h`}
                                         {o.ve_co_bao != null && o.ve_can_xu_ly > o.ve_co_bao && <><br />({o.ve_can_xu_ly - o.ve_co_bao} phiếu ngoài giờ không tính)</>}
                                       </span>
@@ -765,9 +765,9 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                               </td>
                             );
                           })}
-                          <td className={`border border-line px-2 py-1.5 text-center text-[12px] bg-subtle ${tb.mau}`}>
+                          <td className={`border border-line px-2 py-1.5 text-center text-tk-xs bg-subtle ${tb.mau}`}>
                             {tb.ma} {tb.nhan}
-                            {tb.d != null && <span className="block text-[12px] font-normal tabular-nums">{tb.d > 0 ? "+" : ""}{tb.d} điểm %</span>}
+                            {tb.d != null && <span className="block text-tk-xs font-normal tabular-nums">{tb.d > 0 ? "+" : ""}{tb.d} điểm %</span>}
                           </td>
                         </tr>
                       );
@@ -775,7 +775,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                   </tbody>
                 </table>
               </div>
-              <p className="mt-1.5 text-[12px] text-muted leading-snug">
+              <p className="mt-1.5 text-tk-xs text-muted leading-snug">
                 Số nhỏ = <b>phiếu có thao tác / phiếu có báo</b> và thời gian phản hồi trung bình; phiếu mở ngoài khung giờ cảnh báo
                 được đếm riêng chứ không nằm trong mẫu số. Cột <b>Tiến bộ</b> so tuần có phiếu cuối với tuần có phiếu đầu; tuần
                 <b> không có phiếu</b> nào để bộ phận ấy xử lý thì không tính là thành tích cũng không tính là lỗi.
@@ -793,7 +793,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
         )}
 
         <details className="mt-4 rounded-2xl bg-surface px-3.5 py-3 ring-1 ring-line">
-        <summary className="cursor-pointer select-none text-[12px] font-semibold uppercase tracking-wider text-muted">
+        <summary className="cursor-pointer select-none text-tk-xs font-semibold uppercase tracking-wider text-muted">
           Bằng chứng chi tiết — sai lệch theo khu, phòng và tuần
         </summary>
 
@@ -814,21 +814,21 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
           const o = (sl, t) => sl.find((x) => x.tuan === t);
           return (
             <div className="mt-4">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Trung bình toàn khu theo tuần</p>
+              <p className="text-tk-xs font-semibold uppercase tracking-wider text-muted">Trung bình toàn khu theo tuần</p>
               <div tabIndex={0} role="region" aria-label="Bảng trung bình toàn khu theo tuần, cuộn ngang để xem thêm" className="mt-2 overflow-x-auto">
-                <table className="w-full border-collapse text-[12px]">
+                <table className="w-full border-collapse text-tk-xs">
                   <caption className="sr-only">Tỉ lệ dưới sàn và vượt trần trung bình của từng khu theo tuần</caption>
                   <thead>
                     <tr className="bg-subtle text-muted">
                       <th scope="col" className="border border-line px-2 py-1.5 text-left font-semibold" rowSpan={2}>Phạm vi</th>
                       {tuan.map((w) => (
                         <th key={w.tuan} scope="colgroup" className="border border-line px-2 py-1 text-center font-semibold" colSpan={2}>
-                          Tuần {w.tuan}<br /><span className="font-normal text-[12px] text-muted">{dmy(w.tu)}–{dmy(w.den)}</span>
+                          Tuần {w.tuan}<br /><span className="font-normal text-tk-xs text-muted">{dmy(w.tu)}–{dmy(w.den)}</span>
                         </th>
                       ))}
-                      <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold bg-subtle" rowSpan={2}>Tiến bộ<br /><span className="font-normal text-[12px]">(dưới sàn)</span></th>
+                      <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold bg-subtle" rowSpan={2}>Tiến bộ<br /><span className="font-normal text-tk-xs">(dưới sàn)</span></th>
                     </tr>
-                    <tr className="bg-subtle text-muted text-[12px]">
+                    <tr className="bg-subtle text-muted text-tk-xs">
                       {tuan.map((w) => (
                         <React.Fragment key={w.tuan}>
                           <th scope="col" className="border border-line px-1.5 py-1 text-center font-semibold">dưới sàn</th>
@@ -842,7 +842,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                       const tb = tienBo(h.sl);
                       return (
                         <tr key={h.ten} className={h.dam ? "bg-subtle font-semibold" : ""}>
-                          <td className="border border-line px-2 py-1.5" style={{ color: "var(--text-strong)" }}>{h.ten}</td>
+                          <td className="border border-line px-2 py-1.5 text-strong">{h.ten}</td>
                           {tuan.map((w) => {
                             const x = o(h.sl, w.tuan);
                             return (
@@ -856,9 +856,9 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                               </React.Fragment>
                             );
                           })}
-                          <td className={`border border-line px-2 py-1.5 text-center text-[12px] bg-subtle ${tb.mau}`}>
+                          <td className={`border border-line px-2 py-1.5 text-center text-tk-xs bg-subtle ${tb.mau}`}>
                             {tb.ma} {tb.nhan}
-                            {tb.d != null && <span className="block text-[12px] font-normal tabular-nums">{tb.d > 0 ? "+" : ""}{tb.d} điểm %</span>}
+                            {tb.d != null && <span className="block text-tk-xs font-normal tabular-nums">{tb.d > 0 ? "+" : ""}{tb.d} điểm %</span>}
                           </td>
                         </tr>
                       );
@@ -866,7 +866,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                   </tbody>
                 </table>
               </div>
-              <p className="mt-1.5 text-[12px] text-muted leading-snug">
+              <p className="mt-1.5 text-tk-xs text-muted leading-snug">
                 Trung bình được <b>cân theo số giờ có dữ liệu</b>, không phải trung bình cộng các phòng. Phòng ít dữ liệu
                 có trọng số thấp hơn, phù hợp với mức bằng chứng hiện có. Cột <b>vượt trần</b> giúp phân biệt chênh áp
                 đã về dải kiểm soát hay đang vượt giới hạn trên.
@@ -878,12 +878,12 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
         {/* ── Bảng theo KHU → PHÒNG → TUẦN ── */}
         {khu.map((k) => (
           <div key={k.khu_vuc} className="mt-4">
-            <p className="text-[12.5px] font-bold" style={{ color: "var(--text-strong)" }}>
+            <p className="text-[12.5px] font-bold text-strong">
               Khu {k.khu_vuc}
               <span className="ml-2 font-normal text-muted">{k.so_phong} phòng · trung bình <b className={mauKhongDat(k.pct_duoi_san_tb)}>{k.pct_duoi_san_tb}%</b> dưới sàn</span>
             </p>
             <div tabIndex={0} role="region" aria-label={`Bảng phòng khu ${k.khu_vuc} theo tuần, cuộn ngang để xem thêm`} className="mt-1.5 overflow-x-auto">
-              <table className="w-full border-collapse text-[12px]">
+              <table className="w-full border-collapse text-tk-xs">
                 <caption className="sr-only">Tỉ lệ dưới sàn từng phòng khu {k.khu_vuc} theo tuần, cả kỳ, xu hướng và số phiếu</caption>
                 <thead>
                   <tr className="bg-subtle text-muted">
@@ -892,7 +892,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                     <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">Yêu cầu</th>
                     {tuan.map((w) => (
                       <th key={w.tuan} scope="col" className="border border-line px-2 py-1.5 text-center font-semibold">
-                        {w.nhan}<br /><span className="font-normal text-[12px] text-muted">{dmy(w.tu)}–{dmy(w.den)}</span>
+                        {w.nhan}<br /><span className="font-normal text-tk-xs text-muted">{dmy(w.tu)}–{dmy(w.den)}</span>
                       </th>
                     ))}
                     <th scope="col" className="border border-line px-2 py-1.5 text-center font-semibold bg-subtle">Cả kỳ</th>
@@ -917,16 +917,16 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                           return (
                             <td key={w.tuan} className={`border border-line px-2 py-1.5 text-center tabular-nums ${thua ? mauKhongDat(o.pct_duoi_san) : "text-muted"}`}>
                               {o == null ? "—" : <>{o.pct_duoi_san}%{!thua && <span title="ít dữ liệu — không đủ tin cậy để so sánh">†</span>}
-                                <br /><span className="text-[12px] font-normal text-muted">{o.gio_co_dl}h</span></>}
+                                <br /><span className="text-tk-xs font-normal text-muted">{o.gio_co_dl}h</span></>}
                             </td>
                           );
                         })}
                         <td className={`border border-line px-2 py-1.5 text-center tabular-nums bg-subtle ${mauKhongDat(r.pct_duoi_san)}`}>
-                          {r.pct_duoi_san == null ? "—" : <>{r.pct_duoi_san}%<br /><span className="text-[12px] font-normal text-muted">{r.gio_co_dl}h</span></>}
+                          {r.pct_duoi_san == null ? "—" : <>{r.pct_duoi_san}%<br /><span className="text-tk-xs font-normal text-muted">{r.gio_co_dl}h</span></>}
                         </td>
-                        <td className={`border border-line px-2 py-1.5 text-center text-[12px] ${xuHuong(r).mau}`}>
+                        <td className={`border border-line px-2 py-1.5 text-center text-tk-xs ${xuHuong(r).mau}`}>
                           {xuHuong(r).ma} {xuHuong(r).nhan}
-                          {xuHuong(r).delta != null && <span className="block text-[12px] font-normal tabular-nums">{xuHuong(r).delta > 0 ? "+" : ""}{xuHuong(r).delta} điểm %</span>}
+                          {xuHuong(r).delta != null && <span className="block text-tk-xs font-normal tabular-nums">{xuHuong(r).delta > 0 ? "+" : ""}{xuHuong(r).delta} điểm %</span>}
                         </td>
                         <td className="border border-line px-2 py-1.5 text-center tabular-nums text-body">{veTong}</td>
                         <td className="border border-line px-2 py-1.5 text-center tabular-nums text-muted">{r.pct_tren_tran == null ? "—" : `${r.pct_tren_tran}%`}</td>
@@ -938,7 +938,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
             </div>
           </div>
         ))}
-        <p className="mt-2.5 text-[12px] text-muted leading-snug">
+        <p className="mt-2.5 text-tk-xs text-muted leading-snug">
           Số trong ô = % số giờ chênh áp nằm DƯỚI giới hạn dưới. <b>Càng cao càng cần chú ý</b> (0% = luôn đạt).
           Số nhỏ bên dưới là <b>số giờ có dữ liệu</b> làm cơ sở tính — một tuần trọn vẹn là 168 giờ.
           Cột <b>Xu hướng</b> so tuần cuối với tuần đầu, và chỉ tính khi cả hai tuần đó đủ dữ liệu.
@@ -950,12 +950,12 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
         {/* ── Mục phụ: phòng ngoài danh sách ── */}
         {ngoaiPv.length > 0 && (
           <div className="mt-4">
-            <button onClick={() => setXemHet((v) => !v)} aria-expanded={xemHet} className="text-[12px] font-semibold text-success hover:underline min-h-[24px]">
+            <button onClick={() => setXemHet((v) => !v)} aria-expanded={xemHet} className="text-tk-xs font-semibold text-success hover:underline min-h-[24px]">
               {xemHet ? "▾ Thu gọn" : `▸ Xem ${ngoaiPv.length} phòng NGOÀI danh sách sự cố (không sinh cảnh báo)`}
             </button>
             {xemHet && (
               <div tabIndex={0} role="region" aria-label="Bảng phòng ngoài danh sách sự cố, cuộn ngang để xem thêm" className="mt-2 overflow-x-auto">
-                <table className="w-full border-collapse text-[12px]">
+                <table className="w-full border-collapse text-tk-xs">
                   <caption className="sr-only">Phòng ngoài danh sách sự cố — không sinh cảnh báo và lý do</caption>
                   <thead>
                     <tr className="bg-subtle text-muted">
@@ -978,7 +978,7 @@ function DanhGiaHieuQuaCanhBao({ isLive, hideResponse = false }) {
                     ))}
                   </tbody>
                 </table>
-                <p className="mt-1.5 text-[12px] text-muted">Các phòng này không sinh phiếu nên không nằm trong phần đánh giá phản hồi ở trên. Cột % đạt ở đây tính CẢ HAI hướng lệch (nguồn rollup ngày), khác thước đo của bảng chính.</p>
+                <p className="mt-1.5 text-tk-xs text-muted">Các phòng này không sinh phiếu nên không nằm trong phần đánh giá phản hồi ở trên. Cột % đạt ở đây tính CẢ HAI hướng lệch (nguồn rollup ngày), khác thước đo của bảng chính.</p>
               </div>
             )}
           </div>

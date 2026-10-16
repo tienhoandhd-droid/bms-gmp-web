@@ -6,8 +6,8 @@ export default function TechnicalDetails({ role, summary = "Thông tin kỹ thu�
   if (!["ADMIN", "IT"].includes(role)) return null;
   return (
     <details className={`rounded-xl ring-1 ring-line px-3.5 py-2.5 ${className}`}>
-      <summary className="cursor-pointer text-[12px] font-medium text-muted select-none">{summary}</summary>
-      <div className="mt-2 text-[12px] text-muted space-y-1.5">{children}</div>
+      <summary className="cursor-pointer text-tk-xs font-medium text-muted select-none">{summary}</summary>
+      <div className="mt-2 text-tk-xs text-muted space-y-1.5">{children}</div>
     </details>
   );
 }

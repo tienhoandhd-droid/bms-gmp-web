@@ -15,7 +15,7 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
   const tong = viecCuaToi.length + cumChoToi.length;
   if (an) return (
     <button onClick={() => setAn(false)} aria-label={`Hiện lại ${tong} việc cần xử lý`}
-      className="mb-4 inline-flex items-center gap-2 min-h-[44px] rounded-lg bg-surface ring-1 ring-warning-line px-3.5 py-1.5 text-[12px] font-semibold hover:bg-warning-soft"
+      className="mb-4 inline-flex items-center gap-2 min-h-[44px] rounded-lg bg-surface ring-1 ring-warning-line px-3.5 py-1.5 text-tk-xs font-semibold hover:bg-warning-soft"
       style={{ color: "var(--text-strong)", ...cardShadow }} title="Hiện lại danh sách Việc cần xử lý">
       Việc cần xử lý · {tong}
       <span className="text-muted font-normal">Hiện ▾</span>
@@ -28,39 +28,39 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
     <div className="mb-4 rounded-xl bg-surface ring-1 ring-warning-line px-4 py-3" style={cardShadow}>
       <div className="flex items-center justify-between gap-3">
         <button onClick={() => setMo(!mo)} aria-expanded={mo} aria-controls={contentId} className="min-h-[44px] min-w-0 flex-1 flex items-center justify-between gap-2 text-left">
-          <span className="text-[13px] font-semibold" style={{ color: "var(--text-strong)" }}>
+          <span className="text-tk-sm font-semibold text-strong">
             Việc cần xử lý · {tong}
           </span>
-          <span className="text-[12px] text-muted">{mo ? "Thu gọn" : "Mở ra"} <span aria-hidden="true">{mo ? "▴" : "▾"}</span></span>
+          <span className="text-tk-xs text-muted">{mo ? "Thu gọn" : "Mở ra"} <span aria-hidden="true">{mo ? "▴" : "▾"}</span></span>
         </button>
         <div className="shrink-0 flex items-center gap-1">
           <button onClick={() => setAn(true)} title="Ẩn cho gọn — còn viên nhỏ để hiện lại"
-            className="min-h-[44px] rounded-lg px-2 py-1 text-[12px] text-muted hover:bg-subtle hover:text-body">Ẩn</button>
+            className="min-h-[44px] rounded-lg px-2 py-1 text-tk-xs text-muted hover:bg-subtle hover:text-body">Ẩn</button>
         </div>
       </div>
         <div id={contentId} hidden={!mo} className={`mt-2 space-y-1.5 ${tatCa ? "max-h-[46vh] overflow-y-auto overscroll-contain pr-1" : ""}`}>
           {dsViec.map(({ q, inc }) => (
             <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-subtle px-3 py-2">
-              <span className="min-w-0 text-[12px] text-body truncate">
+              <span className="min-w-0 text-tk-xs text-body truncate">
                 <b style={{ color: "var(--text-strong)" }}>{inc.id}</b> · {inc.room} · {inc.sensor}
                 {q.gio_mo != null && <span className="ml-2 text-muted tabular-nums">mở {q.gio_mo}h</span>}
               </span>
-              <button onClick={() => onXuLy(inc)} className="min-h-[44px] shrink-0 rounded-lg bg-surface px-2.5 py-1 text-[12px] font-semibold text-success ring-1 ring-success-line hover:bg-success-soft">Xử lý</button>
+              <button onClick={() => onXuLy(inc)} className="min-h-[44px] shrink-0 rounded-lg bg-surface px-2.5 py-1 text-tk-xs font-semibold text-success ring-1 ring-success-line hover:bg-success-soft">Xử lý</button>
             </div>
           ))}
           {dsCum.map((c) => (
             <div key={c.ma_cum} className="flex items-center justify-between gap-3 rounded-xl bg-subtle px-3 py-2">
-              <span className="min-w-0 text-[12px] text-body truncate">
+              <span className="min-w-0 text-tk-xs text-body truncate">
                 <b style={{ color: "var(--text-strong)" }}>{c.ma_hien_thi}</b> · {c.ahu || "?"} · {c.loai_cam_bien}
                 <span className="ml-2 text-warning">chờ kết luận</span>
               </span>
-              <button onClick={() => onGhiKetLuan(c)} className="min-h-[44px] shrink-0 rounded-lg bg-surface px-2.5 py-1 text-[12px] font-semibold text-body ring-1 ring-line hover:bg-subtle">Lưu kết luận</button>
+              <button onClick={() => onGhiKetLuan(c)} className="min-h-[44px] shrink-0 rounded-lg bg-surface px-2.5 py-1 text-tk-xs font-semibold text-body ring-1 ring-line hover:bg-subtle">Lưu kết luận</button>
             </div>
           ))}
         </div>
       {mo && (conAn > 0 || tatCa) && (
         <button onClick={() => setTatCa(!tatCa)}
-          className="mt-2 w-full rounded-xl bg-warning-soft/60 px-3 py-1.5 text-[12px] font-semibold text-warning ring-1 ring-warning-line hover:bg-warning-soft">
+          className="mt-2 w-full rounded-xl bg-warning-soft/60 px-3 py-1.5 text-tk-xs font-semibold text-warning ring-1 ring-warning-line hover:bg-warning-soft">
           {tatCa ? "Thu về danh sách ngắn ▴" : `Xem tất cả ${tong} việc ▾`}
         </button>
       )}

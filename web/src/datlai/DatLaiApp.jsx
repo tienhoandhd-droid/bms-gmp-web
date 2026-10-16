@@ -64,10 +64,10 @@ function DauTrang({ type = 'lock', tieuDe, phu }) {
       <HuyHieu type={type} />
       <div className="flex items-center gap-1.5 mt-4">
         <img src={logoCpc1hn} onError={(e) => { e.currentTarget.style.display = 'none' }} alt="" className="h-4 w-4 object-contain opacity-70" />
-        <span className="text-[12px] font-bold tracking-[0.14em] uppercase text-muted">BMS · CPC1HN</span>
+        <span className="text-tk-xs font-bold tracking-[0.14em] uppercase text-muted">BMS · CPC1HN</span>
       </div>
       <h1 className="mt-2 text-[22px] font-bold leading-tight" style={{ color: NAVY }}>{tieuDe}</h1>
-      <p className="mt-1.5 text-[13px] text-muted leading-relaxed max-w-[300px]">{phu}</p>
+      <p className="mt-1.5 text-tk-sm text-muted leading-relaxed max-w-[300px]">{phu}</p>
     </div>
   )
 }
@@ -111,7 +111,7 @@ function FormGuiLai({ loiBanDau }) {
   if (tt === 'da_gui') return (
     <Khung>
       <DauTrang type="check" tieuDe="Đã gửi email" phu="Kiểm tra hộp thư để tiếp tục đặt lại mật khẩu." />
-      <p className="mt-5 text-[13px] text-success bg-success-soft ring-1 ring-success-line rounded-xl px-4 py-3 leading-relaxed text-center">
+      <p className="mt-5 text-tk-sm text-success bg-success-soft ring-1 ring-success-line rounded-xl px-4 py-3 leading-relaxed text-center">
         Nếu <b>{email}</b> có trong hệ thống, liên kết đặt lại đã được gửi. Mở thư và bấm liên kết. Không thấy? Kiểm tra <b>Spam/Quảng cáo</b>.
       </p>
       <div className="mt-5 text-center">
@@ -127,7 +127,7 @@ function FormGuiLai({ loiBanDau }) {
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required
           placeholder="Email tài khoản" aria-label="Email tài khoản" autoComplete="username"
           className="w-full rounded-xl bg-subtle ring-1 ring-line px-3.5 py-3 text-sm outline-none transition focus:bg-surface focus:ring-2 focus:ring-success-line/70" />
-        {loi && <p role="alert" className="text-[13px] text-danger text-center">{loi}</p>}
+        {loi && <p role="alert" className="text-tk-sm text-danger text-center">{loi}</p>}
         <button type="submit" disabled={tt === 'dang_gui'}
           className="w-full rounded-xl py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:opacity-40" style={{ backgroundColor: TEAL }}>
           {tt === 'dang_gui' ? 'Đang gửi…' : 'Gửi liên kết đặt lại'}
@@ -171,16 +171,16 @@ function FormDatLai() {
       <DauTrang type="lock" tieuDe="Tạo mật khẩu mới" phu="Chọn mật khẩu mới cho tài khoản của bạn. Chỉ bạn biết mật khẩu này." />
       <form onSubmit={dat} className="mt-5 space-y-3">
         <OMatKhau value={mk1} onChange={(e) => setMk1(e.target.value)} placeholder="Mật khẩu mới" autoFocus />
-        <p className="text-[12px] text-muted -mt-1 pl-1">{mk1.length >= 8 ? <span className="text-success">✓ Đủ độ dài</span> : 'Tối thiểu 8 ký tự'}</p>
+        <p className="text-tk-xs text-muted -mt-1 pl-1">{mk1.length >= 8 ? <span className="text-success">✓ Đủ độ dài</span> : 'Tối thiểu 8 ký tự'}</p>
         <OMatKhau value={mk2} onChange={(e) => setMk2(e.target.value)} placeholder="Nhập lại mật khẩu mới" />
-        {mk2.length > 0 && <p className={`text-[12px] -mt-1 pl-1 ${khop ? 'text-success' : 'text-danger'}`}>{khop ? '✓ Hai mật khẩu khớp' : 'Hai lần nhập chưa khớp'}</p>}
-        {loi && <p role="alert" className="text-[13px] text-danger text-center">{loi}</p>}
+        {mk2.length > 0 && <p className={`text-tk-xs -mt-1 pl-1 ${khop ? 'text-success' : 'text-danger'}`}>{khop ? '✓ Hai mật khẩu khớp' : 'Hai lần nhập chưa khớp'}</p>}
+        {loi && <p role="alert" className="text-tk-sm text-danger text-center">{loi}</p>}
         <button type="submit" disabled={dang}
           className="w-full rounded-xl py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:opacity-40" style={{ backgroundColor: TEAL }}>
           {dang ? 'Đang lưu…' : 'Đặt mật khẩu mới'}
         </button>
       </form>
-      <p className="mt-4 text-[12px] text-muted leading-relaxed text-center">
+      <p className="mt-4 text-tk-xs text-muted leading-relaxed text-center">
         🔒 Chỉ bạn biết mật khẩu này — quản trị hệ thống không xem được (hồ sơ GMP/Part 11).
       </p>
     </Khung>
@@ -188,7 +188,12 @@ function FormDatLai() {
 }
 
 export default function DatLaiApp() {
-  if (!supabase) return <Khung><p className="text-sm text-muted py-4 text-center">Chưa cấu hình máy chủ.</p></Khung>
+  if (!supabase) return (
+    <Khung>
+      <DauTrang type="lock" tieuDe="Chưa kết nối máy chủ" phu="Bản web này chưa được cấu hình máy chủ nên chưa thể đặt lại mật khẩu. Hãy báo Quản trị hệ thống." />
+      <div className="mt-6 text-center"><a href="index.html" className="text-[12.5px] font-medium text-muted hover:text-success">← Về trang đăng nhập</a></div>
+    </Khung>
+  )
   const coToken = TOKEN.type === 'recovery' && TOKEN.access && TOKEN.refresh
   if (coToken) return <FormDatLai />
   return <FormGuiLai loiBanDau={TOKEN.loi} />

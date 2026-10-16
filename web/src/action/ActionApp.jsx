@@ -60,7 +60,7 @@ export function DauTrang({ phu }) {
       </div>
       <div className="min-w-0 text-left">
         <h1 className="text-sm font-bold leading-tight" style={{ color: NAVY }}>Thao tác sự cố từ email</h1>
-        <p className="text-[12px] text-muted truncate">{phu}</p>
+        <p className="text-tk-xs text-muted truncate">{phu}</p>
       </div>
     </div>
   )
@@ -94,21 +94,21 @@ function FormDangNhap({ onXong }) {
       <DauTrang phu="Đăng nhập bằng tài khoản được phân công" />
       <form onSubmit={guiDi} className="mt-4 space-y-3">
         {/* Đợt B 04/09/2026: nhãn thật thay placeholder (WCAG 1.3.1) + lỗi có role=alert */}
-        <label htmlFor="tt-email" className="block text-[12px] font-medium text-body">Email công việc
+        <label htmlFor="tt-email" className="block text-tk-xs font-medium text-body">Email công việc
           <input id="tt-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required
             placeholder="email@cpc1hn.vn" autoComplete="username" aria-invalid={loi ? true : undefined}
             className="mt-1 w-full rounded-xl bg-subtle ring-1 ring-line px-3 py-2.5 text-sm font-normal" /></label>
-        <label htmlFor="tt-mat-khau" className="block text-[12px] font-medium text-body">Mật khẩu
+        <label htmlFor="tt-mat-khau" className="block text-tk-xs font-medium text-body">Mật khẩu
           <input id="tt-mat-khau" type="password" value={pw} onChange={(e) => setPw(e.target.value)} required
             autoComplete="current-password" aria-invalid={loi ? true : undefined}
             className="mt-1 w-full rounded-xl bg-subtle ring-1 ring-line px-3 py-2.5 text-sm font-normal" /></label>
-        {loi && <p role="alert" className="text-[13px] text-danger">{loi}</p>}
+        {loi && <p role="alert" className="text-tk-sm text-danger">{loi}</p>}
         <button type="submit" disabled={dang}
           className="w-full rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-40" style={{ backgroundColor: TEAL }}>
           {dang ? 'Đang đăng nhập…' : 'Đăng nhập & tiếp tục'}
         </button>
       </form>
-      <p className="mt-3 text-[12px] text-muted leading-relaxed">
+      <p className="mt-3 text-tk-xs text-muted leading-relaxed">
         Trang này cố tình gọn nhẹ để bấm nhiều nút không làm chậm web. Mỗi liên kết trong
         email chỉ cần bấm một lần.
       </p>
@@ -146,7 +146,7 @@ function TheoVe({ email }) {
   if (!TOKEN0) return (
     <Khung>
       <DauTrang phu={email} />
-      <p className="mt-4 text-[13px] text-muted leading-relaxed">Không có liên kết thao tác. Bạn có thể mở bảng điều khiển để xử lý trực tiếp.</p>
+      <p className="mt-4 text-tk-sm text-muted leading-relaxed">Không có liên kết thao tác. Bạn có thể mở bảng điều khiển để xử lý trực tiếp.</p>
       <NutMoDashboard />
     </Khung>
   )
@@ -177,19 +177,19 @@ function TheoVe({ email }) {
             {nextUrl && <a href={nextUrl} className="mt-4 inline-flex min-h-11 items-center rounded-xl px-4 py-3 text-sm font-semibold text-white" style={{ backgroundColor: TEAL }}>
               {guide.nextAction === 'mep_tiep_nhan' ? 'Mở bước tiếp nhận' : 'Mở sự cố để chọn Chờ xử lý'}
             </a>}
-            <p className="mt-3 text-[13px] text-muted">Trang sự cố sẽ kiểm tra lại trạng thái và quyền của bạn. Email đã gửi không tự đổi màu nút.</p>
+            <p className="mt-3 text-tk-sm text-muted">Trang sự cố sẽ kiểm tra lại trạng thái và quyền của bạn. Email đã gửi không tự đổi màu nút.</p>
           </section>)}
         {ganNhat && (
-          <div className="mt-3 rounded-2xl bg-subtle ring-1 ring-line p-3 text-[13px]">
-            <div className="text-[12px] uppercase tracking-wider text-muted font-semibold">Thao tác gần nhất</div>
+          <div className="mt-3 rounded-2xl bg-subtle ring-1 ring-line p-3 text-tk-sm">
+            <div className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Thao tác gần nhất</div>
             <div className="mt-1 text-body font-medium">{ganNhat.nhan}</div>
-            <div className="text-[12px] text-muted">{tenVaiTro(ganNhat.vai_tro)} · {ganNhat.boi} · {ganNhat.luc_hien_thi}</div>
+            <div className="text-tk-xs text-muted">{tenVaiTro(ganNhat.vai_tro)} · {ganNhat.boi} · {ganNhat.luc_hien_thi}</div>
           </div>)}
         {khaDung.length > 0 && (
           <div className="mt-3">
-            <div className="text-[12px] uppercase tracking-wider text-muted font-semibold">Các thao tác đang khả dụng</div>
+            <div className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Các thao tác đang khả dụng</div>
             <ul className="mt-1.5 space-y-1">{khaDung.map((n) => (
-              <li key={n.hanh_dong} className="text-[13px] text-body flex gap-1.5"><span className="text-muted">•</span>{n.nhan}</li>))}</ul>
+              <li key={n.hanh_dong} className="text-tk-sm text-body flex gap-1.5"><span className="text-muted">•</span>{n.nhan}</li>))}</ul>
           </div>)}
         {/* Lỗi MẠNG (không có bối cảnh DB, chưa thực thi gì) → cho thử lại tại chỗ,
             khỏi đóng-mở lại email. Từ chối nghiệp vụ (phiếu hết hạn/đã xử lý) thì không. */}
@@ -214,7 +214,7 @@ function TheoVe({ email }) {
           <a href={lienKetSuCo(ve.ve.ma_su_co)} className="mt-3 inline-flex min-h-11 items-center rounded-xl px-4 py-3 text-sm font-semibold text-white" style={{ backgroundColor: TEAL }}>Cập nhật kết quả xử lý</a>
         </section>)}
       <NutMoDashboard />
-      <p className="mt-3 text-[12px] text-muted">Bạn cũng có thể quay lại email và mở nút tiếp theo nếu liên kết còn hạn.</p>
+      <p className="mt-3 text-tk-xs text-muted">Bạn cũng có thể quay lại email và mở nút tiếp theo nếu liên kết còn hạn.</p>
     </Khung>)
 
   const v = ve.ve
@@ -232,28 +232,28 @@ function TheoVe({ email }) {
   return (
     <Khung>
       <DauTrang phu={email} />
-      <p className="text-[12px] uppercase tracking-wider text-muted font-semibold mt-4">Xác nhận thao tác · {tenVaiTro(v.vai_tro_can)}</p>
+      <p className="text-tk-xs uppercase tracking-wider text-muted font-semibold mt-4">Xác nhận thao tác · {tenVaiTro(v.vai_tro_can)}</p>
       <h3 className="text-base font-semibold text-strong mt-1">{v.nhan}</h3>
-      <div className="mt-3 rounded-2xl bg-subtle ring-1 ring-line p-3 text-[13px] text-body space-y-1">
+      <div className="mt-3 rounded-2xl bg-subtle ring-1 ring-line p-3 text-tk-sm text-body space-y-1">
         <div><b>{v.ma_hien_thi}</b> · {v.ma_phong} {v.ten_phong ? `— ${v.ten_phong}` : ''}</div>
-        <div className="text-[12px] text-muted">{v.khu_vuc} · {v.ahu || '—'} · {v.loai_cam_bien} · {v.muc_canh_bao}</div>
-        <div className="text-[12px] text-muted">
+        <div className="text-tk-xs text-muted">{v.khu_vuc} · {v.ahu || '—'} · {v.loai_cam_bien} · {v.muc_canh_bao}</div>
+        <div className="text-tk-xs text-muted">
           Trạng thái: <b>{v.nhan_trang_thai || v.trang_thai_hien_tai}</b>
           {v.giu_trang_thai
             ? <span className="text-muted"> — thao tác này chỉ ghi chú, không đổi trạng thái</span>
             : <> → <b>{v.nhan_trang_thai_sau || v.trang_thai_sau}</b>{v.dong_su_co && <span className="text-success"> (đóng sự cố)</span>}</>}
         </div>
         {v.thao_tac_gan_nhat && (
-          <div className="text-[12px] text-muted">Gần nhất: <b>{v.thao_tac_gan_nhat.nhan}</b> — {tenVaiTro(v.thao_tac_gan_nhat.vai_tro)} · {v.thao_tac_gan_nhat.luc_hien_thi}</div>)}
-        {v.so_lan_vang > 0 && <div className="text-[12px] text-warning">Đã báo "không tại hiện trường" {v.so_lan_vang} lần</div>}
+          <div className="text-tk-xs text-muted">Gần nhất: <b>{v.thao_tac_gan_nhat.nhan}</b> — {tenVaiTro(v.thao_tac_gan_nhat.vai_tro)} · {v.thao_tac_gan_nhat.luc_hien_thi}</div>)}
+        {v.so_lan_vang > 0 && <div className="text-tk-xs text-warning">Đã báo "không tại hiện trường" {v.so_lan_vang} lần</div>}
       </div>
       {canNote && (
         <div className="mt-3">
-          <label className="text-[12px] uppercase text-muted font-semibold">Nội dung sự cố / biện pháp <span className="text-danger">*</span></label>
+          <label className="text-tk-xs uppercase text-muted font-semibold">Nội dung sự cố / biện pháp <span className="text-danger">*</span></label>
           <textarea value={lyDo} onChange={(e) => setLyDo(e.target.value)} rows={3} autoFocus
             placeholder="Ví dụ: van điều tiết kẹt, đã chỉnh lại 40% và theo dõi 30 phút"
             className="w-full mt-1.5 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm" />
-          <p className="text-[12px] text-muted mt-1">Bắt buộc — ghi vào hồ sơ kiểm toán ALCOA+.</p>
+          <p className="text-tk-xs text-muted mt-1">Bắt buộc — ghi vào hồ sơ kiểm toán ALCOA+.</p>
         </div>)}
       <div className="flex gap-2 mt-5">
         <a href={URL_DASHBOARD} className="flex-1 rounded-xl bg-subtle py-2.5 text-sm font-medium text-body text-center">Để sau</a>
@@ -274,7 +274,8 @@ export default function ActionApp() {
     return theoDoiPhienEmail(supabase.auth, capNhat)
   }, [])
 
-  if (!supabase) return <Khung><p className="text-sm text-muted py-4 text-center">Chưa cấu hình máy chủ.</p></Khung>
+  // Trước đây chỉ một dòng chữ giữa nền trống — không biết mình đang ở đâu, không có lối ra.
+  if (!supabase) return <Khung><DauTrang phu="Chưa kết nối máy chủ dữ liệu" /><p className="mt-4 text-sm text-body leading-relaxed">Bản web này chưa được cấu hình máy chủ nên chưa thể mở phiếu sự cố từ email. Hãy báo Quản trị hệ thống, hoặc quay về bảng điều khiển.</p><NutMoDashboard /></Khung>
   if (user === undefined) return <Khung><p className="text-sm text-muted py-6 text-center">Đang tải…</p></Khung>
   if (!user) return <FormDangNhap />
   if (LINK0.kind === 'incident') return <IncidentAction key={`${user.id || ''}:${user.email}`} email={user.email} incidentId={LINK0.incidentId} intent={LINK0.intent} Khung={Khung} DauTrang={DauTrang} NutMoDashboard={NutMoDashboard} tenVaiTro={tenVaiTro} />
