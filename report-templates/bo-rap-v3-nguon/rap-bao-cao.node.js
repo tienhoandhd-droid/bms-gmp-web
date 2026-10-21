@@ -14,6 +14,7 @@
  * ========================================================================= */
 
 const L = require('./bao-cao-loi.js');
+const PTD = require('./chenh-ap-phong-theo-doi.js');
 const { esc, so, soVN, phanTram, ngayDai, ngayNgan, gioDoc, gioPhut, delta, dich, NGUONG_HANH_DONG, TOI_DA_CAP_A } = L;
 
 /* ===== CSS ============================================================== */
@@ -746,6 +747,11 @@ function rapBaoCao(d, duBao, cfg) {
   const ctDP = L.tongHopChiTieu(d, 'DP');
   const ctT  = L.tongHopChiTieu(d, 'T');
   const ctRH = L.tongHopChiTieu(d, 'RH');
+  const tdPhongTheoDoi = PTD.tongHop(d, KHU_BAO_CAO);
+  const khoiPhongTheoDoi = PTD.htmlBanIn(tdPhongTheoDoi);
+  const khoiPhongTheoDoiIn = khoiPhongTheoDoi
+    ? '<h3><span class="so-muc-phu">3.7</span>Phòng theo dõi trọng điểm · ba kỳ</h3>' + khoiPhongTheoDoi
+    : '';
 
   const dTuanThu = delta(k.ty_le_tuan_thu, kt.ty_le_tuan_thu, ' điểm %', true);
   const dNghiem  = delta(k.so_gio_critical, kt.so_gio_critical, ' giờ', false);
@@ -954,7 +960,8 @@ function rapBaoCao(d, duBao, cfg) {
     + VE_ML + '</section>'
 
     /* 3 · Chênh áp — mục trọng tâm */
-    + mucChiTieu(ctDP, true, 3, dan(4, 'Nhiệt độ: ' + ctT.so_phong_do + ' phòng có đo, đây là điều kiện thao tác và độ ổn định của sản phẩm.'))   // số thật, không hardcode (rà soát 04/09/2026)
+    // Cuối mục 3: chênh áp tại các phòng theo dõi trọng điểm, ba kỳ, đủ bảng từng phòng (yêu cầu 21/10/2026)
+    + mucChiTieu(ctDP, true, 3, khoiPhongTheoDoiIn + dan(4,'Nhiệt độ: ' + ctT.so_phong_do + ' phòng có đo, đây là điều kiện thao tác và độ ổn định của sản phẩm.'))   // số thật, không hardcode (rà soát 04/09/2026)
 
     /* 4 · Nhiệt độ và độ ẩm */
     + mucChiTieu(ctT, false, 4, dan(5, 'Độ ẩm: hướng nguy hiểm là vượt trên — nguy cơ phát triển vi sinh vật.'))

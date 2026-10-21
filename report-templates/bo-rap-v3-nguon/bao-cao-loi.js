@@ -511,7 +511,32 @@ function tongHopChiTieu(d, loai) {
   (d.tat_ca_phong || []).forEach((p) => { phongTheoMa[p.ma_phong] = p; });
 
   // Quy hai trường của truy vấn về đúng hướng vật lý: giờ tụt dưới và giờ vượt trên.
-  const hh = HAI_HUONG[loai] || {};
+  // Dữ liệu T cũ gộp hai phía. Chỉ mở biểu đồ hai chiều khi có dữ liệu
+  // giờ thực, đối chiếu đủ từng phòng với tổng đã dùng trong báo cáo.
+  const huongT = loai === 'T' && Object.prototype.hasOwnProperty.call(d, 'nhiet_do_hai_huong')
+    ? d.nhiet_do_hai_huong : null;
+  if (loai === 'T' && Object.prototype.hasOwnProperty.call(d, 'nhiet_do_hai_huong')) {
+    for (const r of chiSo.top_phong || []) {
+      const h = huongT && huongT[r.ma_phong];
+      const gioDo = ((chuoi[r.ma_phong] || {}).chuoi || [])
+        .reduce((tong, x) => tong + (x.gio_co_dl || 0), 0);
+      if (!h || !Number.isFinite(h.gio_duoi) || !Number.isFinite(h.gio_tren)
+          || h.gio_duoi < 0 || h.gio_tren < 0
+          || !Number.isFinite(h.gio_do) || h.gio_do <= 0
+          || h.gio_duoi + h.gio_tren > h.gio_do + 0.11
+          || Math.abs(h.gio_do - gioDo) > 0.001
+          || !Number.isFinite(r.gio_lech)
+          || Math.abs(h.gio_duoi + h.gio_tren - r.gio_lech) > 0.051) {
+        throw new Error('INVALID_TEMPERATURE_DIRECTIONS:' + r.ma_phong);
+      }
+    }
+  }
+  const hh = huongT ? {
+    chinh: { ten: 'Vượt trên giới hạn trên', ngan: 'vượt trên',
+      he_qua: 'nhiệt độ cao hơn dải cho phép, ảnh hưởng điều kiện thao tác và sản phẩm' },
+    nguoc: { ten: 'Tụt dưới giới hạn dưới', ngan: 'tụt dưới',
+      he_qua: 'nhiệt độ thấp hơn dải cho phép, ảnh hưởng điều kiện thao tác và sản phẩm' }
+  } : (HAI_HUONG[loai] || {});
   const chinhLaDuoi = hh.chinh && hh.chinh.ngan === 'tụt dưới';
   const xepHang = (chiSo.top_phong || []).map((r) => {
     const gChinh = r.gio_lech || 0;
@@ -522,8 +547,8 @@ function tongHopChiTieu(d, loai) {
       ght: (chuoi[r.ma_phong] || {}).ght,
       gio_do: ((chuoi[r.ma_phong] || {}).chuoi || [])
                 .reduce(function (t, x) { return t + (x.gio_co_dl || 0); }, 0),
-      gio_duoi: hh.nguoc ? (chinhLaDuoi ? gChinh : gNguoc) : null,
-      gio_tren: hh.nguoc ? (chinhLaDuoi ? gNguoc : gChinh) : null,
+      gio_duoi: huongT ? huongT[r.ma_phong].gio_duoi : hh.nguoc ? (chinhLaDuoi ? gChinh : gNguoc) : null,
+      gio_tren: huongT ? huongT[r.ma_phong].gio_tren : hh.nguoc ? (chinhLaDuoi ? gNguoc : gChinh) : null,
       gio_lech_tong: gChinh + gNguoc
     });
   });
@@ -987,33 +1012,48 @@ function svgThanhXepHang(rows, khoaGiaTri, donVi, nguocDau) {
  */
 function svgSoSanhCap(rows, khoaNhan) {
   if (!rows || !rows.length) return '';
-  const W = 700, hangCao = 26, Lx = 186, R = 132, T = 6;
+  // Cột cố định: tên | thanh | tỉ lệ | số phòng. Cột số phòng có hai dòng,
+  // nên tỉ lệ ở cuối thanh dài không thể đè phần trạng thái của nhóm.
+  const W = 780, hangCao = 48, Lx = 170, cotTyLe = 510, T = 6;
   const H = T + rows.length * hangCao + 6;
-  const iw = W - Lx - R;
+  const iw = cotTyLe - Lx - 14;
   const coTyLe = rows.every((r) => r.tong_gio_do);
   const lay = (r) => coTyLe ? 100 * (r.tong_gio_lech || 0) / r.tong_gio_do : (r.tong_gio_lech || 0);
   const max = Math.max.apply(null, rows.map(lay)) || 1;
+  const tachNhan = function (nhan) {
+    const tu = String(nhan == null ? '' : nhan).split(/\s+/);
+    const dong = ['', ''];
+    tu.forEach(function (x) {
+      const i = dong[0].length + x.length + 1 <= 23 || !dong[0] ? 0 : 1;
+      dong[i] += (dong[i] ? ' ' : '') + x;
+    });
+    return dong;
+  };
   let s = '';
   rows.forEach((r, i) => {
     const v = lay(r);
     const gio = r.tong_gio_lech || 0;
     const w = Math.max(2, (v / max) * iw);
     const cy = T + i * hangCao;
+    const nhan = tachNhan(r[khoaNhan]);
     const heo = r.so_phong ? (r.so_phong - r.so_phong_dat) / r.so_phong : 0;
     const mau = heo >= 0.8 ? MAU.cap3 : heo >= 0.4 ? MAU.cap2 : heo > 0 ? MAU.cap1 : MAU.dat;
     s += '<g><title>' + esc(r[khoaNhan]) + ' — ngoài giới hạn '
       + (coTyLe ? phanTram(v) + ' thời gian có số đo (' + soVN(gio, 0) + ' giờ)' : soVN(gio, 1) + ' giờ') + ', '
+      + (coTyLe ? 'tỉ lệ tính trên ' + soVN(r.tong_gio_do, 0) + ' giờ có số đo, ' : '')
       + r.so_phong_dat + '/' + r.so_phong + ' phòng đạt ngưỡng'
       + (r.trung_vi != null ? ', trung vị thời gian trong ngưỡng ' + phanTram(r.trung_vi) : '')
       + (r.kem_nhat ? ', kém nhất ' + r.kem_nhat.ma_phong + ' ' + phanTram(r.kem_nhat.ty_le_trong_nguong) : '')
       + '</title>'
-      + '<text x="0" y="' + (cy + 17) + '" class="svg-hang">' + esc(r[khoaNhan]) + '</text>'
-      + '<rect x="' + Lx + '" y="' + (cy + 6) + '" width="' + so(w, 1) + '" height="13" rx="3" fill="' + mau + '"/>'
-      + '<text x="' + (Lx + w + 7) + '" y="' + (cy + 17) + '" class="svg-nhan">'
+      + '<text x="0" y="' + (cy + 14) + '" class="svg-hang"><tspan x="0">' + esc(nhan[0]) + '</tspan>'
+      + (nhan[1] ? '<tspan x="0" dy="21">' + esc(nhan[1]) + '</tspan>' : '') + '</text>'
+      + '<rect x="' + Lx + '" y="' + (cy + 10) + '" width="' + so(w, 1) + '" height="13" rx="3" fill="' + mau + '"/>'
+      + '<text x="' + cotTyLe + '" y="' + (cy + 21) + '" class="svg-nhan">'
       + (coTyLe ? phanTram(v) : soVN(gio, 0) + ' giờ') + '</text>'
-      + '<text x="' + W + '" y="' + (cy + 17) + '" text-anchor="end" class="svg-hang">'
-      + r.so_phong_dat + '/' + r.so_phong + ' phòng đạt'
-      + (r.so_con_lech ? ' · ' + r.so_con_lech + ' còn ngoài giới hạn' : '') + '</text></g>';
+      + '<text x="' + W + '" y="' + (cy + 13) + '" text-anchor="end" class="svg-hang">'
+      + r.so_phong_dat + '/' + r.so_phong + ' phòng đạt</text>'
+      + (r.so_con_lech ? '<text x="' + W + '" y="' + (cy + 35) + '" text-anchor="end" class="svg-hang">'
+          + r.so_con_lech + ' còn ngoài giới hạn</text>' : '') + '</g>';
   });
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="bieu-do" role="img" aria-label="So sánh tổng giờ ngoài giới hạn">'
     + s + '</svg>';
