@@ -153,57 +153,192 @@ function tongHop(d, khuBaoCao) {
   };
 }
 
-/* ===== Mảnh dựng chung ==================================================== */
-function noiKhu(ds) { return ds.length > 1 ? ds.slice(0, -1).join(', ') + ' và ' + ds[ds.length - 1] : ds[0]; }
+/* ===== Mảnh dựng chung ====================================================
+ * Bố cục (yêu cầu 29/10/2026: ghi rõ chỉ tiêu nào, chia phần gọn):
+ *   phạm vi → hai chỉ tiêu ① ② → nhận xét chính → 1. toàn nhà máy → 2. theo khu và ba kỳ
+ *   → 3. phòng cần ưu tiên → ghi chú; bản in thêm 4. chi tiết từng phòng.
+ * ① Tỷ lệ phòng đạt  ·  ② Tỷ lệ thời gian trong giới hạn — dùng đúng hai ký hiệu này mọi nơi. */
+const MOT = '①', HAI = '②';
+const XANH_DAT = MAU.dat.vach, HONG_KDAT = '#EBA3A3';
 
+function noiKhu(ds) { return ds.length > 1 ? ds.slice(0, -1).join(', ') + ' và ' + ds[ds.length - 1] : ds[0]; }
+function thuong(k) { return k.ten.charAt(0).toLowerCase() + k.ten.slice(1); }
+function nhomChinh(t) { return t.toan_nha_may ? 'TAT_CA' : t.khu_bang[0]; }
+function lay(bang, g, khoa) { return ((bang || {})[g] || {})[khoa] || null; }
+function tyLe(x) { return x && x.so ? 100 * x.dat / x.so : null; }
+function tgTb(x) { return x && x.so ? x.cong / x.so : null; }
+function soPhongNhom(t, bang, g) {
+  return t.ky.reduce(function (m, k) { return Math.max(m, (lay(bang, g, k.khoa) || {}).so || 0); }, 0);
+}
+
+/* Thanh ngang đạt / không đạt, dựng bằng bảng lồng để hiện đúng trong mọi hộp thư. */
+function thanh(x, cao) {
+  if (!x || !x.so) return '';
+  const p = Math.round(100 * x.dat / x.so);
+  const o = function (w, mau) {
+    return w > 0 ? '<td width="' + w + '%" style="background:' + mau + ';height:' + cao + 'px;font-size:0;line-height:0;">&nbsp;</td>' : '';
+  };
+  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;"><tr>'
+    + o(p, XANH_DAT) + o(100 - p, HONG_KDAT) + '</tr></table>';
+}
+
+function tieuDePhan(so, chu, phu) {
+  return '<div style="margin:22px 0 10px;padding-bottom:5px;border-bottom:2px solid ' + XANH + ';">'
+    + '<span style="font-size:15px;font-weight:700;color:' + XANH + ';">' + so + '. ' + chu + '</span>'
+    + (phu ? ' <span style="font-size:12px;color:' + MO + ';">' + phu + '</span>' : '') + '</div>';
+}
+
+/* Phạm vi: hai nhóm phòng được so. */
 function loiDan(t) {
   const g = nhomChinh(t), soCL = soPhongNhom(t, t.con_lai, g);
-  return '<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:' + MUC2 + ';">'
-    + 'Mục này so hai nhóm phòng có cảm biến chênh áp. Nhóm thứ nhất là <b>' + t.phong.length
-    + ' phòng theo dõi trọng điểm</b>: ' + t.muc.join(' và ').toLowerCase() + ' ưu tiên giám sát tại khu ' + noiKhu(t.khu)
-    + (t.so_dac_cach ? ', cùng ' + t.so_dac_cach + ' phòng mức thấp hơn được đặc cách' : '')
-    + ', đúng nhóm phòng đang được cảnh báo. '
-    + (soCL ? 'Nhóm thứ hai là <b>' + soCL + ' phòng còn lại</b>, không thuộc diện theo dõi.'
-            : 'Không có phòng nào khác ngoài diện theo dõi.')
+  return '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:' + MUC2 + ';">'
+    + 'So hai nhóm phòng có cảm biến chênh áp. <b>Phòng theo dõi</b> (' + t.phong.length + ' phòng): '
+    + t.muc.join(' và ').toLowerCase() + ' tại khu ' + noiKhu(t.khu)
+    + (t.so_dac_cach ? ' và ' + t.so_dac_cach + ' phòng mức thấp hơn được đặc cách' : '')
+    + ', đúng nhóm đang được cảnh báo. '
+    + (soCL ? '<b>Phòng còn lại</b> (' + soCL + ' phòng): không thuộc diện theo dõi.'
+            : 'Không có phòng nào ngoài diện theo dõi.')
     + '</p>';
 }
 
-/* Điểm chính: ba bốn câu kết luận rút từ số liệu, đặt đầu mục để người đọc nắm ngay. */
+/* Hai chỉ tiêu, định nghĩa ngay đầu mục. */
+function chiTieu() {
+  const dong = function (kh, ten, giai) {
+    return '<tr><td valign="top" style="padding:6px 8px 6px 0;font-size:18px;font-weight:700;color:' + XANH + ';width:24px;">' + kh + '</td>'
+      + '<td valign="top" style="padding:6px 0;font-size:13px;line-height:1.55;color:' + MUC2 + ';"><b style="color:' + MUC + ';">'
+      + ten + '</b><br>' + giai + '</td></tr>';
+  };
+  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 14px;'
+    + 'border:1px solid ' + VIEN + ';border-radius:6px;background:' + NEN + ';"><tr><td style="padding:8px 14px;">'
+    + '<div style="font-size:13px;font-weight:700;color:' + MUC2 + ';margin:2px 0 2px;">Hai chỉ tiêu dùng trong mục này</div>'
+    + '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">'
+    + dong(MOT, 'Tỷ lệ phòng đạt (chỉ tiêu chính)', 'Số phòng đạt chia cho tổng số phòng trong nhóm. Một phòng <b>đạt</b> khi chênh áp '
+      + 'nằm trong giới hạn từ ' + NGUONG_DAT + '% thời gian đo trở lên; dưới mức đó là <b>không đạt</b>.')
+    + dong(HAI, 'Tỷ lệ thời gian trong giới hạn', 'Trung bình cộng phần trăm thời gian chênh áp nằm trong giới hạn của các phòng trong nhóm.')
+    + '</table></td></tr></table>';
+}
+
+/* Nhận xét chính: câu kết luận rút từ số liệu, mỗi câu nói rõ chỉ tiêu nào. */
 function diemChinh(t) {
   const g = nhomChinh(t), k0 = t.ky[0], k1 = t.ky[1];
   const a = lay(t.tong, g, k0.khoa), b = lay(t.con_lai, g, k0.khoa);
   if (!a) return '';
-  const thuong = function (k) { return k.ten.charAt(0).toLowerCase() + k.ten.slice(1); };
   const cau = [];
-  cau.push('Trong ' + esc(thuong(k0)) + ', <b>' + phanTram(tyLe(a)) + '</b> số phòng theo dõi đạt ('
-    + a.dat + '/' + a.so + ' phòng)'
-    + (b ? ', so với <b>' + phanTram(tyLe(b)) + '</b> ở nhóm phòng còn lại (' + b.dat + '/' + b.so + ' phòng).' : '.'));
+  cau.push(MOT + ' Tỷ lệ phòng đạt: phòng theo dõi <b>' + phanTram(tyLe(a)) + '</b> (' + a.dat + '/' + a.so + ' phòng)'
+    + (b ? ', phòng còn lại <b>' + phanTram(tyLe(b)) + '</b> (' + b.dat + '/' + b.so + ' phòng).' : '.'));
+  cau.push(HAI + ' Tỷ lệ thời gian trong giới hạn: phòng theo dõi <b>' + phanTram(tgTb(a)) + '</b>'
+    + (b ? ', phòng còn lại <b>' + phanTram(tgTb(b)) + '</b>.' : '.'));
   const a1 = k1 ? lay(t.tong, g, k1.khoa) : null;
   if (a1) {
     const lech = tyLe(a) - tyLe(a1);
-    cau.push('Tỷ lệ phòng theo dõi đạt ' + (Math.abs(lech) < 0.05 ? 'bằng'
-      : (lech > 0 ? 'cao hơn ' : 'thấp hơn ') + so(Math.abs(lech)) + ' điểm % so với')
-      + ' ' + esc(thuong(k1)) + ' (' + phanTram(tyLe(a1)) + ').');
+    cau.push('So với ' + esc(thuong(k1)) + ', ' + MOT + ' của phòng theo dõi '
+      + (Math.abs(lech) < 0.05 ? 'không đổi (' + phanTram(tyLe(a1)) + ').'
+        : (lech > 0 ? 'tăng ' : 'giảm ') + so(Math.abs(lech)) + ' điểm % (từ ' + phanTram(tyLe(a1)) + ').'));
   }
   if (t.toan_nha_may && t.khu.length > 1) {
     const xep = t.khu.map(function (k) { return { khu: k, v: tyLe(lay(t.tong, k, k0.khoa)) }; })
       .filter(function (x) { return x.v != null; }).sort(function (x, y) { return y.v - x.v; });
     if (xep.length > 1 && xep[0].v !== xep[xep.length - 1].v) {
-      cau.push('Trong nhóm theo dõi, khu ' + esc(xep[0].khu) + ' có tỷ lệ phòng đạt cao nhất (' + phanTram(xep[0].v)
-        + '), khu ' + esc(xep[xep.length - 1].khu) + ' thấp nhất (' + phanTram(xep[xep.length - 1].v) + ').');
+      cau.push('Theo khu, ' + MOT + ' của phòng theo dõi cao nhất ở khu ' + esc(xep[0].khu) + ' (' + phanTram(xep[0].v)
+        + '), thấp nhất ở khu ' + esc(xep[xep.length - 1].khu) + ' (' + phanTram(xep[xep.length - 1].v) + ').');
     }
   }
   if (t.uu_tien.length) {
-    cau.push('<b>' + t.uu_tien.length + ' phòng theo dõi</b> có chênh áp trong giới hạn dưới ' + NGUONG_UU_TIEN
-      + '% thời gian, cần ưu tiên kiểm tra (danh sách bên dưới).');
+    cau.push('<b>' + t.uu_tien.length + ' phòng theo dõi</b> có ' + HAI + ' dưới ' + NGUONG_UU_TIEN + '%, cần ưu tiên kiểm tra (phần 3).');
   }
-  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 18px;'
-    + 'background:#F4F8FC;border-left:4px solid ' + XANH + ';border-radius:6px;"><tr><td style="padding:12px 16px;">'
-    + '<div style="font-size:14px;font-weight:700;color:' + XANH + ';margin-bottom:6px;">Điểm chính</div>'
+  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 6px;'
+    + 'background:#F4F8FC;border-left:4px solid ' + XANH + ';border-radius:6px;"><tr><td style="padding:10px 16px;">'
+    + '<div style="font-size:14px;font-weight:700;color:' + XANH + ';margin-bottom:4px;">Nhận xét chính · ' + esc(thuong(k0))
+    + ' <span style="font-weight:400;color:' + MO + ';font-size:12px;">(' + esc(k0.ngay) + ')</span></div>'
     + cau.map(function (c) {
-      return '<div style="font-size:14px;line-height:1.6;color:' + MUC2 + ';padding-left:14px;text-indent:-14px;">•&nbsp; ' + c + '</div>';
+      return '<div style="font-size:14px;line-height:1.6;color:' + MUC2 + ';padding:1px 0;">' + c + '</div>';
     }).join('')
     + '</td></tr></table>';
+}
+
+/* Phần 1 — toàn nhà máy (hoặc khu của bản riêng), kỳ này: bảng chỉ tiêu × nhóm. */
+function bangKyNay(t) {
+  const g = nhomChinh(t), k0 = t.ky[0];
+  const nhom = [['Phòng theo dõi', t.tong], ['Phòng còn lại', t.con_lai]]
+    .filter(function (n) { return soPhongNhom(t, n[1], g); });
+  const O = 'padding:10px 10px;border-bottom:1px solid ' + VIEN + ';vertical-align:top;';
+  const nhanCT = function (kh, ten) {
+    return '<td style="' + O + 'width:34%;font-size:13px;color:' + MUC + ';"><b style="color:' + XANH + ';font-size:16px;">'
+      + kh + '</b> ' + ten + '</td>';
+  };
+  const o1 = function (x) {
+    if (!x) return '<td style="' + O + 'color:#9AA7B3;">—</td>';
+    return '<td style="' + O + '"><div style="font-size:24px;font-weight:700;color:' + MUC + ';line-height:1.1;">' + phanTram(tyLe(x))
+      + ' <span style="font-size:12px;font-weight:400;color:' + MO + ';">' + x.dat + '/' + x.so + ' phòng</span></div>'
+      + '<div style="margin:6px 0 4px;">' + thanh(x, 8) + '</div>'
+      + '<div style="font-size:12px;color:' + MO + ';"><span style="color:' + XANH_DAT + ';">■</span> Đạt ' + x.dat
+      + ' &nbsp; <span style="color:' + HONG_KDAT + ';">■</span> Không đạt ' + (x.so - x.dat) + ' (' + phanTram(100 - tyLe(x)) + ')</div></td>';
+  };
+  const o2 = function (x) {
+    if (!x) return '<td style="' + O + 'color:#9AA7B3;">—</td>';
+    const m = mauCua(tgTb(x));
+    return '<td style="' + O + '"><span style="display:inline-block;padding:2px 10px;border-radius:10px;background:' + m.nen
+      + ';color:' + m.chu + ';font-size:16px;font-weight:700;">' + phanTram(tgTb(x)) + '</span></td>';
+  };
+  return tieuDePhan(1, t.toan_nha_may ? 'Toàn nhà máy' : 'Khu ' + esc(g), esc(thuong(k0)) + ' (' + esc(k0.ngay) + ')')
+    + '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;border:1px solid #D9E1E8;">'
+    + '<tr><th align="left" style="' + TH + 'text-align:left;padding-left:10px;">Chỉ tiêu</th>'
+    + nhom.map(function (n) {
+      return '<th align="left" style="' + TH + 'text-align:left;padding-left:10px;">' + n[0]
+        + ' <span style="font-weight:400;color:#7A8A99;">· ' + soPhongNhom(t, n[1], g) + ' phòng</span></th>';
+    }).join('') + '</tr>'
+    + '<tr>' + nhanCT(MOT, 'Tỷ lệ phòng đạt') + nhom.map(function (n) { return o1(lay(n[1], g, k0.khoa)); }).join('') + '</tr>'
+    + '<tr>' + nhanCT(HAI, 'Tỷ lệ thời gian trong giới hạn') + nhom.map(function (n) { return o2(lay(n[1], g, k0.khoa)); }).join('') + '</tr>'
+    + '</table>';
+}
+
+/* Phần 2 — theo khu và qua ba kỳ: mỗi ô ghi ① (kèm thanh) và ②. */
+function bangTongHop(t) {
+  const O = 'padding:8px 6px;border-bottom:1px solid ' + VIEN + ';vertical-align:top;';
+  const oKy = function (x, nen) {
+    if (!x) return '<td align="center" style="' + O + 'color:#9AA7B3;">—</td>';
+    return '<td style="' + O + '">'
+      + '<div style="font-size:14px;font-weight:700;color:' + MUC + ';margin-bottom:3px;white-space:nowrap;">'
+      + '<span style="color:' + XANH + ';">' + MOT + '</span> ' + phanTram(tyLe(x))
+      + ' <span style="font-size:11px;font-weight:400;color:' + MO + ';">' + x.dat + '/' + x.so + '</span></div>'
+      + thanh(x, 5)
+      + '<div style="font-size:12px;color:' + MUC2 + ';margin-top:3px;white-space:nowrap;"><span style="color:' + XANH + ';font-weight:700;">'
+      + HAI + '</span> ' + phanTram(tgTb(x)) + '</div></td>';
+  };
+  const khoiKhu = function (nhanKhu, g, nen) {
+    const nhom = [['Theo dõi', t.tong], ['Còn lại', t.con_lai]].filter(function (n) { return soPhongNhom(t, n[1], g); });
+    return nhom.map(function (n, i) {
+      return '<tr' + (nen ? ' style="background:' + NEN + ';"' : '') + '>'
+        + (i === 0 ? '<td rowspan="' + nhom.length + '" style="' + O + 'font-size:13px;font-weight:700;color:' + MUC
+          + ';border-right:1px solid ' + VIEN + ';">' + nhanKhu + '</td>' : '')
+        + '<td style="' + O + 'font-size:12px;color:' + MUC2 + ';">' + n[0]
+        + '<div style="font-size:11px;color:' + MO + ';">' + soPhongNhom(t, n[1], g) + ' phòng</div></td>'
+        + t.ky.map(function (k) { return oKy(lay(n[1], g, k.khoa)); }).join('') + '</tr>';
+    }).join('');
+  };
+  return tieuDePhan(2, t.toan_nha_may ? 'Theo khu vực, qua ba kỳ' : 'Qua ba kỳ',
+      'mỗi ô: ' + MOT + ' tỷ lệ phòng đạt (số phòng đạt/tổng) · ' + HAI + ' tỷ lệ thời gian trong giới hạn')
+    + '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;border:1px solid #D9E1E8;">'
+    + '<tr><th align="left" style="' + TH + 'text-align:left;">Khu</th><th align="left" style="' + TH + 'text-align:left;">Nhóm</th>'
+    + t.ky.map(function (k) {
+      return '<th align="left" style="' + TH + 'text-align:left;">' + esc(k.ten)
+        + '<br><span style="font-weight:400;color:#7A8A99;">' + esc(k.ngay) + '</span></th>';
+    }).join('') + '</tr>'
+    + t.khu_bang.map(function (khu) { return khoiKhu('Khu ' + esc(khu), khu, false); }).join('')
+    + (t.toan_nha_may && t.khu_bang.length > 1 ? khoiKhu('Toàn nhà máy', 'TAT_CA', true) : '')
+    + '</table>';
+}
+
+/* Ghi chú: những điều cần biết để đọc đúng số liệu (định nghĩa chỉ tiêu đã ở đầu mục). */
+function ghiChu() {
+  const dong = [
+    ['Cỡ mẫu', 'nhóm ít phòng thì mỗi phòng chiếm tỷ trọng lớn (khu 5 phòng: một phòng bằng 20%), nên đọc ' + MOT + ' kèm số phòng.'],
+    ['Ba kỳ', 'tuần, tháng và quý dài ngắn khác nhau; kỳ dài làm mịn dao động, nên dùng để xem xu hướng.'],
+    ['Dữ liệu', 'giờ không có số đo không được tính. ' + HAI + ' tính trung bình theo phòng, mỗi phòng một lần.']
+  ];
+  return '<div style="margin-top:16px;padding:10px 14px;background:' + NEN + ';border-radius:6px;font-size:12px;line-height:1.6;color:#4A5D70;">'
+    + '<b style="color:' + MUC2 + ';">Ghi chú</b>'
+    + dong.map(function (d) { return '<div><b>' + d[0] + ':</b> ' + d[1] + '</div>'; }).join('') + '</div>';
 }
 
 function hopUuTien(t) {
@@ -212,8 +347,9 @@ function hopUuTien(t) {
   return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px;'
     + 'background:#FFF6F6;border:1px solid #F3C9C9;border-left:4px solid ' + MAU.kem.vach + ';border-radius:6px;">'
     + '<tr><td style="padding:12px 14px;">'
-    + '<div style="font-size:14px;font-weight:700;color:' + MAU.kem.chu + ';margin-bottom:6px;">Cần ưu tiên kiểm tra · '
-    + esc(k0.ten.charAt(0).toLowerCase() + k0.ten.slice(1)) + ' đạt dưới ' + NGUONG_UU_TIEN + '% thời gian</div>'
+    + '<div style="font-size:14px;font-weight:700;color:' + MAU.kem.chu + ';margin-bottom:6px;">' + t.uu_tien.length
+    + ' phòng theo dõi có tỷ lệ thời gian trong giới hạn (' + HAI + ') dưới ' + NGUONG_UU_TIEN + '% trong '
+    + esc(thuong(k0)) + '</div>'
     + t.uu_tien.map(function (p) {
       const h = huong(p.ky[k0.khoa]);
       return '<div style="font-size:14px;color:' + MUC2 + ';padding:2px 0;line-height:1.5;"><b>' + esc(p.ma) + '</b> '
@@ -230,137 +366,6 @@ function dauCot(t, cot1) {
       return '<th align="center" style="' + TH + 'text-align:center;">' + esc(k.ten)
         + '<br><span style="font-weight:400;color:#7A8A99;">' + esc(k.ngay) + '</span></th>';
     }).join('') + '</tr>';
-}
-
-/* ----- Tiện ích số liệu nhóm ----- */
-function nhomChinh(t) { return t.toan_nha_may ? 'TAT_CA' : t.khu_bang[0]; }
-function lay(bang, g, khoa) { return ((bang || {})[g] || {})[khoa] || null; }
-function tyLe(x) { return x && x.so ? 100 * x.dat / x.so : null; }
-function soPhongNhom(t, bang, g) {
-  return t.ky.reduce(function (m, k) { return Math.max(m, (lay(bang, g, k.khoa) || {}).so || 0); }, 0);
-}
-
-/* Thanh ngang đạt / không đạt. Dựng bằng bảng lồng để hiện đúng trong mọi hộp thư
- * (Gmail, Outlook không hỗ trợ SVG hay flex ổn định). */
-const XANH_DAT = MAU.dat.vach, HONG_KDAT = '#EBA3A3', NEN_COT = '#EEF1F4';
-function thanh(x, cao) {
-  if (!x || !x.so) return '';
-  const p = Math.round(100 * x.dat / x.so);
-  const o = function (w, mau) {
-    return w > 0 ? '<td width="' + w + '%" style="background:' + mau + ';height:' + cao + 'px;font-size:0;line-height:0;">&nbsp;</td>' : '';
-  };
-  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;"><tr>'
-    + o(p, XANH_DAT) + o(100 - p, HONG_KDAT) + '</tr></table>';
-}
-
-/* Ba cột nhỏ: tỷ lệ phòng đạt của ba kỳ, kỳ này tô đậm. */
-function cotBaKy(t, bang, g) {
-  const CAO = 46;
-  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>'
-    + t.ky.map(function (k, i) {
-      const v = tyLe(lay(bang, g, k.khoa));
-      const h = v == null ? 0 : Math.max(2, Math.round(CAO * v / 100));
-      return '<td align="center" valign="bottom" width="' + Math.floor(100 / t.ky.length) + '%" style="padding:0 4px;">'
-        + '<div style="font-size:12px;font-weight:700;color:' + (i === 0 ? MUC : MO) + ';margin-bottom:3px;">'
-        + (v == null ? '—' : phanTram(v)) + '</div>'
-        // Hai hàng ô có chiều cao cố định (phần trống trên, phần đạt dưới): Outlook bỏ qua chiều cao của div.
-        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="30" style="margin:0 auto;border-collapse:collapse;">'
-        + (CAO - h > 0 ? '<tr><td height="' + (CAO - h) + '" style="height:' + (CAO - h) + 'px;background:' + NEN_COT
-          + ';font-size:0;line-height:0;">&nbsp;</td></tr>' : '')
-        + (h > 0 ? '<tr><td height="' + h + '" style="height:' + h + 'px;background:' + (i === 0 ? XANH_DAT : '#A9D4BA')
-          + ';font-size:0;line-height:0;">&nbsp;</td></tr>' : '')
-        + '</table>'
-        + '<div style="font-size:11px;color:' + MO + ';margin-top:4px;line-height:1.3;">' + esc(k.ten) + '</div></td>';
-    }).join('') + '</tr></table>';
-}
-
-/* Thẻ tổng quan: toàn nhà máy (hoặc khu của bản riêng), hai nhóm đặt cạnh nhau. */
-function theTongQuan(t) {
-  const g = nhomChinh(t), k0 = t.ky[0];
-  const the = function (nhan, bang, mauVien) {
-    const x = lay(bang, g, k0.khoa);
-    const dau = '<td valign="top" width="50%" style="padding:14px 14px 12px;border:1px solid ' + VIEN
-      + ';border-top:4px solid ' + mauVien + ';border-radius:8px;background:#FFFFFF;">'
-      + '<div style="font-size:14px;font-weight:700;color:' + MUC + ';">' + nhan + '</div>'
-      + '<div style="font-size:12px;color:' + MO + ';">' + soPhongNhom(t, bang, g) + ' phòng</div>';
-    if (!x) {
-      return dau + '<div style="font-size:13px;color:' + MO + ';margin-top:14px;line-height:1.5;">Không có số liệu trong kỳ này.</div></td>';
-    }
-    return dau
-      + '<div style="font-size:34px;font-weight:700;color:' + MUC + ';line-height:1.1;margin:10px 0 2px;">' + phanTram(tyLe(x)) + '</div>'
-      + '<div style="font-size:13px;color:' + MUC2 + ';margin-bottom:8px;">số phòng đạt · <b>' + x.dat + '</b> trên ' + x.so + ' phòng</div>'
-      + thanh(x, 10)
-      + '<div style="font-size:12px;color:' + MO + ';margin-top:5px;">'
-      + '<span style="color:' + XANH_DAT + ';">■</span> Đạt ' + x.dat + '&nbsp;&nbsp;&nbsp;'
-      + '<span style="color:' + HONG_KDAT + ';">■</span> Không đạt ' + (x.so - x.dat) + '</div>'
-      + '<div style="font-size:12px;color:' + MUC2 + ';margin-top:8px;">Thời gian trong giới hạn, trung bình: <b>'
-      + phanTram(x.cong / x.so) + '</b></div>'
-      + '<div style="border-top:1px solid ' + VIEN + ';margin-top:12px;padding-top:8px;font-size:11px;color:' + MO
-      + ';margin-bottom:6px;">Tỷ lệ phòng đạt qua ba kỳ</div>'
-      + cotBaKy(t, bang, g) + '</td>';
-  };
-  return '<div style="font-size:15px;font-weight:700;color:' + MUC + ';margin:0 0 8px;">'
-    + (t.toan_nha_may ? 'Toàn nhà máy' : 'Khu ' + esc(g)) + ' · ' + esc(k0.ten.charAt(0).toLowerCase() + k0.ten.slice(1))
-    + ' <span style="font-weight:400;color:' + MO + ';font-size:13px;">(' + esc(k0.ngay) + ')</span></div>'
-    + '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 18px;"><tr>'
-    + the('Phòng theo dõi', t.tong, XANH)
-    // Khu không có phòng nào ngoài diện theo dõi (ví dụ Q2): một thẻ chiếm cả hàng.
-    + (soPhongNhom(t, t.con_lai, g)
-        ? '<td width="12" style="font-size:0;">&nbsp;</td>' + the('Phòng còn lại', t.con_lai, '#9AA7B3') : '')
-    + '</tr></table>';
-}
-
-/* Bảng theo khu: mỗi khu hai dòng (theo dõi / còn lại), mỗi ô một thanh đạt / không đạt. */
-function bangTongHop(t) {
-  if (t.khu_bang.length < 2) return '';
-  const O = 'padding:9px 6px;border-bottom:1px solid ' + VIEN + ';vertical-align:top;';
-  const oKy = function (x) {
-    if (!x) return '<td align="center" style="' + O + 'color:#9AA7B3;">—</td>';
-    return '<td style="' + O + '">'
-      + '<div style="font-size:15px;font-weight:700;color:' + MUC + ';margin-bottom:3px;">' + phanTram(tyLe(x))
-      + ' <span style="font-size:11px;font-weight:400;color:' + MO + ';">' + x.dat + '/' + x.so + ' phòng</span></div>'
-      + thanh(x, 6)
-      + '<div style="font-size:11px;color:' + MO + ';margin-top:3px;">' + phanTram(x.cong / x.so) + ' thời gian trong giới hạn</div></td>';
-  };
-  let than = '';
-  t.khu_bang.forEach(function (khu) {
-    const nhom = [['Phòng theo dõi', t.tong], ['Phòng còn lại', t.con_lai]]
-      .filter(function (n) { return soPhongNhom(t, n[1], khu); });
-    nhom.forEach(function (n, i) {
-      than += '<tr>'
-        + (i === 0 ? '<td rowspan="' + nhom.length + '" style="' + O + 'font-size:14px;font-weight:700;color:' + MUC
-          + ';border-right:1px solid ' + VIEN + ';">Khu ' + esc(khu) + '</td>' : '')
-        + '<td style="' + O + 'font-size:13px;color:' + MUC2 + ';">' + n[0]
-        + '<div style="font-size:11px;color:' + MO + ';">' + soPhongNhom(t, n[1], khu) + ' phòng</div></td>'
-        + t.ky.map(function (k) { return oKy(lay(n[1], khu, k.khoa)); }).join('') + '</tr>';
-    });
-  });
-  return '<div style="font-size:15px;font-weight:700;color:' + MUC + ';margin:0 0 8px;">Theo khu vực · tỷ lệ phòng đạt</div>'
-    + '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
-    + 'style="border-collapse:collapse;border:1px solid #D9E1E8;margin:0 0 18px;">'
-    + '<tr><th align="left" style="' + TH + 'text-align:left;">Khu</th><th align="left" style="' + TH + 'text-align:left;">Nhóm</th>'
-    + t.ky.map(function (k) {
-      return '<th align="left" style="' + TH + 'text-align:left;">' + esc(k.ten)
-        + '<br><span style="font-weight:400;color:#7A8A99;">' + esc(k.ngay) + '</span></th>';
-    }).join('') + '</tr>'
-    + than + '</table>';
-}
-
-/* Phương pháp: định nghĩa chỉ số để người đọc hiểu đúng và so được giữa các kỳ. */
-function phuongPhap() {
-  const dong = [
-    ['Phòng đạt', 'chênh áp nằm trong giới hạn cho phép từ ' + NGUONG_DAT + '% số giờ có dữ liệu đo trở lên.'],
-    ['Tỷ lệ phòng đạt', 'số phòng đạt chia cho số phòng có dữ liệu trong nhóm. Đây là chỉ số chính của mục.'],
-    ['Thời gian trong giới hạn', 'trung bình cộng tỷ lệ thời gian của từng phòng; mỗi phòng tính một lần, không phụ thuộc số giờ đo.'],
-    ['Cỡ mẫu', 'nhóm ít phòng thì mỗi phòng chiếm tỷ trọng lớn (khu 5 phòng: một phòng bằng 20%), nên luôn đọc tỷ lệ kèm số phòng.'],
-    ['Phòng theo dõi', 'đúng danh sách phòng đang được cảnh báo chênh áp. Phòng còn lại: các phòng có cảm biến chênh áp khác.'],
-    ['So sánh ba kỳ', 'tuần, tháng và quý dài ngắn khác nhau; kỳ càng dài thì dao động càng được làm mịn, nên dùng để xem xu hướng.'],
-    ['Dữ liệu', 'những giờ không có số đo không được tính vào tử số lẫn mẫu số.']
-  ];
-  return '<div style="padding:12px 14px;background:' + NEN + ';border-radius:6px;font-size:12px;line-height:1.6;color:#4A5D70;">'
-    + '<div style="font-weight:700;margin-bottom:4px;color:' + MUC2 + ';">Phương pháp tính</div>'
-    + dong.map(function (d) { return '<div><b>' + d[0] + ':</b> ' + d[1] + '</div>'; }).join('')
-    + '</div>';
 }
 
 function chuGiai() {
@@ -410,21 +415,23 @@ function bangChiTiet(t) {
 }
 
 /* ===== Hai đầu ra ========================================================= */
+function phanChung(t) {
+  return loiDan(t) + chiTieu() + diemChinh(t) + bangKyNay(t) + bangTongHop(t)
+    + (t.uu_tien.length ? tieuDePhan(3, 'Phòng theo dõi cần ưu tiên kiểm tra') + hopUuTien(t) : '');
+}
+
 function htmlThu(t) {
   if (!t) return '';
-  return loiDan(t) + diemChinh(t) + theTongQuan(t) + bangTongHop(t) + hopUuTien(t) + phuongPhap()
+  return phanChung(t) + ghiChu()
     + '<div style="font-size:13px;color:' + MO + ';margin-top:10px;">Tỷ lệ từng phòng và hướng ra ngoài giới hạn: '
     + 'xem bảng chi tiết trong bản in đính kèm.</div>';
 }
 
 function htmlBanIn(t) {
   if (!t) return '';
-  // Tiêu đề nhỏ viết thẳng kiểu dáng: bản in đã dùng h3 cho mục con (3.1, 3.2...) nên không thêm h3.
-  const tieuDeNho = function (chu) {
-    return '<div style="font-size:15px;font-weight:700;color:' + MUC + ';margin:22px 0 10px;">' + chu + '</div>';
-  };
-  return loiDan(t) + diemChinh(t) + theTongQuan(t) + bangTongHop(t) + hopUuTien(t) + phuongPhap()
-    + tieuDeNho('Chi tiết từng phòng theo dõi') + bangChiTiet(t);
+  return phanChung(t)
+    + tieuDePhan(t.uu_tien.length ? 4 : 3, 'Chi tiết từng phòng theo dõi', HAI + ' của từng phòng')
+    + bangChiTiet(t) + ghiChu();
 }
 
 module.exports = { tongHop: tongHop, htmlThu: htmlThu, htmlBanIn: htmlBanIn, NGUONG_DAT: NGUONG_DAT };
