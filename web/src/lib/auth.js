@@ -9,7 +9,7 @@ import { supabase } from './bmsClient'
 // thất bại (lỗi storage/lock/JSON), tự DỌN phiên cục bộ rồi thử lại 1 lần →
 // người dùng KHÔNG cần xóa cookie/dữ liệu trang thủ công.
 export async function dangNhapMatKhau(email, matKhau) {
-  if (!supabase) return { error: { message: 'Chưa cấu hình Supabase.' } }
+  if (!supabase) return { error: { message: 'Chưa kết nối máy chủ dữ liệu.' } }
   const cred = { email: email.trim(), password: matKhau }
   let { error } = await supabase.auth.signInWithPassword(cred)
   if (error && /lock|storage|localStorage|JSON|unexpected|navigator/i.test(error.message || '')) {
@@ -21,7 +21,7 @@ export async function dangNhapMatKhau(email, matKhau) {
 
 // (giữ magic link nếu cần dự phòng — không dùng ở UI mặc định)
 export async function guiMagicLink(email) {
-  if (!supabase) return { error: { message: 'Chưa cấu hình Supabase.' } }
+  if (!supabase) return { error: { message: 'Chưa kết nối máy chủ dữ liệu.' } }
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: window.location.origin + window.location.pathname },
@@ -38,7 +38,7 @@ export async function dangXuat() {
 // Lưu ý bảo mật: Supabase KHÔNG tiết lộ email có tồn tại hay không — luôn trả
 // thành công, chỉ gửi mail nếu tài khoản có thật (chống dò danh sách email).
 export async function guiEmailKhoiPhuc(email) {
-  if (!supabase) return { error: { message: 'Chưa cấu hình Supabase.' } }
+  if (!supabase) return { error: { message: 'Chưa kết nối máy chủ dữ liệu.' } }
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
     redirectTo: new URL('datlai.html', window.location.href).href,
   })
@@ -48,9 +48,9 @@ export async function guiEmailKhoiPhuc(email) {
 // Đặt mật khẩu mới từ link khôi phục: nhận cặp token trong hash của email link,
 // dựng phiên tạm rồi updateUser. Dùng ở trang datlai.html.
 export async function datLaiMatKhauTuLink(accessToken, refreshToken, matKhauMoi) {
-  if (!supabase) return { error: { message: 'Chưa cấu hình Supabase.' } }
+  if (!supabase) return { error: { message: 'Chưa kết nối máy chủ dữ liệu.' } }
   const { error: errPhien } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-  if (errPhien) return { error: { message: 'Liên kết đã hết hạn hoặc đã dùng — gửi lại email khôi phục.' } }
+  if (errPhien) return { error: { message: 'Liên kết đã hết hạn hoặc đã được dùng. Hãy gửi lại email khôi phục.' } }
   const { error } = await supabase.auth.updateUser({ password: matKhauMoi })
   return { error }
 }
@@ -60,11 +60,11 @@ export async function datLaiMatKhauTuLink(accessToken, refreshToken, matKhauMoi)
 // (Supabase không có API "verify password" riêng, nên dùng signInWithPassword để kiểm chứng).
 // Nếu sai → trả lỗi rõ ràng, KHÔNG đổi. Đúng → mới updateUser sang mật khẩu mới.
 export async function doiMatKhau(matKhauHienTai, matKhauMoi) {
-  if (!supabase) return { error: { message: 'Chưa cấu hình Supabase.' } }
+  if (!supabase) return { error: { message: 'Chưa kết nối máy chủ dữ liệu.' } }
   // Lấy email phiên hiện tại để re-auth
   let email = null
   try { const { data } = await supabase.auth.getUser(); email = data?.user?.email || null } catch { /* bỏ qua */ }
-  if (!email) return { error: { message: 'Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại.' } }
+  if (!email) return { error: { message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' } }
   if (!matKhauHienTai) return { error: { message: 'Vui lòng nhập mật khẩu hiện tại.' } }
   // Kiểm chứng mật khẩu hiện tại
   const { error: errVerify } = await supabase.auth.signInWithPassword({ email, password: matKhauHienTai })

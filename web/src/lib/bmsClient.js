@@ -86,7 +86,7 @@ async function voiTimeout(taoPromise, ms, signalNgoai) {
 // ---- Gọi RPC (đọc/ghi qua hàm) có timeout + backoff + hủy ----
 // Trả { data, error }. error.nghiep_vu === true ⇒ lỗi do quy tắc (đừng retry).
 export async function goiRPC(ten, thamSo = {}, { soLanThu = 3, timeoutMs = 12000, signal } = {}) {
-  if (!supabase) return { data: null, error: { thong_bao: 'Chưa cấu hình Supabase (đang ở chế độ demo).' } }
+  if (!supabase) return { data: null, error: { thong_bao: 'Chưa kết nối máy chủ dữ liệu (đang ở chế độ dữ liệu mẫu).' } }
   let loiCuoi = null
   for (let lan = 0; lan < soLanThu; lan++) {
     if (signal?.aborted) return { data: null, error: { name: 'AbortError' } }
@@ -121,7 +121,7 @@ export async function goiRPC(ten, thamSo = {}, { soLanThu = 3, timeoutMs = 12000
 //   vd (q) => q.select('ma_phong,ten_phong').eq('ma_phong','C4.R7').limit(50)
 //   → chỉ kéo đúng cột cần, giảm payload & thời gian phản hồi (chống over-fetch).
 export async function docView(ten, build = (q) => q.select('*'), { soLanThu = 3, timeoutMs = 12000, signal } = {}) {
-  if (!supabase) return { data: null, error: { thong_bao: 'Chưa cấu hình Supabase (đang ở chế độ demo).' } }
+  if (!supabase) return { data: null, error: { thong_bao: 'Chưa kết nối máy chủ dữ liệu (đang ở chế độ dữ liệu mẫu).' } }
   let loiCuoi = null
   for (let lan = 0; lan < soLanThu; lan++) {
     if (signal?.aborted) return { data: null, error: { name: 'AbortError' } }

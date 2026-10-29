@@ -59,17 +59,19 @@ const duoi = `
     };
   }
 
-  return { rapTatCa: rapTatCa, locPhatHien: R.locPhatHien,
-           L: L, rapBaoCao: R.rapBaoCao, rapDashboard: D.rapDashboard, rapEmail: E.rapEmail };
+  return __require('tieu-de-ty-le').apDung({ rapTatCa: rapTatCa, locPhatHien: R.locPhatHien,
+           L: L, rapBaoCao: R.rapBaoCao, rapDashboard: D.rapDashboard, rapEmail: E.rapEmail });
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = BO_RAP;
 `;
 
 const ra = dau
   + boc('bao-cao-loi', 'bao-cao-loi.js')
+  + boc('chenh-ap-phong-theo-doi', 'chenh-ap-phong-theo-doi.js')
   + boc('rap-bao-cao.node', 'rap-bao-cao.node.js')
   + boc('dashboard.node', 'dashboard.node.js')
   + boc('email.node', 'email.node.js')
+  + boc('tieu-de-ty-le', 'tieu-de-ty-le.js')
   + duoi;
 fs.writeFileSync('bo-rap-v3.bundle.js', ra, 'utf8');
 console.log('bo-rap-v3.bundle.js: ' + Math.round(ra.length / 1024) + ' KB');

@@ -21,10 +21,10 @@ function AiSections({ text }) {
     const body = (nl < 0 ? "" : b.slice(nl + 1)).trim();
     const hienTitle = (t) => t
       .replace("PHÂN TÍCH", "RÀ SOÁT GMP")
-      .replace("DỮ LIỆU THÔ", "BẰNG CHỨNG DỮ LIỆU")
-      .replace("DỮ LIỆU", "BẰNG CHỨNG DỮ LIỆU")
+      .replace(/DỮ LIỆU( THÔ)?/, "BẰNG CHỨNG DỮ LIỆU")
       .replace("BÁO CÁO", "KẾT LUẬN GMP")
-      .replace("KHUYẾN NGHỊ", "THEO DÕI");
+      .replace("KHUYẾN NGHỊ", "THEO DÕI")
+      .replace(" & ", " VÀ ");
     const m = META.find((x) => title.toUpperCase().includes(x.kw)) || { icon: ClipboardCheck, c: "var(--primary)", bg: "bg-subtle", ring: "ring-line" };
     const Icon = m.icon;
     const lines = body.split("\n").map((l) => l.replace(/\s+$/, "")).filter((l) => l.trim());

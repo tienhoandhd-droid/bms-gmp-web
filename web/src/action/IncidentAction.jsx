@@ -30,14 +30,14 @@ export default function IncidentAction({ email, incidentId, intent, Khung: Khung
       const incident = data.incidentResult.incident
       if (error) { setState({ error: moTaLoi(error) }); return }
       if (!role) { setState({ error: 'Tài khoản hiện tại không còn vai trò hoạt động.' }); return }
-      if (!incident) { setState({ error: 'Không tìm thấy sự cố đang mở, hoặc tài khoản hiện tại không có quyền xem phiếu này.' }); return }
+      if (!incident) { setState({ error: 'Không tìm thấy sự cố đang mở, hoặc tài khoản hiện tại không có quyền xem sự cố này.' }); return }
       if (data.actionsResult.rows == null) { setState({ error: 'Không tải được luật thao tác hiện tại. Vui lòng tải lại trang.' }); return }
       const actions = nutChoVaiTro(data.actionsResult.rows, incident.trang_thai, role)
       const preselected = chonNutTheoIntent(actions, intent)
       setState({ role, incident, actions, actionRules: data.actionsResult.rows, closed: data.closed })
       setSelected(preselected)
     }).catch((error) => {
-      if (!stale && error?.name !== 'AbortError') setState({ error: 'Không tải được phiếu. Kiểm tra mạng rồi tải lại trang.' })
+      if (!stale && error?.name !== 'AbortError') setState({ error: 'Không tải được sự cố. Hãy kiểm tra mạng rồi tải lại trang.' })
     })
     return () => { stale = true; controller.abort() }
   }, [email, incidentId, intent])
@@ -55,22 +55,22 @@ export default function IncidentAction({ email, incidentId, intent, Khung: Khung
       if (error?.nghiep_vu || data?.ok === false) {
         setSubmitting(false)
         setReloadRequired(true)
-        setResult({ error: `${data?.thong_bao || moTaLoi(error) || 'Thao tác không được chấp nhận.'} Tải lại phiếu để nhận trạng thái và luật hiện tại trước khi thao tác tiếp.` })
+        setResult({ error: `${data?.thong_bao || moTaLoi(error) || 'Thao tác không được chấp nhận.'} Hãy tải lại sự cố để xem trạng thái mới nhất trước khi thao tác tiếp.` })
         return
       }
       if (!error && data?.ok === true) {
-        const status = data.trang_thai_moi ? ` Trạng thái mới: ${TRANG_THAI_CODE_TO_LABEL[data.trang_thai_moi] || data.trang_thai_moi}.` : ' Tải lại phiếu để xem trạng thái hiện tại.'
+        const status = data.trang_thai_moi ? ` Trạng thái mới: ${TRANG_THAI_CODE_TO_LABEL[data.trang_thai_moi] || data.trang_thai_moi}.` : ' Hãy tải lại sự cố để xem trạng thái hiện tại.'
         setResult({ ok: true, message: `${data.thong_bao || 'Đã ghi nhận thao tác.'}${status}` })
         return
       }
     } catch { /* kết quả ghi không chắc chắn, khóa tới khi tải lại */ }
     setSubmitting(false)
     setReloadRequired(true)
-    setResult({ error: 'Không xác định được kết quả ghi nhận. Để tránh ghi trùng, hãy tải lại trang rồi kiểm tra lại phiếu trước khi thao tác tiếp.' })
+    setResult({ error: 'Không xác định được kết quả ghi nhận. Để tránh ghi trùng, hãy tải lại trang và kiểm tra lại sự cố trước khi thao tác tiếp.' })
   }
 
-  if (state.loading) return <KhungEmail><DauTrangEmail phu={email} /><p className="py-6 text-center text-sm text-muted">Đang mở phiếu…</p></KhungEmail>
-  if (state.error) return <KhungEmail><DauTrangEmail phu={email} /><p role="alert" className="mt-4 text-sm leading-relaxed text-danger">{state.error}</p><button type="button" onClick={() => window.location.reload()} className="mt-4 min-h-[44px] w-full rounded-xl bg-subtle px-4 py-2 text-sm font-semibold text-body ring-1 ring-line">Tải lại phiếu</button><NutMoDashboardEmail /></KhungEmail>
+  if (state.loading) return <KhungEmail><DauTrangEmail phu={email} /><p className="py-6 text-center text-sm text-muted">Đang mở sự cố…</p></KhungEmail>
+  if (state.error) return <KhungEmail><DauTrangEmail phu={email} /><p role="alert" className="mt-4 text-sm leading-relaxed text-danger">{state.error}</p><button type="button" onClick={() => window.location.reload()} className="mt-4 min-h-[44px] w-full rounded-xl bg-subtle px-4 py-2 text-sm font-semibold text-body ring-1 ring-line">Tải lại sự cố</button><NutMoDashboardEmail /></KhungEmail>
 
   const { incident, role, actions } = state
   const reasonMissing = selected?.batBuocLyDo && !reason.trim()
@@ -80,7 +80,7 @@ export default function IncidentAction({ email, incidentId, intent, Khung: Khung
   const nhanThaoTac = (code) => state.actionRules?.find((rule) => rule.hanh_dong === code)?.nhan || ACTION_CODE_TO_LABEL[code] || code || '—'
   return <KhungEmail>
     <DauTrangEmail phu={`${email} · ${tenVaiTro(role)}`} />
-    <p className="mt-4 text-tk-xs font-semibold uppercase tracking-wider text-muted">{readonly ? 'Xem phiếu' : 'Xác nhận thao tác'}</p>
+    <p className="mt-4 text-tk-xs font-semibold uppercase tracking-wider text-muted">{readonly ? 'Xem sự cố' : 'Xác nhận thao tác'}</p>
     <h2 className="mt-1 text-base font-semibold text-strong">{moTaSuCo(incident)}</h2>
     <div className="mt-3 space-y-1 rounded-2xl bg-subtle p-3 text-tk-sm text-body ring-1 ring-line">
       <div>Khu vực: <b>{incident.khu_vuc || '—'}</b> · Cảm biến: <b>{incident.cam_bien_vi || incident.loai_cam_bien || '—'}</b></div>
@@ -106,7 +106,7 @@ export default function IncidentAction({ email, incidentId, intent, Khung: Khung
       </div>}
       {result?.error && <p role="alert" className="mt-3 text-sm text-danger">{result.error}</p>}
       {result?.ok && <p role="status" className="mt-3 text-sm text-success">{result.message}</p>}
-      {(reloadRequired || result?.ok) && <button type="button" onClick={() => window.location.reload()} className="mt-3 min-h-[44px] w-full rounded-xl bg-subtle px-4 py-2 text-sm font-semibold text-body ring-1 ring-line">Tải lại phiếu</button>}
+      {(reloadRequired || result?.ok) && <button type="button" onClick={() => window.location.reload()} className="mt-3 min-h-[44px] w-full rounded-xl bg-subtle px-4 py-2 text-sm font-semibold text-body ring-1 ring-line">Tải lại sự cố</button>}
       {selected && !result?.ok && <button type="button" onClick={submit} disabled={reasonMissing || !confirmed || locked}
         className="mt-4 min-h-[44px] w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40" style={{ backgroundColor: 'var(--primary-solid)' }}>
         {submitting ? 'Đang ghi nhận…' : 'Xác nhận và ghi nhận'}

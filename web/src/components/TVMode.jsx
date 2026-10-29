@@ -127,25 +127,25 @@ export default function TVMode() {
   } else if (trangThai === "KIEM_PHIEN") {
     noiDung = manToanKhung("Đang xác minh phiên…", "Vui lòng đợi trong giây lát.", TV.muted);
   } else if (trangThai === "CAN_DANG_NHAP") {
-    noiDung = manToanKhung("Chưa đăng nhập trên trình duyệt này", <>Mở chế độ thường (bỏ <code>?tv=1</code>), đăng nhập bằng tài khoản trực (nên dùng vai trò VIEWER), rồi quay lại đây.</>, TV.strong);
+    noiDung = manToanKhung("Chưa đăng nhập trên trình duyệt này", <>Mở chế độ thường (bỏ <code>?tv=1</code>), đăng nhập bằng tài khoản trực (nên dùng vai trò Chỉ xem), rồi quay lại đây.</>, TV.strong);
   } else if (trangThai === "LOI") {
-    noiDung = manToanKhung("⚠ LỖI TẢI DỮ LIỆU — KHÔNG XÁC MINH ĐƯỢC", `Màn hình này KHÔNG phản ánh tình trạng phòng sạch lúc này. Kiểm tra mạng/máy chủ. ${String(loiPhien?.message || live.loi?.message || live.loi || "").slice(0, 160)}`, TV.danger);
+    noiDung = manToanKhung("⚠ Lỗi tải dữ liệu, chưa xác minh được tình trạng", `Màn hình này không phản ánh tình trạng phòng sạch lúc này. Hãy kiểm tra mạng hoặc máy chủ. ${String(loiPhien?.message || live.loi?.message || live.loi || "").slice(0, 160)}`, TV.danger);
   } else if (trangThai === "DANG_TAI") {
-    noiDung = manToanKhung("Đang tải dữ liệu giám sát…", "Chưa hiển thị số liệu cho tới khi xác minh xong (không suy ra 'bình thường' khi chưa có dữ liệu).", TV.muted);
+    noiDung = manToanKhung("Đang tải dữ liệu giám sát…", "Số liệu sẽ hiện khi xác minh xong. Chưa có dữ liệu thì chưa thể coi là bình thường.", TV.muted);
   } else if (MAN[man] === "TONG_QUAN") {
     noiDung = khungManHinh("Tổng quan phòng sạch", TV.primary, (
       <div style={{ display: "flex", alignItems: "center", height: "100%", gap: "clamp(0.75rem, 2vw, 2rem)", flexWrap: "wrap" }}>
         <So nhan="Phòng đạt" giaTri={kpis.dat} mau={TV.success} />
         <So nhan="Không đạt" giaTri={kpis.khongDat} mau={kpis.khongDat > 0 ? TV.danger : TV.success} />
         <So nhan="Thiếu dữ liệu" giaTri={kpis.thieuDL} mau={kpis.thieuDL > 0 ? TV.warning : TV.success} />
-        <So nhan="Sự cố CRITICAL" giaTri={critical.length} mau={critical.length > 0 ? TV.danger : TV.success} />
+        <So nhan="Sự cố nghiêm trọng" giaTri={critical.length} mau={critical.length > 0 ? TV.danger : TV.success} />
       </div>
     ));
   } else if (MAN[man] === "SU_CO") {
     const ds = critical.slice(0, 9);
-    noiDung = khungManHinh(`Sự cố cần xử lý · ${critical.length}${dungHinh.length ? ` (+${dungHinh.length} cảm biến đứng tín hiệu)` : ""}`, TV.danger, (
+    noiDung = khungManHinh(`Sự cố cần xử lý · ${critical.length}${dungHinh.length ? ` (thêm ${dungHinh.length} cảm biến không đổi tín hiệu)` : ""}`, TV.danger, (
       ds.length === 0
-        ? <p style={{ fontSize: "clamp(1rem, 3vw, 3rem)", color: TV.success, textAlign: "center", paddingTop: "12vh" }}>✓ Không có sự cố CRITICAL</p>
+        ? <p style={{ fontSize: "clamp(1rem, 3vw, 3rem)", color: TV.success, textAlign: "center", paddingTop: "12vh" }}>✓ Không có sự cố nghiêm trọng</p>
         : <div role="region" tabIndex={0} aria-label="Danh sách sự cố cần xử lý" style={{ overflowX: "auto" }}><table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", fontSize: "clamp(1rem, 1.7vw, 1.75rem)" }}>
             <tbody>{ds.map((i) => (
                 <tr key={i.id} style={{ borderBottom: `1px solid ${TV.line}` }}>

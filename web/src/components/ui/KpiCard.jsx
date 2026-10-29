@@ -30,7 +30,7 @@ export const OosMiniBars = React.memo(function OosMiniBars({ data, h = 70 }) {
     <div className="w-full select-none" style={{ height: h }}>
       <div className="flex items-end gap-[3px]" style={{ height: barsH }}>
         {data.map((d, i) => { const v = d.oos || 0; const hb = v > 0 ? Math.max(2, Math.round((v / max) * barsH)) : 0; return (
-          <div key={i} className="flex-1 flex items-end justify-center" title={`Giờ ${d.label} · ${v} điểm OOS`}>
+          <div key={i} className="flex-1 flex items-end justify-center" title={`Giờ ${d.label} · ${v} điểm vượt giới hạn`}>
             <div className="w-full rounded-t" style={{ height: hb, background: "var(--danger-line)" }} />
           </div>
         ); })}

@@ -10,6 +10,8 @@ const CAM = [
   "Supabase", "n8n", "webhook", "fallback", "WF1", "WF5", "WF6", "WF7", "WF8", "WF10",
   "rpc_", "AI phân tích", "Phân tích AI", "BẾ TẮC", "đứng hình", "Chế độ thử nghiệm",
   "Xu hướng & tuân thủ", "Người nhận thông báo",
+  // 29/10/2026 — bảng thuật ngữ docs/BANG-THUAT-NGU-GIAO-DIEN.md: chỉ cụm không trùng tên biến
+  "′", "Dừng CB", "Nelson1", "Nhật ký audit", "email digest", "bản digest", "chế độ LIVE", "2 giờ sạch", "đóng vé",
 ];
 const ALLOW_FILES = ["src/components/ui/TechnicalDetails.jsx", "src/lib/", "src/hooks/", "src/action/", "src/datlai/"];
 const NGOAI_LE = /copy-exception/;

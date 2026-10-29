@@ -86,13 +86,17 @@ function duLieuNhung(d) {
 
   const chotKy = d.den_ngay ? String(d.den_ngay).slice(0, 10) : null;
   const suCo = ((d.su_co || {}).danh_sach_dang_mo || []).map(function (s) {
-    return { p: s.phong, ma: s.ma_su_co, mc: s.muc_canh_bao, bd: s.bat_dau,
+    // bat_dau là UTC: đổi sang ngày Việt Nam trước khi in và khi so với ngày chốt kỳ (rà soát 04/09/2026)
+    return { p: s.phong, ma: s.ma_su_co, mc: s.muc_canh_bao, bd: L.gioVietNam(s.bat_dau, true),
              kd: lam(s.keo_dai_gio), tt: s.trang_thai,
-             nk: !!(chotKy && s.bat_dau && String(s.bat_dau).slice(0, 10) > chotKy) };
+             nk: !!(chotKy && s.bat_dau && L.ngayVietNamISO(s.bat_dau) > chotKy) };
   });
 
   return {
     ky: d.ky, tu: d.tu_ngay, den: d.den_ngay, ngay: ngays, nguong: NGUONG_HANH_DONG,
+    // Con số dẫn đầu khi không lọc phải trùng thư và bản in (rà soát 04/09/2026, đợt 2)
+    kpiTT: lam((d.kpi_ky_nay || {}).ty_le_tuan_thu),
+    tiLeVuotA: L.TI_LE_GIO_VUOT_A,
     phong: phong, cb: cb, chiSo: chiSo, suKien: suKien, suCo: suCo,
     capA: L.phanCap(d).capA_tat_ca.map(function (v) {
       return { ma: v.ma_phong, cc: v.can_cu, viec: v.viec };
@@ -312,10 +316,11 @@ const JS = String.raw`
     return (am ? '-' : '') + x[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (x[1] ? ',' + x[1] : '');
   }
   function pt(v, n) { return (v == null || !isFinite(v)) ? '—' : soVN(v, n == null ? 1 : n) + '%'; }
+  // Cùng cách viết với gioDoc của lõi: KHÔNG quy đổi ra ngày — giờ ở đây là giờ cảm biến cộng
+  // dồn (một phòng ba cảm biến có thể "912 giờ" trong kỳ 31 ngày) (rà soát 04/09/2026)
   function gio(g) {
-    if (g == null) return '—';
-    return g < 24 ? soVN(g, g % 1 ? 1 : 0) + ' giờ'
-                  : soVN(g, g % 1 ? 1 : 0) + ' giờ (' + soVN(g / 24, 1) + ' ngày)';
+    if (g == null || !isFinite(g)) return '—';
+    return soVN(g, g % 1 ? 1 : 0) + ' giờ';
   }
   function nn(s) { return String(s || '').slice(8, 10) + '/' + String(s || '').slice(5, 7); }
   function nd(s) { return String(s || '').slice(0, 10).split('-').reverse().join('/'); }
@@ -356,9 +361,10 @@ const JS = String.raw`
 
   function dat(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
 
-  // Chỉ số trên đầu tính lại theo ĐÚNG bộ lọc đang bật, không phải luôn là
-  // số toàn nhà máy. Dùng TRUNG VỊ chứ không lấy trung bình cộng các tỉ lệ,
-  // vì mỗi phòng có số giờ đo khác nhau.
+  // Chỉ số trên đầu tính lại theo ĐÚNG bộ lọc đang bật. Không lọc thì lấy đúng con số của
+  // kỳ (kpi_ky_nay) để trùng thư và bản in; đang lọc thì lấy trung bình CÂN THEO GIỜ ĐO của
+  // các phòng trong nhóm — cùng cách tính với số của kỳ. Trung vị chỉ còn là dòng phụ
+  // (rà soát 04/09/2026, đợt 2).
   function veChiSo(ds) {
     var gn = 0, datN = 0, tong = ds.length, maSet = {};
     ds.forEach(function (p) { gn += p.gn; if (p.tt >= NG) datN++; maSet[p.ma] = 1; });
@@ -369,21 +375,27 @@ const JS = String.raw`
               : (tt[tt.length / 2 - 1] + tt[tt.length / 2]) / 2) : null;
     var toanBo = loc.khu === 'TAT_CA' && loc.ahu === 'TAT_CA' && loc.ut === 'TAT_CA'
                  && !loc.chuaDat && !loc.tim;
-    dat('cs-tt', pt(tv));
-    dat('cs-nhan', toanBo ? 'toàn nhà máy' : 'phạm vi đang lọc');
+    var ws = 0, wg = 0, nCan = 0;
+    ds.forEach(function (p) { if (p.tt != null && p.gd) { ws += p.tt * p.gd; wg += p.gd; nCan++; } });
+    var can = wg ? ws / wg : null;
+    var chinh = toanBo && D.kpiTT != null ? D.kpiTT : can;
+    dat('cs-tt', pt(chinh));
+    dat('cs-nhan', toanBo && D.kpiTT != null ? 'thời gian trong ngưỡng, toàn nhà máy'
+      : 'trung bình cân theo giờ đo của ' + nCan + ' phòng đang lọc');
+    dat('cs-tv', tv == null ? '' : 'trung vị các phòng: ' + pt(tv));
     dat('cs-gn', soVN(gn, 0));
     dat('cs-a', String(soA));
     dat('cs-dat', datN + '/' + tong);
     var e = document.getElementById('cs-tt');
-    if (e) e.classList.toggle('xau', tv != null && tv < NG);
+    if (e) e.classList.toggle('xau', chinh != null && chinh < NG);
   }
 
   var COT = [
     { k: 'ma',  t: 'Mã phòng' }, { k: 'ten', t: 'Tên phòng' },
     { k: 'khu', t: 'Khu' }, { k: 'ahu', t: 'Cụm' }, { k: 'ut', t: 'Ưu tiên' },
     { k: 'tt',  t: 'Thời gian trong ngưỡng %', so: 1 },
-    { k: 'gn',  t: 'Giờ ngoài giới hạn', so: 1 },
-    { k: 'dq',  t: 'Thời gian có số đo %', so: 1 }
+    { k: 'gn',  t: 'Giờ vượt giới hạn hành động', so: 1 },
+    // (rà soát 04/09/2026, mục 12) bỏ cột dq_pct: đó là chất lượng điểm đo trong giờ có số đo, không phải độ phủ.
   ];
 
   function spark(ch, w, h) {
@@ -418,7 +430,7 @@ const JS = String.raw`
         + '<td>' + (TEN_UT[p.ut] || p.ut) + '</td>'
         + '<td class="so' + (p.tt < NG ? ' tang-xau' : '') + '">' + soVN(p.tt) + '</td>'
         + '<td class="so">' + soVN(p.gn, 0) + '</td>'
-        + '<td class="so">' + soVN(p.dq) + '</td>'
+
         + '<td>' + spark(p.ch) + '</td></tr>';
     }).join('');
     return '<div class="cuon-ngang"><table><thead><tr>' + th + '</tr></thead><tbody>'
@@ -468,7 +480,7 @@ const JS = String.raw`
         + (pts.length > 20 ? 2.4 : 3.6) + '" fill="' + (ngoai ? '#DC2626' : '#1D4ED8')
         + '" stroke="#fff" stroke-width="1.2"><title>' + nn(c[0]) + ': ' + soVN(c[1])
         + ' (' + soVN(c[2]) + '–' + soVN(c[3]) + ')'
-        + (c[4] ? ', ' + c[4] + ' giờ ngoài giới hạn' : '') + '</title></circle>';
+        + (c[4] ? ', ' + c[4] + ' giờ vượt giới hạn hành động' : '') + '</title></circle>';
       if (i % buoc === 0 || i === pts.length - 1) {
         s += '<text x="' + x(i).toFixed(1) + '" y="' + (H - 7)
           + '" text-anchor="middle" class="svg-truc">' + nn(c[0]) + '</text>';
@@ -508,7 +520,7 @@ const JS = String.raw`
         h += '<div class="khoi-ct"><div class="khoi-ct-ten">Số đo ngày ' + nd(ngayChon) + '</div>'
           + '<div class="cuon-ngang"><table style="margin-top:8px"><thead><tr><th>Chỉ tiêu</th>'
           + '<th class="so">Trung bình</th><th class="so">Thấp nhất</th><th class="so">Cao nhất</th>'
-          + '<th class="so">Giờ ngoài giới hạn</th><th class="so">Giờ cảnh báo</th>'
+          + '<th class="so">Giờ vượt giới hạn hành động</th><th class="so">Giờ cảnh báo</th>'
           + '<th class="so">Dải cho phép</th></tr></thead><tbody>' + dong + '</tbody></table></div></div>';
       }
     }
@@ -556,7 +568,7 @@ const JS = String.raw`
         + sc.map(function (s) {
             return '<tr><td><span class="ma">' + esc(s.ma) + '</span></td>'
               + '<td>' + (s.mc === 'CRITICAL' ? 'nghiêm trọng' : 'cảnh báo') + '</td>'
-              + '<td>' + nd(s.bd)
+              + '<td>' + esc(s.bd)   // đã là dd/mm/yyyy giờ VN từ lúc nhúng (rà soát 04/09/2026)
               + (s.nk ? ' <span class="the-ngoai-ky">ngoài kỳ</span>' : '') + '</td>'
               + '<td class="so">' + gio(s.kd) + '</td>'
               + '<td>' + (TEN_TT[s.tt] || s.tt) + '</td></tr>';
@@ -583,9 +595,9 @@ const JS = String.raw`
   // thập phân; thêm dấu nhận dạng đầu tệp để bảng tính đọc đúng tiếng Việt.
   function xuatCSV(ds) {
     var dau = ['Mã phòng', 'Tên phòng', 'Khu', 'Cụm', 'Mức ưu tiên',
-               'Thời gian trong ngưỡng %', 'Giờ ngoài giới hạn', 'Thời gian có số đo %'];
+               'Thời gian trong ngưỡng %', 'Giờ vượt giới hạn hành động'];
     var dong = ds.map(function (p) {
-      return [p.ma, p.ten, p.khu, p.ahu, TEN_UT[p.ut] || p.ut, p.tt, p.gn, p.dq];
+      return [p.ma, p.ten, p.khu, p.ahu, TEN_UT[p.ut] || p.ut, p.tt, p.gn];
     });
     var csv = [dau].concat(dong).map(function (h) {
       return h.map(function (o) {
@@ -779,9 +791,14 @@ function rapDashboard(d, duBao, cfg) {
       + '" height="' + H + '" class="bieu-do">' + s + '</svg></div>';
   }
 
-  const phongBanDo = (d.tat_ca_phong || [])
+  const phongDuBanDo = (d.tat_ca_phong || [])
     .filter((p) => p.muc_uu_tien === 'P1' || p.muc_uu_tien === 'P2' || p.ty_le_tuan_thu < NGUONG_HANH_DONG)
-    .sort((a, b) => a.ty_le_tuan_thu - b.ty_le_tuan_thu).slice(0, 30);
+    .sort((a, b) => a.ty_le_tuan_thu - b.ty_le_tuan_thu);
+  const phongBanDo = phongDuBanDo.slice(0, 30);
+  // Nói rõ khi bị cắt (rà soát 04/09/2026)
+  const chuBanDo = phongDuBanDo.length > phongBanDo.length
+    ? 'Hiện ' + phongBanDo.length + '/' + phongDuBanDo.length + ' phòng kém nhất trong số phòng theo dõi đặc biệt, '
+      + 'mức 2 hoặc dưới ngưỡng; các phòng còn lại xem ở thẻ “Tra cứu phòng”. ' : '';
 
   const THE = [
     { id: 'the-tong-quan', ten: 'Tổng quan' },
@@ -824,9 +841,10 @@ function rapDashboard(d, duBao, cfg) {
     + ' ngày có số đo</div></div>'
     + '<div class="chi-so-nhanh">'
     + '<div class="csn csn-chinh"><div class="gt" id="cs-tt">—</div>'
-    +   '<div class="ten">trung vị thời gian trong ngưỡng · <span id="cs-nhan">toàn nhà máy</span></div></div>'
+    +   '<div class="ten" id="cs-nhan">thời gian trong ngưỡng, toàn nhà máy</div>'
+    +   '<div class="ten" id="cs-tv"></div></div>'
     + '<div class="csn"><div class="gt" id="cs-gn">—</div>'
-    +   '<div class="ten">giờ ngoài giới hạn</div></div>'
+    +   '<div class="ten">giờ cảm biến vượt giới hạn hành động</div></div>'
     + '<div class="csn"><div class="gt" id="cs-a">—</div>'
     +   '<div class="ten">phòng phải xử lý</div></div>'
     + '<div class="csn"><div class="gt" id="cs-dat">—</div>'
@@ -877,6 +895,7 @@ function rapDashboard(d, duBao, cfg) {
         + soVN(ht.tong_ngoai_le, 0) + ' lượt trục trặc khi lấy dữ liệu.</p></div></div>' : '')
     + '<div class="o"><h2>Bản đồ thời gian trong ngưỡng theo phòng và ngày</h2>'
     + '<p class="mota">Ô trắng là ngày đạt ngưỡng. Chỉ ngày dưới ngưỡng mới tô màu, càng đậm càng nặng. '
+    + chuBanDo
     + '<b>Bấm vào một ô để xem số đo của đúng phòng đó trong đúng ngày đó.</b></p>'
     + banDoBamDuoc(phongBanDo, ngays) + '</div>'
     + '<div class="o"><h2>So sánh các khu</h2>'
@@ -907,15 +926,15 @@ function rapDashboard(d, duBao, cfg) {
     + '</tbody></table></div></div></div>'
 
     + '<div class="the-noi-dung" id="the-cay" role="tabpanel" tabindex="0">'
-    + '<div class="o"><h2>Toàn nhà máy → khu → cụm xử lý không khí → phòng</h2>'
+    + '<div class="o"><h2>' + (c.khu ? 'Khu ' + esc(String(c.khu).toUpperCase()) + ' → cụm xử lý không khí → phòng' : 'Toàn nhà máy → khu → cụm xử lý không khí → phòng') + '</h2>'
     + '<p class="mota">Xếp từ kém nhất lên, để thấy vấn đề nằm ở một phòng riêng lẻ hay ở cả cụm.</p></div>'
     + cay.map((k2) => '<div class="o">'
         + '<h2>Khu ' + esc(k2.khu) + ' <span class="mo" style="font-weight:400;font-size:13px">— '
         + phanTram(k2.ty_le_tb) + ' trong ngưỡng · ' + k2.so_phong_dat + '/' + k2.so_phong
-        + ' phòng đạt · ' + L.gioTyLe(k2.gio_nghiem_trong, k2.gio_do) + ' ngoài giới hạn</span></h2>'
+        + ' phòng đạt · ' + L.gioTyLe(k2.gio_nghiem_trong, k2.gio_do) + ' số giờ vượt giới hạn hành động</span></h2>'
         + '<div class="cuon-ngang"><table><thead><tr><th>Cụm</th>'
         + '<th class="so">Thời gian trong ngưỡng</th><th class="so">Phòng đạt</th>'
-        + '<th class="so">Giờ ngoài giới hạn</th><th>Diễn biến</th></tr></thead><tbody>'
+        + '<th class="so">Giờ vượt giới hạn hành động</th><th>Diễn biến</th></tr></thead><tbody>'
         + k2.cum.map((cc) => '<tr><td>' + esc(cc.ahu) + '</td>'
             + '<td class="so' + (cc.ty_le_tb < NGUONG_HANH_DONG ? ' tang-xau' : '') + '">'
             +   phanTram(cc.ty_le_tb) + '</td>'
@@ -935,9 +954,9 @@ function rapDashboard(d, duBao, cfg) {
     + '<div class="ngan-than" id="ngan-than"></div></aside>'
 
     + '<a class="ve-dau" href="#the-tong-quan">↑ Về đầu</a>'
-    + '<footer class="chan">Nguồn số liệu: ' + esc(d.nguon || 'rpc_bao_cao_tong_hop') + '(' + esc(d.ky)
-    + ', ' + esc(d.tu_ngay) + ', ' + esc(d.den_ngay) + ') · lập lúc '
-    + esc(String(d.tao_luc).slice(0, 19).replace('T', ' '))
+    + '<footer class="chan">Nguồn số liệu: ' + esc(d.nguon || 'rpc_bao_cao_tong_hop') + ' (' + esc(d.ky)
+    + ', ' + ngayDai(d.tu_ngay) + ' – ' + ngayDai(d.den_ngay) + ') · lập lúc '
+    + esc(L.gioVietNam(d.tao_luc)) + ' giờ Việt Nam'   // tao_luc là UTC (rà soát 04/09/2026)
     + '<br>Dùng chung số liệu, từ ngữ và luật xếp hạng với bản in. Số liệu nhúng sẵn trong tệp nên '
     + 'mở được không cần mạng; vì thế tệp nặng, nên để trên Drive và gửi đường dẫn thay vì đính kèm thư.'
     + '</footer>'

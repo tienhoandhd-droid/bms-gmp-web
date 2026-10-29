@@ -11,7 +11,7 @@ const TT_TEN = {
   CHUA_XU_LY: "Chưa xử lý", DA_BAO_CO_DIEN: "Đã báo Cơ điện",
   CO_DIEN_DANG_XU_LY: "Cơ điện đang xử lý", CO_DIEN_CHO_XU_LY: "Cơ điện chờ xử lý",
   CO_DIEN_KHONG_XU_LY_DUOC: "Cơ điện không xử lý được", DA_KHAC_PHUC: "Đã khắc phục",
-  DONG_TU_DONG: "Đóng tự động", DONG_NGOAI_PHAM_VI: "Đóng — ngoài phạm vi",
+  DONG_TU_DONG: "Đóng tự động", DONG_NGOAI_PHAM_VI: "Đã đóng (ngoài phạm vi cảnh báo)",
   IPC_BINH_THUONG: "IPC xác nhận bình thường", MO_LAI: "Mở lại", DA_DONG: "Đã đóng",
   __GIU__: "Giữ nguyên trạng thái",
 };

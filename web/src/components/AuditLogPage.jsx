@@ -28,7 +28,7 @@ const RANGE_OPTIONS = [
 const SOURCE_OPTIONS = [
   { value: 'web', label: 'Web' },
   { value: 'email', label: 'Email' },
-  { value: 'web_email', label: 'Email → web xác thực' },
+  { value: 'web_email', label: 'Từ email, xác thực trên web' },
   { value: 'system', label: 'Hệ thống' },
   { value: 'api', label: 'API' },
 ]
@@ -36,7 +36,7 @@ const SOURCE_OPTIONS = [
 const SOURCE_META = {
   web: { label: 'Web', cls: 'bg-info-soft text-info ring-info-line' },
   email: { label: 'Email', cls: 'bg-warning-soft text-warning ring-warning-line' },
-  web_email: { label: 'Email → web', cls: 'bg-info-soft text-info ring-info-line' },
+  web_email: { label: 'Email qua web', cls: 'bg-info-soft text-info ring-info-line' },
   system: { label: 'Hệ thống', cls: 'bg-subtle text-body ring-line' },
   api: { label: 'API', cls: 'bg-success-soft text-success ring-success-line' },
 }
@@ -105,8 +105,8 @@ function transitionText(row) {
 }
 
 function displayError(result) {
-  if (result?.forbidden) return 'Bạn không có quyền xem Nhật ký audit.'
-  return result?.error?.thong_bao || moTaLoi(result?.error) || 'Không tải được Nhật ký audit.'
+  if (result?.forbidden) return 'Bạn không có quyền xem nhật ký truy vết.'
+  return result?.error?.thong_bao || moTaLoi(result?.error) || 'Không tải được nhật ký truy vết. Hãy bấm Thử lại.'
 }
 
 function normalizeDemoRows(rows, anchor) {
@@ -181,12 +181,12 @@ function AuditDetailDrawer({ row, onClose }) {
   )
 
   return createPortal(
-    <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" aria-label="Chi tiết bản ghi audit">
+    <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" aria-label="Chi tiết bản ghi nhật ký">
       <button aria-label="Đóng chi tiết" onClick={onClose} className="absolute inset-0 bg-slate-950/35 backdrop-blur-[1px]" />
       <aside className="absolute inset-y-0 right-0 w-full max-w-xl bg-surface shadow-2xl overflow-y-auto">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-line bg-surface/95 backdrop-blur px-5 py-4">
           <div>
-            <p className="text-tk-xs uppercase tracking-[0.16em] text-muted font-semibold">Bản ghi audit #{row.id}</p>
+            <p className="text-tk-xs uppercase tracking-[0.16em] text-muted font-semibold">Bản ghi nhật ký #{row.id}</p>
             <h3 className="mt-1 text-[17px] font-semibold text-strong">{row.hanhDongHienThi || row.hanhDong}</h3>
           </div>
           <button aria-label="Đóng" onClick={onClose} className="rounded-xl p-2 text-muted hover:bg-subtle hover:text-body"><X className="h-5 w-5" /></button>
@@ -194,7 +194,7 @@ function AuditDetailDrawer({ row, onClose }) {
         <div className="space-y-5 px-5 py-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {field('Thời gian Việt Nam', formatVn(row.thoiDiem))}
-            {field('Thời gian UTC', formatUtc(row.thoiDiem))}
+            {field('Giờ quốc tế (UTC)', formatUtc(row.thoiDiem))}
             {field('Người thực hiện', row.nguoiHienThi)}
             {field('Email / định danh gốc', row.nguoiThaoTac)}
             {field('Vai trò tại thời điểm ghi', row.vaiTro)}
@@ -289,7 +289,7 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
         }
       })
       .catch((err) => {
-        if (seq === requestRef.current.seq && err?.name !== 'AbortError') setError('Không tải được Nhật ký audit.')
+        if (seq === requestRef.current.seq && err?.name !== 'AbortError') setError('Không tải được nhật ký truy vết. Hãy bấm Thử lại.')
       })
       .finally(() => { if (seq === requestRef.current.seq) setLoading(false) })
 
@@ -310,7 +310,7 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
     }
     const query = toQuery(normalizedDraft)
     if (!query) {
-      setValidationError('Hãy chọn khoảng thời gian hợp lệ; mốc đến phải sau mốc từ.')
+      setValidationError('Khoảng thời gian chưa hợp lệ. Thời điểm “Đến” phải sau thời điểm “Từ”.')
       return
     }
     setValidationError('')
@@ -364,14 +364,14 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
             throw new Error(`Kết quả vượt ${EXPORT_MAX_ROWS.toLocaleString('vi-VN')} dòng. Hãy thu hẹp khoảng thời gian hoặc bộ lọc trước khi xuất.`)
           }
           if (!result.hasMore) break
-          if (!result.nextCursor) throw new Error('Máy chủ không trả cursor cho trang tiếp theo.')
+          if (!result.nextCursor) throw new Error('Máy chủ không trả về trang dữ liệu tiếp theo. Hãy thử xuất lại.')
           cursor = result.nextCursor
         }
       }
       if (!all.length) throw new Error('Không có bản ghi nào khớp bộ lọc để xuất.')
       downloadCsv(all)
     } catch (err) {
-      setExportError(err?.message || 'Không xuất được CSV.')
+      setExportError(err?.message || 'Không xuất được tệp CSV. Hãy thử lại.')
     } finally {
       setExporting(false)
     }
@@ -439,7 +439,7 @@ export default function AuditLogPage({ isLive, demoRows = [] }) {
       <div className="overflow-hidden rounded-2xl bg-surface/95 ring-1 ring-line">
         {error ? <div className="px-6 py-12 text-center"><p className="text-tk-sm font-medium text-danger">{error}</p>{!forbidden && <button onClick={refresh} className="mt-3 rounded-xl bg-surface px-3 py-1.5 text-tk-xs text-body ring-1 ring-line">Thử lại</button>}</div>
           : loading && rows.length === 0 ? <div className="space-y-2 p-6">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-subtle" />)}</div>
-            : rows.length === 0 ? <div className="px-6 py-12 text-center"><FileText className="mx-auto h-7 w-7 text-muted" /><p className="mt-3 text-tk-sm font-medium text-body">Không có bản ghi audit khớp bộ lọc.</p><p className="mt-1 text-tk-xs text-muted">Thử mở rộng khoảng thời gian hoặc đặt lại điều kiện tra cứu.</p></div>
+            : rows.length === 0 ? <div className="px-6 py-12 text-center"><FileText className="mx-auto h-7 w-7 text-muted" /><p className="mt-3 text-tk-sm font-medium text-body">Không có bản ghi nào khớp bộ lọc.</p><p className="mt-1 text-tk-xs text-muted">Thử mở rộng khoảng thời gian hoặc đặt lại điều kiện tra cứu.</p></div>
               : <>
               {/* Mobile: thẻ — bảng 7 cột rộng 1120px chỉ thấy ~2 cột trên điện thoại */}
               <ul className={`sm:hidden divide-y divide-line ${loading ? 'opacity-60' : ''}`} aria-label={`Nhật ký thao tác — ${rows.length} bản ghi trên trang ${pageIndex + 1}`}>{rows.map((row) => <li key={row.id}><button type="button" onClick={() => setSelected(row)} className="w-full text-left px-4 py-3 hover:bg-info-soft/50">

@@ -30,7 +30,7 @@ export function laBatThuong(room, cfg, incident) {
   return !!(room.noData || room.duLieuCu || (comp != null && comp < 80) || lvl >= 2 || incident);
 }
 
-const tuoiTxt = (a) => (a == null ? null : a < 60 ? `${a}′ trước` : `${(a / 60).toFixed(1)}h trước`);
+const tuoiTxt = (a) => (a == null ? null : a < 60 ? `${a} phút trước` : `${(a / 60).toFixed(1).replace(".", ",")} giờ trước`);
 
 export const RoomSummaryCard = React.memo(function RoomSummaryCard({ room, cfg, onDetail, onIncident, incident, sourceInterrupted = false, freshnessMinutes = 120 }) {
   const lvl = roomLevel(room, cfg);
@@ -70,12 +70,12 @@ export const RoomSummaryCard = React.memo(function RoomSummaryCard({ room, cfg, 
         <div className="text-right shrink-0">
           {snapshot ? <span className="inline-flex items-center gap-1 text-warning text-tk-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> {snapshot.label}</span>
             : comp == null ? <span className="inline-flex items-center gap-1 text-muted text-tk-xs font-semibold"><HelpCircle className="w-3.5 h-3.5" strokeWidth={1.8} /> Chưa có dữ liệu</span>
-            : <><p className={`text-2xl font-light tabular-nums ${failing ? "text-danger" : "text-success"}`}>{comp}%</p><p className="text-tk-xs text-muted">tỷ lệ đạt 1h</p></>}
+            : <><p className={`text-2xl font-light tabular-nums ${failing ? "text-danger" : "text-success"}`}>{comp}%</p><p className="text-tk-xs text-muted">tỷ lệ đạt trong 1 giờ</p></>}
         </div>
       </div>
 
       {snapshot && <p className="mt-3 text-tk-xs text-warning">{snapshot.detail}</p>}
-      {snapshot && coLichSu8h && <p className="mt-1 text-tk-xs text-muted">Có chuỗi số liệu 8 giờ gần nhất · mở chi tiết để xem biểu đồ.</p>}
+      {snapshot && coLichSu8h && <p className="mt-1 text-tk-xs text-muted">Đã có số liệu 8 giờ gần nhất. Mở chi tiết để xem biểu đồ.</p>}
       {!snapshot && xau && (
         <div className={`bms-room-reading mt-3 ${lm ? `${lm.bg} ${lm.ring}` : "bg-subtle ring-line"} flex items-baseline justify-between gap-2`}>
           <span className="text-tk-xs font-semibold uppercase tracking-wide text-muted">{SENSOR_META[xau.s.k].label}</span>

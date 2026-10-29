@@ -125,9 +125,9 @@ try {
   kiem(canvas > 0, `Biểu đồ đã vẽ (${canvas} canvas/svg)`);
 
   // 5. Cấu hình & Nhật ký: tab con
-  console.log("5. Cấu hình & Nhật ký");
+  console.log("5. Cấu hình và Nhật ký");
   await goto("/?tab=settings"); await cho(400);
-  for (const chu of ["Phòng & cảm biến", "Phân công tự động", "Quy trình xử lý", "Hệ thống", "Nguyên tắc cảnh báo"]) { const ok = await bamNut(page, chu, "main"); await cho(700); kiem(ok, `Cấu hình → ${chu}`); }
+  for (const chu of ["Phòng và cảm biến", "Phân công tự động", "Quy trình xử lý", "Hệ thống", "Nguyên tắc cảnh báo"]) { const ok = await bamNut(page, chu, "main"); await cho(700); kiem(ok, `Cấu hình → ${chu}`); }
   const ttHeThong = await page.evaluate(() => { const b = [...document.querySelectorAll("main button")].find((x) => x.textContent.trim() === "Hệ thống"); if (b) b.click(); return !!b; });
   await cho(500);
   kiem(ttHeThong && await page.evaluate(() => document.body.innerText.includes("Phiên bản phần mềm")), "Cấu hình → Hệ thống có thẻ Thông tin hệ thống");

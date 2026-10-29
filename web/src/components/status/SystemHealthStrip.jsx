@@ -14,9 +14,9 @@ export default function SystemHealthStrip({ isLive, matNguon, dangTai, capNhatLu
   const nhanLoi = loiN8n
     ? "Luồng lấy dữ liệu lỗi"
     : bmsKhongCoDuLieu
-      ? "API có kết nối, không có dữ liệu BMS"
+      ? "Có kết nối nguồn nhưng không có dữ liệu BMS"
       : apiItKhongKetNoi
-        ? "Không kết nối được API nguồn"
+        ? "Không kết nối được nguồn dữ liệu"
         : "Mất dữ liệu";
 
   // inline: chip gọn nằm trong header (báo cáo 10 — bình thường không chiếm hàng riêng)

@@ -62,7 +62,7 @@ function ReportsPage({ ai, aiRows = null, isLive = false, responseScopeKey = "de
         {napTT === "DANG_TAI" && <div className="mt-4 h-10 w-72 max-w-full rounded-xl bg-subtle animate-pulse" role="status" aria-label="Đang kiểm tra cấu hình gửi báo cáo" />}
         {napTT && napTT.loi && <KhungLoi gon className="mt-4" tieuDe="Chưa kiểm tra được cấu hình gửi báo cáo" loi={napTT.loi} onThuLai={() => setLanNap((n) => n + 1)} />}
         {napTT === "DEMO" && <ChiCoLive className="mt-4">Gửi lại báo cáo cần kết nối máy chủ thật. Ở chế độ dữ liệu mẫu, bạn vẫn có thể xem bố cục và dùng nút In.</ChiCoLive>}
-        {napTT === "CHUA_CAU_HINH" && <p className="mt-4 rounded-xl bg-warning-soft ring-1 ring-warning-line px-4 py-2.5 text-tk-xs text-warning font-medium" role="status">Chưa cấu hình địa chỉ gửi báo cáo bù — liên hệ Quản trị hệ thống để thêm vào Cấu hình.</p>}
+        {napTT === "CHUA_CAU_HINH" && <p className="mt-4 rounded-xl bg-warning-soft ring-1 ring-warning-line px-4 py-2.5 text-tk-xs text-warning font-medium" role="status">Chưa cấu hình địa chỉ gửi lại báo cáo. Hãy liên hệ Quản trị hệ thống để thêm trong trang Cấu hình.</p>}
         <div className="mt-4 flex items-center gap-3 flex-wrap">
           <label htmlFor="ky-bao-cao-bu" className="text-tk-xs uppercase text-muted font-semibold">Kỳ báo cáo</label>
           <select id="ky-bao-cao-bu" value={kyBu} onChange={(e) => setKyBu(e.target.value)} className={sel}>
@@ -77,12 +77,12 @@ function ReportsPage({ ai, aiRows = null, isLive = false, responseScopeKey = "de
           <button type="button" onClick={() => window.print()} className="min-h-11 text-xs font-medium rounded-lg px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> In hoặc lưu PDF</button>
         </div>
         {guiTT && guiTT !== "DANG_GUI" && (guiTT.ok
-          ? <p role="status" className="text-xs text-success font-medium mt-3">✓ {guiTT.message || "Đã nhận yêu cầu — báo cáo sẽ được tạo và gửi email trong vài phút."}</p>
-          : <p role="alert" className="text-xs text-danger font-medium mt-3">✗ Không gửi được yêu cầu ({guiTT.error === "CHUA_CAU_HINH_WEBHOOK" ? "chưa cấu hình điểm gửi báo cáo — liên hệ quản trị hệ thống" : guiTT.error}). Thử lại hoặc báo IT.</p>)}
-        <p className="text-tk-xs text-muted mt-3">Danh sách người nhận quản lý ở tab <b>Thông báo</b>; chưa kích hoạt ai thì gửi về địa chỉ dự phòng trong mục Thông báo → Địa chỉ hệ thống. File PDF/HTML đồng thời được lưu vào kho hồ sơ nội bộ.</p>
+          ? <p role="status" className="text-xs text-success font-medium mt-3">✓ {guiTT.message || "Đã nhận yêu cầu. Báo cáo sẽ được lập và gửi email trong vài phút."}</p>
+          : <p role="alert" className="text-xs text-danger font-medium mt-3">✗ Không gửi được yêu cầu ({guiTT.error === "CHUA_CAU_HINH_WEBHOOK" ? "chưa cấu hình nơi gửi báo cáo, hãy liên hệ Quản trị hệ thống" : guiTT.error}). Hãy thử lại hoặc báo IT.</p>)}
+        <p className="text-tk-xs text-muted mt-3">Danh sách người nhận được quản lý ở tab <b>Thông báo</b>. Nếu chưa bật người nhận nào, báo cáo gửi về địa chỉ dự phòng trong mục Địa chỉ hệ thống của tab Thông báo. File PDF và HTML cũng được lưu vào kho hồ sơ nội bộ.</p>
         <details className="mt-4 rounded-lg bg-subtle px-3.5 py-3 text-tk-sm text-body ring-1 ring-line">
           <summary className="cursor-pointer font-medium text-strong">Cách lập báo cáo</summary>
-          <p className="mt-2 leading-relaxed text-muted">Nhận định, số liệu, biểu đồ, OOS và độ đầy đủ dữ liệu giữ nguyên theo phạm vi đã chọn ở tab Xu hướng.</p>
+          <p className="mt-2 leading-relaxed text-muted">Nhận định, số liệu, biểu đồ, số lần vượt giới hạn và độ đầy đủ dữ liệu lấy đúng theo phạm vi đã chọn ở tab Xu hướng.</p>
         </details>
       </Card>
       <Card className="p-6"><SectionTitle icon={ClipboardCheck} hint="tổng hợp từ tab Xu hướng">Nhận định hỗ trợ</SectionTitle>

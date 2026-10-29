@@ -107,7 +107,7 @@ test("hộp thoại khóa đóng và submit lặp trong khi tác vụ đang ch�
     await moModal(page, "approval");
     await page.type("textarea", "lý do hợp lệ");
     await page.evaluate(() => {
-      const button = [...document.querySelectorAll("button")].find((b) => b.textContent.includes("Xác nhận & lưu"));
+      const button = [...document.querySelectorAll("button")].find((b) => b.textContent.includes("Xác nhận và lưu"));
       button.click(); button.click();
     });
     await page.keyboard.press("Escape");

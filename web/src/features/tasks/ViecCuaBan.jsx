@@ -34,7 +34,7 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
           <span className="text-tk-xs text-muted">{mo ? "Thu gọn" : "Mở ra"} <span aria-hidden="true">{mo ? "▴" : "▾"}</span></span>
         </button>
         <div className="shrink-0 flex items-center gap-1">
-          <button onClick={() => setAn(true)} title="Ẩn cho gọn — còn viên nhỏ để hiện lại"
+          <button onClick={() => setAn(true)} title="Thu nhỏ danh sách, bấm vào nút nhỏ để hiện lại"
             className="min-h-[44px] rounded-lg px-2 py-1 text-tk-xs text-muted hover:bg-subtle hover:text-body">Ẩn</button>
         </div>
       </div>
@@ -43,7 +43,7 @@ const ViecCuaBan = React.memo(function ViecCuaBan({ viecCuaToi, cumChoToi, onXuL
             <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-subtle px-3 py-2">
               <span className="min-w-0 text-tk-xs text-body truncate">
                 <b style={{ color: "var(--text-strong)" }}>{inc.id}</b> · {inc.room} · {inc.sensor}
-                {q.gio_mo != null && <span className="ml-2 text-muted tabular-nums">mở {q.gio_mo}h</span>}
+                {q.gio_mo != null && <span className="ml-2 text-muted tabular-nums">mở {q.gio_mo} giờ</span>}
               </span>
               <button onClick={() => onXuLy(inc)} className="min-h-[44px] shrink-0 rounded-lg bg-surface px-2.5 py-1 text-tk-xs font-semibold text-success ring-1 ring-success-line hover:bg-success-soft">Xử lý</button>
             </div>

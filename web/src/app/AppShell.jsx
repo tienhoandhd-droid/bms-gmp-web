@@ -481,7 +481,7 @@ export default function AppShell() {
   const baoLoi = (error, duPhong) => { if (error) bao("loi", error.thong_bao || error.ma_loi || duPhong || "Lỗi kết nối — thử lại."); return !error; };
   const addRoom = async (r) => {
     if (isLive) { const { error } = await themPhong({ p_ma_phong: r.id, p_ten_phong: r.name, p_khu_vuc: r.area, p_ahu: r.ahu, p_muc_uu_tien: r.priority, p_ghi_chu: r.note || null, p_thieu_du_lieu: !!r.noData, p_cam_bien: (r.sensors || []).map((s) => ({ loai: s.k, min: s.min, max: s.max })), p_actor: user?.email || null }); if (baoLoi(error, "Không thêm được phòng")) await apMoi(); return; }
-    setRooms((rs) => [...rs, r]); logConfig(`Thêm phòng ${r.id} (${r.name}) · ${r.noData ? "no-data" : r.sensors.map((s) => s.k).join("/")}`);
+    setRooms((rs) => [...rs, r]); logConfig(`Thêm phòng ${r.id} (${r.name}) · ${r.noData ? "thiếu dữ liệu" : r.sensors.map((s) => s.k).join("/")}`);
   };
   const deleteRoom = async (id) => {
     if (isLive) { const { error } = await xoaPhong({ p_ma_phong: id, p_actor: user?.email || null }); if (baoLoi(error, "Không xóa được phòng")) await apMoi(); return; }
@@ -540,7 +540,7 @@ export default function AppShell() {
     if (isLive) {
       const { error } = await suaNguong({ p_nguong_canh_bao: next.warn, p_nguong_hanh_dong: next.action, p_actor: user?.email || null });
       if (baoLoi(error, "Không lưu được ngưỡng")) { setCfgNhap(null); setMoPhong(null); await apMoi(); }
-    } else { logConfig(`Sửa ngưỡng cảnh báo: vượt ngưỡng ${next.warn} · gửi mail khi 10′ cuối ≥ ${next.action}`); setCfg(next); setCfgNhap(null); setMoPhong(null); }
+    } else { logConfig(`Sửa ngưỡng cảnh báo: vượt ngưỡng ${next.warn} · gửi email khi 10 phút cuối có từ ${next.action} điểm lỗi trở lên`); setCfg(next); setCfgNhap(null); setMoPhong(null); }
   };
   // Bật/tắt 1 cấp ưu tiên trong phạm vi cảnh báo (phải giữ ≥1 cấp).
   const toggleUuTien = async (p) => {
@@ -848,31 +848,31 @@ export default function AppShell() {
               {matNguon && (
                 <div className="rounded-2xl bg-danger-soft px-4 sm:px-5 py-3.5 ring-1 ring-danger-line">
                   <p className="text-tk-sm font-bold text-danger flex items-center gap-2">
-                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> {skNhan} — số bên dưới không phản ánh hiện tại
+                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> {skNhan}. Số liệu bên dưới không phản ánh tình trạng hiện tại.
                   </p>
                   <p className="mt-1 text-tk-xs leading-snug text-danger">
-                    {skTomTat || "Nguồn dữ liệu không cập nhật."} Hệ <b>không kết luận đạt/không đạt</b> trên dữ liệu thiếu hoặc đã cũ — mọi phòng chuyển sang ô “Thiếu dữ liệu”.
-                    Kiểm nguồn dữ liệu ngay (chi tiết ở Cấu hình → Hệ thống): nguồn treo thì phải có người khởi động lại, hệ không tự khỏi.
+                    {skTomTat || "Nguồn dữ liệu không cập nhật."} Hệ thống <b>không kết luận đạt hay không đạt</b> khi dữ liệu thiếu hoặc đã cũ, nên mọi phòng chuyển sang ô “Thiếu dữ liệu”.
+                    Hãy kiểm tra nguồn dữ liệu ngay (xem chi tiết ở <b>Cấu hình › Hệ thống</b>). Nếu nguồn bị treo, cần có người khởi động lại vì hệ thống không tự phục hồi.
                   </p>
                 </div>
               )}
               <div className="flex items-center justify-between px-1"><SectionTitle icon={Clock} hint="Kỳ chốt gần nhất · tự cập nhật mỗi 1 giờ">Trạng thái phòng</SectionTitle></div>
               <div className="bms-kpi-grid">
-                <KpiCard icon={CheckCircle2} label="Phòng đạt" value={matNguon ? "—" : kpis.dat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tỷ lệ đạt ≥ 80% (1h)"} accent={{ txt: "text-success", bg: "bg-success-soft", glow: "bg-success-soft" }} onClick={() => setKpiModal("dat")} loading={kpiLoading} />
-                <KpiCard icon={AlertTriangle} label="Phòng không đạt" value={matNguon ? "—" : kpis.khongDat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn — không kết luận" : "tỷ lệ đạt < 80%"} accent={{ txt: "text-danger", bg: "bg-danger-soft", glow: "bg-danger-soft" }} onClick={() => setKpiModal("khong")} loading={kpiLoading} />
+                <KpiCard icon={CheckCircle2} label="Phòng đạt" value={matNguon ? "—" : kpis.dat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn · chưa kết luận" : "tỷ lệ đạt từ 80% trở lên trong 1 giờ"} accent={{ txt: "text-success", bg: "bg-success-soft", glow: "bg-success-soft" }} onClick={() => setKpiModal("dat")} loading={kpiLoading} />
+                <KpiCard icon={AlertTriangle} label="Phòng không đạt" value={matNguon ? "—" : kpis.khongDat} total={matNguon ? null : kpis.tong} sub={matNguon ? "mất nguồn · chưa kết luận" : "tỷ lệ đạt dưới 80%"} accent={{ txt: "text-danger", bg: "bg-danger-soft", glow: "bg-danger-soft" }} onClick={() => setKpiModal("khong")} loading={kpiLoading} />
                 <KpiCard icon={HelpCircle} label="Thiếu dữ liệu" value={kpis.thieuDL} total={kpis.tong} sub="không coi là đạt" accent={{ txt: "text-warning", bg: "bg-warning-soft", glow: "bg-warning-soft" }} onClick={() => setKpiModal("thieu")} loading={kpiLoading} />
               </div>
               {/* Chú thích cách tính — đặt gọn để màn vận hành ưu tiên kết luận trước. */}
               <details className="bms-method">
                 <summary className="cursor-pointer select-none text-tk-xs font-semibold text-muted">Cách tính tỉ lệ đạt phòng</summary>
                 <p className="mt-2 text-tk-sm text-muted leading-relaxed">
-                  Tỉ lệ đạt của phòng = 100% − %thời gian ngoài khoảng (OOS) của <b className="text-muted">cảm biến kém nhất</b> (DP/RH/T) trong <b className="text-muted">khung giờ chốt gần nhất</b>. Chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt, dù các chỉ tiêu khác vẫn đẹp. Phòng <b className="text-muted">đạt</b> khi tỉ lệ đạt ≥ 80% <b className="text-muted">và</b> dữ liệu còn tươi (chốt giờ cách hiện tại ≤ {Math.round(FRESH_MIN / 60)}h); phòng thiếu dữ liệu/dữ liệu quá cũ không được tính là đạt. Giờ đang diễn ra chưa phải một kỳ đã chốt; việc chưa có số liệu của giờ đó không tự động có nghĩa là mất dữ liệu.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-muted">khu {khuChoPhep.join(", ")}</b>.</> : null}
+                  Tỉ lệ đạt của phòng bằng 100% trừ đi phần trăm thời gian vượt giới hạn của <b className="text-muted">cảm biến kém nhất</b> (chênh áp, độ ẩm hoặc nhiệt độ) trong <b className="text-muted">giờ đã chốt gần nhất</b>. Chỉ cần một chỉ tiêu lệch là cả phòng bị tính không đạt. Phòng <b className="text-muted">đạt</b> khi tỉ lệ đạt từ 80% trở lên <b className="text-muted">và</b> dữ liệu còn mới (giờ chốt cách hiện tại không quá {Math.round(FRESH_MIN / 60)} giờ). Phòng thiếu dữ liệu hoặc dữ liệu quá cũ không được tính là đạt. Giờ đang diễn ra chưa được chốt, nên chưa có số liệu của giờ đó không có nghĩa là mất dữ liệu.{khuChoPhep ? <> Số liệu tính trong phạm vi được xem của tài khoản: <b className="text-muted">khu {khuChoPhep.join(", ")}</b>.</> : null}
                 </p>
               </details>
               <FailingRoomCharts rooms={[...nhomPhong.khong, ...nhomPhong.thieu]} loading={isLive && !live.rooms && !live.loi} sourceInterrupted={matNguon} error={isLive && !live.rooms ? live.loi : null} onDetail={setRoomModal} />
               <TheDungHinhTongQuan isLive={isLive} khuChoPhep={khuChoPhep} onXemChiTiet={roleCanSeeTab(role, "sensors") ? () => setTab("sensors") : null} />
               <div className="bms-home-columns">
-                <div><div className="bms-room-heading"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ ưu tiên 1 & 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-line overflow-hidden text-tk-xs font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={!xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Ưu tiên 1 &amp; 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Tất cả</button></div><span className="text-tk-xs text-muted">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-tk-sm text-muted">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : (() => {
+                <div><div className="bms-room-heading"><SectionTitle icon={CircleDot} hint={xemTatCaPhong ? "tất cả phòng" : "chỉ phòng mức 1 và mức 2"}>Phòng trọng điểm cần theo dõi</SectionTitle><div className="flex items-center gap-2"><div className="flex rounded-xl ring-1 ring-line overflow-hidden text-tk-xs font-medium"><button onClick={() => setXemTatCaPhong(false)} className={`px-2.5 py-1 ${!xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={!xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Mức 1 và 2</button><button onClick={() => setXemTatCaPhong(true)} className={`px-2.5 py-1 ${xemTatCaPhong ? "text-white" : "text-muted bg-surface hover:bg-subtle"}`} style={xemTatCaPhong ? { backgroundColor: "var(--primary-solid)" } : {}}>Tất cả</button></div><span className="text-tk-xs text-muted">{phongHienThi.length}/{roomsXem.length} phòng</span></div></div>{phongHienThi.length === 0 ? <Card className="p-6 text-center text-tk-sm text-muted">{xemTatCaPhong ? "Chưa có phòng nào." : "Không có phòng ưu tiên 1 hoặc 2 nào đang hoạt động."}</Card> : (() => {
                   // Phase B (báo cáo 9): phòng bất thường = card đủ; phòng đạt = một dòng gọn.
                   const incCua = (r) => incidentsXem.find((i) => i.room === r.id && i.status !== "Đã khắc phục") || null;
                   const batThuong = phongHienThi.filter((r) => laBatThuong(r, cfg, incCua(r)));
@@ -884,7 +884,7 @@ export default function AppShell() {
                   </>);
                 })()}</div>
                 <aside className="space-y-5" aria-label="Cảnh báo hệ thống">
-                  <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{duLieuLoi ? <div className="rounded-2xl bg-danger-soft ring-1 ring-danger-line px-3 py-3 text-tk-xs text-danger"><b>Không xác minh được trạng thái hệ thống.</b><p className="text-tk-xs text-danger/80 mt-1">Máy chủ không trả lời. Đây KHÔNG có nghĩa là hệ thống đang bình thường — hãy kiểm tra nguồn dữ liệu và máy chủ (chi tiết ở Cài đặt → Hệ thống).</p></div> : systemAlerts === null ? <div className="h-20 rounded-2xl bg-subtle animate-pulse" />  : systemAlerts.length === 0 ? <p className="text-tk-xs text-muted py-2">Không có cảnh báo hệ thống nào.</p>  : systemAlerts.map((a) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={`${a.kind}|${a.text}|${a.sub}`} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-line/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-body font-medium">{a.text}</p><p className="text-tk-xs text-muted mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
+                  <Card className="p-5"><SectionTitle icon={Bell}>Cảnh báo hệ thống</SectionTitle><div className="space-y-2 mt-3">{duLieuLoi ? <div className="rounded-2xl bg-danger-soft ring-1 ring-danger-line px-3 py-3 text-tk-xs text-danger"><b>Không xác minh được trạng thái hệ thống.</b><p className="text-tk-xs text-danger/80 mt-1">Máy chủ không trả lời. Điều này <b>không</b> có nghĩa là hệ thống đang bình thường. Hãy kiểm tra nguồn dữ liệu và máy chủ (xem chi tiết ở <b>Cấu hình › Hệ thống</b>).</p></div> : systemAlerts === null ? <div className="h-20 rounded-2xl bg-subtle animate-pulse" />  : systemAlerts.length === 0 ? <p className="text-tk-xs text-muted py-2">Không có cảnh báo hệ thống nào.</p>  : systemAlerts.map((a) => { const Icon = a.icon || ICON_CANH_BAO(a); return <div key={`${a.kind}|${a.text}|${a.sub}`} className={`flex items-start gap-3 rounded-2xl px-3 py-2.5 ${STATUS[a.kind].bg} ring-1 ring-line/60`}><Icon className={`w-4 h-4 mt-0.5 shrink-0 ${STATUS[a.kind].txt}`} strokeWidth={1.8} /><div className="leading-tight"><p className="text-xs text-body font-medium">{a.text}</p><p className="text-tk-xs text-muted mt-0.5">{a.sub}</p></div></div>; })}</div></Card>
                 </aside>
               </div>
             </div>
@@ -911,21 +911,21 @@ export default function AppShell() {
                 </div>
               )}
               {isLive && Array.isArray(live.suCoPhuTrach) && live.suCoPhuTrach.length === 0 && (
-                <Card className="p-6 text-center"><CheckCircle2 className="mx-auto w-7 h-7" style={{ color: "var(--primary)" }} strokeWidth={1.8} /><p className="mt-2 text-[14px] font-semibold text-strong">Không có phiếu nào đang mở</p><p className="mt-1 text-tk-xs text-muted">Tất cả sự cố đã được xử lý hoặc hệ đã tự đóng.</p></Card>
+                <Card className="p-6 text-center"><CheckCircle2 className="mx-auto w-7 h-7" style={{ color: "var(--primary)" }} strokeWidth={1.8} /><p className="mt-2 text-[14px] font-semibold text-strong">Không có sự cố nào đang mở</p><p className="mt-1 text-tk-xs text-muted">Tất cả sự cố đã được xử lý hoặc hệ thống đã tự đóng.</p></Card>
               )}
               <KiemSoatXuLy rows={isLive && Array.isArray(live.suCoPhuTrach) ? live.suCoPhuTrach : []} />
               {isLive && user && role && (
                 <Card className="p-4 sm:p-5">
-                  <SectionTitle icon={User} hint="các phiếu đang chờ đúng vai trò của bạn bấm nút — bấm Xử lý để thao tác ngay">Việc cần xử lý — {ROLE_VI[role] || role}</SectionTitle>
+                  <SectionTitle icon={User} hint="Các sự cố đang chờ vai trò của bạn. Bấm Xử lý để thao tác ngay.">Việc cần xử lý · {ROLE_VI[role] || role}</SectionTitle>
                   {viecCuaToi.length === 0 && cumChoToi.length === 0 ? (
-                    <p className="mt-3 text-tk-sm text-muted">Không có phiếu nào đang chờ vai trò của bạn. 👍</p>
+                    <p className="mt-3 text-tk-sm text-muted">Không có sự cố nào đang chờ vai trò của bạn. 👍</p>
                   ) : (
                     <div className="mt-3 space-y-1.5">
                       {viecCuaToi.map(({ q, inc }) => (
                         <div key={q.ma_su_co} className="flex items-center justify-between gap-3 rounded-xl bg-subtle px-3 py-2">
                           <span className="min-w-0 text-[12.5px] text-body truncate">
                             <b style={{ color: "var(--text-strong)" }}>{inc.id}</b> · {inc.room} · {inc.sensor}
-                            <span className={`ml-2 ${q.dang_cham ? "text-danger font-medium" : "text-muted"}`}>{q.dang_cham ? `im lặng ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}${q.da_bao_truc ? " · đã lên Trực" : ""}` : `mở ${q.gio_mo}h · trong nhịp`}</span>
+                            <span className={`ml-2 ${q.dang_cham ? "text-danger font-medium" : "text-muted"}`}>{q.dang_cham ? `im lặng ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}${q.da_bao_truc ? " · đã lên Trực" : ""}` : `mở ${q.gio_mo} giờ · đúng hạn`}</span>
                           </span>
                           <button onClick={() => openApproval(inc)} className="shrink-0 rounded-lg bg-surface px-3 py-1.5 text-tk-xs font-semibold text-success ring-1 ring-success-line hover:bg-success-soft">Xử lý</button>
                         </div>
@@ -1001,7 +1001,7 @@ export default function AppShell() {
               const txt = t < 60 ? `${t} PHÚT` : `${(t / 60).toFixed(1)} GIỜ`;
               // G3: độ tươi là TRỤC RIÊNG, tách khỏi mức nghiêm trọng — badge màu "thiếu
               // dữ liệu" (không phải warning) + nói thẳng: hiện trạng chưa thể xác nhận.
-              return <span title="Số đo cuối cùng lấy được. Nguồn đang mất nên KHÔNG khẳng định được tình trạng hiện tại của phòng — có thể đã nặng hơn, có thể đã về đạt." className="ml-1.5 align-middle inline-block rounded-md bg-missing-soft px-1.5 py-0.5 text-tk-xs font-bold text-missing ring-1 ring-[var(--missing)] whitespace-nowrap">Chưa cập nhật · {txt}</span>;
+              return <span title="Số đo cuối cùng lấy được. Nguồn đang mất nên chưa khẳng định được tình trạng hiện tại của phòng: có thể đã nặng hơn, cũng có thể đã đạt trở lại." className="ml-1.5 align-middle inline-block rounded-md bg-missing-soft px-1.5 py-0.5 text-tk-xs font-bold text-missing ring-1 ring-[var(--missing)] whitespace-nowrap">Chưa cập nhật · {txt}</span>;
             };
             return (
             <div className="space-y-5">
@@ -1014,17 +1014,17 @@ export default function AppShell() {
               {matNguon && (
                 <div className="rounded-2xl bg-danger-soft px-4 sm:px-5 py-3.5 ring-1 ring-danger-line">
                   <p className="text-tk-sm font-bold text-danger flex items-center gap-2">
-                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> {skNhan} — mức hiển thị dựa trên số liệu hợp lệ cuối cùng
+                    <AlertOctagon className="w-4 h-4 shrink-0" strokeWidth={2} /> {skNhan}. Mức hiển thị dựa trên số liệu hợp lệ cuối cùng.
                   </p>
                   <p className="mt-1 text-tk-xs leading-snug text-danger">
-                    {skTomTat || "Nguồn dữ liệu không cập nhật."} Phiếu đang mở <b>vẫn giữ nguyên</b> (sự cố đã xảy ra là có thật, hệ không tự đóng khi thiếu dữ liệu),
-                    nhưng <b>không khẳng định được phòng hiện giờ ra sao</b> — có thể đã nặng hơn, có thể đã về đạt.
-                    Nguy hơn: trong lúc mất nguồn hệ <b>không mở được phiếu mới</b>, phòng lệch chuẩn lúc này sẽ không có ai báo.
+                    {skTomTat || "Nguồn dữ liệu không cập nhật."} Sự cố đang mở <b>vẫn được giữ nguyên</b> vì sự cố đã xảy ra là có thật; hệ thống không tự đóng khi thiếu dữ liệu.
+                    Tuy nhiên, hệ thống <b>chưa biết phòng hiện giờ ra sao</b>: có thể đã nặng hơn, cũng có thể đã đạt trở lại.
+                    Nguy hiểm hơn: trong lúc mất nguồn, hệ thống <b>không mở được sự cố mới</b>, nên phòng đang lệch sẽ không có ai được báo.
                   </p>
                 </div>
               )}
               <div className="bms-filterbar">
-                <label className="bms-search"><span className="bms-field-label">Tìm sự cố</span><span className="bms-search-input"><Search className="h-4 w-4 text-muted shrink-0" aria-hidden="true" /><input type="search" aria-label="Tìm sự cố" placeholder="Mã phiếu, phòng, chỉ tiêu…" value={evtSearch} onChange={e => setEvtSearch(e.target.value)} /></span></label>
+                <label className="bms-search"><span className="bms-field-label">Tìm sự cố</span><span className="bms-search-input"><Search className="h-4 w-4 text-muted shrink-0" aria-hidden="true" /><input type="search" aria-label="Tìm sự cố" placeholder="Mã sự cố, phòng, chỉ tiêu…" value={evtSearch} onChange={e => setEvtSearch(e.target.value)} /></span></label>
                 <div><span className="bms-field-label">Khu vực</span><div className="bms-filter-chips">
                 {locChip("ALL", "Tất cả", evtKhu === "ALL", () => { setEvtKhu("ALL"); setEvtAhu("ALL"); })}
                 {(khuChoPhep || DS_KHU).map((k) => locChip(k, `Khu ${k}`, evtKhu === k, () => { setEvtKhu(k); setEvtAhu("ALL"); }))}
@@ -1046,8 +1046,8 @@ export default function AppShell() {
                 <div className="px-5 py-10 text-center">
                   <div className="mx-auto w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "var(--primary-soft)" }}><CheckCircle2 className="w-6 h-6" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div>
                   <p className="mt-3 text-[14px] font-semibold text-strong">Chưa có sự cố nào đang mở</p>
-                  <p className="mt-1.5 text-tk-xs text-muted max-w-md mx-auto leading-relaxed">Sự cố được <b>tự động tạo</b> khi hệ thống phát hiện mức <b className="text-warning">Cảnh báo</b> hoặc <b className="text-danger">Hành động</b> từ dữ liệu theo giờ. Danh sách trống nghĩa là tất cả phòng đang trong ngưỡng — hoặc chưa có dữ liệu kích hoạt.</p>
-                  {isLive && <p className="mt-3 text-tk-xs text-muted max-w-md mx-auto">Nếu bạn chắc chắn đang có cảnh báo mà vẫn trống, kiểm tra: lịch chấm điểm dữ liệu có đang chạy (Cài đặt → Hệ thống) · ngưỡng trong <b>Cài đặt</b> · và bạn đã <b>đăng nhập</b> đúng vai trò để xem.</p>}
+                  <p className="mt-1.5 text-tk-xs text-muted max-w-md mx-auto leading-relaxed">Sự cố được <b>tự động tạo</b> khi hệ thống phát hiện mức <b className="text-warning">Cảnh báo</b> hoặc <b className="text-danger">Hành động</b> từ dữ liệu theo giờ. Danh sách trống nghĩa là tất cả phòng đang trong ngưỡng, hoặc chưa có dữ liệu nào vượt ngưỡng.</p>
+                  {isLive && <p className="mt-3 text-tk-xs text-muted max-w-md mx-auto">Nếu chắc chắn đang có cảnh báo mà danh sách vẫn trống, hãy kiểm tra: lịch chấm điểm dữ liệu có đang chạy không (<b>Cấu hình › Hệ thống</b>), ngưỡng trong <b>Cấu hình</b>, và bạn đã <b>đăng nhập</b> đúng vai trò chưa.</p>}
                 </div>
               ) : (
                 <div className="px-5 py-8 text-center text-tk-sm text-muted">Không có sự cố khớp bộ lọc{evtKhu !== "ALL" ? ` · Khu ${evtKhu}` : ""}{evtAhu !== "ALL" ? ` · ${evtAhu}` : ""}. <button onClick={() => { setEvtSearch(""); setEvtKhu("ALL"); setEvtAhu("ALL"); }} className="text-success font-semibold underline">Bỏ lọc</button></div>
@@ -1071,8 +1071,8 @@ export default function AppShell() {
                           {inc.mucCanhBao === "SUPPRESSED" && <span className="ml-1.5 rounded-lg bg-subtle px-1.5 py-0.5 text-tk-xs font-medium text-muted">cảm biến đứng tín hiệu</span>}
                           {nhanSoCu(inc)}
                         </p>
-                        {inc.giaTriGanNhat != null && <p className="text-tk-xs text-muted mt-0.5">TB 5′ cuối <b className="text-body tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") && <span className="text-success"> · đã về ngưỡng</span>}</p>}
-                        {nhanSoCu(inc) && <p className="text-tk-xs text-missing mt-0.5"><b>Chưa xác định được tình trạng hiện tại</b> — phiếu sự cố vẫn đang mở.</p>}
+                        {inc.giaTriGanNhat != null && <p className="text-tk-xs text-muted mt-0.5">Trung bình 5 phút cuối <b className="text-body tabular-nums">{inc.giaTriGanNhat}{inc.donVi}</b>{inc.gioiHanDuoi != null && <> · yêu cầu <span className="tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}</span></>}{(inc.mucGanNhat === "NORMAL" || inc.mucGanNhat === "WARNING") && <span className="text-success"> · đã về ngưỡng</span>}</p>}
+                        {nhanSoCu(inc) && <p className="text-tk-xs text-missing mt-0.5"><b>Chưa xác định được tình trạng hiện tại.</b> Sự cố vẫn đang mở.</p>}
                         <p className="mt-1.5 text-tk-xs flex items-center gap-1.5 flex-wrap">
                           <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[inc.status]}`} /><span className="text-body font-medium">{inc.status}</span>
                           {q && <span className={`text-tk-xs ${q.dang_cham ? "text-danger font-medium" : "text-muted"}`}>· {tenVaiTro(q.vai_tro_phu_trach, inc.room)}{q.dang_cham ? ` im lặng ${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)}${q.da_bao_truc ? " · đã báo Trực" : ""}` : " phụ trách"}</span>}
@@ -1131,14 +1131,14 @@ export default function AppShell() {
                     <div className="grid grid-cols-2 gap-2 text-tk-sm">
                       <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-tk-xs uppercase tracking-wider">Chỉ tiêu</span><span className="font-semibold text-strong">{inc.sensor}{inc.huong && <span className="ml-1 text-tk-xs font-medium text-muted">({inc.huong === "CAO" ? "vượt trần" : inc.huong === "THAP" ? "dưới sàn" : "cả hai phía"})</span>}</span></div>
                       <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-tk-xs uppercase tracking-wider">Bắt đầu · kéo dài</span><span className="font-semibold text-strong tabular-nums">{inc.start.slice(11, 16)} · {inc.duration}h</span></div>
-                      {inc.giaTriGanNhat != null && <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-tk-xs uppercase tracking-wider">TB 5′ cuối</span><span className="font-semibold text-strong tabular-nums">{inc.giaTriGanNhat}{inc.donVi}{inc.cuaSo5p && <span className="text-tk-xs font-normal text-muted"> ({inc.cuaSo5p})</span>}</span></div>}
+                      {inc.giaTriGanNhat != null && <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-tk-xs uppercase tracking-wider">Trung bình 5 phút cuối</span><span className="font-semibold text-strong tabular-nums">{inc.giaTriGanNhat}{inc.donVi}{inc.cuaSo5p && <span className="text-tk-xs font-normal text-muted"> ({inc.cuaSo5p})</span>}</span></div>}
                       {inc.gioiHanDuoi != null && <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-tk-xs uppercase tracking-wider">Giới hạn</span><span className="font-semibold text-strong tabular-nums">{inc.gioiHanDuoi}–{inc.gioiHanTren}{inc.donVi}</span></div>}
                     </div>
                     {q && <p className={`text-tk-sm ${q.dang_cham ? "text-danger" : "text-body"}`}>Phụ trách: <b>{tenVaiTro(q.vai_tro_phu_trach, inc.room)}</b>{q.nguong_phut === 0 ? " · chờ điều kiện xử lý — Trực + QA được báo" : q.dang_cham ? ` · im lặng ${fmtPhut(q.phut_im_lang)} / ngưỡng ${fmtPhut(q.nguong_phut)}` : ` · trong nhịp (${fmtPhut(q.phut_im_lang)}/${fmtPhut(q.nguong_phut)})`}{q.da_bao_truc ? " · đã báo Trực" : ""}</p>}
                     {inc.silenced && inc.tamDungDen && <p className="text-tk-xs text-muted">Đang tạm hoãn tới {fmtVN(inc.tamDungDen, "gio")} · {inc.tamDungBoi || "?"}{inc.tamDungLyDo ? ` · ${inc.tamDungLyDo}` : ""}</p>}
                     <div>
                       <p className="text-tk-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Thao tác</p>
-                      {terminal ? <p className="text-tk-sm text-success font-medium">Đã khắc phục — phiếu đã đóng.</p>
+                      {terminal ? <p className="text-tk-sm text-success font-medium">Đã khắc phục. Sự cố đã đóng.</p>
                         : !user ? <button onClick={() => setLoginOpen(true)} className="text-tk-sm font-medium rounded-xl px-3.5 py-2 ring-1 ring-line text-body bg-surface hover:bg-subtle">Đăng nhập để thao tác</button>
                         : myActs.length ? <div className="flex flex-wrap gap-1.5">{myActs.map((a) => <button key={a.code} onClick={() => { setIncChiTiet(null); openApproval(inc, a); }} className={`text-tk-sm font-medium rounded-xl px-3 py-2 ring-1 ring-black/5 ${a.color || ""}`} style={a.style || {}}>{a.label}</button>)}</div>
                         : <p className="text-tk-sm text-muted">Đang chờ {choAi.map((r) => tenVaiTro(r, inc.room)).join(" / ")} thao tác.</p>}
@@ -1152,17 +1152,17 @@ export default function AppShell() {
                           ))}
                         </ol>
                       </div>
-                    ) : <p className="text-tk-xs text-muted">Nhật ký thao tác đầy đủ xem ở <b>Nhật ký & SOP</b>.</p>}
+                    ) : <p className="text-tk-xs text-muted">Xem nhật ký thao tác đầy đủ ở mục <b>Nhật ký và SOP</b>.</p>}
                   </InspectorDrawer>
                 );
               })()}</>)}</Card>
-              <p className="text-tk-xs text-muted text-center"><b>Dừng CB</b> tắt chuông (vẫn giữ trong danh sách & audit) — chỉ <b>Quản trị / Trực HSL</b> thao tác. IPC và Cơ điện chỉ bấm nút hành động tương ứng theo vai trò; phê duyệt ghi bằng tên người đăng nhập (không cần PIN).</p>
+              <p className="text-tk-xs text-muted text-center"><b>Tắt cảnh báo</b> chỉ tắt chuông; sự cố vẫn nằm trong danh sách và nhật ký truy vết. Chỉ <b>Quản trị</b> hoặc <b>Trực HSL</b> được thao tác. IPC và Cơ điện bấm nút hành động theo vai trò của mình. Mỗi lần phê duyệt được ghi bằng tên người đăng nhập, không cần mã PIN.</p>
               {isLive && suCoDongXem.length > 0 && (
                 <Card className="p-4">
                   <button onClick={() => setKhungDongMo(!khungDongMo)} className="w-full flex items-center justify-between gap-3 text-left">
                     <div>
                       <h3 className="text-[14px] font-semibold text-strong">Đóng gần đây · {suCoDongXem.length} sự cố (7 ngày)</h3>
-                      <p className="mt-0.5 text-tk-xs text-muted leading-relaxed">QA/Quản trị mở lại được trong cửa sổ này — bắt buộc lý do, ghi vào audit. Sự cố mở lại nhập vào cụm điều tra đang mở của cùng (AHU × chỉ tiêu).</p>
+                      <p className="mt-0.5 text-tk-xs text-muted leading-relaxed">QA hoặc Quản trị được mở lại sự cố trong khoảng thời gian này, bắt buộc ghi lý do và được lưu vào nhật ký truy vết. Sự cố mở lại sẽ gộp vào cụm điều tra đang mở có cùng AHU và cùng chỉ tiêu.</p>
                     </div>
                     <span className="shrink-0 text-tk-xs text-muted">{khungDongMo ? "Thu gọn ▲" : "Mở ra ▼"}</span>
                   </button>
@@ -1237,7 +1237,7 @@ export default function AppShell() {
             <div className="space-y-5">
               <div className="flex flex-wrap items-start justify-between gap-3 px-1">
                 <div>
-                  <SectionTitle icon={ScrollText} hint="audit trail · SOP · CAPA">Hồ sơ truy vết GMP</SectionTitle>
+                  <SectionTitle icon={ScrollText} hint="Nhật ký truy vết · SOP · CAPA">Hồ sơ truy vết GMP</SectionTitle>
                   <p className="mt-1.5 max-w-3xl text-[12.5px] leading-relaxed text-muted">Tra cứu thao tác, thay đổi cấu hình và hồ sơ SOP/CAPA phục vụ rà soát QA. Ưu tiên tìm nhanh theo mã sự cố, phòng, người thực hiện, SOP hoặc nội dung thay đổi.</p>
                 </div>
                 <div className="rounded-xl bg-subtle px-3 py-2 text-tk-xs text-muted ring-1 ring-line">
@@ -1336,10 +1336,10 @@ export default function AppShell() {
           {tab === "settings" && (() => {
             const cfgSubTabs = [
               { k: "canhbao", label: "Nguyên tắc cảnh báo", icon: SlidersHorizontal },
-              { k: "phong", label: "Phòng & cảm biến", icon: Building2 },
+              { k: "phong", label: "Phòng và cảm biến", icon: Building2 },
               { k: "phantuyen", label: "Phân công tự động", icon: ShieldCheck },
               { k: "sodo", label: "Quy trình xử lý", icon: GitBranch },
-              ...(role === "ADMIN" ? [{ k: "taikhoan", label: "Tài khoản & quyền", icon: KeyRound }] : []),
+              ...(role === "ADMIN" ? [{ k: "taikhoan", label: "Tài khoản và quyền", icon: KeyRound }] : []),
               { k: "hethong", label: "Hệ thống", icon: Wifi },
             ];
             const pct = (v) => Math.max(0, Math.min(100, (Number(v) || 0) / 60 * 100));
@@ -1354,7 +1354,7 @@ export default function AppShell() {
 
               {cfgTab === "canhbao" && (
               <Card className="p-6">
-                <SectionTitle icon={SlidersHorizontal} hint="3 mức: kiểm soát tốt → chú ý (theo dõi) → cảnh báo (gửi mail)">Nguyên tắc cảnh báo</SectionTitle>
+                <SectionTitle icon={SlidersHorizontal} hint="3 mức: kiểm soát tốt, chú ý (chỉ theo dõi), cảnh báo (gửi email)">Nguyên tắc cảnh báo</SectionTitle>
                 <p className="text-tk-xs text-muted mt-2">Mỗi giờ hệ thống chấm mỗi phòng tối đa <b>60 điểm</b> (mỗi phút lỗi = 1 điểm). Vượt ngưỡng thì <b>10 phút cuối</b> quyết định: còn lệch ngay lúc này thì gửi mail, đã về dải thì chỉ theo dõi.</p>
                 <div className="mt-5">
                   {/* Nhãn nằm DƯỚI thanh (chú giải) — đặt trong thanh thì đoạn hẹp bị cắt "Kiểm soát tốt …" trên mobile */}
@@ -1362,20 +1362,20 @@ export default function AppShell() {
                     <div style={{ width: pct(cfgHT.warn) + "%", background: "var(--primary-solid)" }} />
                     <div style={{ width: Math.max(0, 100 - pct(cfgHT.warn)) + "%", background: "var(--danger-solid)" }} />
                   </div>
-                  <div className="flex justify-between text-tk-xs text-muted mt-1 tabular-nums"><span>0</span><span>số điểm lỗi trong 1 giờ →</span><span>60</span></div>
+                  <div className="flex justify-between text-tk-xs text-muted mt-1 tabular-nums"><span>0</span><span>số điểm lỗi trong 1 giờ</span><span>60</span></div>
                   <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-tk-xs text-body">
                     <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "var(--primary-solid)" }} aria-hidden="true" />Kiểm soát tốt · tự đóng sự cố <b className="tabular-nums">0–{cfgHT.warn}</b></span>
                     <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "var(--danger-solid)" }} aria-hidden="true" />Vượt ngưỡng <b className="tabular-nums">{Math.min(60, cfgHT.warn + 1)}–60</b></span>
                   </div>
                 </div>
                 <div className="rounded-2xl bg-subtle ring-1 ring-line p-4 mt-5">
-                  <div className="flex items-center justify-between gap-2"><label className="text-tk-xs font-semibold text-body">Ngưỡng vượt — điểm lỗi (OOS) trong 1 giờ</label><span className="text-[16px] font-bold tabular-nums text-danger whitespace-nowrap"><span className="text-tk-sm font-semibold">&gt;</span> {cfgHT.warn}<span className="text-tk-xs text-muted font-normal">/60</span></span></div>
+                  <div className="flex items-center justify-between gap-2"><label className="text-tk-xs font-semibold text-body">Ngưỡng vượt · số điểm lỗi trong 1 giờ</label><span className="text-[16px] font-bold tabular-nums text-danger whitespace-nowrap"><span className="text-tk-sm font-semibold">&gt;</span> {cfgHT.warn}<span className="text-tk-xs text-muted font-normal">/60</span></span></div>
                   <p className="text-tk-xs text-muted mt-0.5">Từ hoặc dưới mức này, phòng coi như <b>kiểm soát tốt</b> và sự cố đang mở sẽ <b>tự đóng</b>.</p>
                   <input type="range" aria-label="Ngưỡng vượt khi số điểm lỗi trong 1 giờ lớn hơn" aria-valuetext={`${cfgHT.warn} trên 60 điểm`} min="0" max="60" value={cfgHT.warn} disabled={!canManage} onChange={(e) => { setCfgNhap({ ...cfgHT, warn: Number(e.target.value) }); setMoPhong(null); }} className="w-full mt-3 accent-primarytk-solid disabled:opacity-75 disabled:cursor-not-allowed" />
                 </div>
                 <div className="rounded-2xl bg-danger-soft/60 ring-1 ring-danger-line p-4 mt-4 flex items-center justify-between flex-wrap gap-3">
-                  <div><label className="text-tk-xs font-semibold text-danger">Ngưỡng gửi mail — điểm lỗi trong 10 phút cuối (khi đã vượt ngưỡng)</label><p className="text-tk-xs text-muted mt-0.5">Ít hơn mức này nghĩa là 10 phút cuối đã về dải: sự cố vẫn mở và vẫn hiện ở tab Sự cố, nhưng xếp <b>Chú ý — theo dõi</b> và <b>không gửi mail</b>, vì không có gì để xử lý ngay trong nhịp này.</p></div>
-                  <div className="flex items-center gap-2"><span className="text-sm font-semibold text-danger" aria-hidden="true">≥</span><input type="number" aria-label="Số điểm lỗi tối thiểu trong 10 phút cuối để gửi email" min="0" max="10" value={cfgHT.action} disabled={!canManage} onChange={(e) => { setCfgNhap({ ...cfgHT, action: Number(e.target.value) }); setMoPhong(null); }} className="w-20 rounded-xl bg-surface ring-1 ring-danger-line px-3 py-2 text-sm text-center font-bold disabled:bg-subtle" /><span className="text-sm text-muted">/10 điểm</span></div>
+                  <div><label className="text-tk-xs font-semibold text-danger">Ngưỡng gửi email · số điểm lỗi trong 10 phút cuối (khi đã vượt ngưỡng)</label><p className="text-tk-xs text-muted mt-0.5">Ít hơn mức này nghĩa là 10 phút cuối đã về trong giới hạn. Sự cố vẫn mở và vẫn hiện ở tab Sự cố, nhưng được xếp mức <b>Chú ý · theo dõi</b> và <b>không gửi email</b>, vì chưa có việc cần xử lý ngay.</p></div>
+                  <div className="flex items-center gap-2"><span className="text-sm font-semibold text-danger" aria-hidden="true">Từ</span><input type="number" aria-label="Số điểm lỗi tối thiểu trong 10 phút cuối để gửi email" min="0" max="10" value={cfgHT.action} disabled={!canManage} onChange={(e) => { setCfgNhap({ ...cfgHT, action: Number(e.target.value) }); setMoPhong(null); }} className="w-20 rounded-xl bg-surface ring-1 ring-danger-line px-3 py-2 text-sm text-center font-bold disabled:bg-subtle" /><span className="text-sm text-muted">điểm trở lên (tối đa 10)</span></div>
                 </div>
 
                 {/* ③ Không thể chỉnh nhầm bằng một cú kéo chuột. Xem tác động trên 7 ngày
@@ -1384,7 +1384,7 @@ export default function AppShell() {
                   <div className="rounded-2xl ring-1 ring-warning-line bg-warning-soft/60 p-4 mt-4">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div className="text-tk-xs text-body">
-                        Đang sửa: <b>OOS 1 giờ &gt; {cfgNhap.warn}</b> · <b>10′ cuối ≥ {cfgNhap.action}</b>
+                        Đang sửa: <b>vượt ngưỡng khi quá {cfgNhap.warn} điểm lỗi/giờ</b> · <b>gửi email khi 10 phút cuối có từ {cfgNhap.action} điểm</b>
                         <span className="text-muted"> (đang áp dụng: {cfg.warn} / {cfg.action})</span>
                       </div>
                       <div className="flex gap-2">
@@ -1402,15 +1402,15 @@ export default function AppShell() {
                     {moPhong?.loi && <p className="text-tk-xs text-danger mt-3">{moPhong.loi}</p>}
                     {moPhong?.kq && (
                       <div className="mt-3">
-                        <p className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Chiếu lên {moPhong.kq.so_ngay} ngày dữ liệu thật · {moPhong.kq.tong_gio} giờ-cảm-biến</p>
+                        <p className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Thử trên {moPhong.kq.so_ngay} ngày dữ liệu thật · {moPhong.kq.tong_gio} giờ đo (tính theo từng cảm biến)</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                          {[["Giờ GỬI MAIL", moPhong.kq.hien_tai.gui_mail, moPhong.kq.de_xuat.gui_mail],
+                          {[["Giờ gửi email", moPhong.kq.hien_tai.gui_mail, moPhong.kq.de_xuat.gui_mail],
                             ["Giờ chỉ theo dõi", moPhong.kq.hien_tai.theo_doi, moPhong.kq.de_xuat.theo_doi],
                             ["Giờ bình thường", moPhong.kq.hien_tai.binh_thuong, moPhong.kq.de_xuat.binh_thuong]].map(([lbl, a, b]) => (
                             <div key={lbl} className="rounded-xl bg-surface ring-1 ring-line p-3">
                               <p className="text-tk-xs uppercase tracking-wider text-muted font-semibold">{lbl}</p>
                               <p className="text-[15px] font-semibold tabular-nums mt-0.5" style={{ color: "var(--text-default)" }}>
-                                {a} <span className="text-muted font-normal">→</span> {b}
+                                {a} <span className="text-muted font-normal">thành</span> {b}
                               </p>
                             </div>))}
                           <div className="rounded-xl bg-surface ring-1 ring-line p-3">
@@ -1419,9 +1419,9 @@ export default function AppShell() {
                           </div>
                         </div>
                         <p className="text-tk-xs mt-3 leading-relaxed" style={{ color: moPhong.kq.gui_mail_bot > moPhong.kq.gui_mail_them ? "var(--warning)" : "var(--text-default)" }}>
-                          {moPhong.kq.gui_mail_them > 0 && <>Sẽ <b>gửi mail thêm {moPhong.kq.gui_mail_them} giờ</b>{moPhong.kq.p1_gui_mail_them > 0 && <> (trong đó <b>{moPhong.kq.p1_gui_mail_them} giờ ở phòng P1</b>)</>}. </>}
-                          {moPhong.kq.gui_mail_bot > 0 && <>Sẽ <b>bớt gửi mail {moPhong.kq.gui_mail_bot} giờ</b>{moPhong.kq.p1_gui_mail_bot > 0 && <> — trong đó <b>{moPhong.kq.p1_gui_mail_bot} giờ ở phòng P1</b>, nghĩa là những giờ đó sẽ không ai được báo</>}. </>}
-                          {moPhong.kq.tu_dong_them > 0 && <>Hệ sẽ <b>tự đóng thêm {moPhong.kq.tu_dong_them} giờ</b>. </>}
+                          {moPhong.kq.gui_mail_them > 0 && <>Sẽ <b>gửi email thêm {moPhong.kq.gui_mail_them} giờ</b>{moPhong.kq.p1_gui_mail_them > 0 && <> (trong đó <b>{moPhong.kq.p1_gui_mail_them} giờ ở phòng mức 1</b>)</>}. </>}
+                          {moPhong.kq.gui_mail_bot > 0 && <>Sẽ <b>bớt gửi email {moPhong.kq.gui_mail_bot} giờ</b>{moPhong.kq.p1_gui_mail_bot > 0 && <>, trong đó <b>{moPhong.kq.p1_gui_mail_bot} giờ ở phòng mức 1</b>. Những giờ đó sẽ không có ai được báo</>}. </>}
+                          {moPhong.kq.tu_dong_them > 0 && <>Hệ thống sẽ <b>tự đóng thêm {moPhong.kq.tu_dong_them} giờ</b>. </>}
                           {moPhong.kq.gui_mail_them === 0 && moPhong.kq.gui_mail_bot === 0 && moPhong.kq.tu_dong_them === 0 && moPhong.kq.tu_dong_bot === 0 && <>Không giờ nào đổi mức. Ngưỡng mới không thay đổi hành vi trên 7 ngày vừa qua.</>}
                         </p>
                       </div>
@@ -1430,22 +1430,22 @@ export default function AppShell() {
                 )}
                 <div className="rounded-2xl bg-subtle ring-1 ring-line p-4 mt-4">
                   <label className="text-tk-xs font-semibold text-body">Cấp độ phòng được cảnh báo</label>
-                  <p className="text-tk-xs text-muted mt-0.5">Chỉ mở sự cố + gửi cảnh báo cho phòng thuộc cấp đã chọn. Phòng ngoài cấp <b>vẫn ghi dữ liệu OOS</b> (KPI/tỷ lệ đạt đủ), chỉ không tạo sự cố/leo thang.</p>
+                  <p className="text-tk-xs text-muted mt-0.5">Hệ thống chỉ mở sự cố và gửi cảnh báo cho phòng thuộc mức đã chọn. Phòng ngoài mức này <b>vẫn được ghi dữ liệu vượt giới hạn</b> (chỉ số và tỷ lệ đạt vẫn đủ), chỉ không tạo sự cố và không báo lên cấp trên.</p>
                   <div className="flex items-center gap-2 mt-3 flex-wrap">
-                    {[["P1", "P1 · trọng yếu"], ["P2", "P2 · quan trọng"], ["P3", "P3 · thường"]].map(([p, lbl]) => { const on = alertUuTien.includes(p); return (
+                    {[["P1", "Mức 1 · trọng yếu"], ["P2", "Mức 2 · quan trọng"], ["P3", "Mức 3 · thường"]].map(([p, lbl]) => { const on = alertUuTien.includes(p); return (
                       <button key={p} onClick={() => toggleUuTien(p)} disabled={!canManage} className={`px-3.5 py-2 rounded-xl text-tk-xs font-medium ring-1 transition disabled:opacity-60 ${on ? "text-white ring-transparent" : "text-muted bg-surface ring-line hover:ring-success-line"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}>{on ? "✓ " : ""}{lbl}</button>
                     ); })}
                   </div>
-                  <p className="text-tk-xs text-muted mt-2">Đang cảnh báo: <b className="text-body">{alertUuTien.join(" · ") || "—"}</b>{alertUuTien.length === 3 ? " (tất cả phòng)" : ""}. Phải giữ ít nhất 1 cấp.</p>
+                  <p className="text-tk-xs text-muted mt-2">Đang cảnh báo: <b className="text-body">{alertUuTien.map((p) => `Mức ${p.slice(1)}`).join(" · ") || "—"}</b>{alertUuTien.length === 3 ? " (tất cả phòng)" : ""}. Phải giữ ít nhất 1 mức.</p>
                 </div>
                 <div className="rounded-2xl bg-subtle ring-1 ring-line p-4 mt-4">
                   <label className="text-tk-xs font-semibold text-body">Hướng mở sự cố theo chỉ tiêu</label>
-                  <p className="text-tk-xs text-muted mt-0.5">Chọn <b>mở sự cố</b> khi vượt giới hạn <b>DƯỚI</b>, <b>TRÊN</b> hay <b>CẢ HAI</b> — theo từng chỉ tiêu. Vd: chênh áp (DP) thường chỉ nguy hiểm khi <b>thấp</b> (mất áp dương). Dữ liệu thô luôn ghi đủ; đổi lúc nào cũng được, áp dụng từ giờ chạy kế tiếp.</p>
+                  <p className="text-tk-xs text-muted mt-0.5">Với từng chỉ tiêu, chọn <b>mở sự cố</b> khi vượt giới hạn <b>dưới</b>, giới hạn <b>trên</b> hay <b>cả hai</b>. Ví dụ: chênh áp thường chỉ nguy hiểm khi <b>thấp</b> (mất áp dương). Dữ liệu gốc luôn được ghi đủ. Có thể đổi bất cứ lúc nào, áp dụng từ lần chấm điểm kế tiếp.</p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                     {[["DP", "Chênh áp"], ["RH", "Độ ẩm"], ["T", "Nhiệt độ"]].map(([k, ten]) => (
                       <div key={k} className="rounded-xl bg-surface ring-1 ring-line p-3">
                         <div className="text-tk-xs font-medium text-body mb-1.5">{ten} <span className="text-muted">({k})</span></div>
-                        <select aria-label={`Hướng mở sự cố cho ${ten}`} disabled={!canManage} value={(alertHuong[k] || {}).su_co || "CA_HAI"} onChange={(e) => doiHuong(k, "su_co", e.target.value)} className="w-full rounded-lg bg-subtle ring-1 ring-line px-2 py-1.5 text-tk-xs disabled:bg-subtle"><option value="CA_HAI">Cả hai (dưới + trên)</option><option value="DUOI">Chỉ khi THẤP (dưới)</option><option value="TREN">Chỉ khi CAO (trên)</option></select>
+                        <select aria-label={`Hướng mở sự cố cho ${ten}`} disabled={!canManage} value={(alertHuong[k] || {}).su_co || "CA_HAI"} onChange={(e) => doiHuong(k, "su_co", e.target.value)} className="w-full rounded-lg bg-subtle ring-1 ring-line px-2 py-1.5 text-tk-xs disabled:bg-subtle"><option value="CA_HAI">Cả hai (dưới và trên)</option><option value="DUOI">Chỉ khi thấp (dưới giới hạn)</option><option value="TREN">Chỉ khi cao (trên giới hạn)</option></select>
                       </div>
                     ))}
                   </div>
@@ -1455,7 +1455,7 @@ export default function AppShell() {
               )}
 
               {cfgTab === "phong" && (
-              <div className="space-y-5"><SectionTitle icon={Building2}>Quản lý phòng & cảm biến</SectionTitle><RoomManager rooms={rooms} cfg={cfg} canManage={canManage} onAdd={addRoom} onDelete={deleteRoom} onSaveEdits={saveRoomEdits} /></div>
+              <div className="space-y-5"><SectionTitle icon={Building2}>Quản lý phòng và cảm biến</SectionTitle><RoomManager rooms={rooms} cfg={cfg} canManage={canManage} onAdd={addRoom} onDelete={deleteRoom} onSaveEdits={saveRoomEdits} /></div>
               )}
 
               {cfgTab === "phantuyen" && (
@@ -1488,7 +1488,7 @@ export default function AppShell() {
                       <details className="rounded-2xl ring-1 ring-line px-4 py-3">
                         <summary className="cursor-pointer text-tk-sm font-medium text-muted select-none">Thông tin kỹ thuật</summary>
                         <div className="mt-3 space-y-2 text-tk-sm">
-                          <div className="flex items-center justify-between gap-3"><span className="text-muted w-44">Nguồn dữ liệu</span><code className="text-xs text-body bg-subtle px-2 py-1 rounded-lg ring-1 ring-line flex-1">{isLive ? "LIVE — đọc/ghi Supabase" : "DEMO — dữ liệu mẫu"}{/* copy-exception: trong details Thông tin kỹ thuật */}</code></div>
+                          <div className="flex items-center justify-between gap-3"><span className="text-muted w-44">Nguồn dữ liệu</span><code className="text-xs text-body bg-subtle px-2 py-1 rounded-lg ring-1 ring-line flex-1">{isLive ? "Dữ liệu thật · đọc/ghi Supabase" : "Dữ liệu mẫu"}{/* copy-exception: trong details Thông tin kỹ thuật */}</code></div>
                           <div className="flex items-center justify-between gap-3"><span className="text-muted w-44">Khóa môi trường</span><code className="text-xs text-body bg-subtle px-2 py-1 rounded-lg ring-1 ring-line flex-1">{HAS_SUPABASE ? "VITE_SUPABASE_URL · ANON_KEY" : "chưa thiết lập"}</code></div>
                         </div>
                       </details>

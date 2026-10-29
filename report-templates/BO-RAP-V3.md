@@ -18,11 +18,14 @@ Bộ dựng ba đầu ra của báo cáo giám sát môi trường phòng sạch
 - So sánh giữa các nhóm bằng **tỉ lệ**, không bằng số giờ cộng dồn.
 - Không dùng chữ "lệch" cho số đo ngoài dải (giữ "sai lệch" cho phiếu deviation),
   không "điểm %", không viết tắt tiếng Anh trong phần chữ.
-- Số giờ vượt giới hạn hành động gọi là "giờ ngoài giới hạn" (không "giờ nghiêm trọng");
-  chữ "nghiêm trọng" chỉ còn dùng cho mức của phiếu sự cố.
+- Hai đơn vị không được cộng với nhau: "trong ngưỡng" / "ngoài dải" tính theo PHÚT (cộng đúng
+  100%); "giờ vượt giới hạn hành động" là SỐ GIỜ cảm biến bị dán nhãn nghiêm trọng, luôn ghi kèm
+  chữ "số giờ". Chữ "nghiêm trọng" chỉ còn dùng cho mức của phiếu sự cố.
 - Phân loại việc phải xử lý do **luật cố định** trong `phanCap()`; máy viết nhận định
   chỉ nêu giả thuyết, dán nhãn "AI đề xuất", và bị lọc bởi `locPhatHien()`.
 - Sự cố mở SAU ngày chốt kỳ tách khối "Ngoài kỳ báo cáo", không tính vào kết quả kỳ.
+- Bản riêng khu (n8n truyền `cfg.khu`): "Toàn nhà máy" → "Cả khu X", bỏ bảng ba khu, lịch sử chỉ cột
+  khu đó. So sánh khu/cụm hiện cho mọi chỉ tiêu khi có ≥ 2 khu hoặc ≥ 2 cụm.
 
 ## Sửa và phát hành
 
@@ -37,8 +40,10 @@ báo, một khu, không sự cố) — phải "dựng được trang" hết trư
 
 ## Workflow nháp trên n8n
 
-`BMS WF5 v3 — Bố cục mới (nháp, không gửi mail)` — id `CKekaM0QRPl40GhQ`.
-KHÔNG đụng WF5 v2 đang chạy. Node "Gửi email báo cáo" TẮT SẴN.
+`BMS WF5 v3 — Báo cáo quản trị tuần/tháng/quý` — id `CKekaM0QRPl40GhQ`.
+**CHÍNH THỨC từ 04/09/2026** (đã publish, node gửi mail và node lịch BẬT). Đã gửi báo cáo tháng
+08/2026 tới 5 người trong `nguoi_nhan_bao_cao` (bản tổng 4 người, bản khu Q2 1 người). Lịch của
+WF5 v2 đã tắt; webhook "Gửi báo cáo bù" trên web vẫn trỏ v2 cho tới khi đổi `cau_hinh.wf5_webhook_bao_cao_bu`.
 
 Chuỗi (19 node, cập nhật 04/09/2026):
 
@@ -57,8 +62,11 @@ Những phần chép nguyên từ WF5 v2 (cùng credential, cùng bảng):
 - **Kiểm token webhook**: so `body._token` với `cau_hinh.webhook_token_web`; token rỗng
   trong DB = không kiểm. Khác v2 một điều: chạy thử từ trong n8n (`$execution.mode === 'test'`)
   không cần token, vì chỉ chủ n8n bấm được.
-- **Lịch thứ 5 07:00** (`0 0 7 * * 4`): node có sẵn nhưng **TẮT**. Bật lên là chạy song
-  song với v2 — chỉ bật khi đã tắt lịch của v2.
+- **Lịch** (`0 0 7 * * 4` tuần thứ 5; `0 0 7 1 * *` mùng 1: tháng lịch liền trước, + quý vào
+  1/4/7/10; múi giờ Asia/Ho_Chi_Minh): node có sẵn nhưng **TẮT**. Bật lên là chạy song song
+  với v2 — chỉ bật khi đã tắt lịch của v2.
+- **Bảng "So với bốn kỳ trước"**: cột `lich_su_ky` trong truy vấn Supabase (từ `kpi_ngay_scope`),
+  bộ ráp đọc `d.lich_su_ky`; thiếu thì ẩn bảng.
 - **Fan-out theo khu + Gắn khu vào kỳ**: bản TỔNG gửi người có ≥ 2 khu trong
   `nguoi_nhan_bao_cao`; mỗi khu C1/C4/Q2 có người nhận riêng thì thêm một bản khu.
   Bản TỔNG không có ai thì rơi về `cau_hinh.email_bao_cao_thang/tuan`; bản khu không có

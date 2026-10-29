@@ -13,7 +13,7 @@ import { fmtVN } from "../../lib/dinhDang";
 import { ChiCoLive } from "../../components/ui/ChiCoLive";
 
 // Số giờ cảm biến đứng → "5 giờ" / "3 ngày"; tuDau = chưa từng thấy cảm biến sống trong dữ liệu còn lưu ⇒ "≥".
-const fmtGio = (h, tuDau) => (h == null ? "—" : `${tuDau ? "≥ " : ""}${h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`}`);
+const fmtGio = (h, tuDau) => (h == null ? "—" : `${tuDau ? "ít nhất " : ""}${h >= 48 ? `${Math.round(h / 24)} ngày` : `${h} giờ`}`);
 const O_TEXTAREA = "w-full mt-1 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-tk-sm text-body focus:outline-none focus:ring-2 focus:ring-success-line";
 function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
   const [rows, setRows] = useState(null);
@@ -30,17 +30,17 @@ function TheDungHinhTongQuan({ isLive, khuChoPhep, onXemChiTiet }) {
     <Card className="p-5" style={{ background: "var(--warning-soft)" }}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
-          <SectionTitle icon={Gauge} hint="theo dõi riêng · không tính vào chấm điểm">Cảm biến đứng tín hiệu — {ds.length} điểm đo</SectionTitle>
+          <SectionTitle icon={Gauge} hint="theo dõi riêng · không tính vào chấm điểm">Cảm biến đứng tín hiệu · {ds.length} điểm đo</SectionTitle>
           <p className="mt-1.5 text-tk-sm text-body leading-relaxed max-w-3xl">
-            Giá trị không thay đổi ít nhất 3 giờ — tạm không dùng để đánh giá trạng thái phòng, chờ Cơ điện khôi phục đầu đo.
+            Giá trị không thay đổi trong ít nhất 3 giờ. Các điểm này tạm không dùng để đánh giá trạng thái phòng cho tới khi Cơ điện khôi phục đầu đo.
           </p>
         </div>
-        {onXemChiTiet && <button onClick={onXemChiTiet} className="shrink-0 flex items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 text-tk-xs font-semibold text-warning ring-1 ring-warning-line hover:bg-warning-soft">Xem chi tiết → tab Cảm biến</button>}
+        {onXemChiTiet && <button onClick={onXemChiTiet} className="shrink-0 flex items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 text-tk-xs font-semibold text-warning ring-1 ring-warning-line hover:bg-warning-soft">Xem chi tiết ở tab Cảm biến</button>}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {ds.map((r) => (
           <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-tk-xs font-medium ring-1 ${r.so_gio_dung >= 168 ? "text-danger bg-danger-soft ring-danger-line" : "text-warning bg-warning-soft ring-warning-line"}`}>
-            <b>{r.ma_phong}</b> · {r.loai_cam_bien} · đứng {fmtGio(r.so_gio_dung, r.tu_dau_lich_su)} (giữ nguyên ở {r.gia_tri_dung})
+            <b>{r.ma_phong}</b> · {SENSOR_META[r.loai_cam_bien]?.label || r.loai_cam_bien} · đứng {fmtGio(r.so_gio_dung, r.tu_dau_lich_su)} (giữ nguyên ở {r.gia_tri_dung})
           </span>
         ))}
       </div>
@@ -74,21 +74,21 @@ function ModalKetLuanCum({ cum, dangChay, onDong, onLuu }) {
     <div className="bms-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) dong(); }}>
       <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-surface shadow-2xl p-6 outline-none" onClick={(e) => e.stopPropagation()}>
         <h3 id={idTieuDe} className="text-[15px] font-semibold text-strong">Kết luận điều tra · {cum.ma_hien_thi}</h3>
-        <p className="mt-1 text-tk-xs text-muted leading-relaxed">{cum.ahu || "—"} · {cum.loai_cam_bien} · {cum.su_co_dang_mo} sự cố đang mở. Kết luận ghi vào cụm và <b>một dòng audit cho từng sự cố</b> thuộc cụm — không hồ sơ nào mất dấu vết.</p>
+        <p className="mt-1 text-tk-xs text-muted leading-relaxed">{cum.ahu || "—"} · {SENSOR_META[cum.loai_cam_bien]?.label || cum.loai_cam_bien} · {cum.su_co_dang_mo} sự cố đang mở. Kết luận được ghi vào cụm và vào <b>nhật ký truy vết của từng sự cố</b> trong cụm, nên không hồ sơ nào mất dấu vết.</p>
         <label htmlFor={idNguyenNhan} className="block mt-4 text-tk-xs font-semibold uppercase tracking-wider text-muted">Nguyên nhân gốc <span className="text-danger">*</span></label>
         <textarea id={idNguyenNhan} className={O_TEXTAREA} rows={2} value={nguyenNhan} onChange={(e) => setNguyenNhan(e.target.value)} placeholder="Vì sao xảy ra? (ít nhất 10 ký tự)" />
         <label htmlFor={idKhacPhuc} className="block mt-3 text-tk-xs font-semibold uppercase tracking-wider text-muted">Hành động khắc phục <span className="text-danger">*</span></label>
-        <textarea id={idKhacPhuc} className={O_TEXTAREA} rows={2} value={khacPhuc} onChange={(e) => setKhacPhuc(e.target.value)} placeholder="Đã/sẽ làm gì để hết lệch? (ít nhất 10 ký tự)" />
+        <textarea id={idKhacPhuc} className={O_TEXTAREA} rows={2} value={khacPhuc} onChange={(e) => setKhacPhuc(e.target.value)} placeholder="Đã hoặc sẽ làm gì để hết sai lệch? (ít nhất 10 ký tự)" />
         <label htmlFor={idPhongNgua} className="block mt-3 text-tk-xs font-semibold uppercase tracking-wider text-muted">Hành động phòng ngừa</label>
         <textarea id={idPhongNgua} className={O_TEXTAREA} rows={2} value={phongNgua} onChange={(e) => setPhongNgua(e.target.value)} placeholder="Làm gì để không tái diễn? (bỏ trống được)" />
         <label htmlFor={idKetLuan} className="block mt-3 text-tk-xs font-semibold uppercase tracking-wider text-muted">Kết luận QA về ảnh hưởng chất lượng</label>
-        <textarea id={idKetLuan} className={O_TEXTAREA} rows={2} value={ketLuan} onChange={(e) => setKetLuan(e.target.value)} placeholder="Có/không ảnh hưởng lô sản xuất, căn cứ… (bỏ trống được)" />
+        <textarea id={idKetLuan} className={O_TEXTAREA} rows={2} value={ketLuan} onChange={(e) => setKetLuan(e.target.value)} placeholder="Có ảnh hưởng lô sản xuất không, căn cứ vào đâu… (bỏ trống được)" />
         <div className="mt-5 flex items-center justify-end gap-2">
           <button onClick={dong} disabled={dangChay} className="rounded-xl bg-surface px-4 py-2 min-h-11 text-tk-sm font-medium text-body ring-1 ring-line hover:bg-subtle disabled:opacity-40">Huỷ</button>
           <button disabled={thieu || dangChay} onClick={luu}
             className="rounded-xl px-4 py-2 min-h-11 text-tk-sm font-semibold text-white disabled:opacity-40" style={{ background: "var(--primary-solid)" }}>{dangChay ? "Đang lưu…" : "Lưu kết luận"}</button>
         </div>
-        {thieu && <p className="mt-2 text-right text-tk-xs text-muted">Nguyên nhân gốc và khắc phục cần ≥ 10 ký tự.</p>}
+        {thieu && <p className="mt-2 text-right text-tk-xs text-muted">Nguyên nhân gốc và hành động khắc phục cần ít nhất 10 ký tự.</p>}
       </div>
     </div>, document.body);
 }
@@ -125,15 +125,16 @@ function CamBienPage({ isLive }) {
         <div>
           <SectionTitle icon={Gauge}>Cảm biến đứng tín hiệu</SectionTitle>
           <p className="mt-1.5 text-tk-sm text-body leading-relaxed max-w-3xl">
-            Giá trị không thay đổi ít nhất 3 giờ. Các điểm này tạm không dùng để đánh giá trạng thái phòng — Cơ điện kiểm tra hoặc thay đầu đo.
+            Giá trị không thay đổi ít nhất 3 giờ. Các điểm này tạm không dùng để đánh giá trạng thái phòng. Cơ điện cần kiểm tra hoặc thay đầu đo.
           </p>
           <details className="mt-1.5 max-w-3xl">
             <summary className="cursor-pointer text-tk-xs font-medium text-muted select-none">Xem giải thích</summary>
             <p className="mt-1.5 text-tk-xs text-muted leading-relaxed">
               Nguyên nhân thường gặp: hỏng đầu đo, mất kết nối hoặc treo tín hiệu tại nguồn dữ liệu. Phòng có cảm biến
-              đứng tín hiệu được tách riêng như phòng thiếu dữ liệu: không chấm mức, không mở sự cố, không tính vào báo
-              cáo chung; cảm biến sống lại sẽ tự trở lại chấm điểm bình thường. Dấu <b>≥</b> nghĩa là cảm biến chưa từng
-              cho một giờ đo còn sống nào trong toàn bộ dữ liệu còn lưu — thời gian đứng thật có thể dài hơn số hiển thị.
+              đứng tín hiệu được tách riêng giống phòng thiếu dữ liệu: không chấm mức, không mở sự cố, không tính vào
+              báo cáo chung. Khi cảm biến có tín hiệu trở lại, phòng tự được chấm điểm bình thường. Chữ <b>ít nhất</b>
+              nghĩa là trong toàn bộ dữ liệu còn lưu, cảm biến chưa có giờ đo bình thường nào, nên thời gian đứng thật
+              có thể dài hơn số hiển thị.
             </p>
           </details>
         </div>
@@ -155,7 +156,7 @@ function CamBienPage({ isLive }) {
       ) : duNguong.length > 0 && (
         <div tabIndex={0} role="region" aria-label="Bảng cảm biến đứng tín hiệu, cuộn ngang để xem thêm" className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
-            <caption className="sr-only">Cảm biến đứng tín hiệu từ 3 giờ trở lên — {duNguong.length} điểm đo</caption>
+            <caption className="sr-only">Cảm biến đứng tín hiệu từ 3 giờ trở lên · {duNguong.length} điểm đo</caption>
             <thead><tr className="text-tk-xs uppercase tracking-wider text-muted border-b border-line">
               <th scope="col" className="py-2 pr-4 font-semibold">Phòng</th>
               <th scope="col" className="py-2 pr-4 font-semibold">Khu · AHU</th>
@@ -187,12 +188,12 @@ function CamBienPage({ isLive }) {
       )}
       {rows !== null && nghi.length > 0 && (
         <div className="mt-5 rounded-2xl bg-subtle ring-1 ring-line px-4 py-3">
-          <p className="text-tk-xs font-semibold text-body">Nghi đứng tín hiệu — mới dưới 3 giờ ({nghi.length} điểm đo)</p>
-          <p className="mt-0.5 text-tk-xs text-muted leading-relaxed">Giá trị vừa lặp y hệt trong 1–2 giờ gần nhất. <b>Chưa đủ ngưỡng 3 giờ</b> nên vẫn chấm điểm và mở phiếu như thường; nếu tiếp tục đứng, đủ 3 giờ sẽ tự chuyển lên bảng trên và được tách khỏi cảnh báo.</p>
+          <p className="text-tk-xs font-semibold text-body">Nghi đứng tín hiệu, chưa tới 3 giờ ({nghi.length} điểm đo)</p>
+          <p className="mt-0.5 text-tk-xs text-muted leading-relaxed">Giá trị lặp lại y hệt trong 1–2 giờ gần nhất. <b>Chưa đủ 3 giờ</b> nên vẫn chấm điểm và mở sự cố như thường. Nếu tiếp tục đứng đủ 3 giờ, điểm đo sẽ tự chuyển lên bảng trên và được tách khỏi cảnh báo.</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {nghi.map((r) => (
               <span key={`${r.ma_phong}-${r.loai_cam_bien}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-tk-xs font-medium ring-1 text-body bg-surface ring-line">
-                <b>{r.ma_phong}</b> · {r.loai_cam_bien} · {r.so_gio_dung} giờ (giữ nguyên ở {r.gia_tri_dung})
+                <b>{r.ma_phong}</b> · {SENSOR_META[r.loai_cam_bien]?.label || r.loai_cam_bien} · {r.so_gio_dung} giờ (giữ nguyên ở {r.gia_tri_dung})
               </span>
             ))}
           </div>
@@ -220,13 +221,13 @@ function ModalMoLai({ row, act, dangChay, onDong, onLuu }) {
         <h3 id={idTieuDe} className="text-[15px] font-semibold text-strong">Mở lại {row.ma_hien_thi} · {row.phong}</h3>
         <p className="mt-1 text-tk-xs text-muted leading-relaxed">{row.cam_bien_vi} · đã đóng {fmtVN(row.dong_luc, "ngayGioNgan")} ({row.nhan_trang_thai || row.trang_thai}). Sự cố sẽ quay lại danh sách đang mở và nhập vào cụm điều tra hiện hành.</p>
         <label htmlFor={idLyDo} className="block mt-4 text-tk-xs font-semibold uppercase tracking-wider text-muted">Lý do mở lại <span className="text-danger">*</span></label>
-        <textarea id={idLyDo} className={O_TEXTAREA} rows={3} value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Vì sao hồ sơ này chưa thể khép? (ít nhất 10 ký tự — ghi vào audit)" />
+        <textarea id={idLyDo} className={O_TEXTAREA} rows={3} value={lyDo} onChange={(e) => setLyDo(e.target.value)} placeholder="Vì sao hồ sơ này chưa thể đóng? (ít nhất 10 ký tự, được ghi vào nhật ký truy vết)" />
         <div className="mt-5 flex items-center justify-end gap-2">
           <button onClick={onDong} className="rounded-xl bg-surface px-4 py-2 text-tk-sm font-medium text-body ring-1 ring-line hover:bg-subtle">Huỷ</button>
           <button disabled={thieu || dangChay} onClick={() => onLuu(lyDo.trim())}
             className="rounded-xl px-4 py-2 text-tk-sm font-semibold" style={act?.style || {}}>{dangChay ? "Đang mở lại…" : (act?.label || "Mở lại sự cố")}</button>
         </div>
-        {thieu && <p className="mt-2 text-right text-tk-xs text-muted">Lý do cần ≥ 10 ký tự.</p>}
+        {thieu && <p className="mt-2 text-right text-tk-xs text-muted">Lý do cần ít nhất 10 ký tự.</p>}
       </div>
     </div>, document.body);
 }
@@ -239,12 +240,12 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo })
   const honHop = (cum.chan_doan || "").startsWith("HỖN HỢP");
   return (
     <InspectorDrawer onClose={onDong} eyebrow="Cụm điều tra"
-      title={`${cum.ma_hien_thi} — ${cum.ahu || "Không rõ AHU"} · ${cum.loai_cam_bien}`}
-      actions={<button onClick={onInHoSo} title="Hồ sơ đầy đủ: CAPA + mọi sự cố thành viên + audit — in hoặc lưu PDF cho thanh tra" className="rounded-xl px-2.5 py-1 text-tk-sm font-medium text-success ring-1 ring-success-line bg-success-soft hover:bg-success-soft">In hồ sơ</button>}>
+      title={`${cum.ma_hien_thi} · ${cum.ahu || "Không rõ AHU"} · ${SENSOR_META[cum.loai_cam_bien]?.label || cum.loai_cam_bien}`}
+      actions={<button onClick={onInHoSo} title="In hoặc lưu PDF hồ sơ đầy đủ cho thanh tra: CAPA, mọi sự cố trong cụm và nhật ký truy vết" className="rounded-xl px-2.5 py-1 text-tk-sm font-medium text-success ring-1 ring-success-line bg-success-soft hover:bg-success-soft">In hồ sơ</button>}>
       <div className="space-y-4">
           <span className={`inline-block rounded-lg px-2.5 py-1 text-tk-xs leading-tight ${hh ? "text-body bg-subtle" : honHop ? "text-warning bg-warning-soft" : "text-danger bg-danger-soft"}`}>{docTenVaiTro(cum.chan_doan, cum.khu_vuc)}</span>
           <div className="grid grid-cols-2 gap-2 text-tk-xs">
-            <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-tk-xs uppercase tracking-wider">Khu · mở</span><span className="font-semibold text-body tabular-nums">{cum.khu_vuc} · {Math.round(cum.gio_mo)} giờ</span></div>
+            <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-tk-xs uppercase tracking-wider">Khu · đã mở</span><span className="font-semibold text-body tabular-nums">{cum.khu_vuc} · {Math.round(cum.gio_mo)} giờ</span></div>
             <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-tk-xs uppercase tracking-wider">Sự cố mở</span><span className="font-semibold text-body tabular-nums">{cum.su_co_dang_mo}{cum.so_chua_tiep_nhan > 0 && <span className="text-danger font-medium"> · {cum.so_chua_tiep_nhan} chưa tiếp nhận</span>}</span></div>
           </div>
           <div className="rounded-2xl ring-1 ring-line p-3">
@@ -274,7 +275,7 @@ function CumDrawer({ cum, dsSuCo, onDong, coQuyenKetLuan, onKetLuan, onInHoSo })
                       ? <span className="rounded-lg bg-subtle px-1.5 py-0.5 text-tk-xs text-muted">cảm biến đứng tín hiệu</span>
                       : <span className="rounded-lg bg-danger-soft px-1.5 py-0.5 text-tk-xs text-danger">{i.sensor}</span>}
                   </div>
-                  <p className="mt-0.5 text-muted">{i.status} · kéo dài {i.duration} giờ{i.giaTriGanNhat != null && <> · TB 5′ cuối <b className="tabular-nums text-body">{i.giaTriGanNhat}{i.donVi}</b>{i.cuaSo5p && <span className="tabular-nums"> ({i.cuaSo5p}{i.ngay5p ? ` · ${i.ngay5p}` : ""})</span>}</>}</p>
+                  <p className="mt-0.5 text-muted">{i.status} · kéo dài {i.duration} giờ{i.giaTriGanNhat != null && <> · trung bình 5 phút cuối <b className="tabular-nums text-body">{i.giaTriGanNhat}{i.donVi}</b>{i.cuaSo5p && <span className="tabular-nums"> ({i.cuaSo5p}{i.ngay5p ? ` · ${i.ngay5p}` : ""})</span>}</>}</p>
                 </div>
               ))}
             </div>

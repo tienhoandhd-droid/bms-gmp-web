@@ -4,7 +4,7 @@ import { Activity, AlertOctagon, CheckCircle2, Settings as Cog, KeyRound, LogIn,
 import { Card, HeaderChip, MucBadge, SectionTitle } from "../../components/ui/Card";
 import { useHopThoai } from "../../components/ui/HopThoai";
 import { dangNhapMatKhau, doiMatKhau } from "../../lib/auth";
-import { COLOR, fmtPct } from "../../lib/designTokens";
+import { COLOR, SENSOR_META_BASE, fmtPct } from "../../lib/designTokens";
 import { DS_KHU, DB_MOI_MAC_DINH, VAI_TRO_CHON } from "../../lib/phanQuyen";
 import { kiemChuoiHashAudit, layNguoiDung, layTaiKhoanChuaPhanQuyen, luuNguoiDung } from "../../lib/supabaseData";
 import { cardShadow } from "../../lib/uiConst";
@@ -35,7 +35,7 @@ function LoginModal({ onClose, isLive }) {
   return (
     <div className="bms-backdrop" onClick={onClose}>
       <div ref={hopRef} role="dialog" aria-modal="true" aria-labelledby={idTieuDe} tabIndex={-1} className="w-full max-w-md rounded-3xl bg-surface ring-1 ring-line overflow-hidden outline-none" style={{ boxShadow: "0 30px 80px -20px rgba(30,58,86,0.5)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 pt-6 pb-4 flex items-center gap-3" style={{ background: "var(--bg-subtle)" }}><div className="rounded-2xl bg-surface p-2.5 ring-1 ring-success-line"><LogIn className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 id={idTieuDe} className="text-base font-semibold text-strong">Đăng nhập</h2><p className="text-tk-xs text-muted">Email + mật khẩu — phân quyền theo vai trò</p></div></div>
+        <div className="px-6 pt-6 pb-4 flex items-center gap-3" style={{ background: "var(--bg-subtle)" }}><div className="rounded-2xl bg-surface p-2.5 ring-1 ring-success-line"><LogIn className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /></div><div><h2 id={idTieuDe} className="text-base font-semibold text-strong">Đăng nhập</h2><p className="text-tk-xs text-muted">Dùng email và mật khẩu được cấp</p></div></div>
         <div className="px-6 py-5 space-y-4">
           {/* Placeholder không được tính là nhãn (WCAG 3.3.2) → thêm <label> thật */}
           <div><label htmlFor={idEmail} className="text-tk-xs font-semibold text-body mb-1 block">Email</label>
@@ -44,7 +44,7 @@ function LoginModal({ onClose, isLive }) {
           <input id={idMk} type="password" value={matKhau} onChange={(e) => setMatKhau(e.target.value)} onKeyDown={(e) => e.key === "Enter" && dangNhap()} placeholder="Mật khẩu" autoComplete="current-password" className="w-full rounded-2xl bg-subtle ring-1 ring-line px-4 py-3 text-sm text-body outline-none focus:ring-2 focus:ring-success-line" /></div>
           {loi && <p role="alert" className="text-tk-xs text-danger">{loi}</p>}
           <button disabled={dangXuLy} onClick={dangNhap} className="w-full text-sm font-semibold text-white rounded-2xl py-3 disabled:opacity-60" style={{ backgroundColor: "var(--primary-solid)" }}>{dangXuLy ? "Đang đăng nhập…" : "Đăng nhập"}</button>
-          <p className="text-tk-xs text-muted leading-relaxed">Tài khoản do quản trị (IT) cấp trong bảng người dùng. Vai trò xác định theo email.</p>
+          <p className="text-tk-xs text-muted leading-relaxed">Tài khoản do Quản trị (IT) cấp. Quyền xem của bạn được xác định theo email.</p>
         </div>
       </div>
     </div>
@@ -81,10 +81,10 @@ function SucKhoeWidget({ sk, dangTai }) {
   // 09:39 mà tới 11:00 đèn vẫn XANH. 81 phút hệ thống nói "khoẻ" trong khi đã câm.
   const tip = [
     sk.tomTat ? `Chẩn đoán: ${sk.tomTat}` : null,
-    cuaSo ? `Cửa sổ dữ liệu mới nhất: ${cuaSo}` : "Chưa có bản ghi dữ liệu",
-    `Trễ ${treTxt} tính từ mốc đóng cửa sổ giờ (ngưỡng mất dữ liệu ${sk.nguongGio ?? 2}h; thu mỗi giờ nên trễ ≤ ~1.1h là bình thường)`,
+    cuaSo ? `Khung giờ dữ liệu mới nhất: ${cuaSo}` : "Chưa có bản ghi dữ liệu",
+    `Dữ liệu trễ ${treTxt} so với cuối khung giờ gần nhất. Hệ thống thu dữ liệu mỗi giờ nên trễ khoảng 1,1 giờ trở xuống là bình thường; trễ quá ${sk.nguongGio ?? 2} giờ là mất dữ liệu.`,
     lc ? `Chấm điểm dữ liệu lần cuối: ${lc.trangThai || "?"}${lc.ketThuc ? " · " + fmtVN(lc.ketThuc, "dayDu") : ""}` : "Chưa ghi nhận lượt chấm điểm dữ liệu",
-    `Sự cố đang mở: ${sk.suCoDangMo} (Mức 1: ${sk.soCritical} · Cảnh báo: ${sk.soWarning})`,
+    `Sự cố đang mở: ${sk.suCoDangMo} (Nghiêm trọng: ${sk.soCritical} · Cảnh báo: ${sk.soWarning})`,
   ].filter(Boolean).join("\n");
   // Mạch phút chết = FMS/Edge đang câm NGAY LÚC NÀY — nặng hơn "rollup giờ trễ".
   const machChet = (sk.lyDo || []).includes("mach_phut") && sk.machPhutPhut != null;
@@ -98,7 +98,7 @@ function SucKhoeWidget({ sk, dangTai }) {
       <Icon className={`w-4 h-4 ${txt}`} strokeWidth={1.8} />
       <div className="leading-tight">
         <p className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Trạng thái</p>
-        <p className={`text-xs font-semibold ${txt}`}>{mat ? (machChet ? `MẤT NGUỒN · ${sk.machPhutPhut}′` : "MẤT DỮ LIỆU") : `Dữ liệu mới · trễ ${treTxt}`}</p>
+        <p className={`text-xs font-semibold ${txt}`}>{mat ? (machChet ? `Mất nguồn · ${sk.machPhutPhut} phút` : "Mất dữ liệu") : `Dữ liệu mới · trễ ${treTxt}`}</p>
       </div>
     </div>
   );
@@ -115,10 +115,10 @@ function DoiMatKhauCard({ user, isLive }) {
   const doi = async () => {
     setLoi(""); setOk(false);
     if (!mkCu) { setLoi("Vui lòng nhập mật khẩu hiện tại."); return; }
-    if (mk1.length < 6) { setLoi("Mật khẩu mới tối thiểu 6 ký tự."); return; }
+    if (mk1.length < 6) { setLoi("Mật khẩu mới phải có ít nhất 6 ký tự."); return; }
     if (mk1 === mkCu) { setLoi("Mật khẩu mới phải khác mật khẩu hiện tại."); return; }
     if (mk1 !== mk2) { setLoi("Hai mật khẩu nhập không khớp."); return; }
-    if (!isLive) { setLoi("Chỉ đổi được mật khẩu ở chế độ LIVE (đã đăng nhập thật)."); return; }
+    if (!isLive) { setLoi("Chỉ đổi được mật khẩu khi đã đăng nhập ở chế độ dữ liệu thật."); return; }
     setDang(true);
     const { error } = await doiMatKhau(mkCu, mk1);
     setDang(false);
@@ -154,7 +154,7 @@ function DoiMatKhauCard({ user, isLive }) {
             style={{ background: "var(--primary-solid)" }}>
             {dang ? "Đang đổi…" : "Đổi mật khẩu"}
           </button>
-          <p className="text-tk-xs text-muted leading-relaxed">Cần xác thực mật khẩu hiện tại. Mật khẩu mới tối thiểu 6 ký tự; lần đăng nhập sau dùng mật khẩu mới.</p>
+          <p className="text-tk-xs text-muted leading-relaxed">Bạn cần nhập đúng mật khẩu hiện tại. Mật khẩu mới có ít nhất 6 ký tự và có hiệu lực từ lần đăng nhập sau.</p>
         </div>
       )}
     </Card>
@@ -173,10 +173,10 @@ function DoiMatKhauModal({ user, isLive, onClose }) {
   const doi = async () => {
     setLoi(""); setOk(false);
     if (!mkCu) { setLoi("Vui lòng nhập mật khẩu hiện tại."); return; }
-    if (mk1.length < 6) { setLoi("Mật khẩu mới tối thiểu 6 ký tự."); return; }
+    if (mk1.length < 6) { setLoi("Mật khẩu mới phải có ít nhất 6 ký tự."); return; }
     if (mk1 === mkCu) { setLoi("Mật khẩu mới phải khác mật khẩu hiện tại."); return; }
     if (mk1 !== mk2) { setLoi("Hai mật khẩu nhập không khớp."); return; }
-    if (!isLive) { setLoi("Chỉ đổi được mật khẩu ở chế độ LIVE (đã đăng nhập thật)."); return; }
+    if (!isLive) { setLoi("Chỉ đổi được mật khẩu khi đã đăng nhập ở chế độ dữ liệu thật."); return; }
     setDang(true);
     const { error } = await doiMatKhau(mkCu, mk1);
     setDang(false);
@@ -210,7 +210,7 @@ function DoiMatKhauModal({ user, isLive, onClose }) {
           {loi && <p role="alert" className="text-tk-xs text-danger">{loi}</p>}
           {ok && <p role="status" aria-live="polite" className="text-tk-xs text-success">Đã đổi mật khẩu thành công.</p>}
           <button disabled={dang} onClick={doi} className="w-full text-sm font-semibold text-white rounded-2xl py-2.5 disabled:opacity-60" style={{ background: "var(--primary-solid)" }}>{dang ? "Đang đổi…" : "Đổi mật khẩu"}</button>
-          <p className="text-tk-xs text-muted leading-relaxed">Cần xác thực mật khẩu hiện tại. Mật khẩu mới tối thiểu 6 ký tự; lần đăng nhập sau dùng mật khẩu mới.</p>
+          <p className="text-tk-xs text-muted leading-relaxed">Bạn cần nhập đúng mật khẩu hiện tại. Mật khẩu mới có ít nhất 6 ký tự và có hiệu lực từ lần đăng nhập sau.</p>
         </div>
       </div>
     </div>
@@ -221,28 +221,28 @@ function DoiMatKhauModal({ user, isLive, onClose }) {
 // Phân tích GMP chuyên sâu (MKT + SPC) — tất định, job đêm tính, chỉ hiện ở LIVE.
 function PhanTichGmpCard({ mkt, spc, isLive }) {
   if (!isLive) return (
-    <Card className="p-6"><SectionTitle icon={Activity} hint="MKT (ICH Q1A) + SPC (EWMA/CUSUM/Nelson)">Phân tích GMP chuyên sâu</SectionTitle>
-      <p className="mt-3 text-tk-sm text-muted">Hiển thị ở chế độ <b>LIVE</b> (đọc dữ liệu thật). MKT/SPC được hệ thống tính tất định mỗi đêm.</p>
+    <Card className="p-6"><SectionTitle icon={Activity} hint="MKT theo ICH Q1A và kiểm soát thống kê quá trình">Phân tích GMP chuyên sâu</SectionTitle>
+      <p className="mt-3 text-tk-sm text-muted">Chỉ hiển thị ở chế độ <b>dữ liệu thật</b>. Hệ thống tự tính MKT và tín hiệu dịch chuyển mỗi đêm.</p>
     </Card>
   );
   const mk = mkt || [], sp = spc || [];
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="p-6"><SectionTitle icon={Thermometer} hint="Nhiệt độ động học TB · 30 ngày · ICH Q1A">MKT theo phòng</SectionTitle>
-        <p className="text-tk-xs text-muted mt-1">MKT phạt các đợt nhiệt cao (Arrhenius), luôn ≥ nhiệt độ TB. Phòng MKT cao → chú ý phơi nhiễm nhiệt.</p>
+      <Card className="p-6"><SectionTitle icon={Thermometer} hint="Nhiệt độ động học trung bình · 30 ngày · ICH Q1A">MKT theo phòng</SectionTitle>
+        <p className="text-tk-xs text-muted mt-1">MKT (nhiệt độ động học trung bình) tính nặng các đợt nhiệt cao nên luôn bằng hoặc cao hơn nhiệt độ trung bình. Phòng có MKT cao cần chú ý nguy cơ phơi nhiễm nhiệt.</p>
         {mk.length ? (
-          <div className="overflow-x-auto mt-3"><table className="w-full text-tk-sm"><caption className="sr-only">Nhiệt độ động học trung bình (MKT) 30 ngày theo phòng</caption><thead><tr className="text-muted text-left text-tk-xs uppercase tracking-wider">{["Phòng", "Khu", "Ưu tiên", "MKT °C", "T TB", "T max"].map((hh) => <th key={hh} scope="col" className="py-2 pr-3 font-semibold whitespace-nowrap">{hh}</th>)}</tr></thead><tbody>
+          <div className="overflow-x-auto mt-3"><table className="w-full text-tk-sm"><caption className="sr-only">Nhiệt độ động học trung bình (MKT) 30 ngày theo phòng</caption><thead><tr className="text-muted text-left text-tk-xs uppercase tracking-wider">{["Phòng", "Khu", "Ưu tiên", "MKT °C", "Trung bình °C", "Cao nhất °C"].map((hh) => <th key={hh} scope="col" className="py-2 pr-3 font-semibold whitespace-nowrap">{hh}</th>)}</tr></thead><tbody>
             {mk.slice(0, 12).map((r) => <tr key={r.ma_phong} className="border-t border-line hover:bg-info-soft/40"><td className="py-2 pr-3"><span className="font-semibold text-strong">{r.ma_phong}</span> <span className="text-muted text-tk-xs">{r.ten_phong}</span></td><td className="py-2 pr-3 text-muted">{r.khu_vuc}</td><td className="py-2 pr-3">{r.muc_uu_tien && <MucBadge p={r.muc_uu_tien} />}</td><td className="py-2 pr-3 tabular-nums font-semibold text-strong">{r.mkt == null ? "—" : r.mkt.toFixed(2)}</td><td className="py-2 pr-3 tabular-nums text-body">{r.tTb == null ? "—" : r.tTb.toFixed(2)}</td><td className="py-2 pr-3 tabular-nums text-body">{r.tMax == null ? "—" : r.tMax.toFixed(2)}</td></tr>)}
           </tbody></table></div>
-        ) : <p className="mt-3 text-tk-sm text-muted">Chưa có dữ liệu MKT (cần sensor nhiệt + job đêm đã chạy).</p>}
+        ) : <p className="mt-3 text-tk-sm text-muted">Chưa có dữ liệu MKT. Cần có cảm biến nhiệt độ và tác vụ tự động ban đêm đã chạy.</p>}
       </Card>
-      <Card className="p-6"><SectionTitle icon={Activity} hint="EWMA · CUSUM · Nelson rules">SPC — cảnh báo dịch chuyển</SectionTitle>
-        <p className="text-tk-xs text-muted mt-1">"Ngoài kiểm soát" = có tín hiệu dịch chuyển/xu hướng trước khi vượt ngưỡng OOS. Nelson1=vượt 3σ, 2=9 điểm cùng phía, 3=6 điểm tăng/giảm.</p>
+      <Card className="p-6"><SectionTitle icon={Activity} hint="Phát hiện sớm số liệu lệch dần">Cảnh báo dịch chuyển sớm</SectionTitle>
+        <p className="text-tk-xs text-muted mt-1">"Ngoài kiểm soát" nghĩa là số liệu đang lệch dần hoặc có xu hướng, dù chưa vượt giới hạn. Quy tắc Nelson số 1: một điểm vượt 3 lần độ lệch chuẩn. Số 2: 9 điểm liên tiếp cùng một phía đường trung bình. Số 3: 6 điểm liên tiếp cùng tăng hoặc cùng giảm.</p>
         {sp.length ? (
-          <div className="overflow-x-auto mt-3"><table className="w-full text-tk-sm"><caption className="sr-only">Tín hiệu SPC dịch chuyển theo phạm vi và cảm biến</caption><thead><tr className="text-muted text-left text-tk-xs uppercase tracking-wider">{["Phạm vi", "Sensor", "Mục tiêu", "σ", "Tín hiệu", "Loại"].map((hh) => <th key={hh} scope="col" className="py-2 pr-3 font-semibold whitespace-nowrap">{hh}</th>)}</tr></thead><tbody>
-            {sp.slice(0, 12).map((r, i) => <tr key={`${r.scope || r.pham_vi || ""}-${r.sensor || r.loai_cam_bien || ""}-${i}`} className="border-t border-line hover:bg-info-soft/40"><td className="py-2 pr-3"><span className="font-semibold text-strong">{r.scope_id}</span> <span className="text-muted text-tk-xs">{r.ten_scope}</span></td><td className="py-2 pr-3 text-muted">{r.sensor_type}</td><td className="py-2 pr-3 tabular-nums text-body">{r.mucTieu == null ? "—" : fmtPct(r.mucTieu)}</td><td className="py-2 pr-3 tabular-nums text-body">{r.sigma == null ? "—" : r.sigma.toFixed(2)}</td><td className="py-2 pr-3"><span className="inline-block px-2 py-0.5 rounded-full text-tk-xs font-medium bg-danger-soft text-danger">{r.soTinHieu}</span></td><td className="py-2 pr-3 text-tk-xs text-muted">{r.cacLoai || "—"}</td></tr>)}
+          <div className="overflow-x-auto mt-3"><table className="w-full text-tk-sm"><caption className="sr-only">Tín hiệu dịch chuyển theo phạm vi và cảm biến</caption><thead><tr className="text-muted text-left text-tk-xs uppercase tracking-wider">{["Phạm vi", "Cảm biến", "Mục tiêu", "Độ lệch chuẩn", "Tín hiệu", "Loại"].map((hh) => <th key={hh} scope="col" className="py-2 pr-3 font-semibold whitespace-nowrap">{hh}</th>)}</tr></thead><tbody>
+            {sp.slice(0, 12).map((r, i) => <tr key={`${r.scope || r.pham_vi || ""}-${r.sensor || r.loai_cam_bien || ""}-${i}`} className="border-t border-line hover:bg-info-soft/40"><td className="py-2 pr-3"><span className="font-semibold text-strong">{r.scope_id}</span> <span className="text-muted text-tk-xs">{r.ten_scope}</span></td><td className="py-2 pr-3 text-muted">{SENSOR_META_BASE[r.sensor_type]?.label || r.sensor_type}</td><td className="py-2 pr-3 tabular-nums text-body">{r.mucTieu == null ? "—" : fmtPct(r.mucTieu)}</td><td className="py-2 pr-3 tabular-nums text-body">{r.sigma == null ? "—" : r.sigma.toFixed(2)}</td><td className="py-2 pr-3"><span className="inline-block px-2 py-0.5 rounded-full text-tk-xs font-medium bg-danger-soft text-danger">{r.soTinHieu}</span></td><td className="py-2 pr-3 text-tk-xs text-muted">{r.cacLoai || "—"}</td></tr>)}
           </tbody></table></div>
-        ) : <p className="mt-3 text-tk-sm text-success">Tất cả phạm vi đang trong kiểm soát — không có tín hiệu SPC.</p>}
+        ) : <p className="mt-3 text-tk-sm text-success">Tất cả phạm vi đang trong kiểm soát, chưa có tín hiệu dịch chuyển.</p>}
       </Card>
     </div>
   );
@@ -294,11 +294,11 @@ function TaiKhoanCard({ isLive, actor }) {
     setTimeout(() => setLuuMoi(null), 4000);
   };
 
-  if (!isLive) return <Card className="p-8 text-center text-tk-sm text-muted">Cần kết nối dữ liệu thật (LIVE) để quản lý tài khoản.</Card>;
+  if (!isLive) return <Card className="p-8 text-center text-tk-sm text-muted">Cần chuyển sang chế độ dữ liệu thật để quản lý tài khoản.</Card>;
   return (
     <Card className="p-6">
-      <SectionTitle icon={KeyRound} hint="chỉ Quản trị · gán vai trò + khu được xem cho từng tài khoản">Tài khoản & phân quyền xem</SectionTitle>
-      <p className="text-tk-xs text-muted mt-2">Mỗi tài khoản chỉ <b>xem</b> dữ liệu của các khu được tích — <b>chặn ngay tại máy chủ</b> (mọi tab: Tổng quan · Sự cố · Chênh áp · Xu hướng; kể cả gọi API trực tiếp cũng không lấy được khu khác). Tổng/toàn hệ với tài khoản giới hạn = gộp đúng các khu được xem. <b>Quản trị</b> luôn xem tất cả. Tạo tài khoản đăng nhập mới thực hiện ở Supabase; tại đây gán vai trò & khu — có hiệu lực ngay lần tải dữ liệu kế tiếp.</p>{/* copy-exception: hướng dẫn riêng ADMIN */}
+      <SectionTitle icon={KeyRound} hint="chỉ Quản trị · gán vai trò và khu được xem">Tài khoản và quyền xem</SectionTitle>
+      <p className="text-tk-xs text-muted mt-2">Mỗi tài khoản chỉ <b>xem</b> được dữ liệu của các khu đã tích. Việc chặn làm <b>ngay tại máy chủ</b> ở mọi trang (Tổng quan, Sự cố, Chênh áp, Xu hướng), kể cả khi gọi API trực tiếp. Với tài khoản bị giới hạn, số liệu toàn hệ thống chỉ gộp các khu được xem. <b>Quản trị</b> luôn xem được tất cả. Tài khoản đăng nhập mới được tạo trên Supabase; tại đây chỉ gán vai trò và khu, có hiệu lực từ lần tải dữ liệu kế tiếp.</p>{/* copy-exception: hướng dẫn riêng ADMIN */}
       {loi ? <p className="text-tk-sm text-danger mt-4">Không tải được danh sách (cần quyền Quản trị): {loi.thong_bao || loi.message}</p>
         : loading ? <p className="text-tk-sm text-muted mt-4">Đang tải…</p>
         : rows.length === 0 ? <p className="text-tk-sm text-muted mt-4">Chưa có tài khoản, hoặc bạn không có quyền Quản trị.</p>
@@ -337,7 +337,7 @@ function TaiKhoanCard({ isLive, actor }) {
             </tbody>
           </table>
           {luuMoi && luuMoi !== "dang" && luuMoi !== "ok" && <p role="alert" className="text-tk-xs text-danger mt-2">{luuMoi}</p>}
-          {chuaPhanQuyen.length === 0 && <p className="text-tk-xs text-muted mt-3">Mọi tài khoản đăng nhập đều đã được phân quyền. Tài khoản mới tạo ở <b>Supabase → Authentication → Users</b> sẽ tự hiện ở đây.</p>}{/* copy-exception: hướng dẫn riêng ADMIN */}
+          {chuaPhanQuyen.length === 0 && <p className="text-tk-xs text-muted mt-3">Mọi tài khoản đăng nhập đều đã được phân quyền. Tài khoản tạo mới trên Supabase (mục <b>Authentication</b>, trang <b>Users</b>) sẽ tự hiện ở đây.</p>}{/* copy-exception: hướng dẫn riêng ADMIN */}
         </div>
       )}
     </Card>
@@ -352,13 +352,13 @@ function ChuoiHashCard({ isLive }) {
     setDangChay(true);
     const { error, data } = await kiemChuoiHashAudit();
     setDangChay(false);
-    setKq(error ? { ok: false, thong_bao: error.thong_bao || "Không kiểm được" } : data);
+    setKq(error ? { ok: false, thong_bao: error.thong_bao || "Không kiểm tra được. Vui lòng thử lại." } : data);
   };
   return (
     <Card className="p-6">
-      <SectionTitle icon={ShieldCheck} hint="tamper-evident · 21 CFR Part 11">Toàn vẹn nhật ký audit</SectionTitle>
-      <p className="text-tk-xs text-muted mt-2 leading-relaxed">Mỗi bản ghi audit mang mã băm móc vào bản ghi trước. Sửa lén một dòng bất kỳ (kể cả bằng quyền cao nhất) là <b>đứt cả chuỗi</b> — nút dưới đây duyệt lại toàn bộ và chỉ ra ngay bản ghi đầu tiên bị đổi.</p>
-      <button disabled={!isLive || dangChay} onClick={chay} className="mt-3 rounded-xl px-4 py-2 text-tk-sm font-semibold text-white disabled:opacity-40" style={{ background: "var(--primary-solid)" }}>{dangChay ? "Đang duyệt…" : "Kiểm toàn vẹn chuỗi"}</button>
+      <SectionTitle icon={ShieldCheck} hint="chống sửa lén · 21 CFR Part 11">Toàn vẹn nhật ký truy vết</SectionTitle>
+      <p className="text-tk-xs text-muted mt-2 leading-relaxed">Mỗi dòng nhật ký truy vết mang mã băm nối với dòng trước. Chỉ cần sửa lén một dòng (kể cả bằng quyền cao nhất) là <b>đứt cả chuỗi</b>. Nút dưới đây kiểm lại toàn bộ và chỉ ra dòng đầu tiên bị sửa.</p>
+      <button disabled={!isLive || dangChay} onClick={chay} className="mt-3 rounded-xl px-4 py-2 text-tk-sm font-semibold text-white disabled:opacity-40" style={{ background: "var(--primary-solid)" }}>{dangChay ? "Đang kiểm tra…" : "Kiểm tra toàn vẹn"}</button>
       {kq && (
         <div role={kq.ok ? "status" : "alert"} aria-live={kq.ok ? "polite" : undefined} className={`mt-3 rounded-2xl px-4 py-3 text-tk-sm ${kq.ok ? "bg-success-soft text-success ring-1 ring-success-line" : "bg-danger-soft text-danger ring-1 ring-danger-line"}`}>
           {kq.ok ? "✓ " : "⚠ "}{kq.thong_bao}

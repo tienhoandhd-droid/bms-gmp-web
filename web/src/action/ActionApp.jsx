@@ -25,7 +25,7 @@ import logoCpc1hn from '../assets/logo-cpc1hn.png'
 const NAVY = 'var(--text-strong)'
 const TEAL = 'var(--primary-solid)'
 // Tên vai trò đầy đủ (không viết tắt trên giao diện — đồng bộ ROLE_VI của App).
-const VAI_TRO_VI = { IPC: 'Kiểm soát hiện trường', MEP: 'Cơ điện', LOT: 'Trực hồ sơ lô', QA: 'Đảm bảo chất lượng', ADMIN: 'Quản trị hệ thống', IT: 'Quản trị hệ thống' }
+const VAI_TRO_VI = { IPC: 'IPC', MEP: 'Cơ điện', LOT: 'Trực HSL', QA: 'QA', ADMIN: 'Quản trị', IT: 'Quản trị' }
 const tenVaiTro = (m) => VAI_TRO_VI[m] || m
 const PAGE_BG = 'var(--bg-canvas)'
 
@@ -105,12 +105,11 @@ function FormDangNhap({ onXong }) {
         {loi && <p role="alert" className="text-tk-sm text-danger">{loi}</p>}
         <button type="submit" disabled={dang}
           className="w-full rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-40" style={{ backgroundColor: TEAL }}>
-          {dang ? 'Đang đăng nhập…' : 'Đăng nhập & tiếp tục'}
+          {dang ? 'Đang đăng nhập…' : 'Đăng nhập và tiếp tục'}
         </button>
       </form>
       <p className="mt-3 text-tk-xs text-muted leading-relaxed">
-        Trang này cố tình gọn nhẹ để bấm nhiều nút không làm chậm web. Mỗi liên kết trong
-        email chỉ cần bấm một lần.
+        Mỗi liên kết trong email chỉ cần bấm một lần.
       </p>
     </Khung>
   )
@@ -253,7 +252,7 @@ function TheoVe({ email }) {
           <textarea value={lyDo} onChange={(e) => setLyDo(e.target.value)} rows={3} autoFocus
             placeholder="Ví dụ: van điều tiết kẹt, đã chỉnh lại 40% và theo dõi 30 phút"
             className="w-full mt-1.5 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm" />
-          <p className="text-tk-xs text-muted mt-1">Bắt buộc — ghi vào hồ sơ kiểm toán ALCOA+.</p>
+          <p className="text-tk-xs text-muted mt-1">Bắt buộc nhập. Nội dung được ghi vào nhật ký truy vết (ALCOA+).</p>
         </div>)}
       <div className="flex gap-2 mt-5">
         <a href={URL_DASHBOARD} className="flex-1 rounded-xl bg-subtle py-2.5 text-sm font-medium text-body text-center">Để sau</a>
@@ -275,10 +274,10 @@ export default function ActionApp() {
   }, [])
 
   // Trước đây chỉ một dòng chữ giữa nền trống — không biết mình đang ở đâu, không có lối ra.
-  if (!supabase) return <Khung><DauTrang phu="Chưa kết nối máy chủ dữ liệu" /><p className="mt-4 text-sm text-body leading-relaxed">Bản web này chưa được cấu hình máy chủ nên chưa thể mở phiếu sự cố từ email. Hãy báo Quản trị hệ thống, hoặc quay về bảng điều khiển.</p><NutMoDashboard /></Khung>
+  if (!supabase) return <Khung><DauTrang phu="Chưa kết nối máy chủ dữ liệu" /><p className="mt-4 text-sm text-body leading-relaxed">Bản web này chưa được cấu hình máy chủ nên chưa thể mở sự cố từ email. Hãy báo Quản trị hệ thống, hoặc quay về bảng điều khiển.</p><NutMoDashboard /></Khung>
   if (user === undefined) return <Khung><p className="text-sm text-muted py-6 text-center">Đang tải…</p></Khung>
   if (!user) return <FormDangNhap />
   if (LINK0.kind === 'incident') return <IncidentAction key={`${user.id || ''}:${user.email}`} email={user.email} incidentId={LINK0.incidentId} intent={LINK0.intent} Khung={Khung} DauTrang={DauTrang} NutMoDashboard={NutMoDashboard} tenVaiTro={tenVaiTro} />
-  if (LINK0.kind === 'invalid') return <Khung><DauTrang phu={user.email} /><p role="alert" className="mt-4 text-sm text-danger">Liên kết phiếu không hợp lệ.</p><NutMoDashboard /></Khung>
+  if (LINK0.kind === 'invalid') return <Khung><DauTrang phu={user.email} /><p role="alert" className="mt-4 text-sm text-danger">Liên kết không hợp lệ. Hãy mở lại từ email mới nhất.</p><NutMoDashboard /></Khung>
   return <TheoVe key={`${user.id || ''}:${user.email}`} email={user.email} />
 }

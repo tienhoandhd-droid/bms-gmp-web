@@ -177,7 +177,7 @@ export function OOSMini({ data }) {
   const option = {
     animation: false,
     grid: { top: 6, right: 4, bottom: 18, left: 4, containLabel: false },
-    tooltip: { trigger: "axis", ...tooltipBase(), formatter: (p) => `Giờ ${p[0].axisValue}<br/>${p[0].data} điểm OOS` },
+    tooltip: { trigger: "axis", ...tooltipBase(), formatter: (p) => `Giờ ${p[0].axisValue}<br/>${p[0].data} điểm vượt giới hạn` },
     xAxis: { ...axisX(data.map((d) => d.label), 1), axisLine: { show: false } },
     yAxis: { type: "value", show: false, min: 0 },
     series: [{ type: "bar", data: data.map((d) => d.oos), barMaxWidth: 16, itemStyle: { color: CHEX.softCoral, borderRadius: [3, 3, 0, 0] } }],
@@ -253,7 +253,7 @@ export function ChartComplyTotal({ data, height = 280, idSuffix = "", incidents 
           tone: v == null ? T().textMuted : bad ? CHEX.coralDeep : CHEX.teal,
           rows: [
             ["Tỉ lệ đạt", fmtPct(v), bad ? CHEX.coralDeep : CHEX.teal],
-            ["OOS", v == null ? "—" : `${(100 - v).toFixed(1)}%`, bad ? CHEX.coralDeep : T().textStrong],
+            ["Vượt giới hạn", v == null ? "—" : `${(100 - v).toFixed(1)}%`, bad ? CHEX.coralDeep : T().textStrong],
             ["Ngưỡng GMP", "80%", CHEX.sand],
             prv && prv.data != null ? ["Kỳ trước", fmtPct(prv.data), T().textMuted] : null,
           ],
@@ -300,7 +300,7 @@ export function ChartComplyPerMetric({ data, present, height = 280 }) {
         const rows = ps.map((p) => {
           const v = p.data;
           const bad = v != null && v < 80;
-          return [`● ${p.seriesName}`, `${fmtPct(v)} · OOS ${v == null ? "—" : `${(100 - v).toFixed(1)}%`}`, bad ? CHEX.coralDeep : p.color];
+          return [`● ${p.seriesName}`, `${fmtPct(v)} · vượt giới hạn ${v == null ? "—" : `${(100 - v).toFixed(1)}%`}`, bad ? CHEX.coralDeep : p.color];
         });
         return tooltipEvidence({ title: ps[0].axisValue, verdict: "Theo từng chỉ tiêu", tone: CHEX.sky, rows: [...rows, ["Ngưỡng GMP", "80%", CHEX.sand]] });
       },
@@ -337,9 +337,9 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
   const pad = Math.max(0.5, (yHi - yLo) * 0.1);
   const hasDomain = dv.length && isFinite(yLo) && isFinite(yHi);
   const markLineData = [];
-  if (lo != null) markLineData.push({ yAxis: lo, label: { formatter: `GHD ${lo}`, fontSize: 9, color: CHEX.coral, position: "insideStartBottom" }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.3 } });
-  if (hi != null) markLineData.push({ yAxis: hi, label: { formatter: `GHT ${hi}`, fontSize: 9, color: CHEX.coral, position: "insideStartTop" }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.3 } });
-  if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: CHEX.navy, position: "insideEndTop" }, lineStyle: { color: CHEX.navy, type: "dashed", width: 1.2 } });
+  if (lo != null) markLineData.push({ yAxis: lo, label: { formatter: `Giới hạn dưới ${lo}`, fontSize: 9, color: CHEX.coral, position: "insideStartBottom" }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.3 } });
+  if (hi != null) markLineData.push({ yAxis: hi, label: { formatter: `Giới hạn trên ${hi}`, fontSize: 9, color: CHEX.coral, position: "insideStartTop" }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.3 } });
+  if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `Trung bình ${mean}`, fontSize: 9, color: CHEX.navy, position: "insideEndTop" }, lineStyle: { color: CHEX.navy, type: "dashed", width: 1.2 } });
   if (bTb != null) markLineData.push({ yAxis: bTb, label: { formatter: `Nền 30n ${bTb}`, fontSize: 9, color: CHEX.sky, position: "insideEndBottom" }, lineStyle: { color: CHEX.sky, type: "dotted", width: 1.2 } });
   if (bTb != null && bSig != null && bSig > 0) {
     markLineData.push({ yAxis: +(bTb + bSig).toFixed(3), label: { show: false }, lineStyle: { color: echarts.color.modifyAlpha(CHEX.sky, 0.5), type: "dotted", width: 1 } });
@@ -358,8 +358,8 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
         if (v == null && p.p50 == null) return "";
         const oob = (lo != null && v < lo) || (hi != null && v > hi);
         const pctl = (p.p5 != null && p.p95 != null) ? `<div style="color:${T().textMuted}">P5–P95: ${(+p.p5).toFixed(2)}–${(+p.p95).toFixed(2)}${p.p50 != null ? ` · P50 ${(+p.p50).toFixed(2)}` : ""}</div>` : "";
-        const base = (bTb != null) ? `<div style="color:${CHEX.sky}">Nền 30n: ${bTb}${bSig != null ? ` ± ${bSig}` : ""} ${unit}</div>` : "";
-        return `<div style="font-weight:600;color:${CHEX.navy}">${ps[0].axisValue}</div><div>TB: <b style="color:${oob ? CHEX.coralDeep : color}">${v == null ? "—" : (+v).toFixed(2)} ${unit}</b>${oob ? ' <span style="color:${CHEX.coral}">· ngoài giới hạn</span>' : ""}</div><div style="color:${T().textMuted}">GHD ${lo == null ? "—" : lo} · GHT ${hi == null ? "—" : hi} ${unit}</div>${pctl}${base}`;
+        const base = (bTb != null) ? `<div style="color:${CHEX.sky}">Nền 30 ngày: ${bTb}${bSig != null ? ` ± ${bSig}` : ""} ${unit}</div>` : "";
+        return `<div style="font-weight:600;color:${CHEX.navy}">${ps[0].axisValue}</div><div>Trung bình: <b style="color:${oob ? CHEX.coralDeep : color}">${v == null ? "—" : (+v).toFixed(2)} ${unit}</b>${oob ? ' <span style="color:${CHEX.coral}">· ngoài giới hạn</span>' : ""}</div><div style="color:${T().textMuted}">Giới hạn dưới ${lo == null ? "—" : lo} · giới hạn trên ${hi == null ? "—" : hi} ${unit}</div>${pctl}${base}`;
       },
     },
     xAxis: axisX(series.map((p) => p.label), xTickEvery(series.length)),
@@ -368,7 +368,7 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
       ...bandSeries,
       ...(hasPct ? [{ name: "P50", type: "line", data: series.map((p) => (p.p50 != null ? p.p50 : null)), connectNulls: false, showSymbol: false, symbol: "none", lineStyle: { color: echarts.color.modifyAlpha(color, 0.55), width: 1, type: "dashed" }, tooltip: { show: false }, z: 2 }] : []),
       {
-        name: "TB", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 5, z: 3,
+        name: "Trung bình", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 5, z: 3,
         data: series.map((p) => {
           const value = p.avg == null ? null : +p.avg;
           if (value == null) return { value };
@@ -383,10 +383,10 @@ export function RoomBandChart({ sensorKey, series, baseline, group = null }) {
   };
   return (
     <div>
-      <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h3 className="text-[14px] font-semibold" style={{ color: CHEX.navy }}>{SENSOR_META[sensorKey]?.label} ({sensorKey})</h3></div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["GHD", lo == null ? "—" : `${lo} ${unit}`], ["GHT", hi == null ? "—" : `${hi} ${unit}`], ["Nền 30n", bTb == null ? "—" : `${bTb}${bSig != null ? `±${bSig}` : ""}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-subtle ring-1 ring-line py-1.5"><p className="text-tk-xs uppercase text-muted font-semibold leading-tight">{k}</p><p className="text-tk-sm font-semibold tabular-nums" style={{ color: CHEX.navy }}>{v}</p></div>)}</div>
+      <div className="flex items-center gap-2 mb-2"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} /><h3 className="text-[14px] font-semibold" style={{ color: CHEX.navy }}>{SENSOR_META[sensorKey]?.label}</h3></div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 text-center">{[["Trung bình", mean == null ? "—" : `${mean} ${unit}`], ["Giới hạn dưới", lo == null ? "—" : `${lo} ${unit}`], ["Giới hạn trên", hi == null ? "—" : `${hi} ${unit}`], ["Nền 30 ngày", bTb == null ? "—" : `${bTb}${bSig != null ? `±${bSig}` : ""}`]].map(([k, v]) => <div key={k} className="rounded-xl bg-subtle ring-1 ring-line py-1.5"><p className="text-tk-xs uppercase text-muted font-semibold leading-tight">{k}</p><p className="text-tk-sm font-semibold tabular-nums" style={{ color: CHEX.navy }}>{v}</p></div>)}</div>
       <EChart option={option} height={210} group={group} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-tk-xs text-muted">{hasPct && <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.28 }} /> Dải P5–P95</span>}<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> TB trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CHEX.coralDeep }} /> TB ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dotted" style={{ borderColor: CHEX.skyLine }} /> Nền 30 ngày ±σ</span></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-tk-xs text-muted">{hasPct && <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: color, opacity: 0.28 }} /> Dải P5–P95</span>}<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> Trung bình trong giới hạn</span><span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CHEX.coralDeep }} /> Trung bình ngoài giới hạn</span><span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dotted" style={{ borderColor: CHEX.skyLine }} /> Nền 30 ngày ±σ</span></div>
     </div>
   );
 }
@@ -402,20 +402,20 @@ export function RoomDetailMiniChart({ pts, smin, smax, mean, unit, group = null 
   const markLineData = [];
   // Nhãn giới hạn đặt NGOÀI vùng vẽ (lề phải, position "end") — đặt bên trong thì đè lên đường dữ liệu
   // đúng lúc dữ liệu sát giới hạn (trường hợp cần đọc rõ nhất). Đơn vị đã ghi ở chú giải.
-  if (smin != null) markLineData.push({ yAxis: smin, label: { formatter: `GHD\n${smin}`, fontSize: 9, lineHeight: 11, color: CHEX.coral, position: "end", distance: 4 }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.4 } });
-  if (smax != null) markLineData.push({ yAxis: smax, label: { formatter: `GHT\n${smax}`, fontSize: 9, lineHeight: 11, color: CHEX.coral, position: "end", distance: 4 }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.4 } });
-  if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `TB ${mean}`, fontSize: 9, color: CHEX.navy, position: "insideEndTop" }, lineStyle: { color: CHEX.navy, type: "dashed", width: 1.2 } });
+  if (smin != null) markLineData.push({ yAxis: smin, label: { formatter: `Giới hạn\ndưới\n${smin}`, fontSize: 9, lineHeight: 11, color: CHEX.coral, position: "end", distance: 4 }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.4 } });
+  if (smax != null) markLineData.push({ yAxis: smax, label: { formatter: `Giới hạn\ntrên\n${smax}`, fontSize: 9, lineHeight: 11, color: CHEX.coral, position: "end", distance: 4 }, lineStyle: { color: CHEX.coral, type: "dashed", width: 1.4 } });
+  if (mean != null) markLineData.push({ yAxis: mean, label: { formatter: `Trung bình ${mean}`, fontSize: 9, color: CHEX.navy, position: "insideEndTop" }, lineStyle: { color: CHEX.navy, type: "dashed", width: 1.2 } });
   const option = {
     animation: false,
-    grid: { top: 18, right: (smin != null || smax != null) ? 40 : 14, bottom: 30, left: 8, containLabel: true },
+    grid: { top: 18, right: (smin != null || smax != null) ? 46 : 14, bottom: 30, left: 8, containLabel: true },
     tooltip: {
       trigger: "axis", ...tooltipBase(),
       formatter: (ps) => {
         const byName = {}; ps.forEach((p) => { byName[p.seriesName] = p; });
-        const avg = chartPointValue(byName["TB giờ"]?.data);
+        const avg = chartPointValue(byName["Trung bình giờ"]?.data);
         const f = (x) => (x == null ? "—" : (+x).toFixed(2));
         const lohi = hasBand ? `<div style="color:${T().textMuted}">Min–Max: ${f(pts[ps[0].dataIndex]?.vmin)}–${f(pts[ps[0].dataIndex]?.vmax)} ${unit}</div>` : "";
-        return `<div style="font-weight:700;color:${CHEX.navy}">${ps[0].axisValue}</div><div>TB giờ: <b>${avg == null ? "Chưa có số đo" : `${f(avg)} ${unit}`}</b></div>${lohi}`;
+        return `<div style="font-weight:700;color:${CHEX.navy}">${ps[0].axisValue}</div><div>Trung bình giờ: <b>${avg == null ? "Chưa có số đo" : `${f(avg)} ${unit}`}</b></div>${lohi}`;
       },
     },
     xAxis: axisX(pts.map((p) => p.label)),
@@ -424,7 +424,7 @@ export function RoomDetailMiniChart({ pts, smin, smax, mean, unit, group = null 
       // Dải min–max: custom polygon (chịu null, không cần stack)
       ...(hasBand ? [bandCustomSeries({ name: "_minmax", points: pts.map((p) => (p.vmin != null && p.vmax != null ? { lo: p.vmin, hi: p.vmax } : null)), color: CHEX.sky, alpha: 0.14 })] : []),
       {
-        name: "TB giờ", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 6, z: 3,
+        name: "Trung bình giờ", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 6, z: 3,
         data: pts.map((p) => {
           const value = p.avg == null ? null : +p.avg;
           if (value == null) return { value };
@@ -471,13 +471,13 @@ export function nelsonViolations(vals, tb, sigma) {
   if (tb == null || sigma == null || sigma <= 0) return out;
   const z = vals.map((v) => (v == null ? null : (v - tb) / sigma));
   for (let i = 0; i < n; i++) {
-    if (z[i] != null && Math.abs(z[i]) > 3) out[i].push("R1: vượt 3σ");
-    if (i >= 8) { const w = z.slice(i - 8, i + 1); if (w.every((x) => x != null && x > 0) || w.every((x) => x != null && x < 0)) out[i].push("R2: 9 điểm cùng phía"); }
+    if (z[i] != null && Math.abs(z[i]) > 3) out[i].push("Quy tắc Nelson số 1: vượt 3 lần độ lệch chuẩn");
+    if (i >= 8) { const w = z.slice(i - 8, i + 1); if (w.every((x) => x != null && x > 0) || w.every((x) => x != null && x < 0)) out[i].push("Quy tắc Nelson số 2: 9 điểm liên tiếp cùng một phía đường trung bình"); }
     if (i >= 5) {
       const w = vals.slice(i - 5, i + 1);
       if (w.every((x) => x != null)) {
         const inc = w.every((x, j) => j === 0 || x > w[j - 1]), dec = w.every((x, j) => j === 0 || x < w[j - 1]);
-        if (inc || dec) out[i].push(`R3: 6 điểm ${inc ? "tăng" : "giảm"} liên tiếp`);
+        if (inc || dec) out[i].push(`Quy tắc Nelson số 3: 6 điểm ${inc ? "tăng" : "giảm"} liên tiếp`);
       }
     }
   }
@@ -491,7 +491,7 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
   const vals = series.map((p) => (p.avg != null ? +p.avg : null));
   const vio = nelsonViolations(vals, tb, sig);
   if (tb == null || sig == null) {
-    return <p className="text-tk-xs text-muted italic">Chưa đủ nền 30 ngày (TB/σ) để dựng biểu đồ kiểm soát cho {SENSOR_META[sensorKey]?.label}.</p>;
+    return <p className="text-tk-xs text-muted italic">Chưa đủ dữ liệu nền 30 ngày (trung bình và độ lệch chuẩn) để vẽ biểu đồ kiểm soát cho {SENSOR_META[sensorKey]?.label}.</p>;
   }
   const zones = [ // vùng sigma tô nhạt dần từ trong ra
     [tb - sig, tb + sig, 0.10], [tb - 2 * sig, tb - sig, 0.05], [tb + sig, tb + 2 * sig, 0.05],
@@ -500,7 +500,7 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
   const dv = vals.filter((v) => v != null).concat([tb - 3.3 * sig, tb + 3.3 * sig]);
   const yLo = Math.min(...dv), yHi = Math.max(...dv); const pad = (yHi - yLo) * 0.06;
   const sigLines = [
-    { yAxis: tb, label: { formatter: `TB ${+tb.toFixed(2)}`, fontSize: 9, color: CHEX.navy, position: "insideEndTop" }, lineStyle: { color: CHEX.navy, type: "solid", width: 1.4 } },
+    { yAxis: tb, label: { formatter: `Trung bình ${+tb.toFixed(2)}`, fontSize: 9, color: CHEX.navy, position: "insideEndTop" }, lineStyle: { color: CHEX.navy, type: "solid", width: 1.4 } },
     ...[1, 2, 3].flatMap((k) => [
       { yAxis: tb + k * sig, label: { formatter: `+${k}σ`, fontSize: 8, color: T().textMuted, position: "end" }, lineStyle: { color: k === 3 ? CHEX.coral : T().chartGrid, type: "dashed", width: k === 3 ? 1.4 : 1 } },
       { yAxis: tb - k * sig, label: { formatter: `−${k}σ`, fontSize: 8, color: T().textMuted, position: "end" }, lineStyle: { color: k === 3 ? CHEX.coral : T().chartGrid, type: "dashed", width: k === 3 ? 1.4 : 1 } },
@@ -526,7 +526,7 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
       name: "Giá trị", type: "line", smooth: false, connectNulls: false, showSymbol: true, symbolSize: 6, z: 3,
       data: vals.map((v, i) => {
         if (v == null) return { value: null };
-        return { value: v, itemStyle: { color: vio[i].some((r) => r.startsWith("R1")) ? CHEX.coralDeep : vio[i].length ? CHEX.sand : color, borderColor: T().surface, borderWidth: 1 } };
+        return { value: v, itemStyle: { color: vio[i].some((r) => r.startsWith("Quy tắc Nelson số 1:")) ? CHEX.coralDeep : vio[i].length ? CHEX.sand : color, borderColor: T().surface, borderWidth: 1 } };
       }),
       lineStyle: { color, width: 1.8 },
       markArea: { silent: true, data: zones.map(([lo, hi, a]) => [{ yAxis: lo, itemStyle: { color: echarts.color.modifyAlpha(color, a) } }, { yAxis: hi }]) },
@@ -538,9 +538,9 @@ export function SpcChart({ sensorKey, series, baseline, height = 230, group = nu
       <EChart option={option} height={height} group={group} />
       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-tk-xs text-muted">
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: color }} /> Trong kiểm soát</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CHEX.sandDeep }} /> Tín hiệu Nelson R2/R3</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CHEX.coralDeep }} /> Vượt 3σ (R1)</span>
-        <span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dashed" style={{ borderColor: T().chartGrid }} /> ±1/2/3σ quanh nền 30 ngày</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CHEX.sandDeep }} /> Dấu hiệu xu hướng bất thường (quy tắc Nelson số 2, 3)</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: CHEX.coralDeep }} /> Vượt 3 lần độ lệch chuẩn (quy tắc Nelson số 1)</span>
+        <span className="flex items-center gap-1"><span className="w-4 inline-block border-t border-dashed" style={{ borderColor: T().chartGrid }} /> Đường ±1, 2, 3 lần độ lệch chuẩn (σ) quanh mức nền 30 ngày</span>
       </div>
     </div>
   );
@@ -582,7 +582,7 @@ export function CalendarHeat({ days, height = 190 }) {
 //   days   : ['01/07', …]            (nhãn trục X)
 //   values : number[rooms][days]     (%-đạt hoặc null nếu thiếu dữ liệu)
 export function RoomDayHeatmap({ rooms, days, values, height, cellH = 18 }) {
-  if (!rooms?.length || !days?.length) return <p className="text-tk-xs text-muted italic">Chưa đủ dữ liệu phòng×ngày để dựng bản đồ tỷ lệ đạt.</p>;
+  if (!rooms?.length || !days?.length) return <p className="text-tk-xs text-muted italic">Chưa đủ dữ liệu theo từng phòng và từng ngày để vẽ bản đồ tỷ lệ đạt.</p>;
   const data = [];
   for (let y = 0; y < rooms.length; y++) {
     const row = values[y] || [];

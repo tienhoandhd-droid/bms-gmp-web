@@ -6,6 +6,7 @@ import InspectorDrawer from "../../components/layout/InspectorDrawer";
 import PressureRange from "../../components/pressure/PressureRange";
 import { COLOR } from "../../lib/designTokens";
 import { DS_KHU } from "../../lib/phanQuyen";
+import { MUC } from "../../lib/uiConst";
 import {
   capNhatPhut8h,
   chamNguoiXemChenhAp,
@@ -119,7 +120,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
     const t = setInterval(() => setDongHo(Date.now()), 10000);
     return () => clearInterval(t);
   }, [viewerActive]);
-  if (!isLive) return <Card className="p-8 text-center text-[13px] text-muted">Cần kết nối dữ liệu thật (LIVE) để xem chênh áp theo AHU.</Card>;
+  if (!isLive) return <Card className="p-8 text-center text-[13px] text-muted">Cần chuyển sang chế độ dữ liệu thật để xem chênh áp theo AHU.</Card>;
   const dsKhu = khuChoPhep || DS_KHU;
   const ahuPairs = [...new Set((rows || []).filter((r) => (khu === "ALL" || r.khuVuc === khu)).map((r) => `${r.khuVuc}|${r.ahu}`))].sort();
   const chip = (v, label, on, click) => <button key={v} onClick={click} className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition ring-1 ${on ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`} style={on ? { backgroundColor: "var(--primary-solid)" } : {}}>{label}</button>;
@@ -169,7 +170,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
     if (r.tuoiPhut == null) return null;
     const p = r.tuoiPhut + Math.floor(Math.max(0, dongHo - napLuc) / 60000);
     const mau = p >= 6 ? "text-danger" : p >= 3 ? "text-warning" : "text-muted";
-    return <span className={`font-semibold ${mau}`}> · {p <= 0 ? "vừa xong" : `${p}′ trước`}</span>;
+    return <span className={`font-semibold ${mau}`}> · {p <= 0 ? "vừa xong" : `${p} phút trước`}</span>;
   };
   const ordUu = (p) => p === "P1" ? 1 : p === "P2" ? 2 : p === "P3" ? 3 : 4;
   // Phase C (báo cáo 9): phân loại một chỗ — hàng hiển thị + chip đếm + sort dùng chung.
@@ -185,7 +186,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
     if (pl === "thieu") return <span className="text-muted">thiếu dữ liệu</span>;
     if (pl === "dung") return <span className="text-warning font-medium">đứng tín hiệu {dhMap[r.maPhong]} giờ</span>;
     if (pl === "canXuLy") return <span className="text-danger font-semibold">{r.giaTri != null && r.ghDuoi != null && Number(r.giaTri) < r.ghDuoi ? "dưới giới hạn" : "trên giới hạn"} · cần xử lý</span>;
-    if (pl === "theoDoi") return <span className="text-warning font-medium">{r.uuTien === "P3" && r.dat === false ? "P3 · theo dõi" : "trên giới hạn · theo dõi"}</span>;
+    if (pl === "theoDoi") return <span className="text-warning font-medium">{r.uuTien === "P3" && r.dat === false ? "Mức 3 · chỉ theo dõi" : "trên giới hạn · theo dõi"}</span>;
     return null;
   };
   // 17/08 (chủ hệ thống): dữ liệu 5′ phải là HIỆN SỐ (bảng 2 hàng giờ/giá trị) ngay
@@ -200,7 +201,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
         <div className="text-[12px] text-muted truncate" title={r.tenPhong}>{r.tenPhong}</div>
         {laDungHinh(r) && (
           <div className="mt-1 inline-block rounded-md bg-warning-soft px-1.5 py-0.5 text-[12px] font-semibold leading-tight text-warning ring-1 ring-warning-line">
-            ⚠ Cảm biến đứng tín hiệu {dhMap[r.maPhong]} giờ — kiểm tra lại trước khi chỉnh
+            ⚠ Cảm biến đứng tín hiệu {dhMap[r.maPhong]} giờ. Hãy kiểm tra lại trước khi chỉnh.
           </div>
         )}
       </div>
@@ -238,7 +239,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
         <div>
         <div className={`text-[17px] font-bold tabular-nums leading-none ${vCls(r)}`}>{r.coDuLieu === false ? "—" : <>{r.giaTri}<span className="text-[12px] font-medium"> {r.donVi}</span></>}</div>
         <div className="text-[12px] text-muted mt-0.5">{r.coDuLieu === false ? "thiếu dữ liệu" : <>{r.realtime ? <span className="text-success font-semibold">● trực tiếp</span> : <span className="text-warning">giờ gần nhất</span>} {r.thoiDiem}{nhanTuoi(r)}{r.dat === false && (r.uuTien === "P3"
-          ? <span className="font-medium text-muted"> · P3 — theo dõi</span>
+          ? <span className="font-medium text-muted"> · Mức 3 · chỉ theo dõi</span>
           : <span className={`font-semibold ${vCls(r)}`}> · không đạt</span>)}</>}</div>
         </div>
         <button type="button" onClick={() => setChiTiet(r)} style={{ minHeight: "var(--control-height)" }} className="shrink-0 rounded-lg bg-surface px-3 text-[12px] font-semibold text-body ring-1 ring-line hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focusring">Xem chi tiết</button>
@@ -272,27 +273,27 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
             <p className="text-[12px] font-semibold uppercase tracking-wider text-muted">Diễn biến {soPhut} phút gần nhất</p>
             <p className={`mt-1 text-[13px] ${duoiGH.length ? "text-danger font-medium" : "text-body"}`}>
               {duoiGH.length
-                ? <><b>{duoiGH.length}</b> phòng có điểm DƯỚI giới hạn: {duoiGH.slice(0, 6).map((r) => r.maPhong).join(", ")}{duoiGH.length > 6 ? "…" : ""}</>
-                : "Không phòng nào tụt dưới giới hạn"}
+                ? <><b>{duoiGH.length}</b> phòng có điểm dưới giới hạn: {duoiGH.slice(0, 6).map((r) => r.maPhong).join(", ")}{duoiGH.length > 6 ? "…" : ""}</>
+                : "Không có phòng nào dưới giới hạn"}
               {trenGH.length > 0 && <span className="text-warning font-medium"> · {trenGH.length} phòng có điểm trên giới hạn</span>}
-              <span className="text-muted font-normal"> — xem chấm đỏ/vàng trên dòng diễn biến của từng phòng.</span>
+              <span className="text-muted font-normal">. Xem chấm đỏ hoặc vàng trên dòng diễn biến của từng phòng.</span>
             </p>
             {(suCoMo.length > 0 || suCoDong.length > 0) ? (
               <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
                 {suCoMo.length > 0 && (
                   <span className="text-danger font-medium">
-                    ● {suCoMo.length} phiếu chênh áp đang mở: {suCoMo.slice(0, 4).map((i) => `${i.id} (${i.room} · ${i.duration}h)`).join(" · ")}{suCoMo.length > 4 ? "…" : ""}
+                    ● {suCoMo.length} sự cố chênh áp đang mở: {suCoMo.slice(0, 4).map((i) => `${i.id} (${i.room} · ${i.duration} giờ)`).join(" · ")}{suCoMo.length > 4 ? "…" : ""}
                   </span>
                 )}
                 {suCoDong.length > 0 && (
                   <span className="text-muted">
-                    ✓ {suCoDong.length} phiếu đóng gần đây{suCoDong[0]?.dong_luc ? `, mới nhất ${new Date(suCoDong[0].dong_luc).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
+                    ✓ {suCoDong.length} sự cố đóng gần đây{suCoDong[0]?.dong_luc ? `, mới nhất ${new Date(suCoDong[0].dong_luc).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
                   </span>
                 )}
-                {onMoTabSuCo && <button onClick={onMoTabSuCo} className="text-info font-medium hover:underline">Mở tab Sự cố →</button>}
+                {onMoTabSuCo && <button onClick={onMoTabSuCo} className="text-info font-medium hover:underline">Mở tab Sự cố</button>}
               </div>
             ) : (
-              <p className="mt-1 text-[13px] text-success font-medium">Không có phiếu chênh áp đang mở hoặc mới đóng.</p>
+              <p className="mt-1 text-[13px] text-success font-medium">Không có sự cố chênh áp nào đang mở hoặc mới đóng.</p>
             )}
           </div>
         );
@@ -311,17 +312,17 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
       {/* 11/08 — BĂNG BÁO MẤT NGUỒN (giữ nguyên logic; đây là banner DUY NHẤT được to). */}
       {rows !== null && soMatDuLieu > 0 && (
         <div className="mt-3 rounded-xl bg-danger-soft px-3.5 py-2.5 ring-1 ring-danger-line">
-          <p className="text-[13px] font-bold text-danger">⚠ Mất kết nối dữ liệu — {soMatDuLieu}/{filt.length} phòng không có số đo đủ mới</p>
+          <p className="text-[13px] font-bold text-danger">⚠ Mất kết nối dữ liệu: {soMatDuLieu}/{filt.length} phòng không có số đo mới</p>
           <p className="mt-0.5 text-[12px] leading-snug text-danger">
-            Số cuối cùng đo được vẫn hiện để tham khảo, nhưng hệ <b>không kết luận đạt/không đạt</b> trên số đã cũ
-            {nguongTuoi != null && <> (quá {nguongTuoi} phút)</>} — các phòng này không tính vào số "đạt" lẫn "cần xử lý".
-            Kiểm FMS ngay: nguồn treo thì phải có người khởi động lại, hệ không tự khỏi.
+            Số đo cuối cùng vẫn hiện để tham khảo, nhưng hệ thống <b>không kết luận đạt hay không đạt</b> dựa trên số đã cũ
+            {nguongTuoi != null && <> (quá {nguongTuoi} phút)</>}. Các phòng này không được tính vào số "đạt" hay "cần xử lý".
+            Hãy kiểm tra FMS ngay: nếu nguồn bị treo thì phải có người khởi động lại, hệ thống không tự khỏi.
           </p>
         </div>
       )}
       {rows !== null && soMatDuLieu === 0 && soDungGio > 0 && (
         <div className="mt-3 rounded-xl bg-warning-soft px-3.5 py-2 ring-1 ring-warning-line">
-          <p className="text-[12px] text-warning"><b>Đang dùng số liệu theo giờ</b> ({soDungGio}/{filt.length} phòng) — mạch phút không có điểm mới trong 6 phút. Số đang xem là trung bình 5 phút cuối của giờ đã xong, không phải hiện tại.</p>
+          <p className="text-[12px] text-warning"><b>Đang dùng số liệu theo giờ</b> ({soDungGio}/{filt.length} phòng) vì dữ liệu theo phút không có điểm mới trong 6 phút qua. Số đang xem là trung bình 5 phút cuối của giờ đã qua, không phải số hiện tại.</p>
         </div>
       )}
       {rows === null ? <div className="mt-3 h-24 rounded-2xl bg-subtle animate-pulse" />
@@ -347,7 +348,7 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
                       <span className="text-[12px] font-bold uppercase tracking-wide text-muted">{k}</span>
                       <span className="text-[12px] tabular-nums">
                         {dsCo.length === 0
-                          ? <span className="font-semibold text-muted">không có số đo — không kết luận</span>
+                          ? <span className="font-semibold text-muted">không có số đo nên chưa kết luận</span>
                           : <><span className="text-muted">{soDatNhom}/{dsCo.length} đạt</span>
                               {soMatDl > 0 && <span className="ml-1.5 font-semibold text-muted">· {soMatDl} thiếu dữ liệu</span>}</>}
                       </span>
@@ -360,14 +361,14 @@ function ChenhApTheoAhu({ isLive, khuChoPhep = null, active = true, suCoMo = [],
           );
         })()}
       {chiTiet && (() => { const r = chiTiet; return (
-        <InspectorDrawer onClose={() => setChiTiet(null)} eyebrow={`${r.khuVuc} / ${r.ahu} · ${r.uuTien}`} title={`${r.maPhong} — ${r.tenPhong || "Chênh áp"}`}>
+        <InspectorDrawer onClose={() => setChiTiet(null)} eyebrow={`${r.khuVuc} / ${r.ahu} · ${MUC[r.uuTien] || r.uuTien}`} title={`${r.maPhong} · ${r.tenPhong || "Chênh áp"}`}>
           <div className="grid grid-cols-2 gap-2 text-[13px]">
             <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Hiện tại</span><span className={`font-bold tabular-nums text-[18px] ${vCls(r)}`}>{r.coDuLieu === false ? "—" : `${r.giaTri} ${r.donVi}`}</span></div>
             <div className="rounded-xl bg-subtle px-3 py-2"><span className="text-muted block text-[12px] uppercase tracking-wider">Giới hạn ({r.donVi})</span><span className="font-semibold text-strong tabular-nums text-[18px]">{r.ghDuoi}–{r.ghTren}</span></div>
           </div>
           <div className="py-1"><PressureRange value={r.coDuLieu === false ? null : r.giaTri} min={r.ghDuoi} max={r.ghTren} stale={!!r.duLieuCu || laDungHinh(r)} missing={r.coDuLieu === false} donVi={r.donVi} w={340} /></div>
           <p className="text-[13px] text-body">{trangThaiChu(r) || <span className="text-success font-medium">Trong giới hạn</span>}{r.coDuLieu !== false && <span className="text-muted"> · {r.realtime ? "số liệu trực tiếp" : "theo giờ gần nhất"} · {r.thoiDiem}{nhanTuoi(r)}</span>}</p>
-          {laDungHinh(r) && <p className="text-[12px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-3 py-2">⚠ Cảm biến đứng tín hiệu {dhMap[r.maPhong]} giờ — kiểm tra lại cảm biến trước khi chỉnh hệ thống.</p>}
+          {laDungHinh(r) && <p className="text-[12px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-3 py-2">⚠ Cảm biến đứng tín hiệu {dhMap[r.maPhong]} giờ. Hãy kiểm tra lại cảm biến trước khi chỉnh hệ thống.</p>}
           {r.chuoi && r.chuoi.length > 0 && (
             <div>
               <p className="text-[12px] font-semibold uppercase tracking-wider text-muted mb-1.5">Chuỗi 5 phút gần nhất</p>

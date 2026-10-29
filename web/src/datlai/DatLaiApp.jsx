@@ -105,14 +105,14 @@ function FormGuiLai({ loiBanDau }) {
     if (!email.includes('@')) { setLoi('Nhập email hợp lệ.'); return }
     setTt('dang_gui'); setLoi('')
     const { error } = await guiEmailKhoiPhuc(email)
-    if (error) { setTt(''); setLoi(error.message || 'Không gửi được — thử lại.'); return }
+    if (error) { setTt(''); setLoi(error.message || 'Không gửi được email. Hãy thử lại.'); return }
     setTt('da_gui')
   }
   if (tt === 'da_gui') return (
     <Khung>
       <DauTrang type="check" tieuDe="Đã gửi email" phu="Kiểm tra hộp thư để tiếp tục đặt lại mật khẩu." />
       <p className="mt-5 text-tk-sm text-success bg-success-soft ring-1 ring-success-line rounded-xl px-4 py-3 leading-relaxed text-center">
-        Nếu <b>{email}</b> có trong hệ thống, liên kết đặt lại đã được gửi. Mở thư và bấm liên kết. Không thấy? Kiểm tra <b>Spam/Quảng cáo</b>.
+        Nếu <b>{email}</b> có trong hệ thống, liên kết đặt lại đã được gửi. Hãy mở thư và bấm liên kết. Nếu không thấy, hãy kiểm tra thư mục <b>Spam</b> hoặc <b>Quảng cáo</b>.
       </p>
       <div className="mt-5 text-center">
         <a href="index.html" className="text-[12.5px] font-medium text-muted hover:text-success">← Về trang đăng nhập</a>
@@ -121,8 +121,8 @@ function FormGuiLai({ loiBanDau }) {
   )
   return (
     <Khung>
-      <DauTrang type="mail" tieuDe="Khôi phục mật khẩu" phu="Nhập email tài khoản — chúng tôi gửi liên kết đặt lại mật khẩu tới hộp thư của bạn." />
-      {loiBanDau && <p className="mt-5 text-[12.5px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-4 py-2.5 leading-relaxed text-center">{loiBanDau} Liên kết chỉ dùng 1 lần trong ~1 giờ — gửi lại bên dưới.</p>}
+      <DauTrang type="mail" tieuDe="Khôi phục mật khẩu" phu="Nhập email tài khoản. Hệ thống sẽ gửi liên kết đặt lại mật khẩu tới hộp thư của bạn." />
+      {loiBanDau && <p className="mt-5 text-[12.5px] text-warning bg-warning-soft ring-1 ring-warning-line rounded-xl px-4 py-2.5 leading-relaxed text-center">{loiBanDau} Mỗi liên kết chỉ dùng được 1 lần, trong khoảng 1 giờ. Hãy gửi lại ở bên dưới.</p>}
       <form onSubmit={gui} className="mt-5 space-y-3">
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required
           placeholder="Email tài khoản" aria-label="Email tài khoản" autoComplete="username"
@@ -154,14 +154,14 @@ function FormDatLai() {
     setDang(true); setLoi('')
     const { error } = await datLaiMatKhauTuLink(TOKEN.access, TOKEN.refresh, mk1)
     setDang(false)
-    if (error) { setLoi(error.message || 'Không đặt được mật khẩu — thử lại.'); return }
+    if (error) { setLoi(error.message || 'Không đặt được mật khẩu. Hãy thử lại.'); return }
     setXong(true)
   }
   if (xong) return (
     <Khung>
-      <DauTrang type="check" tieuDe="Đã đổi mật khẩu" phu="Mật khẩu mới có hiệu lực ngay. Dùng nó cho lần đăng nhập sau." />
+      <DauTrang type="check" tieuDe="Đã đổi mật khẩu" phu="Mật khẩu mới có hiệu lực ngay. Hãy dùng mật khẩu này cho lần đăng nhập sau." />
       <div className="mt-6 text-center">
-        <a href="index.html" className="inline-block rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105" style={{ backgroundColor: TEAL }}>Vào hệ thống →</a>
+        <a href="index.html" className="inline-block rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105" style={{ backgroundColor: TEAL }}>Vào hệ thống</a>
       </div>
     </Khung>
   )
@@ -181,7 +181,7 @@ function FormDatLai() {
         </button>
       </form>
       <p className="mt-4 text-tk-xs text-muted leading-relaxed text-center">
-        🔒 Chỉ bạn biết mật khẩu này — quản trị hệ thống không xem được (hồ sơ GMP/Part 11).
+        🔒 Chỉ bạn biết mật khẩu này. Quản trị hệ thống cũng không xem được, theo yêu cầu GMP và Part 11.
       </p>
     </Khung>
   )

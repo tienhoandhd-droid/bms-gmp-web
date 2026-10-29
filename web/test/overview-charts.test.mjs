@@ -37,7 +37,7 @@ test('overview empty, interrupted and loading states never imply a healthy room'
   const rooms=Array.from({length:5},(_,i)=>({id:`C1.R${i}`,name:'Phòng',_isLive:true,_compliance:60,noData:false,sensors:[{k:'DP',min:10,max:30,_live:{hourly8:[]}}]}));
   const cards=render({rooms});
   assert.equal((cards.match(/data-room-chart=/g)||[]).length,4);
-  assert.match(cards,/Min/);assert.match(cards,/Max/);
+  assert.match(cards,/Thấp nhất/);assert.match(cards,/Cao nhất/);
   assert.match(cards,/Nhóm phòng tiếp/);assert.match(cards,/Chưa có chuỗi số liệu/);
   const pending=render({rooms:[{...rooms[0],_historyState:'loading'}]});
   assert.match(pending,/Đang tải chuỗi số liệu/);assert.doesNotMatch(pending,/Chưa có chuỗi số liệu/);
@@ -67,7 +67,7 @@ test('historical charts remain visible when the current hourly snapshot is unava
   assert.match(html,/Thiếu số liệu/,'null hourly gaps remain explicit in the accessible table');
   const {OosTheoGio8h}=await server.ssrLoadModule('/src/features/dashboard/DashboardParts.jsx');
   const oosHtml=renderToStaticMarkup(React.createElement(OosTheoGio8h,{room:{...staleRoom,_hourlyOOS:[{label:'08:00',oos:0}]}}));
-  assert.match(oosHtml,/0 điểm OOS trong lịch sử 8h/);
+  assert.match(oosHtml,/Không có điểm vượt giới hạn trong 8 giờ qua/);
   assert.doesNotMatch(oosHtml,/· đạt/,'historical OOS must not imply current pass');
 });
 
@@ -87,5 +87,5 @@ test('room drawer keeps 8h history but hides current values during source interr
   const body=await page.$eval('[role="dialog"]',e=>e.textContent);
   assert.match(body,/Nguồn dữ liệu gián đoạn/);
   assert.doesNotMatch(body,/99|· đạt/,'current readings and verdicts must not leak through the detail drawer');
-  assert.match(body,/TB 8h/);assert.match(body,/21.5/,'historical mean remains visible');
+  assert.match(body,/Trung bình 8 giờ/);assert.match(body,/21.5/,'historical mean remains visible');
 });

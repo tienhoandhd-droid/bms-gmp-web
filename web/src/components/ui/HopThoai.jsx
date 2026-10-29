@@ -97,7 +97,7 @@ export function HopThoaiTamHoan({ suCo, dangChay = false, onDong, onXacNhan }) {
   const loiId = useId();
   const gui = () => { setDaBam(true); if (thieu || dangChay) return; onXacNhan({ lyDo: lyDoSach, phut }); };
   return (
-    <HopThoai tieuDe="Tạm hoãn cảnh báo" moTa="Ghi vào hồ sơ audit · tự cảnh báo lại khi hết hạn" icon={BellOff} onDong={onDong} dangChay={dangChay}
+    <HopThoai tieuDe="Tạm hoãn cảnh báo" moTa="Ghi vào nhật ký truy vết · tự cảnh báo lại khi hết hạn" icon={BellOff} onDong={onDong} dangChay={dangChay}
       chanTrang={<>
         <button type="button" onClick={onDong} disabled={dangChay} className="px-4 py-2 rounded-xl text-sm text-body hover:bg-surface min-h-[40px]">Huỷ</button>
         <button type="button" onClick={gui} disabled={dangChay || thieu} aria-describedby={thieu && daBam ? loiId : undefined}
@@ -134,7 +134,7 @@ export function HopThoaiTamHoan({ suCo, dangChay = false, onDong, onXacNhan }) {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-tk-xs text-muted">Hết hạn hệ thống tự bật lại cảnh báo. Sự cố mức nghiêm trọng hoặc phòng P1 chỉ QA / Quản trị được hoãn — máy chủ tự kiểm.</p>
+          <p className="mt-2 text-tk-xs text-muted">Khi hết hạn, hệ thống tự bật lại cảnh báo. Sự cố nghiêm trọng hoặc phòng mức 1 chỉ QA hoặc Quản trị được hoãn; hệ thống sẽ tự kiểm tra quyền.</p>
         </fieldset>
       </form>
     </HopThoai>

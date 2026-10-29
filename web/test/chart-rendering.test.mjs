@@ -23,7 +23,7 @@ test("room detail keeps missing measurements as gaps and formats object-backed t
     unit: "°C",
   });
   const option = chart.props.option;
-  const average = option.series.find((series) => series.name === "TB giờ");
+  const average = option.series.find((series) => series.name === "Trung bình giờ");
 
   assert.equal(average.smooth, false, "hourly measurements must use straight segments");
   assert.equal(average.connectNulls, false, "missing measurements must remain visible gaps");
@@ -32,7 +32,7 @@ test("room detail keeps missing measurements as gaps and formats object-backed t
   assert.equal(average.data[3].symbol, "diamond", "out-of-limit measurements need a shape as well as warning color");
 
   const tooltip = option.tooltip.formatter([{
-    seriesName: "TB giờ",
+    seriesName: "Trung bình giờ",
     data: average.data[0],
     dataIndex: 0,
     axisValue: "08:00",

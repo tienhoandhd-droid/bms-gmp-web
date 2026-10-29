@@ -52,7 +52,7 @@ const TRANG_THAI = {
     owner: "IPC", ketThuc: true, moTa: "IPC kiểm tra và xác nhận hiện trường bình thường; đóng riêng để phân biệt cảnh báo giả.",
   },
   DONG_TU_DONG: {
-    owner: "SYSTEM", ketThuc: true, moTa: "Hệ thống tự đóng khi đủ 2 giờ sạch liên tiếp (dữ liệu về bình thường).",
+    owner: "SYSTEM", ketThuc: true, moTa: "Hệ thống tự đóng khi dữ liệu đạt liên tục 2 giờ.",
   },
   DONG_NGOAI_PHAM_VI: {
     owner: "ADMIN", ketThuc: true, moTa: "Quản trị đóng có lý do vì sự cố nằm ngoài phạm vi giám sát áp dụng.",
@@ -247,7 +247,7 @@ export default function SoDoLuatCard({ dsNut }) {
       <div className="rounded-2xl border border-dashed border-line-strong bg-subtle px-5 py-10 text-center">
         <Database className="mx-auto h-7 w-7 text-muted" />
         <p className="mt-3 text-tk-sm font-semibold text-body">Chưa nạp được bảng luật xử lý</p>
-        <p className="mt-1 text-tk-xs text-muted">Cần đăng nhập ở chế độ LIVE để đọc nguồn <code>xem_nut_thao_tac</code>.</p>
+        <p className="mt-1 text-tk-xs text-muted">Cần đăng nhập ở chế độ dữ liệu thật để xem bảng luật đang chạy.</p>
       </div>
     );
   }
@@ -275,7 +275,7 @@ export default function SoDoLuatCard({ dsNut }) {
               </div>
               <h2 className="mt-2 text-lg font-bold tracking-tight sm:text-xl">Một luồng chính, các nhánh ngoại lệ tách riêng</h2>
               <p className="mt-2 text-tk-xs leading-relaxed text-muted">
-                Đọc theo số thứ tự 01 → 04. Mỗi hành động giữ nguyên vai trò, trạng thái đích và điều kiện đúng như bảng luật đang chạy; không còn gộp thành “+N” hoặc thu nhỏ chữ để vừa khung.
+                Đọc theo số thứ tự từ 01 đến 04. Mỗi hành động ghi đúng vai trò, trạng thái đích và điều kiện như bảng luật đang chạy.
               </p>
             </div>
             <button onClick={copyMermaid} className="relative inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-tk-xs font-semibold text-white ring-1 ring-white/15 transition hover:bg-white/15">
@@ -309,19 +309,19 @@ export default function SoDoLuatCard({ dsNut }) {
         <div className="mt-3 grid gap-2.5 lg:grid-cols-4">
           <div className="relative rounded-xl border border-line bg-surface p-3">
             <div className="flex items-center gap-2"><Database className="h-4 w-4 text-info" /><b className="text-tk-xs text-body">1. Dữ liệu FMS</b></div>
-            <p className="mt-1.5 text-tk-xs leading-relaxed text-muted">DP · RH · Nhiệt độ được lấy theo phút cho từng phòng và cảm biến đang kích hoạt.</p>
+            <p className="mt-1.5 text-tk-xs leading-relaxed text-muted">Chênh áp, độ ẩm và nhiệt độ được lấy mỗi phút cho từng phòng và từng cảm biến đang bật.</p>
             <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-subtle text-muted lg:block" />
           </div>
           <div className="relative rounded-xl border border-line bg-surface p-3">
             <div className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4 text-info" /><b className="text-tk-xs text-body">2. Đánh giá dữ liệu</b></div>
-            <p className="mt-1.5 text-tk-xs leading-relaxed text-muted">Chuẩn hoá cửa sổ giờ, tính số điểm ngoài ngưỡng và 10 phút cuối theo cấu hình hiện hành.</p>
+            <p className="mt-1.5 text-tk-xs leading-relaxed text-muted">Hệ thống gom dữ liệu theo từng giờ, đếm số điểm vượt ngưỡng trong cả giờ và trong 10 phút cuối.</p>
             <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-subtle text-muted lg:block" />
           </div>
           <div className="relative rounded-xl border border-line bg-surface p-3">
             <div className="flex items-center gap-2"><CircleDot className="h-4 w-4 text-danger" /><b className="text-tk-xs text-body">3. Phân mức</b></div>
             <div className="mt-2 space-y-1 text-[9.8px] leading-snug">
-              <p><b className="text-success">Bình thường:</b> OOS ngắn, hoặc 10′ cuối đã về dải — không mở phiếu; sự cố mở đủ 2 giờ sạch thì tự đóng.</p>
-              <p><b className="text-danger">Nghiêm trọng:</b> OOS cả giờ &amp; 10′ cuối vẫn vượt ngưỡng — mở phiếu + đưa vào nhịp email nhắc.</p>
+              <p><b className="text-success">Bình thường:</b> Vượt giới hạn ngắn, hoặc 10 phút cuối đã về trong giới hạn: không mở sự cố. Sự cố đang mở mà đạt liên tục 2 giờ thì tự đóng.</p>
+              <p><b className="text-danger">Nghiêm trọng:</b> Vượt giới hạn cả giờ và 10 phút cuối vẫn vượt: mở sự cố và gửi email nhắc theo lịch.</p>
             </div>
             <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 rounded-full bg-subtle text-muted lg:block" />
           </div>
@@ -332,7 +332,7 @@ export default function SoDoLuatCard({ dsNut }) {
         </div>
         <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-info-soft px-3 py-2 text-tk-xs leading-relaxed text-info">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>Khi công tắc <b>Phân công tự động</b> bật và điều kiện khớp, hệ thống có thể chuyển <b>Chưa xử lý → Đã báo Cơ điện</b>; nếu không, IPC thực hiện bước bàn giao.</span>
+          <span>Khi công tắc <b>Phân công tự động</b> bật và điều kiện khớp, hệ thống có thể tự chuyển từ <b>Chưa xử lý</b> sang <b>Đã báo Cơ điện</b>. Nếu không, IPC tự bàn giao.</span>
         </div>
       </section>
 
@@ -388,7 +388,7 @@ export default function SoDoLuatCard({ dsNut }) {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <NhomLuatToanCuc title="Có thể đóng từ mọi trạng thái đang mở" icon={LockKeyhole}
-          description="Để riêng khỏi trục 01 → 04 vì các quyền này có thể kết thúc sự cố ở nhiều pha khác nhau."
+          description="Tách riêng khỏi các bước 01 đến 04 vì các quyền này đóng được sự cố ở bất kỳ bước nào."
           rules={batKyLoc} />
         <NhomLuatToanCuc title="Mở lại sự cố đã đóng" icon={RotateCcw}
           description="Chỉ áp dụng cho hồ sơ đã đóng; sau khi mở lại, luồng quay về pha IPC tiếp nhận."
@@ -401,7 +401,7 @@ export default function SoDoLuatCard({ dsNut }) {
       <section className="grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-danger-line bg-danger-soft/60 p-4">
           <div className="flex items-center gap-2 text-danger"><BellRing className="h-4 w-4" /><b className="text-tk-xs">Trực HSL và nhịp nhắc</b></div>
-          <p className="mt-2 text-tk-xs leading-relaxed text-danger/70">Chỉ nhắc IPC/Cơ điện ở trạng thái họ thực sự nhận mail. Tạm hoãn 4 giờ phải có lý do; sự cố CRITICAL hoặc phòng P1 chỉ QA/Quản trị được hoãn.</p>
+          <p className="mt-2 text-tk-xs leading-relaxed text-danger/70">Hệ thống chỉ nhắc IPC hoặc Cơ điện ở trạng thái họ nhận email. Tạm hoãn 4 giờ phải ghi lý do. Sự cố nghiêm trọng hoặc phòng mức 1 chỉ QA hoặc Quản trị được hoãn.</p>
         </div>
         <div className="rounded-2xl border border-success-line bg-success-soft/60 p-4">
           <div className="flex items-center gap-2 text-success"><ShieldCheck className="h-4 w-4" /><b className="text-tk-xs">QA kiểm soát hồ sơ</b></div>

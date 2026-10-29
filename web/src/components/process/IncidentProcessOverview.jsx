@@ -10,10 +10,10 @@ import { tenVaiTro } from "../../lib/phanQuyen";
 import { TRANG_THAI_CODE_TO_LABEL } from "../../lib/supabaseData";
 
 const CAC_BUOC = [
-  { id: "detect", label: "Phát hiện", owner: "Hệ thống", mo: "Dữ liệu vượt giới hạn — phiếu sự cố tự mở", codes: [] },
+  { id: "detect", label: "Phát hiện", owner: "Hệ thống", mo: "Dữ liệu vượt giới hạn thì sự cố tự mở", codes: [] },
   { id: "ipc", label: "IPC kiểm tra", owner: "IPC", mo: "Xác nhận tại hiện trường", codes: ["CHUA_XU_LY", "MO_LAI"] },
   { id: "mep", label: "Cơ điện xử lý", owner: "Cơ điện", mo: "Khắc phục hoặc chuyển tiếp", codes: ["DA_BAO_CO_DIEN", "CO_DIEN_DANG_XU_LY", "CO_DIEN_CHO_XU_LY", "CO_DIEN_KHONG_XU_LY_DUOC"] },
-  { id: "close", label: "Xác nhận & đóng", owner: "QA / Hệ thống", mo: "Đóng hồ sơ khi đã về ngưỡng", codes: ["DA_KHAC_PHUC"] },
+  { id: "close", label: "Xác nhận và đóng", owner: "QA / Hệ thống", mo: "Đóng hồ sơ khi đã về ngưỡng", codes: ["DA_KHAC_PHUC"] },
 ];
 
 export default function IncidentProcessOverview({ dsNut = null, role = null }) {
@@ -85,10 +85,10 @@ export default function IncidentProcessOverview({ dsNut = null, role = null }) {
             <p className="text-tk-xs text-muted italic">Đăng nhập chế độ dữ liệu thật để xem nút thao tác theo bảng quy tắc đang chạy.</p>
           ))}
           {buoc.id === "detect" && (
-            <p className="text-tk-sm text-body">Hệ thống chấm điểm dữ liệu mỗi giờ theo ngưỡng trong <b>Cài đặt → Quy tắc cảnh báo</b>; vượt ngưỡng thì phiếu sự cố tự mở và giao cho IPC.</p>
+            <p className="text-tk-sm text-body">Hệ thống chấm điểm dữ liệu mỗi giờ theo ngưỡng ở mục <b>Nguyên tắc cảnh báo</b> trong <b>Cấu hình</b>. Khi vượt ngưỡng, sự cố tự mở và giao cho IPC.</p>
           )}
           {buoc.id === "close" && (
-            <p className="text-tk-sm text-body">Phiếu đóng khi bộ phận xác nhận đã khắc phục, hoặc hệ thống tự đóng khi số liệu về ngưỡng đủ lâu. Hồ sơ và nhật ký thao tác được giữ nguyên phục vụ GMP.</p>
+            <p className="text-tk-sm text-body">Sự cố được đóng khi bộ phận xác nhận đã khắc phục, hoặc hệ thống tự đóng khi số liệu đạt liên tục 2 giờ. Hồ sơ và nhật ký thao tác được giữ nguyên phục vụ GMP.</p>
           )}
           {["ADMIN", "IT"].includes(role) && buoc.codes.length > 0 && (
             <details className="rounded-xl ring-1 ring-line px-3 py-2">

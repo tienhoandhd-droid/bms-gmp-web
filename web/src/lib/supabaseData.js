@@ -29,7 +29,7 @@ export const TRANG_THAI_CODE_TO_LABEL = {
   DA_KHAC_PHUC:              'Đã khắc phục',
   IPC_BINH_THUONG:           'Đã khắc phục',         // đóng (bình thường)
   DONG_TU_DONG:              'Đã khắc phục',         // đóng (tự động)
-  DONG_NGOAI_PHAM_VI:        'Đóng — ngoài phạm vi',  // v14: phòng P3, cảm biến có thể VẪN lệch dải
+  DONG_NGOAI_PHAM_VI:        'Đã đóng (ngoài phạm vi cảnh báo)',  // v14: phòng P3, cảm biến có thể VẪN lệch dải
 }
 
 // Nhãn hành động trên UI (STATUS_FLOW.label) → MÃ hành động RPC (khớp seed
@@ -69,19 +69,19 @@ export const ACTION_CODE_TO_LABEL = {
   admin_dong: 'Quản trị đóng (đã khắc phục)',
   admin_mo_lai: 'Quản trị mở lại',
   // Đóng vì phòng ngoài phạm vi cảnh báo — KHÔNG có nghĩa đã khắc phục
-  admin_dong_ngoai_pham_vi: 'Quản trị đóng — phòng ngoài phạm vi cảnh báo',
+  admin_dong_ngoai_pham_vi: 'Quản trị đóng vì phòng ngoài phạm vi cảnh báo',
   mo_su_co: 'Hệ thống mở sự cố',
   // Đính chính hồ sơ theo thủ tục GMP (audit trail append-only — không xoá, chỉ ghi thêm).
   // Bản ghi 3408 đính chính cho 3407; bộ kiểm (kiem_tra/ W3) bắt được mã này chưa có nhãn.
   ghi_chu_dinh_chinh: 'Ghi chú đính chính hồ sơ (GMP)',
   // Luật thật từ 20260710s: `nguong_gio_sach_de_dong` = 2 GIỜ SẠCH LIÊN TIẾP.
   // Một giờ về dải không đóng gì cả — nhãn cũ "(giá trị về dải)" nói sai.
-  he_thong_dong_tu_dong: 'Hệ thống tự đóng (đủ 2 giờ sạch liên tiếp)',
+  he_thong_dong_tu_dong: 'Hệ thống tự đóng (đạt liên tục 2 giờ)',
   // Cảm biến đứng hình (nhật ký 10-12/07, thiết kế cũ): ngừng chấm mức, giữ vé mở.
-  sensor_dung_hinh: 'Hệ thống: cảm biến đứng hình — ngừng chấm mức',
+  sensor_dung_hinh: 'Hệ thống: cảm biến không đổi số đo, tạm ngừng đánh giá mức',
   // Chính sách 13/07: đứng hình = tách riêng như THIẾU DỮ LIỆU — hệ đóng vé,
   // theo dõi chuyển sang danh sách cảm biến đứng hình (tab Cảm biến/Tổng quan).
-  he_thong_tach_dung_hinh: 'Hệ thống: tách cảm biến đứng hình — đóng vé, theo dõi riêng',
+  he_thong_tach_dung_hinh: 'Hệ thống: cảm biến không đổi số đo, đóng sự cố và theo dõi riêng',
   // QA kết luận cả cụm; audit ghi một dòng cho TỪNG sự cố thuộc cụm.
   qa_ket_luan_cum: 'QA kết luận cụm (nguyên nhân gốc + CAPA)',
   // Hệ thống tự chuyển khi CRITICAL quá ngưỡng mà IPC chưa thao tác — KHÔNG phải IPC bấm
@@ -99,7 +99,7 @@ export const AUDIT_ACTION_OPTIONS = Object.entries(ACTION_CODE_TO_LABEL)
   .map(([value, label]) => ({ value, label }))
   .sort((a, b) => a.label.localeCompare(b.label, 'vi'))
 
-const SENSOR_LABEL = { DP: 'Chênh áp (DP)', RH: 'Độ ẩm (RH)', T: 'Nhiệt độ (T)' }
+const SENSOR_LABEL = { DP: 'Chênh áp', RH: 'Độ ẩm', T: 'Nhiệt độ' }
 // timestamptz ISO (UTC) → "YYYY-MM-DD HH:MM:SS" theo giờ VN (cố định UTC+7, không theo máy)
 const fmtTS = (s, dai = 19) => {
   if (!s) return ''
@@ -734,7 +734,7 @@ export async function traCuuNhatKyAudit({
       hasMore: false,
       nextCursor: null,
       forbidden: error?.ma_loi === 'KHONG_DUOC_PHEP' || data?.loi === 'KHONG_DUOC_PHEP',
-      error: error || { thong_bao: data?.thong_bao || 'Không tải được nhật ký audit.' },
+      error: error || { thong_bao: data?.thong_bao || 'Không tải được nhật ký truy vết. Vui lòng thử lại.' },
     }
   }
 
@@ -800,7 +800,7 @@ export async function layLichSuCauHinh(signal) {
   if (error) return { error, rows: null }
   const rows = (data || []).map((r) => {
     const doiGiaTri = (r.gia_tri_cu_mask != null || r.gia_tri_moi_mask != null)
-      ? `: ${r.gia_tri_cu_mask ?? '∅'} → ${r.gia_tri_moi_mask ?? '∅'}` : ''
+      ? `: từ ${r.gia_tri_cu_mask ?? '(trống)'} thành ${r.gia_tri_moi_mask ?? '(trống)'}` : ''
     return {
       t: r.thoi_diem_hien_thi || '',
       who: r.nguoi_hien_thi || 'Hệ thống',
@@ -874,7 +874,7 @@ export async function datCanhBaoUuTien(dsCap, actor, signal) {
   const { data, error } = await goiRPC('rpc_dat_canh_bao_uu_tien',
     { p_gia_tri: (Array.isArray(dsCap) ? dsCap : []).join(','), p_actor: actor || null }, { signal })
   if (error) return { ok: false, thong_bao: error.thong_bao || error.message || 'Không lưu được' }
-  return data || { ok: false, thong_bao: 'Không rõ kết quả' }
+  return data || { ok: false, thong_bao: 'Không rõ kết quả lưu. Hãy tải lại trang để kiểm tra.' }
 }
 
 // Hướng cảnh báo theo chỉ tiêu × loại ngưỡng (config canh_bao_huong). Trả object {DP:{su_co,canh_bao},...}.
@@ -888,7 +888,7 @@ export async function layCanhBaoHuong(signal) {
 export async function datCanhBaoHuong(huong, actor, signal) {
   const { data, error } = await goiRPC('rpc_dat_canh_bao_huong', { p_json: huong || {}, p_actor: actor || null }, { signal })
   if (error) return { ok: false, thong_bao: error.thong_bao || error.message || 'Không lưu được' }
-  return data || { ok: false, thong_bao: 'Không rõ kết quả' }
+  return data || { ok: false, thong_bao: 'Không rõ kết quả lưu. Hãy tải lại trang để kiểm tra.' }
 }
 
 // ============================================================
@@ -1274,7 +1274,7 @@ async function doiKetQuaAiWf7(inputHash, signal, onTienTrinh, tenWf = 'WF7') {
       (q) => q.select('id').eq('workflow', tenWf).eq('input_hash', inputHash).order('id', { ascending: false }).limit(1), { signal })
     if (data && data.length) idMoc = data[0].id
   }
-  try { if (onTienTrinh) onTienTrinh('AI đang phân tích sâu — agent truy vấn thêm dữ liệu gốc từ hệ thống, thường mất 1–2 phút. Kết quả sẽ tự hiện ở đây.') } catch { /* UI không chặn poll */ }
+  try { if (onTienTrinh) onTienTrinh('AI đang phân tích sâu và cần truy vấn thêm dữ liệu gốc, thường mất 1–2 phút. Kết quả sẽ tự hiện ở đây.') } catch { /* UI không chặn poll */ }
   while (Date.now() - tBatDau < CHO_TOI_DA_MS) {
     if (signal && signal.aborted) return { ok: false, error: 'ABORT' }
     await new Promise((r) => setTimeout(r, NHIP_MS))

@@ -10,16 +10,16 @@ import { COLOR } from "../../lib/designTokens";
 function HuongDanEmailNut() {
   return (
     <Card className="p-4 sm:p-5">
-      <SectionTitle icon={Mail} hint="Email thông báo việc cần làm; cập nhật xử lý trên BMS">Email cảnh báo và xử lý phiếu</SectionTitle>
-      <p className="mt-2 text-tk-sm leading-relaxed text-body">Email giúp nhận biết phiếu và mức ưu tiên. Bấm <b>Nhận việc</b> hoặc <b>Cập nhật xử lý</b> ngay dưới từng sự cố trong email để mở đúng phiếu trên BMS. Đăng nhập nếu cần, kiểm tra trạng thái hiện tại rồi xác nhận; hệ ghi nhận người thực hiện và lý do khi cần.</p>
+      <SectionTitle icon={Mail} hint="Email thông báo việc cần làm; cập nhật xử lý trên BMS">Email cảnh báo và xử lý sự cố</SectionTitle>
+      <p className="mt-2 text-tk-sm leading-relaxed text-body">Email giúp bạn biết có sự cố nào và mức ưu tiên ra sao. Bấm <b>Nhận việc</b> hoặc <b>Cập nhật xử lý</b> ngay dưới từng sự cố trong email để mở đúng sự cố đó trên BMS. Đăng nhập nếu cần, kiểm tra trạng thái hiện tại rồi xác nhận. Hệ thống ghi lại người thực hiện và lý do khi cần.</p>
       <details className="mt-3 rounded-2xl bg-subtle p-3.5 ring-1 ring-line">
         <summary className="cursor-pointer select-none text-tk-sm font-semibold text-body">Xem nhịp nhắc và đường xử lý</summary>
         <div className="mt-3 space-y-3 text-tk-xs leading-relaxed text-muted">
-          <p><b className="text-info">IPC:</b> chưa tiếp nhận sau 20 phút, hoặc <b className="text-warning">Cơ điện</b> chưa tiếp nhận sau 15 phút, thì hệ báo Trực HSL. Khi đã nhận việc nhưng 60 phút chưa có cập nhật thực chất, hệ gửi nhắc theo người phụ trách.</p>
-          <p><b className="text-danger">QA:</b> nhắc tự động tối đa một lần trong mỗi ca 06–14h, 14–22h và 22–06h; hai lần nhắc cách nhau ít nhất 60 phút. Lần đầu xuất hiện khi quá 240 phút chưa có cập nhật thực chất; trường hợp bế tắc được báo ngay. Nhắc thủ công có khoảng chờ 5 phút.</p>
+          <p><b className="text-info">IPC:</b> chưa tiếp nhận sau 20 phút, hoặc <b className="text-warning">Cơ điện</b> chưa tiếp nhận sau 15 phút, thì hệ thống báo Trực HSL. Nếu đã nhận việc mà 60 phút chưa có cập nhật thực chất, hệ thống gửi nhắc người phụ trách.</p>
+          <p><b className="text-danger">QA:</b> nhắc tự động tối đa một lần trong mỗi ca 06:00–14:00, 14:00–22:00 và 22:00–06:00; hai lần nhắc cách nhau ít nhất 60 phút. Lần đầu xuất hiện khi quá 240 phút chưa có cập nhật thực chất; trường hợp bế tắc được báo ngay. Nhắc thủ công có khoảng chờ 5 phút.</p>
           <p><b className="text-body">Tổng hợp bàn giao:</b> gửi lúc 06:00, 14:00 và 22:00. Tổng hợp QA gửi từ 07:45 trong khung giờ cho phép. Người nhận và lịch gửi phụ thuộc cấu hình vận hành hiện hành.</p>
           <p><b className="text-body">QA và Trực HSL:</b> mở tab <b>Sự cố</b> để xem việc được giao và thao tác phù hợp theo quyền. Khi hiện trường đã sửa, phải ghi nhận kết quả trên BMS để hồ sơ có người thực hiện, thời điểm và lý do.</p>
-          <p>Nút email mở đúng phiếu; chỉ sau khi xác nhận trên BMS hệ mới ghi nhận thao tác. Nếu phiếu đã thay đổi hoặc bạn không có quyền, hệ sẽ báo để kiểm tra lại.</p>
+          <p>Nút trong email mở đúng sự cố. Hệ thống chỉ ghi nhận thao tác sau khi bạn xác nhận trên BMS. Nếu sự cố đã thay đổi hoặc bạn không có quyền, hệ thống sẽ báo để bạn kiểm tra lại.</p>
         </div>
       </details>
     </Card>
@@ -109,7 +109,7 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
           Trạng thái: <b>{ve.nhan_trang_thai || ve.trang_thai_hien_tai}</b>
           {ve.giu_trang_thai
             ? <span className="text-muted"> — thao tác này chỉ ghi chú, không đổi trạng thái</span>
-            : <> → <b>{ve.nhan_trang_thai_sau || ve.trang_thai_sau}</b>{ve.dong_su_co && <span className="text-success"> (đóng sự cố)</span>}</>}
+            : <> chuyển sang <b>{ve.nhan_trang_thai_sau || ve.trang_thai_sau}</b>{ve.dong_su_co && <span className="text-success"> (đóng sự cố)</span>}</>}
         </div>
         {ve.thao_tac_gan_nhat && (
           <div className="text-tk-xs text-muted">
@@ -124,7 +124,7 @@ function ModalVeEmail({ trangThai, onDong, onChay }) {
           <textarea id={idLyDo} value={lyDo} onChange={(e) => setLyDo(e.target.value)} rows={3} autoFocus
             placeholder="Ví dụ: van điều tiết kẹt, đã chỉnh lại 40% và theo dõi 30 phút"
             className="w-full mt-1.5 rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-sm" />
-          <p className="text-tk-xs text-muted mt-1">Bắt buộc — ghi vào hồ sơ kiểm toán ALCOA+.</p>
+          <p className="text-tk-xs text-muted mt-1">Bắt buộc nhập. Nội dung được lưu vào hồ sơ truy vết theo ALCOA+.</p>
         </div>)}
       <div className="flex gap-2 mt-5">
         <button onClick={dong} disabled={dangChay} className="flex-1 rounded-xl bg-subtle py-2.5 min-h-11 text-sm font-medium text-body disabled:opacity-40">Huỷ</button>

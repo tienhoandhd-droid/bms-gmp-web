@@ -25,6 +25,7 @@
  * ========================================================================= */
 
 const L = require('./bao-cao-loi.js');
+const PTD = require('./chenh-ap-phong-theo-doi.js');
 const { esc, soVN, phanTram, ngayDai, gioDoc, dich, NGUONG_HANH_DONG } = L;
 
 /* ===== Bảng màu: hai màu chính, một màu cảnh báo, còn lại là mực và nền =====
@@ -79,18 +80,6 @@ function hang(noiDung, nen) {
     + 'px;">' + noiDung + '</td></tr>';
 }
 
-/* Thư chỉ so ba khu với nhau. Chi tiết tới từng cụm xử lý không khí để trong
- * báo cáo đính kèm — đưa hết vào thư thì vừa dài vừa quá cỡ Gmail cắt thư.
- * Khu ra ngoài giới hạn nhiều nhất xếp trước. */
-function xepKhu(ds) {
-  const nang = function (x) {
-    if (!x.tong_gio_do) return 0;
-    return ((x.tong_gio_duoi || 0) + (x.tong_gio_tren || 0) || (x.tong_gio_lech || 0))
-      / x.tong_gio_do;
-  };
-  return (ds || []).slice().sort(function (a, b) { return nang(b) - nang(a); });
-}
-
 function nhanMuc(chu, mau) {
   return '<div style="font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:'
     + (mau || M.mo) + ';font-weight:700;margin:0 0 ' + KHE + 'px;">' + esc(chu) + '</div>';
@@ -113,110 +102,14 @@ function oChiSo(nhan, gt, phu, mauGt, phu2) {
     + '</td>';
 }
 
-/* ===== Biểu đồ vẽ bằng chính bảng HTML =================================
- * Hòm thư không vẽ được đồ hoạ vector, còn ảnh thì bị chặn mặc định. Cách duy
- * nhất chạy được ở mọi hòm thư — kể cả Outlook dùng bộ dựng của Word — là vẽ
- * bằng ô bảng có nền màu và bề rộng theo phần trăm.
- * ===================================================================== */
-
-// Một thanh ngang, có VẠCH NGƯỠNG để nhìn phát biết đạt hay chưa. Rãnh được
-// chia thành các ô liền nhau; vạch ngưỡng là một ô rộng 2px màu đậm.
-function thanh(pct, mau, nguong, cao) {
-  const p = Math.max(0, Math.min(100, Number(pct) || 0));
-  const h = cao || 12;
-  const r = h / 2;
-  const o = function (w, bg, lop) {
-    if (w <= 0.05) return '';
-    return '<td class="o' + (lop || '') + '" width="' + w.toFixed(1) + '%" height="' + h
-      + '" style="width:' + w.toFixed(1) + '%;background:' + bg + ';">&nbsp;</td>';
-  };
-  const vach = function (bg) {
-    return '<td class="o" width="2" height="' + h + '" style="width:2px;background:' + bg
-      + ';">&nbsp;</td>';
-  };
-  let ruot = '';
-  if (nguong == null || nguong <= 0 || nguong >= 100) {
-    ruot = o(p, mau, ' rt') + o(100 - p, M.vien2, ' rp');
-  } else if (p <= nguong) {
-    // chưa tới ngưỡng: thanh màu · phần trống · vạch ngưỡng · phần trống
-    ruot = o(p, mau, ' rt') + o(nguong - p, M.vien2) + vach(M.muc2)
-         + o(100 - nguong, M.vien2, ' rp');
-  } else {
-    // đã vượt ngưỡng: vạch nằm bên trong phần đã tô
-    ruot = o(nguong, mau, ' rt') + vach('#ffffff') + o(p - nguong, mau)
-         + o(100 - p, M.vien2, ' rp');
-  }
-  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
-    + ' style="border-collapse:collapse;table-layout:fixed;"><tr>' + ruot + '</tr></table>';
-}
-
-// Thanh hai hướng: trục ở giữa, trái là tụt dưới, phải là vượt trên.
-function thanhHaiHuong(pDuoi, pTren, max, mauDuoi, mauTren) {
-  const m = Math.max(1, max || 100);
-  const wD = Math.max(0, Math.min(50, 50 * (pDuoi || 0) / m));
-  const wT = Math.max(0, Math.min(50, 50 * (pTren || 0) / m));
-  const o = function (w, bg, lop) {
-    return w <= 0.05 ? '' : '<td class="o' + (lop || '') + '" width="' + w.toFixed(1)
-      + '%" style="width:' + w.toFixed(1) + '%;background:' + bg + ';">&nbsp;</td>';
-  };
-  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
-    + ' style="border-collapse:collapse;"><tr>'
-    + o(50 - wD, M.vien2, ' rt') + o(wD, mauDuoi || M.do)
-    + '<td class="o" width="2" style="width:2px;background:' + M.muc2 + ';">&nbsp;</td>'
-    + o(wT, mauTren || M.tim) + o(50 - wT, M.vien2, ' rp')
-    + '</tr></table>';
-}
-
-// Một dòng: tên bên trái, thanh ở giữa, số bên phải
-function dongThanh(ten, pct, so, mau, phu, nguong) {
-  return '<tr>'
-    + '<td width="34%" style="padding:9px 12px 9px 0;vertical-align:middle;">'
-    +   '<div style="font-size:15px;font-weight:700;color:' + M.muc + ';line-height:1.35;">'
-    +     esc(ten) + '</div>'
-    +   (phu ? '<div style="font-size:12px;color:' + M.mo + ';margin-top:2px;line-height:1.4;">'
-    +     phu + '</div>' : '')
-    + '</td>'
-    + '<td style="padding:9px 12px 9px 0;vertical-align:middle;">' + thanh(pct, mau, nguong) + '</td>'
-    + '<td width="72" style="width:72px;padding:9px 0;text-align:right;vertical-align:middle;'
-    +   'font-size:16px;font-weight:700;color:' + M.muc + ';white-space:nowrap;">' + so + '</td>'
-    + '</tr>';
-}
-
-// Cột theo ngày — mỗi ngày một cột, cao theo tỉ lệ. Vạch ngưỡng vẽ bằng một
-// hàng nền nhạt phía sau, vì hòm thư không cho vẽ đường kẻ tự do.
-function cotNgay(chuoi, nguong) {
-  const ds = (chuoi || []).filter(function (c) { return c.ty_le != null; });
-  if (ds.length < 2) return '';
-  const CAO = 68;
-  const o = ds.map(function (c, i) {
-    const h = Math.max(2, Math.round(CAO * Math.min(100, c.ty_le) / 100));
-    const duoi = c.ty_le < nguong;
-    // Cột đầu bỏ đệm trái, cột cuối bỏ đệm phải: dải cột trải đúng bề ngang của
-    // hàng, không thụt vào 1px so với chữ bên trên.
-    // valign="bottom" đủ để đẩy cột xuống đáy, không cần thêm ô đệm phía trên —
-    // bỏ ô đệm giúp thư nhẹ đi khoảng 2 KB, đáng kể vì Gmail cắt thư khi quá cỡ.
-    return '<td class="n" valign="bottom" height="' + CAO + '" style="padding:0 '
-      + (i === ds.length - 1 ? '0' : '1px') + ' 0 ' + (i === 0 ? '0' : '1px') + ';">'
-      + '<div class="c" style="height:' + h + 'px;background:' + (duoi ? M.do : M.luc)
-      + ';">&nbsp;</div></td>';
-  }).join('');
-  const buoc = Math.max(1, Math.ceil(ds.length / 8));
-  const nhan = ds.map(function (c, i) {
-    return '<td style="padding:5px 0 0;text-align:center;font-size:11px;color:' + M.mo + ';">'
-      + ((i % buoc === 0 || i === ds.length - 1) ? ngayDai(c.ngay).slice(0, 5) : '') + '</td>';
-  }).join('');
-  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
-    + ' style="border-collapse:collapse;table-layout:fixed;"><tr>' + o + '</tr><tr>' + nhan
-    + '</tr></table>'
-    + '<div style="font-size:12px;color:' + M.mo + ';margin-top:8px;line-height:1.5;">'
-    + 'Mỗi cột là một ngày. Cột đỏ là ngày chưa đạt ' + nguong + '%, cột xanh là ngày đạt.'
-    + '</div>';
-}
-
 /* ===== Ráp thân email =================================================== */
 
 function rapEmail(d, duBao, cfg) {
   const c = cfg || {};
+  // Bản riêng khu (fan-out theo người nhận): dữ liệu d đã là của khu đó, nên dòng "Toàn nhà máy"
+  // phải gọi là "Cả khu X", bảng ba khu bỏ đi (chỉ còn một khu), bảng lịch sử chỉ giữ cột khu đó.
+  const khuBC = c.khu ? String(c.khu).toUpperCase() : null;
+  const tenTong = khuBC ? 'Cả khu ' + khuBC : 'Toàn nhà máy';
   const k = d.kpi_ky_nay || {}, kt = d.kpi_ky_truoc || {};
   const cap = L.phanCap(d);
   const ctDP = L.tongHopChiTieu(d, 'DP');
@@ -239,13 +132,17 @@ function rapEmail(d, duBao, cfg) {
     || (ht && ht.gio_co_du_lieu) || 0;
   // Tỉ lệ thời gian ngoài giới hạn trên tổng số giờ thực sự đo được của toàn nhà máy.
   const pNghiem = gioDoDuoc ? 100 * (k.so_gio_critical || 0) / gioDoDuoc : null;
+  // "Trong ngưỡng" (ty_le_tuan_thu) tính theo PHÚT: 100 trừ trung bình tỉ lệ phút ngoài dải của
+  // từng giờ cảm biến. Phần bù của nó là "ngoài dải" — hai số này cộng đúng 100%. Còn
+  // so_gio_critical là SỐ GIỜ cảm biến bị dán nhãn nghiêm trọng (vượt giới hạn hành động dù chỉ
+  // vài phút) — đơn vị khác, không cộng với tỉ lệ theo phút (góp ý 04/09/2026).
+  const pNgoaiDai = k.ty_le_tuan_thu == null ? null : Math.max(0, 100 - Number(k.ty_le_tuan_thu));
   // Kỳ trước không kèm số giờ đo được nên không dựng được tỉ lệ tương ứng để so.
   // Chỉ so được mức tăng giảm của chính số giờ — phải nói rõ là "về số giờ".
   const dGioNghiem = kt.so_gio_critical
     ? 100 * ((k.so_gio_critical || 0) - kt.so_gio_critical) / kt.so_gio_critical : null;
   const dat = (k.ty_le_tuan_thu || 0) >= NGUONG_HANH_DONG && !cap.capA_tong;
 
-  const chuoiNgay = (d.chuoi_ngay && d.chuoi_ngay.total) || [];
   const SO_DONG_THU = 5;
   const dsA = cap.capA_tat_ca.slice(0, SO_DONG_THU);
   const conLai = cap.capA_tong - dsA.length;
@@ -277,133 +174,6 @@ function rapEmail(d, duBao, cfg) {
       + '</td></tr></table></td></tr>';
   }).join('');
 
-  /* ===== Khối một chỉ tiêu ==============================================
-   * Cùng một thiết kế cho cả ba chỉ tiêu: thẻ tổng ở trên, thanh theo khu ở
-   * dưới, chỉ hiện phần trăm chứ không hiện số giờ.
-   *   · Chỉ tiêu có HAI phía (chênh áp, độ ẩm): hai thẻ và thanh hai hướng.
-   *   · Nhiệt độ: truy vấn đã gộp sẵn hai phía nên chỉ có một thẻ, một thanh.
-   * Màu ĐỎ luôn là phía nguy hiểm của chính chỉ tiêu đó — chênh áp là tụt
-   * dưới, độ ẩm là vượt trên. Không cố định đỏ ở bên trái.
-   * ================================================================== */
-
-  function theHuong(ten, pct, soPhong, tongPhong, heQua, mau, nen, gio) {
-    const dangKe = pct >= 0.05;
-    return '<td width="49%" style="padding:' + LE_THE + 'px;background:' + nen
-      + ';border-radius:10px;border-left:4px solid ' + mau + ';vertical-align:top;">'
-      + '<div style="font-size:13px;color:' + M.muc2 + ';font-weight:700;">' + esc(ten) + '</div>'
-      + '<div style="font-size:24px;font-weight:700;color:' + M.muc + ';margin:6px 0 4px;'
-      +   'letter-spacing:-.02em;">' + phanTram(pct) + '</div>'
-      + '<div style="font-size:13px;color:' + M.muc2 + ';line-height:1.5;">'
-      + (dangKe
-          ? soPhong + '/' + tongPhong + ' phòng · ' + heQua
-          : ((gio || 0) < 0.05
-              ? 'không ghi nhận giờ nào trong kỳ'
-              : 'hầu như không có — cả kỳ ' + soVN(gio, 1) + ' giờ'))
-      + '</div></td>';
-  }
-
-  // Thang của thanh: lấy tròn chục trên giá trị lớn nhất, tối thiểu 20%.
-  function thangKhu(dsKhu, hai) {
-    const lon = dsKhu.reduce(function (t, x) {
-      if (!x.tong_gio_do) return t;
-      const a = 100 * (hai ? (x.tong_gio_duoi || 0) : (x.tong_gio_lech || 0)) / x.tong_gio_do;
-      const b = hai ? 100 * (x.tong_gio_tren || 0) / x.tong_gio_do : 0;
-      return Math.max(t, a, b);
-    }, 0);
-    return Math.max(20, Math.ceil(lon / 10) * 10);
-  }
-
-  function khoiChiTieu(ct, tenNgan) {
-    if (!ct.so_phong_do || !ct.hai_huong) return '';
-    const hh = ct.hai_huong;
-    const dsKhu = xepKhu(L.gomChiTieuTheoCap(ct).khu);
-    if (!dsKhu.length) return '';
-    const hai = !!hh.nguoc;
-    // Phía nguy hiểm nằm bên nào của thang đo vật lý.
-    const chinhLaDuoi = hh.chinh.ngan === 'tụt dưới';
-    const mauChinh = M.do, mauNguoc = M.tim;
-    const mauDuoi = hai ? (chinhLaDuoi ? mauChinh : mauNguoc) : mauChinh;
-    const mauTren = hai ? (chinhLaDuoi ? mauNguoc : mauChinh) : mauChinh;
-    const nenChinh = M.doN, nenNguoc = M.timN;
-    // Chữ đỏ trên nền trắng dùng tông đậm hơn thanh (#DC2626 chỉ đạt 4,41:1).
-    const mauDuoiChu = mauDuoi === M.do ? M.doChu : mauDuoi;
-    const mauTrenChu = mauTren === M.do ? M.doChu : mauTren;
-
-    const gioChinh = ct.tong_gio_lech || 0;
-    const gioNguoc = hai
-      ? (chinhLaDuoi ? (ct.tong_gio_tren || 0) : (ct.tong_gio_duoi || 0)) : 0;
-    const pC = ct.tong_gio_do ? 100 * gioChinh / ct.tong_gio_do : 0;
-    const pN = ct.tong_gio_do ? 100 * gioNguoc / ct.tong_gio_do : 0;
-    const phongChinh = (chinhLaDuoi ? ct.so_phong_lech_duoi : ct.so_phong_lech_tren);
-    const phongNguoc = (chinhLaDuoi ? ct.so_phong_lech_tren : ct.so_phong_lech_duoi);
-
-    const the = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
-      + ' class="co"><tr>'
-      + theHuong(hh.chinh.ten, pC, phongChinh == null ? ct.so_phong_do : phongChinh,
-          ct.so_phong_do, hh.chinh.he_qua, mauChinh, nenChinh, gioChinh)
-      + (hai
-          ? DEM + theHuong(hh.nguoc.ten, pN, phongNguoc == null ? ct.so_phong_do : phongNguoc,
-              ct.so_phong_do, hh.nguoc.he_qua, mauNguoc, nenNguoc, gioNguoc)
-          : '')
-      + '</tr></table>';
-
-    const thang = thangKhu(dsKhu, hai);
-    // Chú thích là dòng đầu của chính bảng khu, chiếm đúng ba cột "số trái · thanh · số phải",
-    // để mũi tên nằm ngay trên phía thanh sẽ mọc ra. Trước đây nó là bảng riêng trải hết
-    // bề ngang nên mũi tên lệch khỏi thanh.
-    const chuThich = hai
-      ? '<tr><td width="26%"></td><td colspan="3" style="padding:0 0 4px;">'
-        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
-        + '<td style="font-size:12px;color:' + mauDuoiChu + ';font-weight:700;">'
-        +   '← tụt dưới giới hạn dưới</td>'
-        + '<td style="font-size:12px;color:' + mauTrenChu + ';font-weight:700;text-align:right;">'
-        +   'vượt trên giới hạn trên →</td></tr></table></td></tr>'
-      : '';
-
-    // Mỗi khu một dòng: tên · SỐ TRÁI · thanh hai hướng · SỐ PHẢI. Hai con số đứng đúng
-    // bên thanh của nó, cùng màu với thanh — người đọc không phải dò xem "39,3% · 23,6%"
-    // số nào thuộc phía nào (góp ý 04/09/2026).
-    const hang = bang(chuThich + dsKhu.map(function (x) {
-      const pd = x.tong_gio_do ? 100 * (x.tong_gio_duoi || 0) / x.tong_gio_do : 0;
-      const pt = x.tong_gio_do ? 100 * (x.tong_gio_tren || 0) / x.tong_gio_do : 0;
-      const p1 = x.tong_gio_do ? 100 * (x.tong_gio_lech || 0) / x.tong_gio_do : 0;
-      const oSo = function (chu, mau, benTrai) {
-        return '<td width="56" style="width:56px;padding:8px ' + (benTrai ? '6px 8px 0' : '0 8px 6px')
-          + ';text-align:' + (benTrai ? 'right' : 'left') + ';vertical-align:middle;'
-          + 'font-size:13px;font-weight:700;white-space:nowrap;color:' + mau + ';">' + chu + '</td>';
-      };
-      return '<tr>'
-        + '<td width="26%" style="padding:8px 12px 8px 0;vertical-align:middle;">'
-        +   '<div style="font-size:15px;font-weight:700;color:' + M.muc + ';line-height:1.35;">'
-        +   'Khu ' + esc(x.khu) + '</div>'
-        +   '<div style="font-size:12px;color:' + M.mo + ';margin-top:2px;line-height:1.4;">'
-        +   x.so_phong_dat + '/' + x.so_phong + ' phòng đạt ' + tenNgan + '</div></td>'
-        + (hai
-            ? oSo(phanTram(pd), mauDuoiChu, true)
-              + '<td style="padding:8px 0;vertical-align:middle;">'
-              +   thanhHaiHuong(pd, pt, thang, mauDuoi, mauTren) + '</td>'
-              + oSo(phanTram(pt), mauTrenChu, false)
-            : '<td style="padding:8px 12px 8px 0;vertical-align:middle;">'
-              +   thanh(Math.min(100, 100 * p1 / thang), mauChinh) + '</td>'
-              + '<td width="72" style="width:72px;padding:8px 0;text-align:right;vertical-align:middle;'
-              +   'font-size:13px;white-space:nowrap;color:' + M.doChu + ';font-weight:700;">'
-              +   phanTram(p1) + '</td>')
-        + '</tr>';
-    }).join(''));
-
-    return the + '<div style="margin-top:16px;">' + hang
-      + '<div style="font-size:12px;color:' + M.mo + ';margin-top:8px;line-height:1.5;">'
-      + (hai
-          ? 'Trục ở giữa; thanh sang trái là tụt dưới giới hạn dưới, sang phải là vượt trên '
-            + 'giới hạn trên. Màu đỏ là phía nguy hiểm của chỉ tiêu này. '
-          : 'Nhiệt độ được truy vấn gộp sẵn cả hai phía nên không tách được. ')
-      + 'Thanh vẽ theo thang 0–' + thang + '%, tỉ lệ tính trên giờ có số đo của chính khu đó. '
-      + 'Chi tiết tới từng cụm xử lý không khí và từng phòng nằm trong báo cáo đính kèm.</div>'
-      + '</div>';
-  }
-
-  const khoiDP = khoiChiTieu(ctDP, 'chênh áp');
-
   function dongNhom(ten, so, phu, mauSo) {
     return '<tr>'
       + '<td style="padding:12px 0;border-bottom:1px solid ' + M.vien2 + ';vertical-align:top;">'
@@ -416,12 +186,6 @@ function rapEmail(d, duBao, cfg) {
       +   'vertical-align:top;white-space:nowrap;font-size:18px;font-weight:700;color:'
       +   (mauSo || M.muc) + ';letter-spacing:-.01em;">' + so + '</td></tr>';
   }
-  // Khai báo bằng function để dùng được ở mọi chỗ trong hàm, kể cả phía trên.
-  function bang(dong) {
-    return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
-      + ' style="border-collapse:collapse;">' + dong + '</table>';
-  }
-
   const pht = ((c.nhan_dinh || {}).phat_hien || []).filter(function (f) {
     return f && f.quan_sat && f.can_xac_minh && f.ai_lam;
   }).slice(0, 2);
@@ -466,26 +230,11 @@ function rapEmail(d, duBao, cfg) {
       + dsNgoaiKy.length + ' sự cố mở sau ngày chốt kỳ ' + ngayDai(d.den_ngay)
       + ' và tới lúc lập báo cáo vẫn chưa xử lý: '
       + dsNgoaiKy.map(function (x) {
-          return esc(x.phong) + ' (số ' + x.ma_su_co + ', mở ' + ngayDai(x.bat_dau) + ', đã '
+          return esc(x.phong) + ' (số ' + x.ma_su_co + ', mở ' + L.gioVietNam(x.bat_dau, true) + ', đã '   // ngày VN (rà soát 04/09/2026)
             + soVN(x.keo_dai_gio, 0) + ' giờ)';
         }).join('; ')
       + '. Không tính vào kết quả kỳ này — sẽ vào báo cáo kỳ sau.</div></div>'
     : '';
-
-  /* Nhiệt độ và độ ẩm dùng đúng thiết kế của chênh áp. Độ ẩm có hai phía thật
-   * (vượt trên là phía nguy hiểm), nhiệt độ thì truy vấn đã gộp sẵn. */
-  function tieuDePhu(ten, ct) {
-    return '<div style="font-size:15px;font-weight:700;color:' + M.muc + ';margin:0 0 ' + K[3]
-      + 'px;">' + ten + ' <span style="font-weight:400;font-size:13px;color:' + M.mo + ';">— '
-      + ct.so_phong_do + ' phòng đo, ' + ct.so_phong_dat_trong_bang + ' phòng đạt</span></div>';
-  }
-
-  const khoiNhiet = ctT.so_phong_do
-    ? tieuDePhu('Nhiệt độ', ctT) + khoiChiTieu(ctT, 'nhiệt độ') : '';
-  const khoiAm = ctRH.so_phong_do
-    ? '<div style="margin-top:' + K[6] + 'px;">' + tieuDePhu('Độ ẩm', ctRH)
-      + khoiChiTieu(ctRH, 'độ ẩm') + '</div>' : '';
-  const khoiNhietAm = khoiNhiet + khoiAm;
 
   const khoiDuBao = db.du_bao_dang_tin
     ? '<div style="font-size:15px;color:' + M.muc + ';line-height:1.65;">Xu hướng <b>'
@@ -503,11 +252,22 @@ function rapEmail(d, duBao, cfg) {
   // bao nhiêu, và mất bao lâu để khắc phục. Kỳ tuần ít vé nên không cần khối này.
   const sc = d.su_co || {};
   const laThang = String(d.ky).toUpperCase() !== 'TUAN';
-  const tonDau = sc.mo_ky_truoc, tonCuoi = sc.dang_mo;
+  // dang_mo là vé đang mở LÚC LẬP BÁO CÁO, không phải tồn cuối kỳ: kỳ 08 chạy ngày 03/09 thì cả
+  // bốn vé đều mở từ tháng 09. Tách vé mở trong kỳ khỏi vé mở sau ngày chốt kỳ (rà soát 04/09/2026).
+  const soNgoaiKyMo = (cap.suCoNgoaiKy || []).length;
+  const soMoTrongKy = Math.max(0, (sc.dang_mo || 0) - soNgoaiKyMo);
+  // Chia cho số ngày của kỳ (vé vẫn phát sinh ngày mất dữ liệu), không chia cho số ngày có số đo (rà soát 04/09/2026)
+  const soNgayKy = (d.tu_ngay && d.den_ngay)
+    ? Math.max(1, Math.round((Date.parse(String(d.den_ngay).slice(0, 10)) - Date.parse(String(d.tu_ngay).slice(0, 10))) / 86400000) + 1)
+    : Math.max(1, k.so_ngay_co_du_lieu || 1);
+  // Chênh áp tại các phòng theo dõi trọng điểm, ba kỳ — thư chỉ hiện phần tổng hợp,
+  // bảng từng phòng nằm trong bản in (yêu cầu 21/10/2026).
+  const khoiPhongTheoDoi = PTD.htmlThu(PTD.tongHop(d, khuBC));
+
   const khoiSuCo = (laThang && sc.mo_trong_ky != null)
     ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="co"><tr>'
       + oChiSo('Sự cố phát sinh trong kỳ', soVN(sc.mo_trong_ky, 0),
-          'trung bình ' + soVN(sc.mo_trong_ky / Math.max(1, k.so_ngay_co_du_lieu), 1) + ' vé mỗi ngày')
+          'trung bình ' + soVN(sc.mo_trong_ky / soNgayKy, 1) + ' vé mỗi ngày của kỳ (' + soNgayKy + ' ngày)')
       + DEM
       + oChiSo('Đã đóng trong kỳ', soVN(sc.dong_trong_ky, 0),
           (sc.dong_trong_ky >= sc.mo_trong_ky
@@ -515,15 +275,21 @@ function rapEmail(d, duBao, cfg) {
               + soVN(sc.mo_trong_ky - sc.dong_trong_ky, 0) + ' vé'),
           sc.dong_trong_ky >= sc.mo_trong_ky ? M.luc : M.doChu)
       + '</tr><tr><td colspan="3" style="height:12px;font-size:0;">&nbsp;</td></tr><tr>'
-      + oChiSo('Còn tồn cuối kỳ', soVN(tonCuoi, 0),
-          'vé chưa đóng tại thời điểm chốt kỳ', tonCuoi > 0 ? M.doChu : M.luc)
+      // Không còn ô "Còn tồn cuối kỳ": số đó không có trong dữ liệu (rà soát 04/09/2026)
+      + (soMoTrongKy
+          ? oChiSo('Còn mở lúc lập báo cáo', soVN(soMoTrongKy, 0),
+              'vé mở trong kỳ, tới lúc lập báo cáo vẫn chưa đóng', M.doChu)
+          : oChiSo('Vé mở trong kỳ còn treo', '0',
+              'không có vé nào mở trong kỳ mà tới lúc lập báo cáo vẫn chưa đóng', M.luc))
       + DEM
-      + oChiSo('Thời gian khắc phục trung bình', soVN(sc.mttr_gio, 1) + ' giờ',
+      + oChiSo('Thời gian khắc phục trung bình', soVN(sc.mttr_gio, 1) + '&nbsp;giờ',
           'tính trên các vé đã đóng trong kỳ')
       + '</tr></table>'
       + '<div style="font-size:13px;color:' + M.mo + ';margin-top:12px;line-height:1.55;">'
-      + 'Danh sách vé còn tồn nằm trong tệp đính kèm. Con số ở đây là toàn kỳ, không phải '
-      + 'tại thời điểm gửi thư.</div>'
+      + (soNgoaiKyMo
+          ? soNgoaiKyMo + ' sự cố đang mở lúc lập báo cáo, đều mở sau ngày chốt kỳ — không thuộc kỳ này. '
+          : '')
+      + 'Số phát sinh và đã đóng là của cả kỳ; số còn mở đo tại lúc lập báo cáo.</div>'
     : '';
 
   // Bảng tổng hợp — một chỗ gom cả kỳ, để người đọc không phải ghép số từ
@@ -549,48 +315,20 @@ function rapEmail(d, duBao, cfg) {
       huongDe: 'độ ẩm cao hơn mức cho phép',    huongNgan: 'cao hơn mức cho phép' }
   ].filter(function (x) { return x.ct.so_phong_do; });
 
-  const khoiBangTH =
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
-    + ' style="border-collapse:collapse;"><thead><tr>'
-    + thB('Chỉ tiêu', false, true) + thB('Phòng đo', true) + thB('Phòng đạt', true)
-    + thB('Ngoài giới hạn<br>phía nguy hiểm', true)
-    + thB('Hướng nguy hiểm', false, false, true)
-    + '</tr></thead><tbody>'
-    + bangChiTieu.map(function (x, i) {
-        const nen = i % 2 ? ' background:' + M.nen + ';' : '';
-        const p = x.ct.tong_gio_do ? 100 * x.ct.tong_gio_lech / x.ct.tong_gio_do : 0;
-        const chuaDat = x.ct.so_phong_dat_trong_bang < x.ct.so_phong_do;
-        return '<tr style="' + nen + '">'
-          + oB(x.ten, false, true, null, true) + oB(soVN(x.ct.so_phong_do, 0), true)
-          + oB(x.ct.so_phong_dat_trong_bang + '/' + x.ct.so_phong_do, true, true,
-               chuaDat ? M.doChu : M.luc)
-          + oB(phanTram(p), true, true, p > 20 ? M.doChu : M.muc)
-          + oB(x.huong, false, false, M.muc2, false, true) + '</tr>';
-      }).join('')
-    + '<tr style="background:' + M.muc + ';">'
-    +   '<td colspan="5" style="padding:' + LE_O + 'px ' + K[3] + 'px;font-size:13px;color:#C7D2E0;'
-    +   'line-height:1.5;">'
-    +   'Mỗi chỉ tiêu tính riêng, không cộng chung: mẫu số là số giờ đo được của chính chỉ '
-    +   'tiêu đó. Phòng đạt là phòng có từ ' + NGUONG_HANH_DONG + '% thời gian trở lên nằm '
-    +   'trong ngưỡng. Cột "Ngoài giới hạn phía nguy hiểm" chỉ đếm một phía'
-    +   (ctDP.tong_gio_do && ctDP.tong_gio_tren != null
-        ? '; riêng chênh áp còn ' + phanTram(100 * ctDP.tong_gio_tren / ctDP.tong_gio_do)
-          + ' thời gian áp cao quá mức, xem mục chênh áp bên dưới'
-        : '') + '.'
-    +   '</td></tr></tbody></table>';
-
-  // Ô "Ngoài giới hạn": tỉ lệ to, số giờ nhỏ bên dưới. Không có giờ đo thì ghi "—".
-  function oGioNgoai(pct, gio) {
-    return (pct == null ? '—' : phanTram(pct))
+  // Ô "Giờ vượt giới hạn hành động": số giờ to, tỉ lệ trên số giờ có số đo ghi nhỏ bên dưới —
+  // ghi rõ "số giờ" để không ai cộng nó với tỉ lệ theo phút ở hai cột bên trái.
+  function oGioVuot(gio, pct) {
+    // &nbsp; để số không tách khỏi đơn vị khi ô được phép xuống dòng (rà soát 04/09/2026)
+    return soVN(gio || 0, 0) + '&nbsp;giờ'
       + '<div style="font-size:12px;font-weight:400;color:' + M.mo + ';line-height:1.3;">'
-      + soVN(gio || 0, 0) + ' giờ</div>';
+      + (pct == null ? '—' : phanTram(pct) + '&nbsp;số&nbsp;giờ') + '</div>';
   }
 
   const khoiBangKhu =
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
     + ' style="border-collapse:collapse;"><thead><tr>'
     + thB('Khu', false, true) + thB('Phòng đạt', true)
-    + thB('Trong ngưỡng', true) + thB('Ngoài giới hạn', true)
+    + thB('Trong ngưỡng', true) + thB('Ngoài dải', true) + thB('Giờ vượt giới hạn hành động', true)
     + thB('Phòng phải xử lý', true, false, true)
     + '</tr></thead><tbody>'
     // Số giờ cộng dồn của một khu không so được với khu khác (mỗi khu số phòng khác nhau),
@@ -605,32 +343,91 @@ function rapEmail(d, duBao, cfg) {
           + oB('Khu ' + esc(x.khu), false, true, null, true)
           + oB(x.so_phong_dat + '/' + x.so_phong, true, true, duoi ? M.doChu : M.luc)
           + oB(phanTram(x.ty_le_tb), true, true, duoi ? M.doChu : M.luc)
-          + oB(oGioNgoai(pNgoai, x.gio_nghiem_trong), true, true,
+          + oB(x.ty_le_tb == null ? '—' : phanTram(100 - x.ty_le_tb), true, true, duoi ? M.doChu : M.luc)
+          + oB(oGioVuot(x.gio_nghiem_trong, pNgoai), true, false,
                pNgoai != null && pNgoai > 20 ? M.doChu : M.muc)
           + oB(dsK.length + '/' + x.so_phong, true, true, dsK.length ? M.doChu : M.luc, false, true)
           + '</tr>';
       }).join('')
     + '<tr style="background:' + M.nen + ';border-top:2px solid ' + M.muc2 + ';">'
-    +   oB('Toàn nhà máy', false, true, null, true)
+    +   oB(tenTong, false, true, null, true)
     +   oB((k.tong_phong_co_du_lieu - k.so_phong_khong_dat) + '/' + k.tong_phong_co_du_lieu, true, true)
     +   oB(phanTram(k.ty_le_tuan_thu), true, true,
            k.ty_le_tuan_thu < NGUONG_HANH_DONG ? M.doChu : M.luc)
-    +   oB(oGioNgoai(pNghiem, k.so_gio_critical), true, true,
+    +   oB(pNgoaiDai == null ? '—' : phanTram(pNgoaiDai), true, true,
+           k.ty_le_tuan_thu < NGUONG_HANH_DONG ? M.doChu : M.luc)
+    +   oB(oGioVuot(k.so_gio_critical, pNghiem), true, false,
            pNghiem != null && pNghiem > 20 ? M.doChu : M.muc)
     +   oB(cap.capA_tong + '/' + k.tong_phong_co_du_lieu, true, true,
            cap.capA_tong ? M.doChu : M.luc, false, true)
     + '</tr>'
     + '<tr style="background:' + M.muc + ';">'
-    +   '<td colspan="5" style="padding:' + LE_O + 'px ' + K[3] + 'px;font-size:13px;color:#C7D2E0;'
+    +   '<td colspan="6" style="padding:' + LE_O + 'px ' + K[3] + 'px;font-size:13px;color:#C7D2E0;'
     +   'line-height:1.55;">'
-    +   '<b style="color:#ffffff;">Trong ngưỡng</b>: phần thời gian số đo nằm trong dải cho phép, '
-    +   'tính trên giờ đo được của khu. '
-    +   '<b style="color:#ffffff;">Ngoài giới hạn</b>: phần thời gian số đo vượt giới hạn hành động; '
-    +   'số giờ ghi nhỏ bên dưới. '
+    +   '<b style="color:#ffffff;">Trong ngưỡng</b> và <b style="color:#ffffff;">Ngoài dải</b>: phần '
+    +   'thời gian (tính theo phút) số đo nằm trong hoặc ra ngoài dải cho phép — hai cột cộng đúng 100%. '
+    +   '<b style="color:#ffffff;">Giờ vượt giới hạn hành động</b>: số giờ cảm biến có lúc vượt giới hạn '
+    +   'hành động (một giờ chỉ vượt vài phút vẫn tính trọn giờ), cộng dồn các phòng trong khu; tỉ lệ nhỏ '
+    +   'bên dưới tính trên số giờ có số đo — đơn vị khác hai cột trước nên không cộng với nhau. '
     +   '<b style="color:#ffffff;">Phòng phải xử lý</b>: phòng có sự cố mở quá hạn, hoặc thời gian '
-    +   'trong ngưỡng thiếu hụt so với mức ' + NGUONG_HANH_DONG + '%, hoặc từ ' + L.GIO_NGHIEM_TRONG_A
-    +   ' giờ trở lên ngoài giới hạn — danh sách ở mục "Việc phải xử lý".'
+    // Luật A3 nay theo tỉ lệ trên giờ có số đo của phòng (rà soát 04/09/2026, đợt 2)
+    +   'trong ngưỡng thiếu hụt so với mức ' + NGUONG_HANH_DONG + '%, hoặc từ ' + L.TI_LE_GIO_VUOT_A
+    +   '% số giờ có số đo trở lên vượt giới hạn hành động — danh sách ở mục "Việc phải xử lý".'
     +   '</td></tr></tbody></table>';
+
+  /* ===== So với bốn kỳ trước ===========================================
+   * Người đọc muốn biết có tiến bộ hay không (góp ý 04/09/2026). Bảng 5 dòng,
+   * cũ → mới, cột toàn nhà máy và từng khu; mỗi số kèm mũi tên so với kỳ liền
+   * trước; câu kết luận rút thẳng từ dãy số.
+   * ================================================================== */
+  const lichSu = L.chuanHoaLichSu(d);
+  const khoiLichSu = (function () {
+    if (!lichSu) return '';
+    const dsKhu = (khuBC ? [khuBC] : ['C1', 'C4', 'Q2']).filter(function (k) {
+      return lichSu.some(function (x) { return x.khu && x.khu[k] != null; });
+    });
+    // Bản khu: cột toàn nhà máy bỏ đi (số của cả nhà máy không thuộc bản khu), kết luận tính
+    // trên dãy của chính khu đó.
+    const coTong = !khuBC;
+    const dayKetLuan = khuBC
+      ? lichSu.map(function (x) { return Object.assign({}, x, { ty_le: x.khu && x.khu[khuBC] != null ? Number(x.khu[khuBC]) : null }); })
+      : lichSu;
+    const xh = L.xuHuongLichSu(dayKetLuan);
+    const mauSo = function (v) {
+      return v == null ? M.mo : (v >= NGUONG_HANH_DONG ? M.luc : (v >= NGUONG_HANH_DONG - 10 ? M.vang : M.doChu));
+    };
+    const o = function (v, truoc, dam) {
+      const muiTen = (v != null && truoc != null && v !== truoc)
+        ? '<span style="font-size:11px;color:' + (v > truoc ? M.luc : M.doChu) + ';">&nbsp;'
+          + (v > truoc ? '▲' : '▼') + '</span>' : '';
+      return '<td class="d dp" style="font-weight:' + (dam ? 700 : 500) + ';color:' + mauSo(v)
+        + ';white-space:nowrap;">' + (v == null ? '—' : phanTram(v)) + muiTen + '</td>';
+    };
+    const dong = lichSu.map(function (x, i) {
+      const tr = i > 0 ? lichSu[i - 1] : null;
+      return '<tr style="' + (x.la_ky_nay ? 'background:' + M.nen + ';' : '') + '">'
+        + '<td class="d dl" style="font-weight:' + (x.la_ky_nay ? 700 : 500) + ';color:' + M.muc
+        +   ';white-space:nowrap;">' + esc(x.nhan) + (x.la_ky_nay ? ' <span style="font-size:11px;color:'
+        +   M.mo + ';">kỳ này</span>' : '') + '</td>'
+        + (coTong ? o(x.ty_le, tr ? tr.ty_le : null, true) : '')
+        + dsKhu.map(function (k) {
+            return o(x.khu[k] == null ? null : Number(x.khu[k]), tr && tr.khu[k] != null ? Number(tr.khu[k]) : null, !coTong);
+          }).join('')
+        + '</tr>';
+    }).join('');
+    if (!coTong && !dsKhu.length) return '';
+    return '<div style="font-size:15px;color:' + M.muc2 + ';line-height:1.6;margin:-4px 0 12px;">'
+      +   'Tỉ lệ <b>thời gian trong ngưỡng</b> của năm kỳ gần nhất, càng cao càng tốt; mức phải đạt '
+      +   NGUONG_HANH_DONG + '%. Mũi tên so với kỳ liền trước.</div>'
+      + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">'
+      + '<thead><tr>' + thB('Kỳ', false, true) + (coTong ? thB('Toàn nhà máy', true, false, !dsKhu.length) : '')
+      + dsKhu.map(function (k, i) { return thB('Khu ' + k, true, false, i === dsKhu.length - 1); }).join('')
+      + '</tr></thead><tbody>' + dong + '</tbody></table>'
+      + (xh ? '<div style="font-size:15px;font-weight:700;color:' + (xh.huong === 'tot' ? M.luc : (xh.huong === 'xau' ? M.doChu : M.muc2))
+          + ';margin-top:10px;line-height:1.5;">' + esc(xh.chu) + '</div>' : '')
+      + (lichSu.some(function (x) { return x.ty_le == null; })
+          ? '<div style="font-size:13px;color:' + M.mo + ';margin-top:6px;">Kỳ ghi "—" là kỳ chưa có số liệu trong hệ thống.</div>' : '');
+  })();
 
   /* ===== Đánh giá kết quả tổng quát ====================================
    * Bảng ở trên là số liệu; khối này trả lời câu "vậy kết quả kỳ này ra sao".
@@ -672,7 +469,10 @@ function rapEmail(d, duBao, cfg) {
     });
   }
 
-  const khuXep = cay.slice().sort(function (a, b) { return (a.ty_le_tb || 0) - (b.ty_le_tb || 0); });
+  // Khu không có số liệu (null) không phải khu 0% — đẩy xuống cuối (rà soát 04/09/2026)
+  const khuXep = cay.slice().sort(function (a, b) {
+    return (a.ty_le_tb == null ? 999 : a.ty_le_tb) - (b.ty_le_tb == null ? 999 : b.ty_le_tb);
+  });
   if (khuXep.length) {
     const kem = khuXep[0], tot = khuXep[khuXep.length - 1];
     dg.push({
@@ -733,7 +533,7 @@ function rapEmail(d, duBao, cfg) {
     + '</tbody></table>';
 
   const nut = c.link_dashboard
-    ? '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:18px;">'
+    ? '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px;">'
       + '<tr><td style="background:' + M.nhan + ';border-radius:8px;">'
       + '<a href="' + esc(c.link_dashboard) + '" style="display:inline-block;padding:14px 26px;'
       + 'font-family:' + F + ';font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;">'
@@ -746,19 +546,17 @@ function rapEmail(d, duBao, cfg) {
     + '<title>' + esc(c.tieu_de_email || ('Báo cáo ' + nhanKy)) + '</title>'
     /* Khối kiểu dáng CHỈ dùng cho màn hình hẹp; mọi thứ khác viết thẳng vào thẻ. */
     + '<style>'
-    + '.o{height:12px;font-size:0;line-height:0;}'
-    + '.rt{border-radius:6px 0 0 6px;}.rp{border-radius:0 6px 6px 0;}'
-    + '.c{border-radius:2px 2px 0 0;font-size:0;line-height:0;}'
-    + '.n{height:68px;}'
     // Ô bảng: phần bất biến vào lớp. Hòm thư nào bỏ <style> thì chỉ mất đệm và
     // đường kẻ ngang — chữ và số vẫn đọc được.
     // Lớp gốc khai TRƯỚC, lớp phụ khai SAU — cùng độ ưu tiên thì lớp khai sau
     // thắng, nên .dp mà đứng trước .h là mất căn phải của tiêu đề cột.
     + '.d{padding:12px;border-bottom:1px solid ' + M.vien2 + ';font-size:14px;'
     + 'vertical-align:top;line-height:1.45;}'
+    // Tiêu đề cột và ô số ĐƯỢC xuống dòng: sáu cột nowrap trên màn 360px là bảng tràn khung.
+    // Số và đơn vị nối bằng &nbsp; nên không bị tách (rà soát 04/09/2026).
     + '.h{padding:12px;background:' + M.muc + ';color:#ffffff;font-size:12px;font-weight:700;'
-    + 'letter-spacing:.04em;white-space:nowrap;text-align:left;}'
-    + '.dl{padding-left:0;}.dr{padding-right:0;}.dp{text-align:right;white-space:nowrap;}'
+    + 'letter-spacing:.04em;text-align:left;}'
+    + '.dl{padding-left:0;}.dr{padding-right:0;}.dp{text-align:right;}'
     + '@media only screen and (max-width:660px){'
     + '.co td{display:block !important;width:100% !important;}'
     + '.dem{display:none !important;}'
@@ -816,19 +614,21 @@ function rapEmail(d, duBao, cfg) {
 
     /* ── Hai chỉ số phụ ── */
     + hang('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="co"><tr>'
-        + oChiSo('Thời gian ngoài giới hạn',
-            pNghiem != null ? phanTram(pNghiem) : soVN(k.so_gio_critical || 0, 0) + ' giờ',
+        + oChiSo('Thời gian ngoài dải cho phép',
+            pNgoaiDai != null ? phanTram(pNgoaiDai) : '—',
             // Dòng này chỉ nói lại con số lớn bằng lời, không thêm số mới.
-            pNghiem == null ? ''
-              : (Math.round(pNghiem) < 1
-                  ? 'Gần như không có giờ nào ngoài giới hạn.'
-                  : 'Cứ 100 giờ đo được thì có ' + Math.round(pNghiem)
-                    + ' giờ ngoài giới hạn.'),
-            (k.so_gio_critical || 0) > 0 ? M.do : M.muc,
-            'Cả kỳ ' + soVN(k.so_gio_critical || 0, 0) + ' giờ trong '
-              + soVN(gioDoDuoc, 0) + ' giờ đo được.'
+            pNgoaiDai == null ? ''
+              : (Math.round(pNgoaiDai) < 1
+                  ? 'Gần như toàn bộ thời gian đo nằm trong dải cho phép.'
+                  : 'Cứ 100 phút đo được thì có ' + Math.round(pNgoaiDai)
+                    + ' phút ngoài dải. Cộng với ' + phanTram(k.ty_le_tuan_thu) + ' trong ngưỡng là đủ 100%.'),
+            pNgoaiDai != null && pNgoaiDai > 100 - NGUONG_HANH_DONG ? M.do : M.muc,
+            // Giờ dán nhãn không phải tập con của số phút ngoài dải — không nói "trong đó" (rà soát 04/09/2026)
+            'Tính riêng theo giờ: ' + soVN(k.so_gio_critical || 0, 0) + ' giờ cảm biến có lúc vượt giới hạn hành động'
+              + (pNghiem != null ? ' (' + phanTram(pNghiem) + ' số giờ có số đo)' : '')
+              + ((k.so_gio_warning || 0) > 0 ? ' và ' + soVN(k.so_gio_warning, 0) + ' giờ ở mức cảnh báo' : '') + '.'
               + (kt.so_gio_critical != null
-                  ? ' Kỳ trước ' + soVN(kt.so_gio_critical, 0) + ' giờ, kỳ này '
+                  ? ' Kỳ trước ' + soVN(kt.so_gio_critical, 0) + ' giờ vượt giới hạn, kỳ này '
                     + ((k.so_gio_critical || 0) < kt.so_gio_critical ? 'ít hơn' : 'nhiều hơn') + '.'
                   : ''))
         + DEM
@@ -845,6 +645,9 @@ function rapEmail(d, duBao, cfg) {
     /* ── Đánh giá kết quả tổng quát ── */
     + hang(nhanMuc('Đánh giá kết quả tổng quát') + khoiDanhGia, M.nen)
 
+    /* ── So với bốn kỳ trước ── */
+    + (khoiLichSu ? hang(nhanMuc('So với bốn kỳ trước') + khoiLichSu) : '')
+
     /* ── Việc phải xử lý ── */
     + hang(nhanMuc('Việc phải xử lý trong kỳ này', M.do)
         + (dongA
@@ -855,55 +658,24 @@ function rapEmail(d, duBao, cfg) {
             : '<div style="font-size:15px;color:' + M.muc2 + ';">Kỳ này không có phòng nào phải xử lý ngay.</div>')
         + (cap.suCoNgoaiKy && cap.suCoNgoaiKy.length ? khoiNgoaiKy : ''))
 
-    /* ── Diễn biến theo ngày, vẽ bằng cột ── */
-    + (chuoiNgay.length >= 2
-        ? hang(nhanMuc('Diễn biến theo ngày') + cotNgay(chuoiNgay, NGUONG_HANH_DONG))
-        : '')
+    /* Thư chỉ giữ phần TỔNG HỢP (yêu cầu 21/10/2026). Diễn biến theo ngày, bảng ba chỉ
+     * tiêu, phân tích chênh áp / nhiệt độ / độ ẩm theo khu, danh sách phòng xấu đi và
+     * mức tin cậy số đo nằm trong bản in đính kèm (mục 1, 3–7). */
 
-    /* ── Bảng tổng hợp cả kỳ ── */
-    + hang(nhanMuc('Tổng hợp cả kỳ · ba chỉ tiêu') + khoiBangTH)
-    + hang(nhanMuc('Tổng hợp cả kỳ · ba khu') + khoiBangKhu)
+    /* ── Tổng hợp cả kỳ theo ba khu ── */
+    + (khuBC ? '' : hang(nhanMuc('Tổng hợp cả kỳ · ba khu') + khoiBangKhu))
 
-    /* ── Chênh áp ── */
-    + (khoiDP ? hang(nhanMuc('Chênh áp — chỉ tiêu trọng tâm') + khoiDP) : '')
-
-    /* ── Nhiệt độ và độ ẩm theo khu ── */
-    + (khoiNhietAm ? hang(nhanMuc('Nhiệt độ và độ ẩm theo khu') + khoiNhietAm) : '')
+    /* ── Chênh áp tại các phòng theo dõi trọng điểm, ba kỳ ── */
+    + (khoiPhongTheoDoi ? hang(nhanMuc('Chênh áp tại các phòng theo dõi trọng điểm') + khoiPhongTheoDoi) : '')
 
     /* ── Xử lý sự cố trong kỳ (chỉ kỳ tháng) ── */
     + (khoiSuCo ? hang(nhanMuc('Xử lý sự cố trong kỳ') + khoiSuCo) : '')
-
-    /* ── Xấu đi so kỳ trước ── */
-    + (cap.capB.length
-        ? hang(nhanMuc('Xấu đi rõ so với kỳ trước')
-            + bang(cap.capB.slice(0, 4).map(function (x) {
-                return dongThanh(L.tenPhongGon(x.ma_phong, x.ten_phong), x.tuan_thu_ky_nay,
-                  phanTram(x.tuan_thu_ky_nay), M.do,
-                  'kỳ trước ' + phanTram(x.tuan_thu_ky_truoc), NGUONG_HANH_DONG);
-              }).join(''))
-            + (cap.capB.length > 4
-                ? '<div style="font-size:14px;color:' + M.mo + ';margin-top:10px;">Còn '
-                  + (cap.capB.length - 4) + ' phòng nữa trong tệp đính kèm.</div>' : ''))
-        : '')
 
     /* ── Nhận định ── */
     + (khoiNhanDinh ? hang(nhanMuc('Nhận định') + khoiNhanDinh) : '')
 
     /* ── Dự báo ── */
     + hang(nhanMuc('Dự báo kỳ sau') + khoiDuBao)
-
-    /* ── Độ tin cậy số đo ── */
-    + (ht
-        ? hang('<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
-            + '<td style="padding:' + LE_THE + 'px;background:' + M.nen + ';border-radius:10px;'
-            +   'border-left:4px solid ' + M.muc2 + ';">'
-            +   '<div style="font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;'
-            +     'color:' + M.mo + ';">Mức độ tin cậy của số đo</div>'
-            +   '<div style="font-size:15px;color:' + M.muc + ';margin-top:7px;line-height:1.65;">'
-            +   '<b>' + esc(ht.ket_luan) + '.</b> Ghi nhận ' + soVN(ht.tong_ngoai_le, 0)
-            +   ' lượt trục trặc khi lấy dữ liệu.'
-            +   (ht.viec ? ' ' + esc(ht.viec) : '') + '</div></td></tr></table>')
-        : '')
 
     /* ── Xem đầy đủ ở đâu ── */
     + hang(nhanMuc('Xem đầy đủ ở đâu')
@@ -924,14 +696,15 @@ function rapEmail(d, duBao, cfg) {
         +     'Bảng tra cứu</div>'
         +   '<div style="font-size:13px;color:' + M.muc2 + ';line-height:1.55;">'
         +     'Lọc theo khu, cụm và mức ưu tiên; bấm một phòng để xem số đo từng ngày. '
-        +     'Mở thẳng trong trình duyệt, không phải tải về.</div></td></tr></table>'
-        + nut)
+        +     'Mở thẳng trong trình duyệt, không phải tải về.</div>'
+        // Nút đặt ngay trong ô "Xem trên Drive" cho đúng chỗ (góp ý 04/09/2026), không để rời bên dưới.
+        +     nut + '</td></tr></table>')
 
     /* ── Chân thư ── */
     + '<tr><td class="pad" style="background:' + M.nen + ';border:1px solid ' + M.vien + ';'
     + 'border-radius:0 0 14px 14px;padding:' + LE_DOC + 'px ' + LE_NGANG + 'px;font-size:13px;color:' + M.mo + ';line-height:1.7;">'
-    + 'Nguồn số liệu: ' + esc(d.nguon || 'rpc_bao_cao_tong_hop') + '(' + esc(d.ky) + ', '
-    + esc(d.tu_ngay) + ', ' + esc(d.den_ngay) + ') · mã lần chạy ' + esc(c.ma_lan_chay || '—')
+    + 'Nguồn số liệu: ' + esc(d.nguon || 'rpc_bao_cao_tong_hop') + ' (' + esc(d.ky) + ', '
+    + ngayDai(d.tu_ngay) + ' – ' + ngayDai(d.den_ngay) + ') · mã lần chạy ' + esc(c.ma_lan_chay || '—')   // rà soát 04/09/2026
     + (c.link_drive ? '<br>Thư mục lưu báo cáo: <a href="' + esc(c.link_drive) + '" style="color:'
         + M.nhan + ';">mở trên Drive</a>' : '')
     + '<br>Việc phân loại mức ưu tiên xử lý do luật cố định trong bộ ráp báo cáo, không do máy viết '

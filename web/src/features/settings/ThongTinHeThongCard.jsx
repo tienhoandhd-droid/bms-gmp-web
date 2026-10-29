@@ -19,10 +19,10 @@ function mayChu() {
 }
 
 export function ThongTinHeThongCard({ giaoDien }) {
-  const buildLuc = BUILD_LUC ? fmtVN(BUILD_LUC, "dayDu") : "bản chạy thử (chưa build)";
+  const buildLuc = BUILD_LUC ? fmtVN(BUILD_LUC, "dayDu") : "bản chạy thử (chưa đóng gói)";
   const dong = [
     ["Phiên bản phần mềm", `v${PHIEN_BAN}`],
-    ["Thời điểm build", buildLuc],
+    ["Thời điểm đóng gói phần mềm", buildLuc],
     ["Môi trường dữ liệu", HAS_SUPABASE ? "Dữ liệu thật (production)" : "Dữ liệu mẫu (chỉ xem trước cục bộ)"],
     ["Máy chủ dữ liệu", mayChu()],
     ["Phiên bản giao thức máy chủ", String(PHIEN_BAN_GIAO_THUC)],

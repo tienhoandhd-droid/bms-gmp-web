@@ -15,11 +15,11 @@ export default function StatusAnchor({ p12Open, matNguon, isLive, capNhatLuc, kh
   const bmsKhongCoDuLieu = maTrangThai === "BMS_SOURCE_EMPTY" || maTrangThai === "FMS_DATA_LOSS";
   const trangThaiDuLieu = matNguon
     ? (loiN8n ? "Luồng lấy dữ liệu lỗi"
-      : bmsKhongCoDuLieu ? "API có kết nối, không có dữ liệu BMS"
-      : apiItKhongKetNoi ? "Không kết nối được API nguồn"
+      : bmsKhongCoDuLieu ? "Có kết nối nguồn nhưng không có dữ liệu BMS"
+      : apiItKhongKetNoi ? "Không kết nối được nguồn dữ liệu"
       : "Nguồn dữ liệu gián đoạn")
     : isLive ? "Số liệu chốt theo giờ" : "Dữ liệu mô phỏng";
-  const ghiChuDuLieu = matNguon ? (sucKhoe?.tomTat || "Tạm dừng kết luận đạt/không đạt cho tới khi nguồn ổn định.") : gioCapNhat ? `Lần tải trên web: ${gioCapNhat} · tự cập nhật mỗi 1 giờ.` : "Theo khung giờ chốt gần nhất.";
+  const ghiChuDuLieu = matNguon ? (sucKhoe?.tomTat || "Tạm dừng kết luận đạt/không đạt cho tới khi nguồn ổn định.") : gioCapNhat ? `Lần tải trên web: ${gioCapNhat} · tự cập nhật mỗi giờ.` : "Theo khung giờ chốt gần nhất.";
   const phamVi = khuChoPhep ? `Khu ${khuChoPhep.join(", ")} theo phân quyền tài khoản.` : "Toàn bộ phòng sạch trong hệ thống BMS.";
   return (
     <section aria-label="Ưu tiên vận hành" className="bms-priority">

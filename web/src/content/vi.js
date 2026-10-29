@@ -17,7 +17,7 @@ export const VI = {
     tasks: "Việc cần làm",
     trend: "Xu hướng",
     reports: "Báo cáo",
-    audit: "Nhật ký & SOP",
+    audit: "Nhật ký và SOP",
     recipients: "Thông báo",
     settings: "Cấu hình",
     them: "Thêm",

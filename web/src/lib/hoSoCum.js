@@ -9,6 +9,7 @@
 // Mọi giá trị đều đi qua esc() — lý do/ghi chú là văn bản người nhập.
 // ============================================================
 import { fmtVN } from './dinhDang'
+import { SENSOR_META_BASE } from './designTokens'
 
 const esc = (v) => String(v == null ? '' : v)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -24,7 +25,7 @@ export function moHoSoCumBanIn(hoSo) {
     <tr>
       <td>${esc(s.ma_hien_thi)}</td><td>${esc(s.ma_phong)} — ${esc(s.ten_phong || '')}</td>
       <td>${esc(s.loai_cam_bien)} · ${esc(s.muc_uu_tien)}</td>
-      <td>${esc(s.nhan_trang_thai || s.trang_thai)}${s.muc_canh_bao === 'SUPPRESSED' ? ' <i>(cảm biến đứng hình)</i>' : ''}</td>
+      <td>${esc(s.nhan_trang_thai || s.trang_thai)}${s.muc_canh_bao === 'SUPPRESSED' ? ' <i>(cảm biến đứng tín hiệu)</i>' : ''}</td>
       <td class="num">${ts(s.mo_luc)}</td><td class="num">${s.dong_luc ? ts(s.dong_luc) : 'đang mở'}</td>
     </tr>`).join('')
 
@@ -33,7 +34,7 @@ export function moHoSoCumBanIn(hoSo) {
       <td class="num">${ts(a.thoi_diem)}</td><td>${esc(a.ma_hien_thi)}</td>
       <td>${esc(a.nguoi)}<br/><span class="mut">${esc(a.vai_tro)}</span></td>
       <td>${esc(a.hanh_dong)}</td>
-      <td>${esc(a.truoc || '')}${a.truoc && a.sau ? ' → ' : ''}${esc(a.sau || '')}</td>
+      <td>${esc(a.truoc || '')}${a.truoc && a.sau ? ' chuyển sang ' : ''}${esc(a.sau || '')}</td>
       <td>${esc(a.ly_do || '')}</td>
     </tr>`).join('')
 
@@ -71,10 +72,10 @@ export function moHoSoCumBanIn(hoSo) {
   </div>
 
   <div class="khung">
-    <b>Phạm vi:</b> ${esc(c.ahu || 'Không rõ AHU')} · chỉ tiêu ${esc(c.loai_cam_bien)} · khu ${esc(c.khu_vuc)}<br/>
+    <b>Phạm vi:</b> ${esc(c.ahu || 'Không rõ AHU')} · chỉ tiêu ${esc(SENSOR_META_BASE[c.loai_cam_bien]?.label || c.loai_cam_bien)} · khu ${esc(c.khu_vuc)}<br/>
     <b>Chẩn đoán hệ thống:</b> ${esc(c.chan_doan)}<br/>
     <b>Mở:</b> ${ts(c.thoi_gian_mo)} · <b>Trạng thái:</b> ${c.dang_mo ? `đang mở (${esc(Math.round(c.gio_mo))} giờ)` : 'đã đóng'}
-    · <b>Sự cố:</b> ${esc(c.tong_su_co)} (đang mở ${esc(c.su_co_dang_mo)}${Number(c.so_cam_bien_dung_hinh) > 0 ? `, cảm biến đứng hình ${esc(c.so_cam_bien_dung_hinh)}` : ''})
+    · <b>Sự cố:</b> ${esc(c.tong_su_co)} (đang mở ${esc(c.su_co_dang_mo)}${Number(c.so_cam_bien_dung_hinh) > 0 ? `, cảm biến đứng tín hiệu ${esc(c.so_cam_bien_dung_hinh)}` : ''})
   </div>
 
   <h2>1 · Kết luận điều tra (CAPA)</h2>
@@ -99,7 +100,7 @@ export function moHoSoCumBanIn(hoSo) {
   // nên nhánh dưới luôn báo "trình duyệt chặn cửa sổ" dù pop-up không bị chặn (bản in
   // hồ sơ cụm chưa bao giờ mở được). Cửa sổ do chính ta ghi nội dung nên không cần noopener.
   const w = window.open('', '_blank', 'width=1000,height=800')
-  if (!w) { alert('Trình duyệt chặn cửa sổ mới — hãy cho phép pop-up để in hồ sơ.'); return }
+  if (!w) { alert('Trình duyệt đang chặn cửa sổ mới. Hãy cho phép cửa sổ bật lên (pop-up) để in hồ sơ.'); return }
   w.document.write(html)
   w.document.close()
   // Nút "In / Lưu PDF" gắn sự kiện TỪ TRANG MẸ (không dùng onclick inline): cửa sổ

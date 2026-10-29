@@ -31,11 +31,11 @@ export const fmtPct = (v) => (v == null || isNaN(v) ? "—" : `${(+v).toFixed(1)
 // (Đèn nhị phân đạt/không-đạt tại mốc 80% là ngữ nghĩa RIÊNG — giữ COMPLY_OK/BAD.)
 // ============================================================
 export const COMPLY_SCALE = [
-  { lt: 70,          label: "< 70%",  color: "#B3261E" },  // đỏ trầm — nguy cấp
+  { lt: 70,          label: "Dưới 70%",  color: "#B3261E" },  // đỏ trầm — nguy cấp
   { gte: 70, lt: 80, label: "70–80%", color: "#E26A4F" },  // cam đỏ — không đạt
   { gte: 80, lt: 88, label: "80–88%", color: "#D99A2B" },  // vàng đậm — chớm đạt
   { gte: 88, lt: 95, label: "88–95%", color: "#7FBDB5" },  // teal nhạt — khá
-  { gte: 95,         label: "≥ 95%",  color: "#0E7C73" },  // teal sâu — tốt
+  { gte: 95,         label: "Từ 95%", color: "#0E7C73" },  // teal sâu — tốt
 ];
 export function complyBucket(p) {
   if (p == null || isNaN(p)) return { label: "—", color: COMPLY_NA };
