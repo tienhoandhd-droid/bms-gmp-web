@@ -1392,8 +1392,13 @@ __dinh_nghia("chenh-ap-phong-theo-doi", function (module, require) {
  * (cau_hinh.canh_bao_khu_vuc, canh_bao_muc_uu_tien), để báo cáo và cảnh báo
  * luôn nói về cùng một nhóm phòng.
  *
+ * 29/10/2026: thêm pham_vi.phong — danh sách mã phòng lấy bằng chính hàm
+ * trong_pham_vi_canh_bao(ma_phong, muc_uu_tien, 'DP') của hệ cảnh báo. Có danh sách
+ * này thì lọc theo nó (bắt được cả phòng đặc cách canh_bao_bat_buoc, ví dụ 7 phòng
+ * Mức 3 của Q2); không có (dữ liệu cũ) thì quay về lọc khu × mức như trước.
+ *
  * Dữ liệu vào: d.dp_phong_theo_doi do node Supabase của WF5 dựng —
- *   { pham_vi: { khu: 'C1,Q2', muc: 'P1,P2' },
+ *   { pham_vi: { khu: 'C1,Q2', muc: 'P1,P2', phong: ['C1.R11', ...] },
  *     ky: [ { loai: 'TUAN'|'THANG'|'QUY', tu: 'yyyy-mm-dd', den: 'yyyy-mm-dd',
  *             dp: rpc_chi_so_cam_bien(tu, den, NULL, 200)->'DP' }, ... ] }
  * Thiếu khối này (dữ liệu cũ) thì mục không hiện — báo cáo vẫn dựng bình thường.
@@ -1464,7 +1469,8 @@ function tongHop(d, khuBaoCao) {
   if (!goc || !Array.isArray(goc.ky) || !goc.ky.length) return null;
   const khuCB = tachDs((goc.pham_vi || {}).khu);
   const mucCB = tachDs((goc.pham_vi || {}).muc);
-  if (!khuCB.length || !mucCB.length) throw new Error('CHENH_AP_PHONG_THEO_DOI: thiếu cấu hình phạm vi cảnh báo');
+  const dsPhong = Array.isArray((goc.pham_vi || {}).phong) ? goc.pham_vi.phong.map(String) : null;
+  if (!khuCB.length || (!mucCB.length && !dsPhong)) throw new Error('CHENH_AP_PHONG_THEO_DOI: thiếu cấu hình phạm vi cảnh báo');
   // Bản riêng một khu: chỉ giữ khu đó; khu nằm ngoài phạm vi cảnh báo thì không có mục này.
   const khuDung = khuBaoCao ? khuCB.filter(function (k) { return k === String(khuBaoCao).toUpperCase(); }) : khuCB;
   if (!khuDung.length) return null;
@@ -1476,11 +1482,12 @@ function tongHop(d, khuBaoCao) {
   ky.forEach(function (k) {
     (k.dp.top_phong || []).forEach(function (r) {
       const khu = String(r.khu_vuc || '').toUpperCase(), muc = String(r.muc_uu_tien || '').toUpperCase();
-      if (khuDung.indexOf(khu) < 0 || mucCB.indexOf(muc) < 0) return;
+      const theoMuc = mucCB.indexOf(muc) >= 0;
+      if (khuDung.indexOf(khu) < 0 || !(dsPhong ? dsPhong.indexOf(String(r.ma_phong)) >= 0 : theoMuc)) return;
       const v = Number(r.ty_le_trong_nguong);
       if (!Number.isFinite(v)) throw new Error('CHENH_AP_PHONG_THEO_DOI: tỷ lệ không hợp lệ ' + r.ma_phong);
       const p = phong[r.ma_phong] || (phong[r.ma_phong] = {
-        ma: r.ma_phong, ten: r.ten_phong, khu: khu, muc: TEN_MUC[muc] || muc,
+        ma: r.ma_phong, ten: r.ten_phong, khu: khu, muc: TEN_MUC[muc] || muc, dac_cach: !theoMuc,
         gioi_han: String(r.gioi_han || '').split('–').map(function (x) { return so(x.trim()); }).join(' – ')
           + (k.dp.don_vi ? ' ' + k.dp.don_vi : ''),
         ky: {} });
@@ -1503,6 +1510,7 @@ function tongHop(d, khuBaoCao) {
   const khu = khuDung.filter(function (k) { return tong[k]; });
   return {
     ky: ky, khu: khu, phong: ds, tong: tong, muc: mucCB.map(function (m) { return TEN_MUC[m] || m; }),
+    so_dac_cach: ds.filter(function (p) { return p.dac_cach; }).length,
     uu_tien: ds.filter(function (p) { return p.ky[k0] && p.ky[k0].v < NGUONG_UU_TIEN; })
       .sort(function (a, b) { return a.ky[k0].v - b.ky[k0].v; })
   };
@@ -1514,7 +1522,9 @@ function noiKhu(ds) { return ds.length > 1 ? ds.slice(0, -1).join(', ') + ' và 
 function loiDan(t) {
   return '<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:' + MUC2 + ';">'
     + 'Chỉ tính <b>' + t.phong.length + ' phòng theo dõi trọng điểm</b>: phòng có cảm biến chênh áp, '
-    + t.muc.join(' và ').toLowerCase() + ' ưu tiên giám sát, tại khu ' + noiKhu(t.khu) + ' — đúng nhóm phòng đang được cảnh báo. '
+    + t.muc.join(' và ').toLowerCase() + ' ưu tiên giám sát, tại khu ' + noiKhu(t.khu)
+    + (t.so_dac_cach ? ', cùng ' + t.so_dac_cach + ' phòng mức thấp hơn được đặc cách theo dõi' : '')
+    + ' — đúng nhóm phòng đang được cảnh báo. '
     + 'Số liệu “toàn khu” ở các phần khác tính chung cả những phòng không thuộc diện theo dõi, '
     + 'nên hai cách tính có thể cho kết quả khác nhau.</p>';
 }
@@ -1608,7 +1618,7 @@ function bangChiTiet(t) {
       return '<tr><td style="padding:10px 8px;border-bottom:1px solid #EEF1F4;vertical-align:top;">'
         + '<div style="font-size:13px;color:' + MUC + ';"><b>' + esc(p.ma) + '</b></div>'
         + '<div style="font-size:13px;color:' + MUC2 + ';">' + esc(p.ten) + '</div>'
-        + '<div style="font-size:11px;color:#7A8A99;margin-top:2px;">' + esc(p.muc) + ' · giới hạn ' + esc(p.gioi_han) + '</div></td>'
+        + '<div style="font-size:11px;color:#7A8A99;margin-top:2px;">' + esc(p.muc) + (p.dac_cach ? ' · đặc cách theo dõi' : '') + ' · giới hạn ' + esc(p.gioi_han) + '</div></td>'
         + t.ky.map(function (k) { return oPhong(p.ky[k.khoa]); }).join('') + '</tr>';
     }).join('');
   });
