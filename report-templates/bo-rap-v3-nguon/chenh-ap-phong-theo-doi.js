@@ -40,6 +40,7 @@
  * Cả hai viết kiểu dáng thẳng vào thẻ nên dùng chung được cho thư và bản in.
  * ========================================================================= */
 
+const BD = require('./bieu-do-thu.js');
 const NGUONG_DAT = 80;          // tô màu từng phòng: từ mức này trở lên là xanh — cùng NGUONG_HANH_DONG của bộ ráp
 const NGUONG_UU_TIEN = 50;      // tỷ lệ điểm đo đạt của phòng dưới mức này: đưa vào khung "Cần ưu tiên kiểm tra"
 const TEN_MUC = { P1: 'Mức 1', P2: 'Mức 2', P3: 'Mức 3' };
@@ -438,6 +439,77 @@ function htmlThu(t) {
     + 'xem bảng chi tiết trong bản in đính kèm.</div>';
 }
 
+/* Số tóm tắt cho phần Kết luận của thư. */
+function tomTat(t) {
+  if (!t) return null;
+  const g = nhomChinh(t), k0 = t.ky[0], k1 = t.ky[1];
+  const v = tyLe(lay(t.tong, g, k0.khoa));
+  const vTruoc = k1 ? tyLe(lay(t.tong, g, k1.khoa)) : null;
+  const cl = lay(t.con_lai, g, k0.khoa);
+  return {
+    ty_le: v, so_phong: t.phong.length,
+    phong_dat: t.phong.filter(function (p) { return p.ky[k0.khoa] && p.ky[k0.khoa].v >= NGUONG_DAT; }).length,
+    so_uu_tien: t.uu_tien.length, nguong_uu_tien: NGUONG_UU_TIEN, nguong_dat: NGUONG_DAT,
+    ty_le_truoc: vTruoc, ten_ky_truoc: k1 ? thuong(k1) : null,
+    chenh: vTruoc == null ? null : Math.round((v - vTruoc) * 10) / 10,
+    ty_le_con_lai: cl ? tyLe(cl) : null, so_con_lai: soPhongNhom(t, t.con_lai, g),
+    theo_khu: t.khu.map(function (k) {
+      const ds = t.phong.filter(function (p) { return p.khu === k && p.ky[k0.khoa]; });
+      return {
+        khu: k, ty_le: tyLe(lay(t.tong, k, k0.khoa)), so_phong: ds.length,
+        phong_dat: ds.filter(function (p) { return p.ky[k0.khoa].v >= NGUONG_DAT; }).length
+      };
+    }).filter(function (x) { return x.ty_le != null; })
+  };
+}
+
+/* Bản rút gọn cho thư: một câu chính, một bảng ba kỳ, danh sách phòng ưu tiên; chi tiết nằm trong bản in. */
+function htmlThuGon(t) {
+  if (!t) return '';
+  const g = nhomChinh(t), k0 = t.ky[0], k1 = t.ky[1];
+  const cau = '<p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:' + MUC2 + ';">'
+    + 'Mục này <b>chỉ nói về chênh áp</b>. <b>Phòng theo dõi</b> là các phòng đang được cảnh báo chênh áp; phòng còn lại đưa vào để so sánh.</p>';
+  const TDT = 'padding:8px;background:' + NEN + ';border-bottom:1px solid ' + MUC2 + ';font-size:12px;font-weight:600;color:' + MUC2 + ';vertical-align:bottom;';
+  const O = 'padding:9px 8px;border-bottom:1px solid ' + VIEN + ';font-size:14px;color:' + MUC + ';vertical-align:top;';
+  const dong = function (ten, bang, nhom, dam) {
+    const n = soPhongNhom(t, bang, nhom);
+    if (!n) return '';
+    const s = dam ? 'font-weight:700;background:' + NEN + ';' : '';
+    return '<tr><td style="' + O + s + 'padding-left:0;">' + ten + ' <span style="font-size:12px;font-weight:400;color:' + MO + ';white-space:nowrap;">' + n + ' phòng</span></td>'
+      + t.ky.map(function (k, i) {
+        const x = lay(bang, nhom, k.khoa);
+        return '<td class="d dp' + (i === t.ky.length - 1 ? ' dr' : '') + '" style="' + O + s + 'text-align:right;' + (i === 0 ? 'font-weight:700;' : '') + '">' + (x ? phanTram(tyLe(x))
+          // Chỉ kỳ này có thanh: ba kỳ đều có thanh thì thư quá nặng.
+          + (i === 0 ? '<div style="margin-top:4px;">' + BD.thanh(tyLe(x), { nguong: NGUONG_DAT, cao: 5 }) + '</div>' : '') : '—') + '</td>';
+      }).join('') + '</tr>';
+  };
+  const bang = '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;"><tr>'
+    + '<th class="h dl" style="' + TDT + 'text-align:left;padding-left:0;">Tỷ lệ đạt chênh áp theo nhóm phòng</th>'
+    + t.ky.map(function (k, i) {
+      return '<th class="h dp' + (i === t.ky.length - 1 ? ' dr' : '') + '" style="' + TDT + 'text-align:right;">' + esc(k.ten)
+        + '<br><span style="font-weight:400;">' + esc(k.ngay) + '</span></th>';
+    }).join('') + '</tr>'
+    + t.khu_bang.map(function (khu) {
+      return dong('Khu ' + esc(khu) + ' · theo dõi', t.tong, khu) + dong('Khu ' + esc(khu) + ' · còn lại', t.con_lai, khu);
+    }).join('')
+    + (t.toan_nha_may && t.khu_bang.length > 1
+      ? dong('Toàn nhà máy · theo dõi', t.tong, 'TAT_CA', true) + dong('Toàn nhà máy · còn lại', t.con_lai, 'TAT_CA', true) : '')
+    + '</table>';
+  const uu = t.uu_tien.length
+    ? '<div style="margin-top:14px;font-size:14px;font-weight:700;color:' + MUC + ';">' + t.uu_tien.length
+      + ' phòng theo dõi có tỷ lệ đạt chênh áp dưới ' + NGUONG_UU_TIEN + '%, cần ưu tiên kiểm tra</div>'
+      + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:4px;">'
+      + t.uu_tien.map(function (p) {
+        const h = huong(p.ky[k0.khoa]);
+        return '<tr><td style="padding:6px 8px 6px 0;font-size:14px;color:' + MUC2 + ';line-height:1.35;vertical-align:top;"><b>' + esc(p.ma) + '</b> ' + esc(p.ten)
+          + (h ? '<div style="font-size:12px;color:' + MO + ';">' + (h.ky_hieu === '↕' ? '' : 'chủ yếu ') + esc(h.chu) + '</div>' : '') + '</td>'
+          + '<td width="26%" style="width:26%;padding:10px 8px 6px 0;vertical-align:top;">' + BD.thanh(p.ky[k0.khoa].v, { nguong: NGUONG_DAT, cao: 8 }) + '</td>'
+          + '<td width="46" style="width:46px;padding:6px 0;text-align:right;font-size:14px;font-weight:700;color:' + MAU.kem.chu + ';white-space:nowrap;vertical-align:top;">' + phanTram(p.ky[k0.khoa].v) + '</td></tr>';
+      }).join('') + '</table>'
+    : '';
+  return cau + bang + uu + '<div style="font-size:13px;color:' + MO + ';margin-top:10px;">Tỷ lệ từng phòng xem trong bản in đính kèm.</div>';
+}
+
 function htmlBanIn(t) {
   if (!t) return '';
   return phanChung(t)
@@ -445,4 +517,4 @@ function htmlBanIn(t) {
     + bangChiTiet(t) + ghiChu();
 }
 
-module.exports = { tongHop: tongHop, htmlThu: htmlThu, htmlBanIn: htmlBanIn, NGUONG_DAT: NGUONG_DAT };
+module.exports = { tongHop: tongHop, htmlThu: htmlThu, htmlThuGon: htmlThuGon, tomTat: tomTat, htmlBanIn: htmlBanIn, nhanKy: nhanKy, NGUONG_DAT: NGUONG_DAT };

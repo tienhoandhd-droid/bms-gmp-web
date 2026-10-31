@@ -122,7 +122,7 @@ h3:first-of-type{border-top:none;padding-top:0;margin-top:var(--k-5)}
 .kpi .ct{font-size:var(--co-2);color:var(--mo);margin-top:var(--k-1);line-height:1.45}
 .tang{font-size:var(--co-3);font-variant-numeric:tabular-nums}
 .tang-xau{color:var(--cap2);font-weight:600}
-/* Số giờ đi kèm tỉ lệ: giờ thô không cho biết nặng nhẹ khi các phòng có
+/* Số giờ đi kèm tỷ lệ: giờ thô không cho biết nặng nhẹ khi các phòng có
    số giờ đo khác nhau. */
 .phu-ty-le{font-size:var(--co-1);color:var(--mo);font-weight:400}
 .phu-th{font-weight:400;text-transform:none;letter-spacing:0;color:var(--nhat)}
@@ -390,7 +390,7 @@ function khoiLichSuBanIn(d, khuBC) {
     return '<td class="so' + (dam ? ' dam' : '') + '"><span class="' + lop + '">' + (v == null ? '—' : phanTram(v)) + '</span>' + mt + '</td>';
   };
   return '<h3>So với bốn kỳ trước</h3>'
-    + '<p class="mota">Tỉ lệ thời gian trong ngưỡng của năm kỳ gần nhất, tính cùng một cách với con số dẫn đầu '
+    + '<p class="mota">Tỷ lệ đạt của năm kỳ gần nhất, tính cùng một cách với con số dẫn đầu '
     + 'báo cáo; mức phải đạt ' + NGUONG_HANH_DONG + '%. Mũi tên so với kỳ liền trước. Kỳ ghi "—" là kỳ chưa có số liệu.</p>'
     + '<div class="cuon-ngang"><table><thead><tr><th>Kỳ</th>' + (coTong ? '<th class="so">Toàn nhà máy</th>' : '')
     + dsKhu.map(function (k) { return '<th class="so">Khu ' + k + '</th>'; }).join('')
@@ -474,7 +474,7 @@ function mucChiTieu(ct, laMucLon, soMuc, cauDan) {
       +     ' · giới hạn cho phép ' + soVN(p.ghd, 1) + ' – ' + soVN(p.ght, 1) + ' ' + esc(p.don_vi) + '</div>'
       + '</div><div class="o-phong-so">'
       +   '<div class="lon">' + soVN(p.ty_le_trong_nguong, 1) + '%</div>'
-      +   '<div class="nho">thời gian trong ngưỡng</div></div></div>'
+      +   '<div class="nho">tỷ lệ đạt</div></div></div>'
       + L.svgDaiGioiHan(p)
       + '<div class="dong-so">'
       // In cả hai hướng: trước chỉ in hướng nguy hiểm nên C1.R20 hiện 143,8 giờ trong khi
@@ -483,7 +483,7 @@ function mucChiTieu(ct, laMucLon, soMuc, cauDan) {
             ? '<span>Ngoài giới hạn: <b>' + L.gioTyLe(p.gio_lech_tong, p.gio_do) + '</b>'
               + ' — tụt dưới <b class="o-duoi">' + gioDoc(p.gio_duoi) + '</b> · vượt trên <b class="o-tren">'
               + gioDoc(p.gio_tren) + '</b></span>'
-            : '<span>Giờ ngoài dải: <b>' + L.gioTyLe(p.gio_lech, p.gio_do) + '</b></span>')
+            : '<span>Giờ không đạt: <b>' + L.gioTyLe(p.gio_lech, p.gio_do) + '</b></span>')
       +   '<span>Số đợt ngoài giới hạn: <b>' + (p.so_dot == null ? '—' : p.so_dot) + '</b></span>'
       +   '<span>Đợt dài nhất: <b>' + (p.dot_dai_nhat == null ? '—' : gioDoc(p.dot_dai_nhat)) + '</b></span>'
       +   '<span>Giờ vượt giới hạn hành động: <b>' + L.gioTyLe(p.gio_nghiem_trong, p.gio_co_du_lieu || p.gio_do) + '</b></span>'
@@ -546,11 +546,11 @@ function mucChiTieu(ct, laMucLon, soMuc, cauDan) {
     /* Tầng 1 — toàn nhà máy */
     + '<h3><span class="so-muc-phu">' + soMuc + '.1</span>' + tenTongThe() + '</h3>'
     + '<p class="mota">Số giờ ở đây là <b>giờ cộng dồn của ' + ct.so_phong_do + ' phòng đo</b> (mỗi phòng một '
-    + 'đồng hồ riêng), nên lớn hơn số giờ của kỳ; không quy đổi ra ngày. Phần trăm đi kèm là tỉ lệ trên tổng '
+    + 'đồng hồ riêng), nên lớn hơn số giờ của kỳ; không quy đổi ra ngày. Phần trăm đi kèm là tỷ lệ trên tổng '
     + 'thời gian THỰC SỰ CÓ SỐ ĐO của chỉ tiêu này (' + soVN(ct.tong_gio_do, 0) + ' giờ cộng dồn), không phải '
     + 'trên thời gian kỳ vọng — lấy thời gian kỳ vọng thì kỳ nào mất dữ liệu sẽ bị làm nhẹ đi một cách giả tạo.</p>'
     + '<p class="mota">' + ct.so_phong_dat_trong_bang + '/' + ct.so_phong_do + ' phòng đạt ngưỡng hành động '
-    + NGUONG_HANH_DONG + '% thời gian trong ngưỡng. Con số này tính <b>riêng</b> cho ' + esc(String(ct.ten).toLowerCase())
+    + NGUONG_HANH_DONG + '% tỷ lệ đạt. Con số này tính <b>riêng</b> cho ' + esc(String(ct.ten).toLowerCase())
     + ', nên khác con số ở mục 1 và mục 6 — hai chỗ đó gộp cả ba chỉ tiêu của phòng lại.</p>'
     + (hh.nguoc
         ? '<div class="hai-huong">'
@@ -565,7 +565,7 @@ function mucChiTieu(ct, laMucLon, soMuc, cauDan) {
           +   '<div class="hh-phu">' + ct.so_phong_lech_tren + '/' + ct.so_phong_do + ' phòng · '
           +   esc(hh.chinh.ngan === 'vượt trên' ? hh.chinh.he_qua : hh.nguoc.he_qua) + '</div></div>'
           + '</div>'
-        : '<p class="mota">Tổng thời gian ra ngoài dải cho phép trong cả kỳ: '
+        : '<p class="mota">Tổng thời gian không đạt trong cả kỳ: '
           + L.gioTyLe(ct.tong_gio_lech, ct.tong_gio_do)
           + ' thời gian có số đo, cộng dồn trên ' + ct.so_phong_do + ' phòng. Truy vấn gộp chung cả hai phía cho chỉ tiêu này.</p>')
 
@@ -574,7 +574,7 @@ function mucChiTieu(ct, laMucLon, soMuc, cauDan) {
     /* Tầng 2 — so sánh các khu (bỏ qua khi bản báo cáo chỉ có một khu) */
       + (coNhieuKhu
         ? '<h3><span class="so-muc-phu">' + soMuc + '.2</span>' + (khuDong.length === 3 ? 'Ba khu' : khuDong.length + ' khu') + ' so với nhau</h3>'
-          + '<p class="mota">So bằng <b>tỉ lệ</b> thời gian ngoài giới hạn của từng nhóm, không bằng số giờ cộng dồn: '
+          + '<p class="mota">So bằng <b>tỷ lệ</b> thời gian ngoài giới hạn của từng nhóm, không bằng số giờ cộng dồn: '
           + 'khu ' + esc(khuDong[0].khu) + ' có ' + khuDong[0].so_phong + ' phòng còn khu ' + esc(khuDong[khuDong.length - 1].khu)
           + ' chỉ có ' + khuDong[khuDong.length - 1].so_phong + ' phòng, so số giờ thì nhóm đông phòng luôn thua dù chất '
           + 'lượng có khi còn tốt hơn. Mẫu số là thời gian có số đo của chính nhóm đó; số giờ cộng dồn xem '
@@ -611,7 +611,7 @@ function mucChiTieu(ct, laMucLon, soMuc, cauDan) {
         ? '<h3><span class="so-muc-phu">' + soMuc + '.4</span>Từng phòng theo dõi đặc biệt <span class="mo">— ' + ct.dac_biet.length
           + ' phòng, xếp từ kém nhất</span></h3>'
           + '<p class="mota">Vùng xanh nhạt là dải cho phép của chính phòng đó. Đường đậm là trung bình mỗi ngày, '
-          + 'thanh dọc mờ là khoảng từ thấp nhất tới cao nhất trong ngày. Chấm đỏ là ngày có trung bình nằm ngoài dải.'
+          + 'thanh dọc mờ là khoảng từ thấp nhất tới cao nhất trong ngày. Chấm đỏ là ngày có trung bình ra ngoài giới hạn.'
           + (nghiLoi ? ' Vòng tròn rỗng nét đứt là số đo thấp bất thường, nghi do lỗi phép đo — giữ lại để đối chiếu, '
                      + 'không tính vào khoảng dao động.' : '') + '</p>'
           + oPhong
@@ -629,11 +629,11 @@ function mucChiTieu(ct, laMucLon, soMuc, cauDan) {
     + 'Thanh xám là phòng vẫn đạt ngưỡng hành động. Hai cột số trong bảng bên dưới tách riêng từng hướng.</p>'
     + '<div class="cuon-ngang"><table style="margin-top:12px"><thead><tr><th>Phòng</th><th>Khu · cụm</th>'
     + '<th>Ưu tiên</th><th class="so">Giới hạn (' + esc(ct.don_vi) + ')</th>'
-    + '<th class="so">Thời gian trong ngưỡng %</th>'
+    + '<th class="so">Tỷ lệ đạt %</th>'
     + (hh.nguoc
         ? '<th class="so">Giờ tụt dưới<br><span class="phu-th">và % thời gian đo</span></th>'
           + '<th class="so">Giờ vượt trên<br><span class="phu-th">và % thời gian đo</span></th>'
-        : '<th class="so">Giờ ra ngoài dải<br><span class="phu-th">và % thời gian đo</span></th>')
+        : '<th class="so">Giờ không đạt<br><span class="phu-th">và % thời gian đo</span></th>')
     + '<th class="so">Số đợt ngoài giới hạn</th>'
     + '<th class="so">Đợt dài nhất (giờ)</th><th>Trạng thái cuối kỳ</th></tr></thead><tbody>'
     + hangXep + '</tbody></table></div>'
@@ -665,14 +665,14 @@ function mucPhanCap(cay, dayDu, soMuc, cauDan) {
         + '<div class="cum-dau"><span class="cum-ten">Cụm ' + esc(c.ahu)
         + ' <span class="mo" style="font-weight:400">cấp khí cho ' + c.so_phong + ' phòng</span> '
         + L.svgSpark(c.chuoi, 92, 20) + '</span>'
-        + '<span class="cum-so">giữ trong ngưỡng ' + phanTram(c.ty_le_tb) + ' thời gian · '
+        + '<span class="cum-so">tỷ lệ đạt ' + phanTram(c.ty_le_tb) + ' · '
         + c.so_phong_dat + '/' + c.so_phong + ' phòng đạt · '
         + L.gioTyLe(c.gio_nghiem_trong, c.gio_do) + ' số giờ vượt giới hạn hành động'
         + (c.so_phong_dac_biet ? ' · trong đó ' + c.so_phong_dac_biet
             + ' phòng thuộc nhóm theo dõi đặc biệt' : '') + '</span></div>'
         // Có tiêu đề cột: "912 giờ" đứng trơ không ai biết là giờ gì (rà soát 04/09/2026)
         + '<table class="bang-phong"><thead><tr><th colspan="2">Phòng</th>'
-        + '<th class="so">Thời gian trong ngưỡng</th>'
+        + '<th class="so">Tỷ lệ đạt</th>'
         + '<th class="so">Giờ cảm biến vượt giới hạn hành động</th></tr></thead>'
         + '<tbody>' + phong + con + '</tbody></table></div>';
     }).join('');
@@ -683,7 +683,7 @@ function mucPhanCap(cay, dayDu, soMuc, cauDan) {
       +   '<div class="khu-mo-ta">' + k.so_phong + ' phòng, do ' + k.so_cum
       +     ' cụm xử lý không khí cấp khí</div></div>'
       + '<div class="khu-so">'
-      +   '<div>Giữ được số đo trong ngưỡng <b>' + phanTram(k.ty_le_tb) + '</b> thời gian</div>'
+      +   '<div>Tỷ lệ đạt <b>' + phanTram(k.ty_le_tb) + '</b></div>'
       +   '<div class="khu-so-phu"><b>' + k.so_phong_dat + '/' + k.so_phong + '</b> phòng đạt ngưỡng '
       +     NGUONG_HANH_DONG + '% · <b>' + L.gioTyLe(k.gio_nghiem_trong, k.gio_do)
       +     '</b> ngoài giới hạn</div></div></div>'
@@ -773,11 +773,11 @@ function rapBaoCao(d, duBao, cfg) {
   // không phải chỉ theo dõi tiếp — nói rõ điều đó ra.
   const thieu = NGUONG_HANH_DONG - (k.ty_le_tuan_thu || 0);
   const ketLuan = dat
-    ? tenTongThe() + ' giữ được số đo trong ngưỡng cho phép ' + phanTram(k.ty_le_tuan_thu)
-      + ' thời gian, đạt ngưỡng hành động ' + NGUONG_HANH_DONG + '%. Kỳ này không có phòng nào '
+    ? tenTongThe() + ' có tỷ lệ đạt ' + phanTram(k.ty_le_tuan_thu)
+      + ', đạt ngưỡng hành động ' + NGUONG_HANH_DONG + '%. Kỳ này không có phòng nào '
       + 'phải xử lý ngay.'
-    : tenTongThe() + ' chỉ giữ được số đo trong ngưỡng cho phép ' + phanTram(k.ty_le_tuan_thu)
-      + ' thời gian, trong khi ngưỡng hành động là ' + NGUONG_HANH_DONG + '% — còn thiếu '
+    : tenTongThe() + ' chỉ có tỷ lệ đạt ' + phanTram(k.ty_le_tuan_thu)
+      + ', trong khi ngưỡng hành động là ' + NGUONG_HANH_DONG + '% — còn thiếu '
       + soVN(thieu, 1) + ' điểm %. Dưới ngưỡng hành động nghĩa là phải khắc phục, '
       + 'không phải chỉ theo dõi tiếp. Có ' + cap.capA_tong + ' phòng cần xử lý'
       + (cap.capA_tong > TOI_DA_CAP_A
@@ -848,7 +848,7 @@ function rapBaoCao(d, duBao, cfg) {
         : db.huong === 'xau_di' ? 'đang xấu đi' : 'đi ngang') + '</b>, mỗi ngày thay đổi '
       + soVN(db.do_doc_ngay, 3) + ' điểm %. Mức độ tin cậy của phép ngoại suy: R² '
       + soVN(db.r2, 3) + ' trên cửa sổ ' + db.cua_so_ngay + ' ngày (đủ tin cậy để nêu số). '
-      + 'Nếu giữ nguyên xu hướng, sau 7 ngày nữa thời gian trong ngưỡng vào khoảng <b>'
+      + 'Nếu giữ nguyên xu hướng, sau 7 ngày nữa tỷ lệ đạt vào khoảng <b>'
       + soVN(cuoi.gia_tri, 1) + '%</b> (dao động ' + soVN(cuoi.canh_duoi, 1) + '–' + soVN(cuoi.canh_tren, 1) + '%).</p>'
       + '<p class="mo">Đây là phép ngoại suy tuyến tính từ số liệu đã có, không phải cam kết. '
       + 'Nó chỉ đúng khi không có thay đổi nào về thiết bị hay cách vận hành.</p>'
@@ -890,17 +890,17 @@ function rapBaoCao(d, duBao, cfg) {
     + '<p>' + esc(ketLuan) + '</p></div>'
     + '<div class="hero"><div>'
     + '<div class="so-lon">' + soVN(k.ty_le_tuan_thu, 1) + '<span class="don-vi">%</span></div>'
-    + '<div class="nhan-hero">thời gian số đo nằm trong ngưỡng cho phép</div>'
+    + '<div class="nhan-hero">tỷ lệ đạt: thời gian số đo nằm trong giới hạn cho phép</div>'
     + '<div class="delta tang tang-' + dTuanThu.huong + '">' + esc(dTuanThu.chu) + ' so với kỳ trước ('
     + soVN(kt.ty_le_tuan_thu, 1) + '%)</div></div>'
-    + '<div class="khung-bd">' + L.svgDuongNgay(chuoi, 'Thời gian trong ngưỡng theo ngày')
-    + '<p class="chu-thich">Tỉ lệ thời gian số đo nằm trong ngưỡng cho phép, tính theo từng ngày. '
+    + '<div class="khung-bd">' + L.svgDuongNgay(chuoi, 'Tỷ lệ đạt theo ngày')
+    + '<p class="chu-thich">Tỷ lệ đạt, tính theo từng ngày. '
     + 'Vạch đỏ đứt là ngưỡng hành động; vùng hồng là phần còn thiếu so với ngưỡng đó.</p></div></div>'
     + '<div class="kpi-hang">'
-    + '<div class="kpi"><div class="ten">Thời gian ngoài dải cho phép</div><div class="gt">'
+    + '<div class="kpi"><div class="ten">Tỷ lệ không đạt</div><div class="gt">'
     +   (k.ty_le_tuan_thu == null ? '—' : soVN(Math.max(0, 100 - k.ty_le_tuan_thu), 1) + '<span class="don-vi">%</span>')
     +   '</div>'
-    +   '<div class="ct">cộng với ' + soVN(k.ty_le_tuan_thu, 1) + '% trong ngưỡng là đủ 100% — cùng tính theo phút. '
+    +   '<div class="ct">cộng với ' + soVN(k.ty_le_tuan_thu, 1) + '% đạt là đủ 100% — cùng tính theo phút. '
     // Giờ dán nhãn không phải tập con của số phút ngoài dải — không nói "trong đó" (rà soát 04/09/2026)
     +   'Tính riêng theo giờ: <b>' + soVN(k.so_gio_critical || 0, 0) + ' giờ</b> cảm biến có lúc vượt giới hạn hành động'
     +   (ht && ht.gio_co_du_lieu
@@ -940,15 +940,15 @@ function rapBaoCao(d, duBao, cfg) {
     + (cap.capA_tong > TOI_DA_CAP_A ? ', hiển thị ' + TOI_DA_CAP_A + ' phòng nặng nhất' : '') + '</span></h2>'
     + '<p class="mota">Danh sách này do luật cố định chọn ra, không do máy viết nhận định quyết định. '
     + 'Một phòng vào danh sách khi: có sự cố mức nghiêm trọng mở quá ' + L.GIO_SU_CO_CAP_A
-    + ' giờ mà chưa xử lý; hoặc là phòng theo dõi đặc biệt mà thời gian trong ngưỡng dưới ' + NGUONG_HANH_DONG + '%; '
-    + 'hoặc từ ' + L.TI_LE_GIO_VUOT_A + '% số giờ có số đo của phòng trở lên vượt giới hạn hành động. '   // luật theo tỉ lệ (rà soát 04/09/2026, đợt 2)
+    + ' giờ mà chưa xử lý; hoặc là phòng theo dõi đặc biệt mà tỷ lệ đạt dưới ' + NGUONG_HANH_DONG + '%; '
+    + 'hoặc từ ' + L.TI_LE_GIO_VUOT_A + '% số giờ có số đo của phòng trở lên vượt giới hạn hành động. '   // luật theo tỷ lệ (rà soát 04/09/2026, đợt 2)
     + 'Thứ tự ưu tiên: mức ưu tiên của phòng, rồi tới có sự cố quá hạn hay không, '
     + 'rồi tới mức thiếu hụt so với ngưỡng, cuối cùng là số giờ vượt giới hạn hành động.</p>'
     + heThongHtml
     + (hangCapA
         ? '<div class="cuon-ngang"><table><thead><tr><th class="so" style="width:34px">#</th>'
           + '<th style="width:150px">Vì sao vào danh sách</th><th>Phòng · căn cứ · việc cần làm</th>'
-          + '<th class="so" style="width:76px">Thời gian trong ngưỡng</th><th class="so" style="width:88px">Cụm</th>'
+          + '<th class="so" style="width:76px">Tỷ lệ đạt</th><th class="so" style="width:88px">Cụm</th>'
           + '</tr></thead><tbody>' + hangCapA + '</tbody></table></div>'
         : '<p class="mo">Kỳ này không có phòng nào phải xử lý ngay.</p>')
     /* Sự cố mở sau ngày chốt kỳ: truy vấn trả về sự cố đang mở TẠI LÚC CHẠY nên
@@ -1011,7 +1011,7 @@ function rapBaoCao(d, duBao, cfg) {
     + (cap.capA_tong > TOI_DA_CAP_A
         ? '<details><summary>Phụ lục A · Toàn bộ ' + cap.capA_tong + ' phòng phải xử lý</summary>'
           + '<div class="noi-dung"><div class="cuon-ngang"><table><thead><tr><th class="so">#</th><th>Phòng</th>'
-          + '<th>Khu · cụm</th><th>Ưu tiên</th><th class="so">Thời gian trong ngưỡng %</th>'
+          + '<th>Khu · cụm</th><th>Ưu tiên</th><th class="so">Tỷ lệ đạt %</th>'
           + '<th class="so">Giờ vượt giới hạn hành động</th><th class="so">Sự cố đã mở (giờ)</th><th>Vì sao vào danh sách</th></tr></thead><tbody>'
           + cap.capA_tat_ca.map((v, i) => '<tr><td class="so stt-a">A' + (i + 1) + '</td>'
               + '<td><span class="ma">' + esc(v.ma_phong) + '</span><br><span class="mo">' + esc(v.ten) + '</span></td>'
@@ -1025,7 +1025,7 @@ function rapBaoCao(d, duBao, cfg) {
           + '</tbody></table></div></div></details>'
         : '')
 
-    + '<details><summary>Phụ lục B · Bản đồ thời gian trong ngưỡng theo phòng và ngày</summary>'
+    + '<details><summary>Phụ lục B · Bản đồ tỷ lệ đạt theo phòng và ngày</summary>'
     + '<div class="noi-dung"><p class="mota">Ô trắng là ngày đạt ngưỡng ' + NGUONG_HANH_DONG
     + '%. Chỉ ngày dưới ngưỡng mới tô màu, càng đậm càng nặng. Dấu ◆ sau mã phòng là phòng theo dõi đặc biệt.'
     + chuBanDo + '</p>'
@@ -1034,7 +1034,7 @@ function rapBaoCao(d, duBao, cfg) {
     + (laThang ? ''   // kỳ tháng: phần cây ở trên đã liệt kê đủ từng phòng theo cụm
         : '<details><summary>Phụ lục C · Toàn bộ ' + ((d.tat_ca_phong || []).length) + ' phòng có số đo</summary>'
     + '<div class="noi-dung"><div class="cuon-ngang"><table><thead><tr><th>Mã phòng</th><th>Tên phòng</th><th>Khu</th>'
-    + '<th>Cụm</th><th>Ưu tiên</th><th class="so">Thời gian trong ngưỡng %</th><th class="so">Giờ vượt giới hạn hành động</th>'
+    + '<th>Cụm</th><th>Ưu tiên</th><th class="so">Tỷ lệ đạt %</th><th class="so">Giờ vượt giới hạn hành động</th>'
     + '<th class="so">Thời gian có số đo %</th></tr></thead><tbody>' + hangPhong
     + '</tbody></table></div></div></details>')
 

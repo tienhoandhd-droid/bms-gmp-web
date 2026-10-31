@@ -43,7 +43,7 @@ const Y_NGHIA_CHI_TIEU = {
     + 'là nhẹ hơn hay nặng hơn hướng tụt dưới.',
   RH: 'Độ ẩm vượt giới hạn trên kéo dài làm tăng nguy cơ phát triển vi sinh vật; '
     + 'độ ẩm quá thấp gây tích điện và ảnh hưởng thao tác.',
-  T:  'Nhiệt độ ra ngoài dải cho phép ảnh hưởng tới điều kiện thao tác và độ ổn định của sản phẩm.'
+  T:  'Nhiệt độ ra ngoài giới hạn cho phép ảnh hưởng tới điều kiện thao tác và độ ổn định của sản phẩm.'
 };
 // Hướng nguy hiểm của từng chỉ tiêu (khớp với luật trong rpc_chi_so_cam_bien)
 const HUONG_NGUY_HIEM = {
@@ -76,7 +76,7 @@ const HAI_HUONG = {
                   he_qua: 'tích điện, ảnh hưởng thao tác và vật liệu' }
   },
   T: {
-    chinh:      { ten: 'Ra ngoài dải cho phép', ngan: 'ngoài giới hạn',
+    chinh:      { ten: 'Ra ngoài giới hạn cho phép', ngan: 'ngoài giới hạn',
                   he_qua: 'ảnh hưởng điều kiện thao tác và độ ổn định của sản phẩm' },
     nguoc:      null   // truy vấn đã gộp cả hai phía cho nhiệt độ
   }
@@ -86,8 +86,8 @@ const HAI_HUONG = {
 const TEN_MUC_CANH_BAO = {
   CRITICAL: 'nghiêm trọng',
   WARNING:  'cảnh báo',
-  OK:       'trong ngưỡng',
-  NORMAL:   'trong ngưỡng'
+  OK:       'đạt',
+  NORMAL:   'đạt'
 };
 
 // Mức ưu tiên phòng
@@ -104,7 +104,7 @@ const TEN_TRANG_THAI = {
   IPC_BAT_THUONG:  'Giám sát trong quá trình xác nhận là bất thường',
   IPC_BINH_THUONG: 'Giám sát trong quá trình xác nhận là bình thường',
   DA_KHAC_PHUC:    'Đã khắc phục',
-  DONG_TU_DONG:    'Hệ thống tự đóng khi số đo trở lại trong ngưỡng',
+  DONG_TU_DONG:    'Hệ thống tự đóng khi số đo trở lại trong giới hạn',
   DANG_XU_LY:      'Đang xử lý'
 };
 
@@ -120,7 +120,7 @@ const TEN_NGOAI_LE = {
 // Cách một đợt ngoài giới hạn kết thúc
 const TEN_KET_THUC = {
   HET_KY:      'còn đang ở ngoài giới hạn khi hết kỳ',
-  TRO_LAI:     'số đo đã trở lại trong ngưỡng',
+  TRO_LAI:     'số đo đã trở lại trong giới hạn',
   MAT_DU_LIEU: 'mất dữ liệu nên không xác định được'
 };
 
@@ -257,14 +257,14 @@ function soVN(v, n) {
   return (am ? '-' : '') + nguyen + (x[1] ? ',' + x[1] : '');
 }
 
-// Viết một tỉ lệ phần trăm. Không có số thì trả dấu gạch TRỌN VẸN — nối tay
+// Viết một tỷ lệ phần trăm. Không có số thì trả dấu gạch TRỌN VẸN — nối tay
 // so(v,1) + '%' sẽ cho ra "—%", một thứ vô nghĩa lọt vào bản báo cáo.
 function phanTram(v, n) {
   return (v == null || !isFinite(v)) ? '—' : soVN(v, n == null ? 1 : n) + '%';
 }
 
 // Số giờ trần trụi rất khó hình dung: "12.861,6 giờ" là nhiều hay ít? Kèm thêm
-// tỉ lệ trên tổng thời gian THỰC SỰ CÓ SỐ ĐO thì đọc phát biết ngay mức độ.
+// tỷ lệ trên tổng thời gian THỰC SỰ CÓ SỐ ĐO thì đọc phát biết ngay mức độ.
 // Mẫu số phải là giờ có số đo, không phải giờ kỳ vọng — lấy giờ kỳ vọng thì
 // những kỳ mất dữ liệu sẽ bị làm nhẹ đi một cách giả tạo.
 function gioTyLe(gio, tongGioDo) {
@@ -300,7 +300,7 @@ function phanCap(d) {
   const phongTheoMa = {};
   (d.tat_ca_phong || []).forEach((p) => { phongTheoMa[p.ma_phong] = p; });
 
-  // Tỉ lệ thời gian chênh áp TỤT DƯỚI giới hạn dưới của từng phòng. Đây là con
+  // Tỷ lệ thời gian chênh áp TỤT DƯỚI giới hạn dưới của từng phòng. Đây là con
   // số đáng lo nhất — tụt dưới thì dòng khí có thể đảo chiều — và nó KHÁC với
   // ngưỡng hành động 80%: ngưỡng 80% gộp cả ba chỉ tiêu, còn con số này chỉ nói
   // riêng chênh áp và chỉ nói riêng hướng nguy hiểm.
@@ -390,19 +390,19 @@ function phanCap(d) {
     .forEach((p) => {
       ghi(p.ma_phong, {
         loai: 'Phòng theo dõi đặc biệt dưới ngưỡng',
-        can_cu: 'Trong ngưỡng ' + phanTram(p.ty_le_tuan_thu) + ', phải đạt '
+        can_cu: 'Tỷ lệ đạt ' + phanTram(p.ty_le_tuan_thu) + ', phải đạt '
               + NGUONG_HANH_DONG + '%. '
               + (lechDuoiDP[p.ma_phong] != null
                   ? 'Chênh áp tụt dưới giới hạn ' + phanTram(lechDuoiDP[p.ma_phong])
                     + ' thời gian, đây là hướng gây nhiễm chéo. ' : '')
               + gioDoc(p.so_gio_critical) + ' vượt giới hạn hành động.',
         viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
-            + ': lọc, van gió, cài đặt chênh áp. Giám sát trong quá trình khoanh vùng khung giờ ngoài giới hạn.',
+            + ': lọc, van gió, cài đặt chênh áp. IPC khoanh vùng khung giờ ngoài giới hạn.',
         nguon: 'tat_ca_phong (mức ưu tiên 1)'
       });
     });
 
-  // A3. Phòng ngoài mức 1 nhưng tỉ lệ giờ vượt giới hạn hành động quá cao.
+  // A3. Phòng ngoài mức 1 nhưng tỷ lệ giờ vượt giới hạn hành động quá cao.
   // Phòng không có giờ đo thì KHÔNG xét — thiếu số liệu không phải bằng 0 (rà soát 04/09/2026, đợt 2).
   (d.tat_ca_phong || [])
     .filter((p) => p.muc_uu_tien !== 'P1' && gioDoPhong[p.ma_phong]
@@ -411,7 +411,7 @@ function phanCap(d) {
       const gd = gioDoPhong[p.ma_phong];
       ghi(p.ma_phong, {
         loai: 'Nhiều giờ vượt giới hạn hành động',
-        can_cu: 'Trong ngưỡng ' + phanTram(p.ty_le_tuan_thu) + '. '
+        can_cu: 'Tỷ lệ đạt ' + phanTram(p.ty_le_tuan_thu) + '. '
               + (lechDuoiDP[p.ma_phong] != null
                   ? 'Chênh áp tụt dưới giới hạn ' + phanTram(lechDuoiDP[p.ma_phong])
                     + ' thời gian, đây là hướng gây nhiễm chéo. ' : '')
@@ -419,8 +419,8 @@ function phanCap(d) {
               + gioDoc(p.so_gio_critical) + ' / ' + gioDoc(gd) + ', tức '
               + phanTram(100 * (p.so_gio_critical || 0) / gd) + ').',
         viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
-            + '. Giám sát trong quá trình đối chiếu lịch sản xuất xem có trùng ca không.',
-        nguon: 'tat_ca_phong (tỉ lệ giờ vượt giới hạn hành động trên giờ có số đo)'
+            + '. IPC đối chiếu lịch sản xuất xem có trùng ca không.',
+        nguon: 'tat_ca_phong (tỷ lệ giờ vượt giới hạn hành động trên giờ có số đo)'
       });
     });
 
@@ -645,8 +645,8 @@ function tongHopChiTieu(d, loai) {
  * Gom một chỉ tiêu lên cấp KHU và cấp CỤM, để đọc từ tổng thể xuống chi tiết.
  *
  * Chỉ gom những đại lượng CỘNG ĐƯỢC: số phòng, số phòng đạt, tổng giờ ngoài giới hạn.
- * KHÔNG lấy trung bình của các tỉ lệ phần trăm — mỗi phòng có số giờ đo khác
- * nhau nên trung bình cộng của các tỉ lệ là con số không bảo vệ được khi bị hỏi.
+ * KHÔNG lấy trung bình của các tỷ lệ phần trăm — mỗi phòng có số giờ đo khác
+ * nhau nên trung bình cộng của các tỷ lệ là con số không bảo vệ được khi bị hỏi.
  * Thay vào đó nêu phòng kém nhất và trung vị, đều là số có thật.
  */
 function gomChiTieuTheoCap(ct) {
@@ -706,7 +706,7 @@ function gomChiTieuTheoCap(ct) {
 
 function dungCay(d) {
   // Giờ thực sự có số đo của từng phòng, cộng qua mọi chỉ tiêu và mọi ngày —
-  // dùng làm mẫu số khi viết tỉ lệ, thay vì lấy giờ kỳ vọng.
+  // dùng làm mẫu số khi viết tỷ lệ, thay vì lấy giờ kỳ vọng.
   const gioDoPhong = {};
   Object.keys(d.chuoi_cam_bien || {}).forEach(function (kh) {
     const ma = kh.split('|')[0];
@@ -841,7 +841,7 @@ function svgSpark(chuoi, rong, cao) {
     + (cuoi < NGUONG_HANH_DONG ? MAU.cap2 : MAU.nhan) + '"/></svg>';
 }
 
-/** Đường tỉ lệ trong ngưỡng theo ngày, tô phần còn thiếu so với ngưỡng hành động. */
+/** Đường tỷ lệ trong ngưỡng theo ngày, tô phần còn thiếu so với ngưỡng hành động. */
 function svgDuongNgay(chuoi, nhan) {
   const W = 760, H = 190, L = 42, R = 14, T = 14, B = 26;
   const pts = chuoi || [];
@@ -976,7 +976,7 @@ function svgDaiGioiHan(o) {
 /** Thanh ngang xếp hạng — dùng cho bảng phòng ra ngoài giới hạn nhiều nhất theo từng chỉ tiêu. */
 function svgThanhXepHang(rows, khoaGiaTri, donVi, nguocDau) {
   if (!rows || !rows.length) return '';
-  // Vẽ theo tỉ lệ trên giờ có số đo của chính phòng đó: phòng mất dữ liệu vài
+  // Vẽ theo tỷ lệ trên giờ có số đo của chính phòng đó: phòng mất dữ liệu vài
   // ngày sẽ có ít giờ ngoài giới hạn hơn dù thực tế ra ngoài giới hạn nhiều hơn.
   const coTyLe = rows.every((r) => r.gio_do);
   const lay = (r) => coTyLe ? 100 * Math.abs(r[khoaGiaTri] || 0) / r.gio_do : Math.abs(r[khoaGiaTri] || 0);
@@ -993,7 +993,7 @@ function svgThanhXepHang(rows, khoaGiaTri, donVi, nguocDau) {
     const dat = nguocDau ? (r.ty_le_trong_nguong >= NGUONG_HANH_DONG) : false;
     s += '<g><title>' + esc(tenPhongGon(r.ma_phong, r.ten_phong)) + ' — '
       + (coTyLe ? phanTram(v) + ' thời gian có số đo (' + soVN(gio, 1) + ' giờ)' : soVN(gio, 1) + ' ' + esc(donVi || ''))
-      + (r.ty_le_trong_nguong != null ? ', trong ngưỡng ' + phanTram(r.ty_le_trong_nguong) : '') + '</title>'
+      + (r.ty_le_trong_nguong != null ? ', tỷ lệ đạt ' + phanTram(r.ty_le_trong_nguong) : '') + '</title>'
       + '<text x="0" y="' + (cy + 15) + '" class="svg-hang">'
       + esc(tenPhongGon(r.ma_phong, String(r.ten_phong || '').slice(0, 20))) + '</text>'
       + '<rect x="' + L + '" y="' + (cy + 5) + '" width="' + so(Math.max(2, w), 1) + '" height="12" rx="3" fill="'
@@ -1012,8 +1012,8 @@ function svgThanhXepHang(rows, khoaGiaTri, donVi, nguocDau) {
  */
 function svgSoSanhCap(rows, khoaNhan) {
   if (!rows || !rows.length) return '';
-  // Cột cố định: tên | thanh | tỉ lệ | số phòng. Cột số phòng có hai dòng,
-  // nên tỉ lệ ở cuối thanh dài không thể đè phần trạng thái của nhóm.
+  // Cột cố định: tên | thanh | tỷ lệ | số phòng. Cột số phòng có hai dòng,
+  // nên tỷ lệ ở cuối thanh dài không thể đè phần trạng thái của nhóm.
   const W = 780, hangCao = 48, Lx = 170, cotTyLe = 510, T = 6;
   const H = T + rows.length * hangCao + 6;
   const iw = cotTyLe - Lx - 14;
@@ -1040,9 +1040,9 @@ function svgSoSanhCap(rows, khoaNhan) {
     const mau = heo >= 0.8 ? MAU.cap3 : heo >= 0.4 ? MAU.cap2 : heo > 0 ? MAU.cap1 : MAU.dat;
     s += '<g><title>' + esc(r[khoaNhan]) + ' — ngoài giới hạn '
       + (coTyLe ? phanTram(v) + ' thời gian có số đo (' + soVN(gio, 0) + ' giờ)' : soVN(gio, 1) + ' giờ') + ', '
-      + (coTyLe ? 'tỉ lệ tính trên ' + soVN(r.tong_gio_do, 0) + ' giờ có số đo, ' : '')
+      + (coTyLe ? 'tỷ lệ tính trên ' + soVN(r.tong_gio_do, 0) + ' giờ có số đo, ' : '')
       + r.so_phong_dat + '/' + r.so_phong + ' phòng đạt ngưỡng'
-      + (r.trung_vi != null ? ', trung vị thời gian trong ngưỡng ' + phanTram(r.trung_vi) : '')
+      + (r.trung_vi != null ? ', trung vị tỷ lệ đạt ' + phanTram(r.trung_vi) : '')
       + (r.kem_nhat ? ', kém nhất ' + r.kem_nhat.ma_phong + ' ' + phanTram(r.kem_nhat.ty_le_trong_nguong) : '')
       + '</title>'
       + '<text x="0" y="' + (cy + 14) + '" class="svg-hang"><tspan x="0">' + esc(nhan[0]) + '</tspan>'
@@ -1097,7 +1097,7 @@ function svgThanhHaiChieu(rows, khoaNhan, khoaDuoi, khoaTren) {
     const cy = T + i * hangCao;
     s += '<g><title>' + esc(r[khoaNhan]) + ' — tụt dưới ' + viet(d, gioD) + ' ('
       + soVN(gioD, 0) + ' giờ), vượt trên ' + viet(t, gioT) + ' (' + soVN(gioT, 0) + ' giờ)'
-      + (coTyLe ? '; tỉ lệ tính trên ' + soVN(r.tong_gio_do, 0) + ' giờ có số đo của nhóm' : '') + '</title>'
+      + (coTyLe ? '; tỷ lệ tính trên ' + soVN(r.tong_gio_do, 0) + ' giờ có số đo của nhóm' : '') + '</title>'
       + '<text x="0" y="' + (cy + 16) + '" class="svg-hang">' + esc(r[khoaNhan]) + '</text>'
       + (d > 0
           ? '<rect x="' + so(giua - rong(d), 1) + '" y="' + (cy + 5) + '" width="' + so(rong(d), 1)
@@ -1120,7 +1120,7 @@ function svgThanhHaiChieu(rows, khoaNhan, khoaDuoi, khoaTren) {
     + ' aria-label="Số giờ ngoài giới hạn theo hai hướng">' + s + '</svg>'
     + '<p class="chu-thich">'
     + (coTyLe
-        ? 'Độ dài thanh và con số là tỉ lệ thời gian ngoài giới hạn trên tổng thời gian có số đo của chính nhóm đó, '
+        ? 'Độ dài thanh và con số là tỷ lệ thời gian ngoài giới hạn trên tổng thời gian có số đo của chính nhóm đó, '
           + 'nên khu ít phòng và khu nhiều phòng so được với nhau. Số giờ cộng dồn xem khi rê chuột.'
         : 'Đơn vị: giờ, cộng dồn các phòng trong nhóm.')
     + ' Hai bên dùng chung một thang nên so được độ nặng giữa hai hướng.</p>';
@@ -1181,7 +1181,7 @@ function svgXuHuongDai(chuoi, duBao) {
   });
 
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="bieu-do" role="img"'
-    + ' aria-label="Xu hướng thời gian trong ngưỡng qua ' + ds.length + ' ngày và phần ngoại suy">'
+    + ' aria-label="Xu hướng tỷ lệ đạt qua ' + ds.length + ' ngày và phần ngoại suy">'
     + g + dai
     + '<path d="' + dDo + '" fill="none" stroke="' + MAU.nhan + '" stroke-width="2" stroke-linejoin="round"/>'
     + (dDuBao ? '<path d="' + dDuBao + '" fill="none" stroke="' + MAU.nhan + '" stroke-width="2"'
@@ -1273,7 +1273,7 @@ function svgBanDo(phongs, ngays) {
     });
   });
   return '<div class="cuon-ngang o-bd"><svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H
-    + '" class="bieu-do" role="img" aria-label="Bản đồ thời gian trong ngưỡng theo phòng và ngày">' + s + '</svg></div>';
+    + '" class="bieu-do" role="img" aria-label="Bản đồ tỷ lệ đạt theo phòng và ngày">' + s + '</svg></div>';
 }
 
 /* ===== So với bốn kỳ trước =================================================
