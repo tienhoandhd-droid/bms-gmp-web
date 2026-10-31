@@ -167,6 +167,12 @@ function dich(tuDien, ma, macDinh) {
 // Một số chuỗi do truy vấn sinh sẵn có lẫn thuật ngữ viết tắt. Dịch lại trước
 // khi đưa ra bản đọc — không sửa ở tầng dữ liệu vì tầng đó còn dùng để đối chiếu.
 const CUM_KY_THUAT = [
+  // AI hay dùng từ cũ; đọc lẫn với tỷ lệ chênh áp nên phải ghi rõ phạm vi.
+  [/Tỉ lệ tuân thủ|Tỷ lệ tuân thủ/g, 'Tỷ lệ đạt toàn bộ chỉ tiêu'],
+  [/tỉ lệ tuân thủ|tỷ lệ tuân thủ/g, 'tỷ lệ đạt toàn bộ chỉ tiêu'],
+  [/Giảm tuân thủ/g, 'Giảm tỷ lệ đạt'],
+  [/Tỉ lệ/g, 'Tỷ lệ'],
+  [/tỉ lệ/g, 'tỷ lệ'],
   [/t[íi]n hi[ệe]u SPC ngo[àa]i ki[ểe]m so[áa]t\s*\(EWMA\/CUSUM\/Nelson\)/gi,
    'tín hiệu vượt kiểm soát thống kê'],
   [/t[íi]n hi[ệe]u SPC ngo[àa]i ki[ểe]m so[áa]t/gi, 'tín hiệu vượt kiểm soát thống kê'],
@@ -4463,8 +4469,11 @@ function oChiSo(nhan, gt, phu, mauGt) {
 /* Máy viết nhận định có lúc ghi "51,23%": đưa về một chữ số lẻ như mọi số khác trong thư. */
 function chuAI(s) {
   return L.vietLai(s)
-    .replace(/(\d+),(\d{2,})(?=\s*%)/g, function (m, a, b) { return soVN(Number(a + '.' + b), 1); })
-    .replace(/Tỉ lệ/g, 'Tỷ lệ').replace(/tỉ lệ/g, 'tỷ lệ');
+    .replace(/(\d+),(\d{2,})(?=\s*%)/g, function (m, a, b) {
+      const v = Number(a + '.' + b);
+      // 99,99% không được làm tròn thành 100,0%: đọc vậy là cả kỳ, trong khi vẫn còn điểm đo khác.
+      return soVN(v < 100 && Math.round(v * 10) / 10 >= 100 ? 99.9 : v, 1);
+    });
 }
 
 /* ===== Ráp thân email =================================================== */

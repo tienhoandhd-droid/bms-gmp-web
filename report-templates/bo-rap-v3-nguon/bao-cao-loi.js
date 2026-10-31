@@ -146,6 +146,12 @@ function dich(tuDien, ma, macDinh) {
 // Một số chuỗi do truy vấn sinh sẵn có lẫn thuật ngữ viết tắt. Dịch lại trước
 // khi đưa ra bản đọc — không sửa ở tầng dữ liệu vì tầng đó còn dùng để đối chiếu.
 const CUM_KY_THUAT = [
+  // AI hay dùng từ cũ; đọc lẫn với tỷ lệ chênh áp nên phải ghi rõ phạm vi.
+  [/Tỉ lệ tuân thủ|Tỷ lệ tuân thủ/g, 'Tỷ lệ đạt toàn bộ chỉ tiêu'],
+  [/tỉ lệ tuân thủ|tỷ lệ tuân thủ/g, 'tỷ lệ đạt toàn bộ chỉ tiêu'],
+  [/Giảm tuân thủ/g, 'Giảm tỷ lệ đạt'],
+  [/Tỉ lệ/g, 'Tỷ lệ'],
+  [/tỉ lệ/g, 'tỷ lệ'],
   [/t[íi]n hi[ệe]u SPC ngo[àa]i ki[ểe]m so[áa]t\s*\(EWMA\/CUSUM\/Nelson\)/gi,
    'tín hiệu vượt kiểm soát thống kê'],
   [/t[íi]n hi[ệe]u SPC ngo[àa]i ki[ểe]m so[áa]t/gi, 'tín hiệu vượt kiểm soát thống kê'],

@@ -99,8 +99,11 @@ function oChiSo(nhan, gt, phu, mauGt) {
 /* Máy viết nhận định có lúc ghi "51,23%": đưa về một chữ số lẻ như mọi số khác trong thư. */
 function chuAI(s) {
   return L.vietLai(s)
-    .replace(/(\d+),(\d{2,})(?=\s*%)/g, function (m, a, b) { return soVN(Number(a + '.' + b), 1); })
-    .replace(/Tỉ lệ/g, 'Tỷ lệ').replace(/tỉ lệ/g, 'tỷ lệ');
+    .replace(/(\d+),(\d{2,})(?=\s*%)/g, function (m, a, b) {
+      const v = Number(a + '.' + b);
+      // 99,99% không được làm tròn thành 100,0%: đọc vậy là cả kỳ, trong khi vẫn còn điểm đo khác.
+      return soVN(v < 100 && Math.round(v * 10) / 10 >= 100 ? 99.9 : v, 1);
+    });
 }
 
 /* ===== Ráp thân email =================================================== */
