@@ -68,6 +68,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = BO_RAP;
 const ra = dau
   + boc('bao-cao-loi', 'bao-cao-loi.js')
   + boc('chenh-ap-phong-theo-doi', 'chenh-ap-phong-theo-doi.js')
+  + boc('phan-hoi-bo-phan', 'phan-hoi-bo-phan.js')
   + boc('rap-bao-cao.node', 'rap-bao-cao.node.js')
   + boc('dashboard.node', 'dashboard.node.js')
   + boc('email.node', 'email.node.js')

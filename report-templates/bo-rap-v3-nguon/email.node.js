@@ -26,6 +26,7 @@
 
 const L = require('./bao-cao-loi.js');
 const PTD = require('./chenh-ap-phong-theo-doi.js');
+const PH = require('./phan-hoi-bo-phan.js');
 const { esc, soVN, phanTram, ngayDai, gioDoc, dich, NGUONG_HANH_DONG } = L;
 
 /* ===== Bảng màu: hai màu chính, một màu cảnh báo, còn lại là mực và nền =====
@@ -263,6 +264,8 @@ function rapEmail(d, duBao, cfg) {
   // Chênh áp tại các phòng theo dõi trọng điểm, ba kỳ — thư chỉ hiện phần tổng hợp,
   // bảng từng phòng nằm trong bản in (yêu cầu 21/10/2026).
   const khoiPhongTheoDoi = PTD.htmlThu(PTD.tongHop(d, khuBC));
+  // Phản hồi và kết quả khắc phục của các bộ phận (yêu cầu 31/10/2026).
+  const khoiPhanHoi = PH.html(PH.tongHop(d));
 
   const khoiSuCo = (laThang && sc.mo_trong_ky != null)
     ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="co"><tr>'
@@ -667,6 +670,9 @@ function rapEmail(d, duBao, cfg) {
 
     /* ── Chênh áp tại các phòng theo dõi trọng điểm, ba kỳ ── */
     + (khoiPhongTheoDoi ? hang(nhanMuc('Chênh áp tại các phòng theo dõi trọng điểm') + khoiPhongTheoDoi) : '')
+
+    /* ── Phản hồi và kết quả khắc phục của các bộ phận ── */
+    + (khoiPhanHoi ? hang(nhanMuc('Phản hồi và kết quả khắc phục của các bộ phận') + khoiPhanHoi) : '')
 
     /* ── Xử lý sự cố trong kỳ (chỉ kỳ tháng) ── */
     + (khoiSuCo ? hang(nhanMuc('Xử lý sự cố trong kỳ') + khoiSuCo) : '')
