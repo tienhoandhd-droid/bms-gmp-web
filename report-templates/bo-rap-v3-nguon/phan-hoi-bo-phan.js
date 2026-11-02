@@ -195,18 +195,26 @@ function khoiSauPhanHoi(t) {
     + '<div style="font-size:13px;color:' + MO + ';margin-top:8px;line-height:1.5;">Đây là số quan sát, chưa đủ để kết luận phản hồi làm sự cố hết: số mẫu nhỏ, và sự cố tự về đạt có thể do nguyên nhân khác.</div>';
 }
 
-/* Bản rút gọn cho thư: tỷ lệ phản hồi, rồi kết quả sau phản hồi. Định nghĩa nằm ở "Cách đọc số liệu" cuối thư. */
+/* Bản rút gọn cho thư: tỷ lệ theo bộ phận và một câu kết quả; từng sự cố nằm trong bản in. */
 function htmlThu(t) {
   if (!t) return '';
-  return tieuDeNho('Tỷ lệ phản hồi')
-    + bang(['Bộ phận', 'Đã phản hồi / cần phản hồi', 'Tỷ lệ', 'So với kỳ trước'], t.hang.map(function (h) {
-      return { o: [esc(h.ten), h.da + '/' + h.can, '<b>' + (h.ty_le == null ? 'không có mẫu' : so1(h.ty_le) + '%') + '</b>'
-        + '<div style="margin-top:4px;min-width:60px;">' + BD.thanh(h.ty_le, { cao: 6 }) + '</div>', chuChenh(h)] };
+  const sp = t.sau_phan_hoi;
+  const so = function (x) { return Number(x) || 0; };
+  const cau = function (ten, x) {
+    return '<b>' + ten + ' (' + so(x.tong) + ' sự cố):</b> ' + so(x.khac_phuc) + ' bộ phận ghi nhận khắc phục, ' + so(x.tu_ve_dat) + ' tự về đạt, '
+      + so(x.dong_khac) + ' đóng cách khác, ' + so(x.con_mo) + ' còn mở.';
+  };
+  return '<div style="margin:0 0 5px;font-size:13px;font-weight:700;color:' + MUC + ';">Tỷ lệ phản hồi</div>'
+    + bang(['Bộ phận', 'Đã / cần', 'Tỷ lệ', 'So với kỳ trước'], t.hang.map(function (h) {
+      return { o: [esc(h.ten), h.da + '/' + h.can, '<b>' + (h.ty_le == null ? 'không có mẫu' : so1(h.ty_le) + '%') + '</b>', chuChenh(h)] };
     }))
-    + khoiSauPhanHoi(t);
+    + (sp && sp.co && sp.khong
+      ? '<div style="margin-top:8px;font-size:13px;line-height:1.6;color:' + MUC2 + ';">' + cau('Có phản hồi', sp.co) + '<br>' + cau('Không có phản hồi', sp.khong)
+        + '<br><span style="color:' + MO + ';">Đây là số quan sát, chưa đủ để kết luận phản hồi làm sự cố hết. "Tự về đạt" không có nghĩa bộ phận đã xử lý.</span></div>'
+      : '');
 }
 
-/* Định nghĩa đưa vào "Cách đọc số liệu" cuối thư. */
+/* Định nghĩa dùng khi cần ghi chú đầy đủ. */
 function ghiChuThu(t) {
   if (!t) return [];
   const ds = [
