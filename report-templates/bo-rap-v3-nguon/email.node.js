@@ -202,15 +202,15 @@ function rapEmail(d, duBao, cfg) {
         + ' so với ' + esc(ttTD.ten_ky_truoc) + ' (' + phanTram(ttTD.ty_le_truoc) + ')') + '.</div>'
       + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="co"><tr>'
       + oChiSo('Tỷ lệ đạt chênh áp', phanTram(ttTD.ty_le),
-          'Yêu cầu ' + ttTD.nguong_dat + '%' + (ttTD.ty_le_con_lai != null ? ' · ' + ttTD.so_con_lai + ' phòng còn lại đạt ' + phanTram(ttTD.ty_le_con_lai) : ''),
+          'Yêu cầu ' + ttTD.nguong_dat + '%' + (maKy !== 'THANG' && ttTD.ty_le_con_lai != null ? ' · ' + ttTD.so_con_lai + ' phòng còn lại đạt ' + phanTram(ttTD.ty_le_con_lai) : ''),
           ttTD.ty_le < ttTD.nguong_dat ? M.doChu : null)
       + DEM
       + oChiSo('Phòng đạt từ ' + ttTD.nguong_dat + '%', ttTD.phong_dat + '/' + ttTD.so_phong, 'Tính riêng chênh áp')
       + DEM
       + oChiSo('Phòng dưới ' + ttTD.nguong_uu_tien + '%', String(ttTD.so_uu_tien), 'Cần ưu tiên kiểm tra', ttTD.so_uu_tien ? M.doChu : null)
       + '</tr></table>'
-      // Bản toàn nhà máy mới cần dòng này; bản riêng một khu đã là số của khu đó.
-      + (ttTD.theo_khu.length > 1
+      // Tuần và quý vẫn có dòng này khi nhiều khu; báo cáo tháng đã có bảng theo khu ở mục chênh áp.
+      + (maKy !== 'THANG' && ttTD.theo_khu.length > 1
         ? '<div style="margin-top:' + K[4] + 'px;font-size:13px;font-weight:600;color:' + M.muc2 + ';">Theo khu vực · tỷ lệ đạt chênh áp</div>'
           + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;border-collapse:collapse;"><tr>'
           + ttTD.theo_khu.map(function (x) {
@@ -580,7 +580,7 @@ function rapEmail(d, duBao, cfg) {
     + (khoiHaiChieu ? hang(tieuDeMuc('Ra ngoài giới hạn theo từng chỉ tiêu') + khoiHaiChieu) : '')
 
     /* ── Chênh áp tại các phòng theo dõi trọng điểm, ba kỳ ── */
-    + (khoiPhongTheoDoi ? hang(tieuDeMuc('Chỉ riêng chênh áp · các phòng theo dõi') + khoiPhongTheoDoi) : '')
+    + (khoiPhongTheoDoi ? hang(tieuDeMuc(maKy === 'THANG' ? 'Chỉ riêng chênh áp · phòng theo dõi và toàn khu vực' : 'Chỉ riêng chênh áp · các phòng theo dõi') + khoiPhongTheoDoi) : '')
 
     /* ── Phản hồi và kết quả khắc phục của các bộ phận ── */
     + (khoiPhanHoi ? hang(tieuDeMuc('Phản hồi và khắc phục của các bộ phận') + khoiPhanHoi) : '')
