@@ -2072,6 +2072,23 @@ function ddmm(s) { const p = String(s).slice(0, 10).split('-'); return p[2] + '/
 function nhanKy(k) { return ddmm(k.tu) + '–' + ddmm(k.den); }
 
 /* Gộp kỳ này với kỳ trước theo bộ phận. Trả null nếu thiếu dữ liệu. */
+/* IPC theo khu của kỳ này, kèm so với kỳ trước. Khu không có mẫu ở cả hai kỳ thì bỏ. */
+function ipcTheoKhu(nay, truoc) {
+  return (Array.isArray(nay.ipc_theo_khu) ? nay.ipc_theo_khu : []).map(function (r) {
+    const rt = truoc && (truoc.ipc_theo_khu || []).find(function (x) { return x.khu === r.khu; });
+    const coMau = Number(r.denominator) > 0 && r.rate_pct != null;
+    const coMauTruoc = !!rt && Number(rt.denominator) > 0 && rt.rate_pct != null;
+    return {
+      ten: 'Khu ' + r.khu + (r.khu === 'Q2' ? ' (Vi sinh)' : ''),
+      can: Number(r.denominator) || 0,
+      da: Number(r.responded) || 0,
+      ty_le: coMau ? Number(r.rate_pct) : null,
+      chenh: coMau && coMauTruoc ? Number(r.rate_pct) - Number(rt.rate_pct) : null,
+      co_mau_truoc: coMauTruoc
+    };
+  }).filter(function (h) { return h.can > 0 || h.co_mau_truoc; });
+}
+
 function tongHop(d) {
   const khoi = d && d.phan_hoi_khac_phuc;
   const ky = khoi && khoi.ky;
@@ -2101,6 +2118,7 @@ function tongHop(d) {
   return {
     ky: ky[0],
     ky_truoc: truoc,
+    ipc_khu: ipcTheoKhu(ky[0], truoc),
     hang: hang,
     su_co: {
       tong: Number(sc.tong) || 0,
@@ -2136,11 +2154,14 @@ function loiChinh(t) {
 }
 
 function bangPhanHoi(t) {
-  const hang = t.hang.map(function (h) {
-    return '<tr><td style="' + TD + 'font-weight:600;">' + esc(h.ten) + '</td>'
+  const dong = function (h, phu) {
+    return '<tr><td style="' + TD + (phu ? 'padding-left:21px;font-weight:400;' : 'font-weight:600;') + '">' + esc(h.ten) + '</td>'
       + '<td style="' + TD + 'text-align:right;">' + h.da + ' / ' + h.can + '</td>'
-      + '<td style="' + TD + 'text-align:right;font-weight:700;">' + (h.ty_le == null ? 'không có mẫu' : so1(h.ty_le) + '%') + '</td>'
+      + '<td style="' + TD + 'text-align:right;font-weight:' + (phu ? 400 : 700) + ';">' + (h.ty_le == null ? 'không có mẫu' : so1(h.ty_le) + '%') + '</td>'
       + '<td style="' + TD + 'text-align:right;color:' + MUC2 + ';">' + chuChenh(h) + '</td></tr>';
+  };
+  const hang = t.hang.map(function (h) {
+    return dong(h) + (h.role === 'IPC' ? t.ipc_khu.map(function (x) { return dong(x, true); }).join('') : '');
   }).join('');
   return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;border:1px solid ' + VIEN + ';">'
     + '<tr><td style="' + TH + '">Bộ phận</td><td style="' + TH + 'text-align:right;">Đã phản hồi / cần phản hồi</td>'
@@ -2245,9 +2266,15 @@ function htmlThu(t) {
       + so(x.dong_khac) + ' đóng cách khác, ' + so(x.con_mo) + ' còn mở.';
   };
   return '<div style="margin:0 0 5px;font-size:13px;font-weight:700;color:' + MUC + ';">Tỷ lệ phản hồi</div>'
-    + bang(['Bộ phận', 'Đã / cần', 'Tỷ lệ', 'So với kỳ trước'], t.hang.map(function (h) {
-      return { o: [esc(h.ten), h.da + '/' + h.can, '<b>' + (h.ty_le == null ? 'không có mẫu' : so1(h.ty_le) + '%') + '</b>', chuChenh(h)] };
-    }))
+    + bang(['Bộ phận', 'Đã / cần', 'Tỷ lệ', 'So với kỳ trước'], t.hang.reduce(function (ra, h) {
+      ra.push({ o: [esc(h.ten), h.da + '/' + h.can, '<b>' + (h.ty_le == null ? 'không có mẫu' : so1(h.ty_le) + '%') + '</b>', chuChenh(h)] });
+      if (h.role === 'IPC') {
+        t.ipc_khu.forEach(function (x) {
+          ra.push({ o: ['<span style="font-weight:400;padding-left:13px;">' + esc(x.ten) + '</span>', x.da + '/' + x.can, x.ty_le == null ? 'không có mẫu' : so1(x.ty_le) + '%', chuChenh(x)] });
+        });
+      }
+      return ra;
+    }, []))
     + (sp && sp.co && sp.khong
       ? '<div style="margin-top:8px;font-size:13px;line-height:1.6;color:' + MUC2 + ';">' + cau('Có phản hồi', sp.co) + '<br>' + cau('Không có phản hồi', sp.khong)
         + '<br><span style="color:' + MO + ';">Đây là số quan sát, chưa đủ để kết luận phản hồi làm sự cố hết. "Tự về đạt" không có nghĩa bộ phận đã xử lý.</span></div>'
@@ -4574,23 +4601,34 @@ function rapEmail(d, duBao, cfg) {
     if (!p) return oB('—', canPhai, false, M.mo, false, cuoi);
     const kem = p.duoi + p.tren > 100 - NGUONG_HANH_DONG;
     const dong = [];
-    if (p.duoi >= 0.05) dong.push('↓&nbsp;' + phanTram(p.duoi));
-    if (p.tren >= 0.05) dong.push('↑&nbsp;' + phanTram(p.tren));
+    if (p.duoi >= 0.05) dong.push('Thấp&nbsp;' + phanTram(p.duoi));
+    if (p.tren >= 0.05) dong.push('Cao&nbsp;' + phanTram(p.tren));
     return oB(dong.length ? dong.join('<br>') : '0%', canPhai, kem, kem ? M.doChu : M.muc2, false, cuoi);
   };
   const dsChiTieu = [[ctDP, 'Chênh áp'], [ctT, 'Nhiệt độ'], [ctRH, 'Độ ẩm']].filter(function (x) { return x[0].so_phong_do; })
     .map(function (x) { return { ten: x[1], g: L.gomChiTieuTheoCap(x[0]) }; });
-  const dsKhuMT = (khuBC ? [khuBC] : cay.map(function (x) { return x.khu; })).slice().sort();
-  const khoiMaTran = dsChiTieu.length
-    ? tieuDeNho('Thời gian ra ngoài giới hạn') + BANG + '<thead><tr>' + thB('Khu', false, true)
-      + dsChiTieu.map(function (x, i) { return thB(x.ten, true, false, i === dsChiTieu.length - 1); }).join('') + '</tr></thead><tbody>'
+  // Chỉ tính phòng theo dõi: toàn khu vực đã có ở bảng chênh áp ngay bên cạnh (yêu cầu 02/11/2026).
+  const maTheoDoi = {};
+  (tdTD ? tdTD.phong : []).forEach(function (p) { maTheoDoi[p.ma] = true; });
+  const chiTieuTD = [[ctDP, 'Chênh áp'], [ctT, 'Nhiệt độ'], [ctRH, 'Độ ẩm']].map(function (x) {
+    const g = L.gomChiTieuTheoCap({ xep_hang: (x[0].xep_hang || []).filter(function (r) { return maTheoDoi[r.ma_phong]; }) });
+    return { ten: x[1], g: g };
+  }).filter(function (x) { return x.g.khu.length; });
+  const dsKhuMT = tdTD ? tdTD.khu.slice().sort() : [];
+  const khoiMaTran = chiTieuTD.length && dsKhuMT.length
+    ? tieuDeNho('Phòng theo dõi: thời gian ra ngoài giới hạn') + BANG + '<thead><tr>' + thB('Khu', false, true)
+      + chiTieuTD.map(function (x, i) { return thB(x.ten, true, false, i === chiTieuTD.length - 1); }).join('') + '</tr></thead><tbody>'
       + dsKhuMT.map(function (khu) {
           return '<tr>' + oB(esc(khu), false, true, null, true)
-            + dsChiTieu.map(function (x, i) {
-                return oHaiPhia(haiPhia(x.g.khu.find(function (r) { return r.khu === khu; })), true, i === dsChiTieu.length - 1);
+            + chiTieuTD.map(function (x, i) {
+                const r = x.g.khu.find(function (y) { return y.khu === khu; });
+                const cuoi = i === chiTieuTD.length - 1;
+                if (!r) return oB('—', true, false, M.mo, false, cuoi);
+                // Mỗi chỉ tiêu đo ở số phòng khác nhau nên ghi số phòng ngay trong ô.
+                return oHaiPhia(haiPhia(r), true, cuoi).replace('</td>', nhoMo(r.so_phong + '&nbsp;phòng') + '</td>');
               }).join('') + '</tr>';
         }).join('') + '</tbody></table>'
-      + '<div style="font-size:' + CO.nho + 'px;color:' + M.mo + ';line-height:1.5;margin-top:' + K[2] + 'px;">↓ thấp hơn giới hạn dưới, ↑ cao hơn giới hạn trên. Chữ đỏ: tổng hai phía quá ' + (100 - NGUONG_HANH_DONG) + '%.</div>'
+      + '<div style="font-size:' + CO.nho + 'px;color:' + M.mo + ';line-height:1.5;margin-top:' + K[2] + 'px;">Số % là phần thời gian đo. Thấp: dưới giới hạn dưới. Cao: trên giới hạn trên. Chữ đỏ: tổng ngoài giới hạn quá ' + (100 - NGUONG_HANH_DONG) + '%.</div>'
     : '';
 
   const SO_CUM = 5;
