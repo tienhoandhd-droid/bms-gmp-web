@@ -13,6 +13,7 @@ import { deltaTone, fmtDelta, fmtH, fmtVN, toLocalInput } from "../../lib/dinhDa
 import { MASTER, RANGES, SCOPE_LEVELS, SENSORS, applySensor, byType, findScope, getSeries } from "../../lib/moPhong";
 import { guiNhanDinhXuHuong, layChuoiGiaTriPhong, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layDuBaoXuHuong, layMaTranPhongNgay, layNguoiNhanBaoCao, layPhanTichSau, layQuetBatThuong, layWebhookAi, layWebhookAiSau, layWebhookWf7b, phanTichAiQuaWorkflow } from "../../lib/supabaseData";
 import { SENSOR_META } from "../../lib/uiConst";
+import { boDau, dungPhamViLive, locLuaChon, theoCap, timTheoTu } from "../../lib/boLocXuHuong";
 /* ===== XU HƯỚNG ===== */
 // Thống kê hồi quy tuyến tính cho 1 chuỗi số: trung bình, độ lệch chuẩn, độ dốc/điểm, R², min, max
 function regStat(ys) {
@@ -145,8 +146,9 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
   }, [open]);
   useEffect(() => { setHi(0); }, [q, open]);
 
-  const ql = q.trim().toLowerCase();
-  const filtered = ql ? items.filter((o) => `${o.id} ${o.name}`.toLowerCase().includes(ql)) : items;
+  // Tìm KHÔNG DẤU ("hanh lang" khớp "Hành lang"); khớp cả mã, tên, khu, AHU.
+  const ql = boDau(q.trim());
+  const filtered = timTheoTu(items, q);
 
   const pick = (o) => { if (!o) return; onPick(o.id); setOpen(false); setQ(""); };
   const onKey = (e) => {
@@ -167,7 +169,9 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
   const pctTextColor = (p) => (p == null ? "var(--text-muted)" : p < 70 ? "var(--danger)" : p < 88 ? "var(--warning)" : "var(--success)");
   const hl = (text) => {
     if (!ql) return text;
-    const i = text.toLowerCase().indexOf(ql);
+    const plain = boDau(text);
+    if (plain.length !== text.length) return text;   // chuỗi không ở dạng dựng sẵn → không tô để tránh lệch vị trí
+    const i = plain.indexOf(ql);
     if (i < 0) return text;
     return (<>{text.slice(0, i)}<mark className="bg-warning-soft/70 text-inherit rounded px-0.5">{text.slice(i, i + ql.length)}</mark>{text.slice(i + ql.length)}</>);
   };
@@ -185,8 +189,11 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
           ref={inputRef}
           id={`trend-scope-combobox-${scopeId}`}
           value={open ? q : (cur ? `${cur.id} — ${cur.name}` : q)}
-          onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+          // Đang đóng, ô hiện "mã — tên" của mục đã chọn: chữ gõ thêm KHÔNG được nối vào sau tên đó
+          // (trước 05/11/2026: "C1.R11 — Pha chếahu" → 0 kết quả). Chỉ lấy phần vừa gõ.
+          onChange={(e) => { const v = e.target.value; const dangHien = !open && cur ? `${cur.id} — ${cur.name}` : ""; setQ(dangHien && v.startsWith(dangHien) ? v.slice(dangHien.length) : v); setOpen(true); }}
           onFocus={() => setOpen(true)}
+          onClick={() => { if (!open) setOpen(true); }}
           onKeyDown={onKey}
           placeholder={placeholder}
           role="combobox"
@@ -217,7 +224,8 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
                 <span className="flex-1 min-w-0">
                   <span className="text-tk-sm font-semibold text-strong">{hl(o.id)}</span>
                   <span className="text-tk-sm text-muted"> — {hl(o.name)}</span>
-                  {(o.area || o.ahu) && <span className="block text-tk-xs text-muted truncate">{[o.area, o.ahu].filter(Boolean).join(" · ")}</span>}
+                  {(o.area || o.ahu) && <span className="block text-tk-xs text-muted truncate">{hl([o.area, o.ahu].filter(Boolean).join(" · "))}</span>}
+                  {o.noData && <span className="block text-tk-xs text-muted italic">{o.duLieuCu ? "Chưa có số liệu giờ gần nhất — vẫn xem được lịch sử" : "Chưa có cảm biến / chưa có số liệu"}</span>}
                 </span>
                 {p != null && <span className="text-tk-xs font-semibold tabular-nums shrink-0" style={{ color: pctTextColor(p) }}>{fmtPct(p)}</span>}
                 {isSel && <Check className="w-3.5 h-3.5 text-success shrink-0" strokeWidth={2.2} />}
@@ -235,11 +243,12 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const prefs = (() => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } })();
   const [range, setRange] = useState(["1n", "7n", "30n", "90n", "180n"].includes(prefs.range) ? prefs.range : "30n");
   const [level, setLevel] = useState(["TOTAL", "AREA", "AHU", "ROOM"].includes(prefs.level) ? prefs.level : "TOTAL");
-  const [selId, setSelId] = useState("");
+  const strPref = (v) => (typeof v === "string" && v.length < 80 ? v : "");   // chỉ nhận chuỗi ngắn hợp lệ
+  const [selId, setSelId] = useState(strPref(prefs.selId));   // nhớ đối tượng đã chọn (nếu không còn trong danh sách → tự về mục đầu)
   const [sensor, setSensor] = useState(["ALL", "DP", "RH", "T"].includes(prefs.sensor) ? prefs.sensor : "ALL");
   const [resOverride, setResOverride] = useState(["GIO"].includes(prefs.res) ? prefs.res : null); // độ phân giải khung dưới-ngày (chỉ còn GIO sau khi bỏ 30 phút)
-  const [optArea, setOptArea] = useState("ALL");
-  const [optAhu, setOptAhu] = useState("ALL");
+  const [optArea, setOptArea] = useState(strPref(prefs.optArea) || "ALL");
+  const [optAhu, setOptAhu] = useState(strPref(prefs.optAhu) || "ALL");
   const [dtFrom, setDtFrom] = useState("");
   const [dtTo, setDtTo] = useState("");
   const [dtFromDraft, setDtFromDraft] = useState("");
@@ -275,7 +284,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const resLbl = donVi === "GIO" ? "theo giờ" : "theo ngày";
   const isSubDay = donVi === "GIO";
   // Lưu lựa chọn nhẹ
-  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ range, level, sensor, res: resOverride, prevCmp: soKyTruoc })); } catch { /* bỏ qua */ } }, [range, level, sensor, resOverride, soKyTruoc]);
+  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ range, level, sensor, res: resOverride, prevCmp: soKyTruoc, selId, optArea, optAhu })); } catch { /* bỏ qua */ } }, [range, level, sensor, resOverride, soKyTruoc, selId, optArea, optAhu]);
   const [liveSeries, setLiveSeries] = useState({});   // {scopeId: chuỗi 90 ngày ALL} — cho mini-scope & thẻ kỳ
   const [mainSeries, setMainSeries] = useState({});   // {`id|sensor|range`: chuỗi chính (giờ/ngày + đúng cảm biến)}
   const [roomBand, setRoomBand] = useState({});       // {`room|sensor|range`: chuỗi giá trị TB + giới hạn (phòng)}
@@ -288,73 +297,29 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   //   rồi LÀM GIÀU bằng bảng xếp hạng rủi ro v2 (tỉ lệ đạt 1/3/7 ngày + chuỗi 14 ngày).
   //   → KHẮC PHỤC lỗi "chưa xem được cấp phòng": phòng/AHU/khu LUÔN xuất hiện,
   //     không còn phụ thuộc rollup KPI ngày.
-  const liveScopes = useMemo(() => {
-    if (!isLive) return [];
-    const rs = liveRooms || [];
-    // Bản đồ làm giàu theo "type:id" từ RPC rủi ro v2 (nếu đã nạp file 19)
-    const riskById = {};
-    (liveRisk || []).forEach((r) => { if (r && r.type && r.id != null) riskById[`${r.type}:${r.id}`] = r; });
-    const enrich = (sc) => {
-      const e = riskById[`${sc.type}:${sc.id}`];
-      if (!e) return sc;
-      return {
-        ...sc,
-        risk: e.risk != null ? e.risk : sc.risk,
-        delta7: e.delta7 != null ? e.delta7 : sc.delta7,
-        dat1n: e.dat1n != null ? e.dat1n : sc.dat1n,
-        dat3n: e.dat3n != null ? e.dat3n : sc.dat3n,
-        dat7n: e.dat7n != null ? e.dat7n : sc.dat7n,
-        chuoi: (e.chuoi && e.chuoi.length) ? e.chuoi : sc.chuoi,
-        latest: { compliance: e.compliance != null ? e.compliance : sc.latest.compliance },
-      };
-    };
-    const mkRoom = (r) => {
-      const comp = r._compliance != null ? r._compliance : null;
-      return { type: "ROOM", id: r.id, name: r.name || r.id, area: r.area || undefined, ahu: r.ahu || undefined,
-        risk: comp != null ? Math.max(0, Math.round(100 - comp)) : 999, delta7: null,
-        dat1n: comp, dat3n: null, dat7n: null, chuoi: [], latest: { compliance: comp }, daily: [{ compliance: comp }] };
-    };
-    const roomScopes = rs.filter((r) => !r.noData).map(mkRoom);
-    const aggBy = (keyOf, type, nameOf) => {
-      const g = {};
-      roomScopes.forEach((s) => { const k = keyOf(s); if (!k) return; (g[k] = g[k] || []).push(s); });
-      return Object.entries(g).map(([k, arr]) => {
-        const vals = arr.map((s) => s.latest.compliance).filter((v) => v != null);
-        const comp = vals.length ? +(vals.reduce((a, v) => a + v, 0) / vals.length).toFixed(1) : null;
-        return { type, id: k, name: nameOf ? nameOf(k) : k, area: type === "AREA" ? k : undefined, ahu: type === "AHU" ? k : undefined,
-          risk: comp != null ? Math.max(0, Math.round(100 - comp)) : 999, delta7: null,
-          dat1n: comp, dat3n: null, dat7n: null, chuoi: [], latest: { compliance: comp }, daily: [{ compliance: comp }] };
-      });
-    };
-    const areaScopes = aggBy((s) => s.area, "AREA");
-    const ahuScopes = aggBy((s) => s.ahu, "AHU");
-    const allVals = roomScopes.map((s) => s.latest.compliance).filter((v) => v != null);
-    const totalComp = allVals.length ? +(allVals.reduce((a, v) => a + v, 0) / allVals.length).toFixed(1) : null;
-    // Tài khoản giới hạn khu: server đã tự lọc mọi chuỗi/scope → "TOTAL" thực chất
-    // là gộp các khu được xem; đặt tên đúng bản chất để không gây hiểu nhầm.
-    const totalScope = { type: "TOTAL", id: "ALL", name: khuChoPhep ? `Phạm vi được xem (khu ${khuChoPhep.join(" · ")})` : "Toàn hệ thống", risk: 0, delta7: null,
-      dat1n: totalComp, dat3n: null, dat7n: null, chuoi: [], latest: { compliance: totalComp }, daily: [{ compliance: totalComp }] };
-    return [totalScope, ...areaScopes, ...ahuScopes, ...roomScopes].map(enrich);
-  }, [isLive, liveRooms, liveRisk, khuChoPhep]);
-  const lByType = (t) => liveScopes.filter((s) => s.type === t).sort((a, b) => b.risk - a.risk);
-  const lFind = (id) => liveScopes.find((s) => s.id === id);
+  //   Logic thuần ở lib/boLocXuHuong.js (có unit test) — quy tắc noData xem ở đó.
+  const liveScopes = useMemo(() => (isLive ? dungPhamViLive(liveRooms, liveRisk, khuChoPhep) : []), [isLive, liveRooms, liveRisk, khuChoPhep]);
+  const lByType = (t) => theoCap(liveScopes, t);   // noData xếp cuối
+  // Tìm theo id, ƯU TIÊN đúng cấp đang xem (phòng ngừa trùng mã giữa Khu/AHU/Phòng)
+  const lFind = (id) => liveScopes.find((s) => s.id === id && (level === "TOTAL" || s.type === level)) || liveScopes.find((s) => s.id === id);
 
   // Danh sách Khu / AHU lấy TỪ DỮ LIỆU thật (không hardcode) — #2
   const areaList = useMemo(() => {
     const src = isLive ? (liveRooms || []) : MASTER.filter((m) => m.type === "ROOM");
     return [...new Set(src.map((r) => r.area).filter(Boolean))].sort();
   }, [isLive, liveRooms]);
+  const areaLoc = optArea !== "ALL" && areaList.includes(optArea) ? optArea : "ALL";
   const ahuList = useMemo(() => {
     let src = isLive ? (liveRooms || []) : MASTER.filter((m) => m.type === "ROOM");
-    if (optArea !== "ALL") src = src.filter((r) => r.area === optArea);
+    if (areaLoc !== "ALL") src = src.filter((r) => r.area === areaLoc);
     return [...new Set(src.map((r) => r.ahu).filter(Boolean))].sort();
-  }, [isLive, liveRooms, optArea]);
+  }, [isLive, liveRooms, areaLoc]);
+  // Khu/AHU đã nhớ nhưng KHÔNG còn trong dữ liệu → coi như "Tất cả" (tránh danh sách rỗng oan).
+  const ahuLoc = optAhu !== "ALL" && ahuList.includes(optAhu) ? optAhu : "ALL";
 
   const allOptions = useMemo(() => isLive ? (level === "TOTAL" ? lByType("TOTAL") : lByType(level)) : (level === "TOTAL" ? [findScope("ALL")] : byType(level)), [isLive, level, liveScopes]); // eslint-disable-line
-  const options = useMemo(() => allOptions.filter((o) => o
-    && (optArea === "ALL" || o.area === optArea)
-    && (optAhu === "ALL" || o.ahu === optAhu)
-  ), [allOptions, optArea, optAhu]);
+  // Lọc chip Khu/AHU so khớp THEO CẤP — xem lib/boLocXuHuong.js
+  const options = useMemo(() => locLuaChon(allOptions, { level, area: areaLoc, ahu: ahuLoc, ahuList }), [allOptions, areaLoc, ahuLoc, ahuList, level]);
   const activeId = selId && options.some((o) => o.id === selId) ? selId : (options[0] ? options[0].id : "ALL");
   const activeScope = (isLive ? lFind(activeId) : findScope(activeId)) || (isLive ? (liveScopes[0] || { id: "ALL", name: "—", daily: [{}], latest: {} }) : findScope("ALL"));
   const trendKey = `${activeId}|${sensor}|${range}|${donVi}`;   // khóa cache chuỗi chính (kèm độ phân giải)
@@ -583,7 +548,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   // #4 — Xếp hạng rủi ro: SẮP theo CẤP (Tổng→Khu→AHU→Phòng), trong cấp theo rủi ro giảm dần.
   const LEVEL_RANK = { TOTAL: 0, AREA: 1, AHU: 2, ROOM: 3 };
   const riskRows = (isLive
-    ? liveScopes.slice()
+    ? liveScopes.filter((s) => !s.noData)   // bảng xếp hạng giữ như cũ: không liệt kê phòng chưa có số liệu
     : [findScope("ALL"), ...byType("AREA"), ...byType("AHU"), ...byType("ROOM")].map((s) => ({ ...s, latest: s.latest || {} })))
     .filter(Boolean)
     .sort((a, b) => (LEVEL_RANK[a.type] - LEVEL_RANK[b.type]) || (b.risk - a.risk) || String(a.id).localeCompare(String(b.id)));
@@ -808,7 +773,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     printTrend(meta);
   };
 
-  const Chip = ({ active, onClick, children, disabled, title }) => <button onClick={onClick} disabled={disabled} title={title} className={`px-3.5 py-1.5 rounded-full text-tk-xs font-medium transition ring-1 ${disabled ? "text-muted bg-subtle ring-line cursor-not-allowed" : active ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`} style={active && !disabled ? { backgroundColor: "var(--primary-solid)" } : {}}>{children}</button>;
+  const Chip = ({ active, onClick, children, disabled, title }) => <button type="button" aria-pressed={!!active} onClick={onClick} disabled={disabled} title={title} className={`px-3.5 py-1.5 rounded-full text-tk-xs font-medium transition ring-1 ${disabled ? "text-muted bg-subtle ring-line cursor-not-allowed" : active ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`} style={active && !disabled ? { backgroundColor: "var(--primary-solid)" } : {}}>{children}</button>;
   const sel = "min-h-[44px] rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-tk-xs text-body outline-none";
 
   // #4 — chuỗi giá trị TB + dải giới hạn của phòng (chỉ khi đang chọn 1 phòng + 1 chỉ tiêu DP/RH/T trong LIVE)
@@ -866,9 +831,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         {level !== "TOTAL" && (
           <div className="mt-3 rounded-2xl bg-info-soft/60 ring-1 ring-info-line p-3.5 space-y-3">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Khu vực</span>{["ALL", ...areaList].map((a) => <Chip key={a} active={optArea === a} onClick={() => { setOptArea(a); setOptAhu("ALL"); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
+              <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Khu vực</span>{["ALL", ...areaList].map((a) => <Chip key={a} active={areaLoc === a} onClick={() => { setOptArea(a); setOptAhu("ALL"); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
               {(level === "ROOM" || level === "AHU") && ahuList.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Lọc AHU</span>{["ALL", ...ahuList].map((a) => <Chip key={a} active={optAhu === a} onClick={() => { setOptAhu(a); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
+                <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Lọc AHU</span>{["ALL", ...ahuList].map((a) => <Chip key={a} active={ahuLoc === a} onClick={() => { setOptAhu(a); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -876,7 +841,15 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
               <ScopeCombobox items={options} value={activeId} onPick={(id) => setSelId(id)}
                 placeholder={`Gõ mã hoặc tên ${level === "ROOM" ? "phòng" : level === "AHU" ? "AHU" : "khu"} để tìm…`}
                 levelLabel={`${SCOPE_LEVELS.find((x) => x.k === level)?.label || ""} (${options.length})`} />
+              {(areaLoc !== "ALL" || ahuLoc !== "ALL") && (
+                <button type="button" onClick={() => { setOptArea("ALL"); setOptAhu("ALL"); setSelId(""); }} className="min-h-[44px] text-tk-xs font-medium text-body rounded-xl px-3 ring-1 ring-line bg-surface hover:bg-subtle">Xóa bộ lọc</button>
+              )}
             </div>
+            <p className="text-tk-xs text-muted" role="status" aria-live="polite">
+              Đang xem: <b className="text-strong">{activeScope.id} — {activeScope.name}</b>
+              {areaLoc !== "ALL" ? ` · Khu ${areaLoc}` : ""}{ahuLoc !== "ALL" ? ` · ${ahuLoc}` : ""}
+              {` · ${options.length} lựa chọn`}{options.some((o) => o.noData) ? ` (${options.filter((o) => o.noData).length} chưa có số liệu giờ gần nhất)` : ""}
+            </p>
           </div>
         )}
       </Card>
@@ -1062,7 +1035,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
 
       <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="Tổng → Khu → AHU → Phòng · tỉ lệ đạt 1/3/7 ngày">Xếp hạng rủi ro</SectionTitle>
         <div tabIndex={0} role="region" aria-label="Bảng xếp hạng rủi ro, cuộn ngang để xem thêm" className="overflow-x-auto mt-3"><table className="w-full text-tk-sm"><caption className="sr-only">Xếp hạng rủi ro theo cấp Tổng, Khu, AHU, Phòng — tỉ lệ đạt 1, 3, 7 ngày</caption><thead><tr className="text-muted text-left text-tk-xs uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", ...(coCotNgay ? ["Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày"] : []), ...(coCotChuoi ? ["Xu hướng 14n"] : []), "Risk", "Đánh giá"].map((h) => <th key={h} scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; // a = [nhãn, màu chữ đánh giá, màu badge Risk] — badge theo CÙNG mức; "Tốt" để trung tính (ISA-101: bình thường không tô màu)
-                const a = comp == null ? ["Chờ dữ liệu", "text-muted", "bg-subtle text-muted"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-danger", "bg-danger-soft text-danger ring-1 ring-danger-line"] : comp < 88 ? ["Cần chú ý", "text-warning", "bg-warning-soft text-warning ring-1 ring-warning-line"] : ["Tốt", "text-success", "bg-subtle text-body"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-line hover:bg-info-soft/40 ${r.type === "TOTAL" ? "bg-success-soft/30" : ""}`}><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4 min-w-[11rem]"><button disabled={!canPick} onClick={() => { if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left min-h-[24px] ${canPick ? "hover:underline" : ""}`}><span className="font-semibold text-strong">{r.id}</span> <span className="text-muted">{r.name}</span></button></td><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td>{coCotNgay && <><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td></>}{coCotChuoi && <td className="py-2.5 pr-4"><Chart type="sparkline" chuoi={r.chuoi} h={30} /></td>}<td className="py-2.5 pr-4"><span className={`inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-tk-xs font-semibold tabular-nums ${a[2]}`}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
+                const a = comp == null ? ["Chờ dữ liệu", "text-muted", "bg-subtle text-muted"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-danger", "bg-danger-soft text-danger ring-1 ring-danger-line"] : comp < 88 ? ["Cần chú ý", "text-warning", "bg-warning-soft text-warning ring-1 ring-warning-line"] : ["Tốt", "text-success", "bg-subtle text-body"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-line hover:bg-info-soft/40 ${r.type === "TOTAL" ? "bg-success-soft/30" : ""}`}><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4 min-w-[11rem]"><button disabled={!canPick} onClick={() => { setOptArea("ALL"); setOptAhu("ALL"); if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left min-h-[24px] ${canPick ? "hover:underline" : ""}`}><span className="font-semibold text-strong">{r.id}</span> <span className="text-muted">{r.name}</span></button></td><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td>{coCotNgay && <><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td></>}{coCotChuoi && <td className="py-2.5 pr-4"><Chart type="sparkline" chuoi={r.chuoi} h={30} /></td>}<td className="py-2.5 pr-4"><span className={`inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-tk-xs font-semibold tabular-nums ${a[2]}`}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
         <p className="text-tk-xs text-muted mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó.{coCotNgay ? " Tỉ lệ đạt = trung bình tỷ lệ đạt trong 1 / 3 / 7 ngày gần nhất." : " Cột tỉ lệ đạt 1 / 3 / 7 ngày và xu hướng 14 ngày chỉ có khi dùng dữ liệu thật."}</p>
       </Card>
 

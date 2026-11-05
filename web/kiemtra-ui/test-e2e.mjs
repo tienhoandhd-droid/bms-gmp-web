@@ -4,6 +4,7 @@
 //   2. Tổng quan: mở danh sách phòng (modal) → Esc đóng; mở chi tiết phòng → Esc đóng.
 //   3. Sự cố: lọc Khu → số dòng giảm; bấm dòng → ngăn kéo chi tiết → Esc; nút "Đăng nhập" → modal đăng nhập → Esc.
 //   4. Xu hướng: đổi khoảng 7 ngày / 90 ngày, đổi chỉ tiêu — không lỗi runtime.
+//   4b. Bộ lọc đối tượng Xu hướng: cấp Phòng có danh sách, chip Khu/AHU, Xóa bộ lọc, tìm không dấu, nhớ sau reload.
 //   5. Cấu hình & Nhật ký: đi qua mọi tab con.
 //   6. Đổi giao diện sáng/tối → data-theme đổi và GIỮ sau khi tải lại.
 //   7. Mobile 390 px: bottom-nav "Thêm" mở sheet → chọn Cấu hình → tab đổi, sheet đóng.
@@ -123,6 +124,95 @@ try {
   for (const chu of ["7 ngày", "90 ngày", "Độ ẩm", "Khu vực", "Tổng hợp"]) { const ok = await bamNut(page, chu, "main"); await cho(600); kiem(ok, `Bấm "${chu}" không lỗi`); }
   const canvas = await page.evaluate(() => document.querySelectorAll("main canvas, main svg").length);
   kiem(canvas > 0, `Biểu đồ đã vẽ (${canvas} canvas/svg)`);
+
+  // 4b. Bộ lọc đối tượng Xu hướng (05/11/2026 — lỗi "chọn cấp Phòng ra 0 kết quả").
+  //   Nhánh dữ liệu thật (phòng du_lieu_cu) đã phủ ở test/trend-filter.test.mjs; ở đây BẤM như người dùng.
+  console.log("4b. Bộ lọc đối tượng Xu hướng");
+  // Bấm chip theo NHÓM (nhãn đứng trước) + chữ chính xác; trả về aria-pressed sau khi bấm.
+  const chip = async (nhom, chu) => {
+    const ok = await page.evaluate((nhom, chu) => {
+      const nhan = [...document.querySelectorAll("main span")].find((s) => s.textContent.trim() === nhom && s.parentElement.querySelector("button"));
+      const b = nhan && [...nhan.parentElement.querySelectorAll("button")].find((x) => x.textContent.trim() === chu);
+      if (!b) return false; b.click(); return true;
+    }, nhom, chu);
+    await cho(450);
+    return ok;
+  };
+  const dangChon = (nhom) => page.evaluate((nhom) => {
+    const nhan = [...document.querySelectorAll("main span")].find((s) => s.textContent.trim() === nhom && s.parentElement.querySelector("button"));
+    const b = nhan && [...nhan.parentElement.querySelectorAll('button[aria-pressed="true"]')][0];
+    return b ? b.textContent.trim() : null;
+  }, nhom);
+  // Dòng tóm tắt "Đang xem: <mã> — <tên> · N lựa chọn"
+  const tomTat = () => page.evaluate(() => {
+    const p = [...document.querySelectorAll('main p[role="status"]')].find((x) => x.textContent.startsWith("Đang xem:"));
+    if (!p) return null;
+    const m = p.textContent.match(/(\d+) lựa chọn/);
+    return { text: p.textContent.trim(), n: m ? +m[1] : null };
+  });
+  const coNut = (chu) => page.evaluate((chu) => [...document.querySelectorAll("main button")].some((b) => b.textContent.trim() === chu && b.getBoundingClientRect().width > 0), chu);
+
+  await page.evaluate(() => localStorage.removeItem("bms_trend_prefs"));
+  await goto("/?tab=trend"); await cho(1200);
+  kiem(await chip("Cấp xem", "Phòng") && await dangChon("Cấp xem") === "Phòng", 'Chip "Phòng" bấm được và aria-pressed=true');
+  const tatCa = await tomTat();
+  kiem(tatCa && tatCa.n > 0, `Cấp Phòng có danh sách (${tatCa && tatCa.n} phòng), không ra 0`, tatCa && tatCa.text);
+  kiem(!(await coNut("Xóa bộ lọc")), 'Chưa lọc → không hiện nút "Xóa bộ lọc"');
+
+  await chip("Khu vực", "C1");
+  const theoKhu = await tomTat();
+  kiem(theoKhu && theoKhu.n > 0 && theoKhu.n < tatCa.n && theoKhu.text.includes("Khu C1"), `Lọc Khu C1 → ${theoKhu && theoKhu.n} phòng (giảm, > 0)`, theoKhu && theoKhu.text);
+  const dsAhu = await page.evaluate(() => { const n = [...document.querySelectorAll("main span")].find((s) => s.textContent.trim() === "Lọc AHU"); return n ? [...n.parentElement.querySelectorAll("button")].map((b) => b.textContent.trim()).filter((t) => t !== "Tất cả") : []; });
+  if (dsAhu.length) {
+    await chip("Lọc AHU", dsAhu[0]);
+    const theoAhu = await tomTat();
+    kiem(theoAhu && theoAhu.n > 0 && theoAhu.n <= theoKhu.n, `Lọc thêm ${dsAhu[0]} → ${theoAhu && theoAhu.n} phòng (> 0)`, theoAhu && theoAhu.text);
+  } else hong("Khu C1 phải có ít nhất một chip AHU");
+  kiem(await bamNut(page, "Xóa bộ lọc", "main"), 'Có nút "Xóa bộ lọc" khi đang lọc');
+  await cho(450);
+  const sauXoa = await tomTat();
+  kiem(sauXoa && sauXoa.n === tatCa.n && await dangChon("Khu vực") === "Tất cả", `"Xóa bộ lọc" đưa về đủ ${tatCa.n} phòng, chip Khu = Tất cả`, sauXoa && sauXoa.text);
+
+  // Lỗi cũ: chip Khu ở cấp AHU / cấp Khu so trường area không tồn tại → 0 kết quả
+  await chip("Cấp xem", "AHU"); await chip("Khu vực", "C1");
+  const ahuC1 = await tomTat();
+  kiem(ahuC1 && ahuC1.n > 0, `Cấp AHU + chip Khu C1 → ${ahuC1 && ahuC1.n} AHU (không ra 0)`, ahuC1 && ahuC1.text);
+  await chip("Cấp xem", "Khu vực"); await chip("Khu vực", "C4");
+  const khuC4 = await tomTat();
+  kiem(khuC4 && khuC4.n === 1 && khuC4.text.includes("C4"), `Cấp Khu + chip C4 → đúng 1 khu`, khuC4 && khuC4.text);
+
+  // Ô tìm kiếm: gõ KHÔNG DẤU, Enter chọn, dòng tóm tắt cập nhật
+  await chip("Cấp xem", "Phòng");
+  await page.click('main input[role="combobox"]'); await cho(200);
+  await page.keyboard.type("pha che"); await cho(400);
+  const goiY = await page.evaluate(() => [...document.querySelectorAll('[role="option"]')].map((o) => o.textContent.replace(/\s+/g, " ").trim()));
+  kiem(goiY.length > 0 && goiY.every((t) => /pha chế/i.test(t)), `Gõ "pha che" (không dấu) → ${goiY.length} gợi ý đều chứa "Pha chế"`, goiY.slice(0, 3).join(" | "));
+  const maChon = goiY[0] ? goiY[0].split(" — ")[0].trim() : "";
+  await page.keyboard.press("Enter"); await cho(500);
+  const sauChon = await tomTat();
+  kiem(maChon && sauChon && sauChon.text.includes(maChon), `Enter chọn ${maChon} → dòng "Đang xem" cập nhật`, sauChon && sauChon.text);
+  await page.click('main input[role="combobox"]'); await cho(200);
+  await page.keyboard.type("ahu"); await cho(400);
+  const goiYAhu = await page.evaluate(() => document.querySelectorAll('[role="option"]').length);
+  kiem(goiYAhu > 0, `Gõ "ahu" ở cấp Phòng → tìm theo AHU ra ${goiYAhu} phòng`);
+  await page.keyboard.press("Escape"); await cho(200);
+  // Ô ĐÓNG nhưng vẫn giữ focus (đang hiện "mã — tên") → gõ tiếp KHÔNG được nối vào sau tên
+  await page.keyboard.type("c1"); await cho(400);
+  const goiYPhim = await page.evaluate(() => ({ n: document.querySelectorAll('[role="option"]').length, v: document.querySelector('main input[role="combobox"]').value }));
+  kiem(goiYPhim.n > 0 && goiYPhim.v === "c1", `Gõ tiếp khi ô đóng → ô chỉ chứa "c1", ra ${goiYPhim.n} gợi ý`, `ô = "${goiYPhim.v}"`);
+  await page.keyboard.press("Escape"); await cho(200);
+
+  // Nhớ lựa chọn sau khi tải lại
+  await goto("/?tab=trend"); await cho(1200);
+  const sauReload = await tomTat();
+  kiem(await dangChon("Cấp xem") === "Phòng" && sauReload && sauReload.text.includes(maChon), `Tải lại trang vẫn nhớ cấp Phòng + ${maChon}`, sauReload && sauReload.text);
+
+  // Lựa chọn đã nhớ KHÔNG còn hợp lệ (khu/AHU/phòng bị đổi tên) → không được rỗng oan
+  await page.evaluate(() => localStorage.setItem("bms_trend_prefs", JSON.stringify({ level: "ROOM", optArea: "KHU-DA-XOA", optAhu: "AHU-DA-XOA", selId: "PHONG-DA-XOA" })));
+  await goto("/?tab=trend"); await cho(1200);
+  const prefsHong = await tomTat();
+  kiem(prefsHong && prefsHong.n === tatCa.n && await dangChon("Khu vực") === "Tất cả", `Bộ nhớ chứa khu/AHU/phòng không còn tồn tại → vẫn đủ ${tatCa.n} phòng`, prefsHong && prefsHong.text);
+  await page.evaluate(() => localStorage.removeItem("bms_trend_prefs"));
 
   // 5. Cấu hình & Nhật ký: tab con
   console.log("5. Cấu hình & Nhật ký");
