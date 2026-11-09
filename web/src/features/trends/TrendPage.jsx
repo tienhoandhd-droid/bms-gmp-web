@@ -1,6 +1,5 @@
 // TrendPage.jsx — trang Xu hướng (tách move-only từ App.jsx 17/08/2026).
 import { AiSections } from "./AiSections";
-import BaoCaoDieuKienPhong from "./BaoCaoDieuKienPhong";
 import InspectorDrawer from "../../components/layout/InspectorDrawer";
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -238,6 +237,9 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
     </div>
   );
 }
+
+// Báo cáo điều kiện phòng: tải lười — chỉ cần khi xem cấp Phòng (giữ ngân sách bundle TrendPage)
+const BaoCaoDieuKienPhong = React.lazy(() => import("./BaoCaoDieuKienPhong"));
 
 function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, liveIncidents = null, khuChoPhep = null, onSaveAI = null }) {
   // Ghi nhớ lựa chọn giữa các lần vào (localStorage) — chỉ lưu tuỳ chọn nhẹ, không lưu dữ liệu.
@@ -809,6 +811,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
                   {["ALL", ...ahuList].map((a) => <option key={a} value={a}>{a === "ALL" ? "Tất cả" : a}</option>)}
                 </select>
               </>)}
+              {(areaLoc !== "ALL" || ahuLoc !== "ALL") && (
+                <button type="button" onClick={() => { setOptArea("ALL"); setOptAhu("ALL"); setSelId(""); }} className="min-h-[44px] text-tk-xs font-medium text-body rounded-xl px-3 ring-1 ring-line bg-surface hover:bg-subtle">Xóa bộ lọc</button>
+              )}
               <ScopeCombobox items={options} value={activeId} onPick={(id) => setSelId(id)}
                 placeholder={`Gõ mã hoặc tên ${level === "ROOM" ? "phòng" : level === "AHU" ? "AHU" : "khu"} để tìm…`}
                 levelLabel={`${SCOPE_LEVELS.find((x) => x.k === level)?.label || ""} (${options.length})`} />
@@ -856,7 +861,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       </Card>
 
       {isLive && level === "ROOM" && activeScope?.type === "ROOM" && activeId && (
-        <BaoCaoDieuKienPhong maPhong={activeId} khoang={chonKhoang} homNay={homNay} />
+        <React.Suspense fallback={<Card className="p-6"><p role="status" className="text-tk-xs text-muted">Đang tải khối báo cáo phòng…</p></Card>}>
+          <BaoCaoDieuKienPhong maPhong={activeId} khoang={chonKhoang} homNay={homNay} />
+        </React.Suspense>
       )}
 
       <Card className="p-4 flex items-center justify-between flex-wrap gap-3">

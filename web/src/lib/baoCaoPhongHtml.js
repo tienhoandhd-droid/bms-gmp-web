@@ -92,6 +92,7 @@ function bangGio(dong, loai, tt, nhieuNgay) {
     + `<div class=scroll><table class=compact><thead><tr><th>Giờ</th><th>Điểm</th><th>TB</th><th>Min</th><th>Max</th><th>P5</th><th>P50</th><th>P95</th><th>ĐLC</th><th>Ngoài GH</th><th>Thấp</th><th>Cao</th><th>Liên tục dài nhất (phút)</th><th>Mức hệ thống</th></tr></thead><tbody>${hang || `<tr><td colspan=14>Không có dữ liệu.</td></tr>`}</tbody></table></div></details>`;
 }
 
+/* mau:off — CSS của tài liệu HTML độc lập (iframe/file tải về): không có tokens.css của app, bảng màu riêng có bản sáng/tối */
 const CSS = `
 :root{--bg:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--line:#2a78d6;--band:rgba(42,120,214,.16);--bad:#d03b3b;--badbg:#fbeaea;--good:#2f8a4c;--goodbg:#e9f5ec;--warn:#a86a00;--warnbg:#fdf3df;--hl:#eef4fc;--card:#fff;--bd:#e1e0d9}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--grid:#2c2c2a;--line:#3987e5;--band:rgba(57,135,229,.22);--bad:#e66767;--badbg:#3a2222;--good:#5cbf7a;--goodbg:#1f3326;--warn:#e0a23a;--warnbg:#3a2f1a;--hl:#23303f;--card:#222220;--bd:#3a3a37}}
@@ -120,6 +121,7 @@ circle.ok{fill:var(--line);stroke:var(--card);stroke-width:1.5}circle.oos{fill:v
 details{margin:10px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}
 @media print{body{font-size:12px}.chart,table{break-inside:avoid}details{display:block}main{max-width:none}}
 `;
+/* mau:on */
 
 export function tenFileBaoCaoPhong(du) {
   return `Bao-cao-dieu-kien-phong-${String(du?.phong?.ma_phong || "phong").replace(/[^\w.-]/g, "_")}-${du.tu}_${du.den}.html`;

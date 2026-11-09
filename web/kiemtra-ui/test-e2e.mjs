@@ -4,7 +4,7 @@
 //   2. Tổng quan: mở danh sách phòng (modal) → Esc đóng; mở chi tiết phòng → Esc đóng.
 //   3. Sự cố: lọc Khu → số dòng giảm; bấm dòng → ngăn kéo chi tiết → Esc; nút "Đăng nhập" → modal đăng nhập → Esc.
 //   4. Xu hướng: đổi khoảng 7 ngày / 90 ngày, đổi chỉ tiêu — không lỗi runtime.
-//   4b. Bộ lọc đối tượng Xu hướng: cấp Phòng có danh sách, chip Khu/AHU, Xóa bộ lọc, tìm không dấu, nhớ sau reload.
+//   4b. Bộ lọc đối tượng Xu hướng: cấp Phòng có danh sách, ô chọn Khu/AHU, Xóa bộ lọc, tìm không dấu, nhớ sau reload.
 //   5. Cấu hình & Nhật ký: đi qua mọi tab con.
 //   6. Đổi giao diện sáng/tối → data-theme đổi và GIỮ sau khi tải lại.
 //   7. Mobile 390 px: bottom-nav "Thêm" mở sheet → chọn Cấu hình → tab đổi, sheet đóng.
@@ -150,6 +150,9 @@ try {
     const m = p.textContent.match(/(\d+) lựa chọn/);
     return { text: p.textContent.trim(), n: m ? +m[1] : null };
   });
+  // 09/11/2026: Khu/AHU là ô chọn (<select>) thay cho hàng chip
+  const chonO = async (id, giaTri) => { const ok = await page.$(`#${id}`); if (!ok) return false; await page.select(`#${id}`, giaTri); await cho(450); return true; };
+  const giaTriO = (id) => page.evaluate((id) => document.getElementById(id)?.value ?? null, id);
   const coNut = (chu) => page.evaluate((chu) => [...document.querySelectorAll("main button")].some((b) => b.textContent.trim() === chu && b.getBoundingClientRect().width > 0), chu);
 
   await page.evaluate(() => localStorage.removeItem("bms_trend_prefs"));
@@ -159,27 +162,27 @@ try {
   kiem(tatCa && tatCa.n > 0, `Cấp Phòng có danh sách (${tatCa && tatCa.n} phòng), không ra 0`, tatCa && tatCa.text);
   kiem(!(await coNut("Xóa bộ lọc")), 'Chưa lọc → không hiện nút "Xóa bộ lọc"');
 
-  await chip("Khu vực", "C1");
+  await chonO("trend-khu", "C1");
   const theoKhu = await tomTat();
   kiem(theoKhu && theoKhu.n > 0 && theoKhu.n < tatCa.n && theoKhu.text.includes("Khu C1"), `Lọc Khu C1 → ${theoKhu && theoKhu.n} phòng (giảm, > 0)`, theoKhu && theoKhu.text);
-  const dsAhu = await page.evaluate(() => { const n = [...document.querySelectorAll("main span")].find((s) => s.textContent.trim() === "Lọc AHU"); return n ? [...n.parentElement.querySelectorAll("button")].map((b) => b.textContent.trim()).filter((t) => t !== "Tất cả") : []; });
+  const dsAhu = await page.evaluate(() => [...(document.getElementById("trend-ahu")?.options || [])].map((o) => o.value).filter((v) => v !== "ALL"));
   if (dsAhu.length) {
-    await chip("Lọc AHU", dsAhu[0]);
+    await chonO("trend-ahu", dsAhu[0]);
     const theoAhu = await tomTat();
     kiem(theoAhu && theoAhu.n > 0 && theoAhu.n <= theoKhu.n, `Lọc thêm ${dsAhu[0]} → ${theoAhu && theoAhu.n} phòng (> 0)`, theoAhu && theoAhu.text);
-  } else hong("Khu C1 phải có ít nhất một chip AHU");
+  } else hong("Khu C1 phải có ít nhất một AHU trong ô chọn");
   kiem(await bamNut(page, "Xóa bộ lọc", "main"), 'Có nút "Xóa bộ lọc" khi đang lọc');
   await cho(450);
   const sauXoa = await tomTat();
-  kiem(sauXoa && sauXoa.n === tatCa.n && await dangChon("Khu vực") === "Tất cả", `"Xóa bộ lọc" đưa về đủ ${tatCa.n} phòng, chip Khu = Tất cả`, sauXoa && sauXoa.text);
+  kiem(sauXoa && sauXoa.n === tatCa.n && await giaTriO("trend-khu") === "ALL", `"Xóa bộ lọc" đưa về đủ ${tatCa.n} phòng, ô Khu = Tất cả`, sauXoa && sauXoa.text);
 
-  // Lỗi cũ: chip Khu ở cấp AHU / cấp Khu so trường area không tồn tại → 0 kết quả
-  await chip("Cấp xem", "AHU"); await chip("Khu vực", "C1");
+  // Lỗi cũ: lọc Khu ở cấp AHU / cấp Khu so trường area không tồn tại → 0 kết quả
+  await chip("Cấp xem", "AHU"); await chonO("trend-khu", "C1");
   const ahuC1 = await tomTat();
-  kiem(ahuC1 && ahuC1.n > 0, `Cấp AHU + chip Khu C1 → ${ahuC1 && ahuC1.n} AHU (không ra 0)`, ahuC1 && ahuC1.text);
-  await chip("Cấp xem", "Khu vực"); await chip("Khu vực", "C4");
+  kiem(ahuC1 && ahuC1.n > 0, `Cấp AHU + Khu C1 → ${ahuC1 && ahuC1.n} AHU (không ra 0)`, ahuC1 && ahuC1.text);
+  await chip("Cấp xem", "Khu vực"); await chonO("trend-khu", "C4");
   const khuC4 = await tomTat();
-  kiem(khuC4 && khuC4.n === 1 && khuC4.text.includes("C4"), `Cấp Khu + chip C4 → đúng 1 khu`, khuC4 && khuC4.text);
+  kiem(khuC4 && khuC4.n === 1 && khuC4.text.includes("C4"), `Cấp Khu + Khu C4 → đúng 1 khu`, khuC4 && khuC4.text);
 
   // Ô tìm kiếm: gõ KHÔNG DẤU, Enter chọn, dòng tóm tắt cập nhật
   await chip("Cấp xem", "Phòng");
@@ -211,7 +214,7 @@ try {
   await page.evaluate(() => localStorage.setItem("bms_trend_prefs", JSON.stringify({ level: "ROOM", optArea: "KHU-DA-XOA", optAhu: "AHU-DA-XOA", selId: "PHONG-DA-XOA" })));
   await goto("/?tab=trend"); await cho(1200);
   const prefsHong = await tomTat();
-  kiem(prefsHong && prefsHong.n === tatCa.n && await dangChon("Khu vực") === "Tất cả", `Bộ nhớ chứa khu/AHU/phòng không còn tồn tại → vẫn đủ ${tatCa.n} phòng`, prefsHong && prefsHong.text);
+  kiem(prefsHong && prefsHong.n === tatCa.n && await giaTriO("trend-khu") === "ALL", `Bộ nhớ chứa khu/AHU/phòng không còn tồn tại → vẫn đủ ${tatCa.n} phòng`, prefsHong && prefsHong.text);
   await page.evaluate(() => localStorage.removeItem("bms_trend_prefs"));
 
   // 5. Cấu hình & Nhật ký: tab con
