@@ -514,12 +514,13 @@ export async function layChuoiXuHuong(scopeType, scopeId, sensorType, soNgay, si
 // ============================================================
 // XU HƯỚNG CHI TIẾT (THEO GIỜ / THEO CẢM BIẾN)  ·  RPC: rpc_lay_chuoi_xu_huong_v2
 // donVi: 'GIO' (N giờ gần nhất) | 'NGAY' (N ngày). sensorType: ALL/DP/RH/T.
+// pDen ('YYYY-MM-DD' | null): ngày KẾT THÚC cửa sổ; null = tính tới hiện tại (hành vi cũ).
 // → MẢNG cùng hình dạng layChuoiXuHuong: [{label, ts, comp, dq, warnH, critH, alert, oos}]
 // ============================================================
-export async function layChuoiXuHuongChiTiet(scopeType, scopeId, sensorType, donVi, soDiem, signal) {
+export async function layChuoiXuHuongChiTiet(scopeType, scopeId, sensorType, donVi, soDiem, pDen = null, signal) {
   const { data, error } = await goiRPC('rpc_lay_chuoi_xu_huong_v2', {
     p_scope_type: scopeType, p_scope_id: scopeId, p_sensor: sensorType || 'ALL',
-    p_don_vi: donVi || 'NGAY', p_so_diem: soDiem,
+    p_don_vi: donVi || 'NGAY', p_so_diem: soDiem, ...(pDen ? { p_den: pDen } : {}),
   }, { signal })
   if (error || !Array.isArray(data)) return { error, series: [] }
   const series = data.map((r) => ({
@@ -539,9 +540,10 @@ export async function layChuoiXuHuongChiTiet(scopeType, scopeId, sensorType, don
 // XU HƯỚNG ĐA CẢM BIẾN (1 phòng → vẽ ĐỦ DP/RH/T)  ·  RPC: rpc_chuoi_xu_huong_da_sensor
 // donVi: 'GIO' | 'NGAY'. → { error, perSensor:[{k, series:[{label,ts,comp,oos,dq}]}] }
 // ============================================================
-export async function layChuoiXuHuongDaSensor(scopeType, scopeId, donVi, soDiem, signal) {
+export async function layChuoiXuHuongDaSensor(scopeType, scopeId, donVi, soDiem, pDen = null, signal) {
   const { data, error } = await goiRPC('rpc_chuoi_xu_huong_da_sensor', {
     p_scope_type: scopeType, p_scope_id: scopeId, p_don_vi: donVi || 'GIO', p_so_diem: soDiem,
+    ...(pDen ? { p_den: pDen } : {}),
   }, { signal })
   if (error || !Array.isArray(data)) return { error, perSensor: [] }
   const perSensor = data.map((g) => ({
@@ -682,9 +684,10 @@ export async function layPhanTichGmp(signal) {
 // donVi: 'GIO' (N giờ) | 'NGAY' (N ngày). sensor: DP/RH/T (cụ thể).
 // → MẢNG [{label, ts, avg, lo, hi, vmin, vmax}] để vẽ đường TB + dải GHD–GHT.
 // ============================================================
-export async function layChuoiGiaTriPhong(maPhong, sensor, donVi, soDiem, signal) {
+export async function layChuoiGiaTriPhong(maPhong, sensor, donVi, soDiem, pDen = null, signal) {
   const { data, error } = await goiRPC('rpc_chuoi_gia_tri_phong', {
     p_ma_phong: maPhong, p_sensor: sensor, p_don_vi: donVi || 'GIO', p_so_diem: soDiem,
+    ...(pDen ? { p_den: pDen } : {}),
   }, { signal })
   // RPC (mới) trả { series, baseline }; vẫn chấp nhận MẢNG cũ để tương thích.
   const rows = Array.isArray(data) ? data : (data && Array.isArray(data.series) ? data.series : [])
@@ -699,6 +702,25 @@ export async function layChuoiGiaTriPhong(maPhong, sensor, donVi, soDiem, signal
   const b = (data && !Array.isArray(data) && data.baseline) || null
   const baseline = b ? { tb: num(b.tb), sigma: num(b.sigma), n: b.n != null ? Number(b.n) : 0 } : null
   return { error: null, series, baseline }
+}
+
+// ============================================================
+// BÁO CÁO ĐIỀU KIỆN PHÒNG (09/11/2026)  ·  RPC: rpc_bao_cao_dieu_kien_phong
+// tu/den: 'YYYY-MM-DD' (≤ 31 ngày). → { error, data: { tu, den, phong, cam_bien[], gio[], su_co[], pham_vi_canh_bao } }
+// ============================================================
+const LOI_BAO_CAO_PHONG = {
+  KHOANG_KHONG_HOP_LE: 'Khoảng thời gian không hợp lệ.',
+  QUA_31_NGAY: 'Báo cáo phòng chỉ lập cho tối đa 31 ngày — hãy chọn khoảng ngắn hơn.',
+  KHONG_CO_QUYEN: 'Tài khoản không có quyền xem phòng này.',
+}
+export async function layBaoCaoDieuKienPhong(maPhong, tu, den, signal) {
+  const { data, error } = await goiRPC('rpc_bao_cao_dieu_kien_phong', {
+    p_ma_phong: maPhong, p_tu: tu, p_den: den,
+  }, { signal })
+  if (error) return { error, data: null }
+  if (!data || typeof data !== 'object') return { error: { message: 'Máy chủ không trả dữ liệu báo cáo.' }, data: null }
+  if (data.loi) return { error: { message: LOI_BAO_CAO_PHONG[data.loi] || data.loi, code: data.loi }, data: null }
+  return { error: null, data }
 }
 
 // ============================================================
