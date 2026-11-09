@@ -49,7 +49,7 @@ Chuỗi (19 node, cập nhật 04/09/2026):
 
 ```
 Webhook wf5v3-chay-nhap → Đọc token webhook → Kiểm token webhook → Token hợp lệ?
-Lịch thứ 5 07:00 (ĐANG TẮT)                                            ┘
+Lịch thứ 2 07:00 · mùng 1 07:00                                        ┘
   → Xác định kỳ → Fan-out theo khu → Gắn khu vào kỳ → Supabase (chỉ SELECT)
   → Nhận định máy (JSON 5 trường) → Ráp báo cáo v3 → Tạo PDF (Gotenberg)
       ├→ Dựng file báo cáo → Tải báo cáo lên Drive        (PDF nếu có, không thì HTML)
@@ -62,9 +62,9 @@ Những phần chép nguyên từ WF5 v2 (cùng credential, cùng bảng):
 - **Kiểm token webhook**: so `body._token` với `cau_hinh.webhook_token_web`; token rỗng
   trong DB = không kiểm. Khác v2 một điều: chạy thử từ trong n8n (`$execution.mode === 'test'`)
   không cần token, vì chỉ chủ n8n bấm được.
-- **Lịch** (`0 0 7 * * 4` tuần thứ 5; `0 0 7 1 * *` mùng 1: tháng lịch liền trước, + quý vào
-  1/4/7/10; múi giờ Asia/Ho_Chi_Minh): node có sẵn nhưng **TẮT**. Bật lên là chạy song song
-  với v2 — chỉ bật khi đã tắt lịch của v2.
+- **Lịch** (`0 0 7 * * 1` tuần thứ 2 — từ 09/11/2026, trước đó `0 0 7 * * 4` thứ 5; `0 0 7 1 * *`
+  mùng 1: tháng lịch liền trước, + quý vào 1/4/7/10; múi giờ Asia/Ho_Chi_Minh): ĐANG BẬT.
+  Kỳ tuần = thứ Hai → hết Chủ nhật tuần trước (đúng tuần ISO).
 - **Bảng "So với bốn kỳ trước"**: cột `lich_su_ky` trong truy vấn Supabase (từ `kpi_ngay_scope`),
   bộ ráp đọc `d.lich_su_ky`; thiếu thì ẩn bảng.
 - **Fan-out theo khu + Gắn khu vào kỳ**: bản TỔNG gửi người có ≥ 2 khu trong

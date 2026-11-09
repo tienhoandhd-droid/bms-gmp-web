@@ -117,7 +117,7 @@ export default function ResponseRateReport({ data, loading = false, error = null
         {details.length > shownDetails.length && <p className="mt-3 text-tk-xs text-muted">Đang hiển thị 50/{details.length} dòng chi tiết.</p>}
       </details>
       </> : <div className="mt-5 rounded-xl bg-subtle p-6 text-center"><Inbox className="mx-auto h-8 w-8 text-muted" strokeWidth={1.6} aria-hidden="true" /><p className="mt-3 text-sm font-semibold text-strong">Chưa có lượt gửi hợp lệ trong kỳ này</p><p className="mx-auto mt-1 max-w-xl text-tk-xs leading-relaxed text-muted">Báo cáo chỉ tính phiếu đã gửi thành công trong giờ áp dụng. Không có lượt gửi hợp lệ không đồng nghĩa các bộ phận không phản hồi.</p></div>}
-      <p className="mt-4 flex flex-wrap items-center gap-1.5 text-[11px] text-muted"><CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />Kỳ báo cáo Thứ năm đến hết Thứ tư. <Clock3 className="ml-1 h-3.5 w-3.5 shrink-0" aria-hidden="true" />Ngoài giờ áp dụng không được tính.</p>
+      <p className="mt-4 flex flex-wrap items-center gap-1.5 text-[11px] text-muted"><CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />Kỳ báo cáo Thứ hai đến hết Chủ nhật. <Clock3 className="ml-1 h-3.5 w-3.5 shrink-0" aria-hidden="true" />Ngoài giờ áp dụng không được tính.</p>
       <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted"><FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />Tỷ lệ phản ánh thao tác ghi nhận trên BMS, không phản ánh toàn bộ công việc của bộ phận.</p>
     </Card>
   );

@@ -35,9 +35,10 @@ function normaliseRow(row = {}) {
 export function latestCompletedResponseWeek(now = new Date()) {
   const today = vietnamCalendarDate(now);
   const weekday = new Date(`${today}T00:00:00Z`).getUTCDay();
-  // A reporting week ends at the end of Wednesday, so Wednesday remains open.
-  const daysSinceCompletedWednesday = ((weekday - 3 + 7) % 7) || 7;
-  const endDay = toUtcDay(today) - daysSinceCompletedWednesday * DAY_MS;
+  // 09/11/2026: kỳ báo cáo tuần là thứ Hai → hết Chủ nhật (cùng kỳ với thư tuần WF5).
+  // Kỳ kết thúc cuối ngày Chủ nhật, nên ngày Chủ nhật vẫn thuộc kỳ đang chạy.
+  const daysSinceCompletedSunday = (weekday % 7) || 7;
+  const endDay = toUtcDay(today) - daysSinceCompletedSunday * DAY_MS;
   return { start: isoDay(endDay - 6 * DAY_MS), end: isoDay(endDay) };
 }
 

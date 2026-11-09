@@ -7,25 +7,30 @@ import {
   formatResponseRate,
 } from "../src/features/reports/responseRateModel.js";
 
-test("latest completed response week uses the Thursday–Wednesday calendar in Vietnam", () => {
-  // 10:00 UTC Thursday is Thursday evening in Vietnam; the Wednesday that just
-  // ended is 2026-09-09. The in-progress Thu–Wed week must not be selectable.
-  assert.deepEqual(latestCompletedResponseWeek(new Date("2026-09-10T10:00:00Z")), {
-    start: "2026-09-03",
-    end: "2026-09-09",
+test("latest completed response week uses the Monday–Sunday calendar in Vietnam", () => {
+  // 03:00 UTC thứ Hai 09/11/2026 là 10:00 sáng thứ Hai giờ VN: tuần vừa xong là 02/11–08/11.
+  assert.deepEqual(latestCompletedResponseWeek(new Date("2026-11-09T03:00:00Z")), {
+    start: "2026-11-02",
+    end: "2026-11-08",
   });
-  // Wednesday itself is still part of an in-progress reporting week.
-  assert.deepEqual(latestCompletedResponseWeek(new Date("2026-09-09T10:00:00Z")), {
-    start: "2026-08-27",
-    end: "2026-09-02",
+  // Chủ nhật vẫn thuộc tuần đang chạy, nên chỉ chọn được tuần trước nữa.
+  assert.deepEqual(latestCompletedResponseWeek(new Date("2026-11-08T10:00:00Z")), {
+    start: "2026-10-26",
+    end: "2026-11-01",
+  });
+  // 18:00 UTC Chủ nhật đã là 01:00 thứ Hai giờ VN: tính theo ngày Việt Nam.
+  assert.deepEqual(latestCompletedResponseWeek(new Date("2026-11-08T18:00:00Z")), {
+    start: "2026-11-02",
+    end: "2026-11-08",
   });
 });
 
 test("week navigation moves exactly seven days and never offers an unfinished week", () => {
-  const current = { start: "2026-09-03", end: "2026-09-09" };
-  assert.deepEqual(shiftResponseWeek(current, -1), { start: "2026-08-27", end: "2026-09-02" });
-  assert.deepEqual(shiftResponseWeek(current, 1, new Date("2026-09-10T10:00:00Z")), current);
-  assert.deepEqual(shiftResponseWeek({ start: "2026-08-27", end: "2026-09-02" }, 1, new Date("2026-09-10T10:00:00Z")), current);
+  const current = { start: "2026-11-02", end: "2026-11-08" };
+  const now = new Date("2026-11-09T03:00:00Z");
+  assert.deepEqual(shiftResponseWeek(current, -1), { start: "2026-10-26", end: "2026-11-01" });
+  assert.deepEqual(shiftResponseWeek(current, 1, now), current);
+  assert.deepEqual(shiftResponseWeek({ start: "2026-10-26", end: "2026-11-01" }, 1, now), current);
 });
 
 test("comparison keeps null rates and deltas when either week has no eligible deliveries", () => {
