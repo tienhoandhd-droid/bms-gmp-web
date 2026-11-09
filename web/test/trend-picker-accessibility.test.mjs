@@ -32,15 +32,19 @@ test("trend scope picker exposes combobox semantics and supports keyboard select
     toLabel: document.querySelector('label[for="trend-date-to"]')?.textContent,
     fromHeight: document.querySelector('#trend-date-from')?.getBoundingClientRect().height,
     toHeight: document.querySelector('#trend-date-to')?.getBoundingClientRect().height,
-    status: document.querySelector('[role="status"]')?.textContent,
+    status: document.querySelector('#trend-date-note')?.textContent,
   }));
-  assert.deepEqual(dateControls.fromLabel, "Từ");
-  assert.deepEqual(dateControls.toLabel, "Đến");
+  assert.deepEqual(dateControls.fromLabel, "Từ ngày");
+  assert.deepEqual(dateControls.toLabel, "Đến ngày");
   assert.ok(dateControls.fromHeight >= 44 && dateControls.toHeight >= 44, "date controls need 44px hit areas");
-  assert.match(dateControls.status, /Đang xem \d+\/\d+ điểm/);
-  await page.evaluate(() => [...document.querySelectorAll("button")]
-    .find((button) => button.textContent.trim() === "Áp dụng")?.click());
-  await page.waitForFunction(() => document.querySelector('[role="status"]')?.textContent.includes("Đã áp dụng khoảng thời gian."));
+  assert.match(dateControls.status, /Đang xem .+ \(\d+ ngày\) · theo (giờ|ngày) .*\d+ điểm/);
+  // 09/11/2026: chọn là áp dụng ngay — nút nhanh "Hôm qua" rồi lùi một kỳ, dòng trạng thái đổi theo
+  const cho = (fn) => page.evaluate(fn);
+  await cho(() => [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Hôm qua")?.click());
+  await page.waitForFunction(() => /\(1 ngày\) · theo giờ/.test(document.querySelector('#trend-date-note')?.textContent || ""));
+  const homQua = await page.$eval("#trend-date-from", (i) => i.value);
+  await cho(() => document.querySelector('button[aria-label="Lùi một kỳ"]')?.click());
+  await page.waitForFunction((truoc) => document.querySelector("#trend-date-from")?.value < truoc, {}, homQua);
 
   await page.evaluate(() => [...document.querySelectorAll("button")]
     .find((button) => button.textContent.trim() === "Khu vực")?.click());

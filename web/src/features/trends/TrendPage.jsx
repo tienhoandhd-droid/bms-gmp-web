@@ -9,11 +9,12 @@ import { Card, SectionTitle } from "../../components/ui/Card";
 import Chart from "../../components/ui/Chart";
 import { KpiCard } from "../../components/ui/KpiCard";
 import { COLOR, COMPLY_BAD, COMPLY_OK, SENSOR_COLOR, fmtPct } from "../../lib/designTokens";
-import { deltaTone, fmtDelta, fmtH, fmtVN, toLocalInput } from "../../lib/dinhDang";
-import { MASTER, RANGES, SCOPE_LEVELS, SENSORS, applySensor, byType, findScope, getSeries } from "../../lib/moPhong";
+import { deltaTone, fmtDelta, fmtH, fmtVN } from "../../lib/dinhDang";
+import { MASTER, SCOPE_LEVELS, SENSORS, applySensor, byType, findScope, getSeries } from "../../lib/moPhong";
 import { guiNhanDinhXuHuong, layChuoiGiaTriPhong, layChuoiXuHuong, layChuoiXuHuongChiTiet, layChuoiXuHuongDaSensor, layDuBaoXuHuong, layMaTranPhongNgay, layNguoiNhanBaoCao, layPhanTichSau, layQuetBatThuong, layWebhookAi, layWebhookAiSau, layWebhookWf7b, phanTichAiQuaWorkflow } from "../../lib/supabaseData";
 import { SENSOR_META } from "../../lib/uiConst";
 import { boDau, dungPhamViLive, locLuaChon, theoCap, timTheoTu } from "../../lib/boLocXuHuong";
+import { NUT_NHANH, dichKy, homNayVN, hopLe, khoangTuNutNhanh, nhanKhoang, soNgay, thamSoTai, tuRangeCu } from "../../lib/khoangThoiGian";
 /* ===== XU HƯỚNG ===== */
 // Thống kê hồi quy tuyến tính cho 1 chuỗi số: trung bình, độ lệch chuẩn, độ dốc/điểm, R², min, max
 function regStat(ys) {
@@ -241,7 +242,27 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   // Ghi nhớ lựa chọn giữa các lần vào (localStorage) — chỉ lưu tuỳ chọn nhẹ, không lưu dữ liệu.
   const LS_KEY = "bms_trend_prefs";
   const prefs = (() => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } })();
-  const [range, setRange] = useState(["1n", "7n", "30n", "90n", "180n"].includes(prefs.range) ? prefs.range : "30n");
+  // 09/11/2026: khoảng thời gian chọn tự do (nút nhanh hoặc Từ ngày/Đến ngày). Nút nhanh lưu theo khoá
+  // để hôm sau "7 ngày" vẫn là 7 ngày gần nhất; khoảng tự chọn lưu nguyên ngày.
+  const [homNay] = useState(() => homNayVN());
+  const [chonKhoang, setChonKhoang] = useState(() => {
+    if (prefs.nut && NUT_NHANH.some((n) => n.k === prefs.nut)) return { nut: prefs.nut, ...khoangTuNutNhanh(prefs.nut, homNay) };
+    if (prefs.tu && prefs.den && !hopLe({ tu: prefs.tu, den: prefs.den }, homNay)) return { nut: null, tu: prefs.tu, den: prefs.den };
+    return tuRangeCu(prefs.range, homNay);
+  });
+  const [nhapKhoang, setNhapKhoang] = useState({ tu: chonKhoang.tu, den: chonKhoang.den }); // ô ngày đang gõ
+  const loiKhoang = hopLe(nhapKhoang, homNay);
+  const datKhoang = (k) => { setChonKhoang(k); setNhapKhoang({ tu: k.tu, den: k.den }); };
+  const doiONgay = (truong, giaTri) => {
+    const moi = { ...nhapKhoang, [truong]: giaTri };
+    setNhapKhoang(moi);
+    if (!hopLe(moi, homNay)) setChonKhoang({ nut: null, ...moi });   // hợp lệ → tải ngay, không cần nút Áp dụng
+  };
+  const range = `${chonKhoang.tu}_${chonKhoang.den}`;   // khoá cache/phụ thuộc của mọi chuỗi theo khoảng
+  const soNgayKhoang = soNgay(chonKhoang);
+  const nhanKhoangHt = nhanKhoang(chonKhoang);
+  // Chế độ mô phỏng (không live) chỉ có các khung cố định → chọn khung gần nhất
+  const rangeMoPhong = soNgayKhoang <= 1 ? "1n" : soNgayKhoang <= 7 ? "7n" : soNgayKhoang <= 30 ? "30n" : soNgayKhoang <= 90 ? "90n" : "180n";
   const [level, setLevel] = useState(["TOTAL", "AREA", "AHU", "ROOM"].includes(prefs.level) ? prefs.level : "TOTAL");
   const strPref = (v) => (typeof v === "string" && v.length < 80 ? v : "");   // chỉ nhận chuỗi ngắn hợp lệ
   const [selId, setSelId] = useState(strPref(prefs.selId));   // nhớ đối tượng đã chọn (nếu không còn trong danh sách → tự về mục đầu)
@@ -249,11 +270,6 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [resOverride, setResOverride] = useState(["GIO"].includes(prefs.res) ? prefs.res : null); // độ phân giải khung dưới-ngày (chỉ còn GIO sau khi bỏ 30 phút)
   const [optArea, setOptArea] = useState(strPref(prefs.optArea) || "ALL");
   const [optAhu, setOptAhu] = useState(strPref(prefs.optAhu) || "ALL");
-  const [dtFrom, setDtFrom] = useState("");
-  const [dtTo, setDtTo] = useState("");
-  const [dtFromDraft, setDtFromDraft] = useState("");
-  const [dtToDraft, setDtToDraft] = useState("");
-  const [dateStatus, setDateStatus] = useState("");
   const [aiResult, setAiResult] = useState(null);
   const [diemChon, setDiemChon] = useState(null);   // G3: điểm được click trên biểu đồ chính → inspector
   const [aiBusy, setAiBusy] = useState(false);        // đang gọi AI qua workflow
@@ -277,14 +293,12 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, us] = await Promise.all([layWebhookAi(), layWebhookAiSau().catch(() => "")]); if (huy) return; setAiWebhook(u || ""); setAiWebhookSau(us || ""); })(); return () => { huy = true; }; }, [isLive]);
   // WF7b: URL gửi email/lưu Drive + điền sẵn người nhận email từ danh sách người nhận báo cáo.
   useEffect(() => { if (!isLive) return; let huy = false; (async () => { const [u, ds] = await Promise.all([layWebhookWf7b(), layNguoiNhanBaoCao().catch(() => ({ rows: [] }))]); if (huy) return; setWf7bUrl(u || ""); const emails = ((ds && ds.rows) || []).map((r) => r.email).filter(Boolean); setEmailTo(emails.join(", ")); })(); return () => { huy = true; }; }, [isLive]);
-  const RANGE_DAYS = { "1n": 1, "7n": 7, "30n": 30, "90n": 90, "180n": 180 };
   // Độ phân giải: 30n/90n/Từ-đầu → NGÀY; 1n/7n → THEO GIỜ (dữ liệu thu thập 1 giờ/lần, bỏ mốc 30 phút cũ).
-  const donVi = (range === "30n" || range === "90n" || range === "180n") ? "NGAY" : "GIO";
-  const soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);  // GIO: số GIỜ; NGAY: số ngày
+  const { donVi, soDiem, pDen } = thamSoTai(chonKhoang, homNay);  // ≤ 7 ngày theo GIỜ (soDiem = số giờ), dài hơn theo NGÀY
   const resLbl = donVi === "GIO" ? "theo giờ" : "theo ngày";
   const isSubDay = donVi === "GIO";
   // Lưu lựa chọn nhẹ
-  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ range, level, sensor, res: resOverride, prevCmp: soKyTruoc, selId, optArea, optAhu })); } catch { /* bỏ qua */ } }, [range, level, sensor, resOverride, soKyTruoc, selId, optArea, optAhu]);
+  useEffect(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ nut: chonKhoang.nut, tu: chonKhoang.nut ? undefined : chonKhoang.tu, den: chonKhoang.nut ? undefined : chonKhoang.den, level, sensor, res: resOverride, prevCmp: soKyTruoc, selId, optArea, optAhu })); } catch { /* bỏ qua */ } }, [chonKhoang, level, sensor, resOverride, soKyTruoc, selId, optArea, optAhu]);
   const [liveSeries, setLiveSeries] = useState({});   // {scopeId: chuỗi 90 ngày ALL} — cho mini-scope & thẻ kỳ
   const [mainSeries, setMainSeries] = useState({});   // {`id|sensor|range`: chuỗi chính (giờ/ngày + đúng cảm biến)}
   const [roomBand, setRoomBand] = useState({});       // {`room|sensor|range`: chuỗi giá trị TB + giới hạn (phòng)}
@@ -334,7 +348,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     const capHeatmap = st === "TOTAL" || st === "AREA";
     const hmType = st === "AREA" ? "AREA" : "TOTAL";
     const hmId = st === "AREA" ? activeId : "ALL";
-    const soNgayHm = Math.min(14, RANGE_DAYS[range] || 30);
+    const soNgayHm = Math.min(14, soNgayKhoang);
     (async () => {
       setDbBusy(true); setDuBaoLoi(null);
       try {
@@ -374,7 +388,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     const sc = lFind(activeId);
     let huy = false;
     (async () => {
-      const r = await layChuoiXuHuongChiTiet(sc ? sc.type : "TOTAL", activeId, sensor, donVi, soDiem);
+      const r = await layChuoiXuHuongChiTiet(sc ? sc.type : "TOTAL", activeId, sensor, donVi, soDiem, pDen);
       if (huy) return;
       setMainSeries((m) => ({ ...m, [trendKey]: (r && r.series) || [] }));
     })();
@@ -389,7 +403,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     const sc = lFind(activeId);
     let huy = false;
     (async () => {
-      const r = await layChuoiXuHuongChiTiet(sc ? sc.type : "TOTAL", activeId, sensor, "NGAY", soDiem * 2);
+      const r = await layChuoiXuHuongChiTiet(sc ? sc.type : "TOTAL", activeId, sensor, "NGAY", soDiem * 2, pDen);
       if (huy) return;
       const s = (r && r.series) || [];
       setPrevSeries((m) => ({ ...m, [trendKey]: s.slice(0, Math.max(0, s.length - soDiem)) }));
@@ -406,7 +420,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     if (roomBand[roomBandKey]) return;
     let huy = false;
     (async () => {
-      const r = await layChuoiGiaTriPhong(activeId, sensor, donVi, soDiem);
+      const r = await layChuoiGiaTriPhong(activeId, sensor, donVi, soDiem, pDen);
       if (huy) return;
       setRoomBand((m) => ({ ...m, [roomBandKey]: (r && r.series) || [] }));
     })();
@@ -424,7 +438,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       // Mảng 4 (tốc độ): 3 RPC DP/RH/T ĐỘC LẬP → chạy SONG SONG (Promise.all)
       // thay vì tuần tự for…await (nhanh ~3× khi mở chi tiết phòng).
       const ks = ["DP", "RH", "T"];
-      const rs = await Promise.all(ks.map((k) => layChuoiGiaTriPhong(activeId, k, donVi, soDiem)));
+      const rs = await Promise.all(ks.map((k) => layChuoiGiaTriPhong(activeId, k, donVi, soDiem, pDen)));
       if (huy) return;
       const out = {};
       ks.forEach((k, i) => {
@@ -446,7 +460,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     const scType = activeScope.type || "TOTAL";
     let huy = false;
     (async () => {
-      const r = await layChuoiXuHuongDaSensor(scType, activeId, donVi, soDiem);
+      const r = await layChuoiXuHuongDaSensor(scType, activeId, donVi, soDiem, pDen);
       if (huy) return;
       if (r?.error) { console.error("[BMS] Tải chuỗi theo chỉ tiêu lỗi:", r.error); setMultiLoi((m) => ({ ...m, [multiKey]: r.error })); return; }
       setMultiLoi((m) => { if (!m[multiKey]) return m; const n = { ...m }; delete n[multiKey]; return n; });
@@ -468,33 +482,21 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     return [...byTs.values()].sort((a, b) => a.ts - b.ts);
   }, [wantMulti, multiSensor, multiKey]);
   const sensorsPresent = useMemo(() => (wantMulti ? (multiSensor[multiKey] || []).map((g) => g.k) : []), [wantMulti, multiSensor, multiKey]);
-  const full = isLive ? (mainSeries[trendKey] || []) : getSeries(activeScope, sensor, range);
-  const minTs = full[0]?.ts, maxTs = full[full.length - 1]?.ts;
-  // Ô "Từ → đến" TỰ hiển thị mốc dữ liệu thật (điểm đầu có dữ liệu → điểm cuối) khi chưa có
-  // bộ lọc/nháp nào — chạy khi dữ liệu nạp xong lần đầu, đổi Khoảng/cấp xem, hoặc bấm Đặt lại/Toàn khoảng.
-  useEffect(() => {
-    if (!minTs || !maxTs) return;
-    if (dtFrom || dtTo || dtFromDraft || dtToDraft) return;   // user đang lọc/soạn → không đè
-    setDtFromDraft(toLocalInput(minTs));
-    setDtToDraft(toLocalInput(maxTs));
-  }, [minTs, maxTs, dtFrom, dtTo, dtFromDraft, dtToDraft]);
-  const fromMs = dtFrom ? new Date(dtFrom).getTime() : minTs;
-  const toMs = dtTo ? new Date(dtTo).getTime() : maxTs;
-  const series = full.filter((r) => r.ts >= Math.min(fromMs, toMs) && r.ts <= Math.max(fromMs, toMs));
-  const view = series.length ? series : full;
-  const isHourly = range === "1n" || range === "7n";   // #3: 24 giờ & 7 ngày theo GIỜ
+  const full = isLive ? (mainSeries[trendKey] || []) : getSeries(activeScope, sensor, rangeMoPhong);
+  const minTs = full[0]?.ts;
+  const view = full;   // 09/11/2026: dữ liệu tải ĐÚNG khoảng đã chọn → không còn lọc con phía web
+  const isHourly = donVi === "GIO";   // ≤ 7 ngày theo GIỜ
   // #3 — chuỗi đa cảm biến đã lọc theo cùng cửa sổ thời gian
   const viewMulti = useMemo(() => {
     if (!wantMulti || !multiMerged.length) return [];
-    const f = multiMerged.filter((r) => r.ts >= Math.min(fromMs, toMs) && r.ts <= Math.max(fromMs, toMs));
-    return f.length ? f : multiMerged;
-  }, [wantMulti, multiMerged, fromMs, toMs]);
+    return multiMerged;
+  }, [wantMulti, multiMerged]);
   const showMulti = wantMulti && sensor === "ALL" && viewMulti.length > 0 && sensorsPresent.length > 0;
   const isRoom = !!activeScope && activeScope.type === "ROOM";
   const isLargeScope = !!activeScope && !isRoom;  // TOTAL / AREA / AHU
 
   // A3 — đường "kỳ trước" (mờ, đứt): chỉ khi khung NGÀY + không lọc thời gian con.
-  const prevData = (soKyTruoc && donVi === "NGAY" && !dtFrom && !dtTo && (prevSeries[trendKey] || []).length)
+  const prevData = (soKyTruoc && donVi === "NGAY" && (prevSeries[trendKey] || []).length)
     ? (prevSeries[trendKey] || []).map((p) => p.comp) : null;
   // A3 — overlay SỰ CỐ (⚑) lên đường xu hướng: lọc theo phạm vi đang xem, tìm điểm gần nhất.
   const chonDiem = (prm) => { if (prm && prm.dataIndex != null) setDiemChon(prm.dataIndex); };
@@ -573,7 +575,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     if (!tech.n) return { text: "Chưa có đủ dữ liệu trong khoảng đã chọn để phân tích. Hãy mở rộng khoảng thời gian hoặc kiểm tra kết nối nguồn dữ liệu.", level: 0 };
     const avg = tech.mean;
     const level = avg < 70 ? 3 : avg < 80 ? 2 : avg < 88 ? 1 : 0;
-    const win = (dtFrom || dtTo) ? ` (lọc ${view[0]?.label}→${view[view.length - 1]?.label})` : "";
+    const win = "";
     const worst = [...view].sort((a, b) => (b.oos || 0) - (a.oos || 0) || (a.comp ?? 999) - (b.comp ?? 999))[0];
     const slopeTxt = tech.n >= 2 ? `${tech.slope > 0 ? "tăng" : tech.slope < 0 ? "giảm" : "đi ngang"} ${Math.abs(tech.slope).toFixed(2)} ${perTxt2} (R²=${tech.r2.toFixed(2)}, ${tech.r2 >= 0.5 ? "xu hướng rõ" : "biến động ngẫu nhiên"})` : "chưa đủ điểm để ước lượng";
     const dqTxt = tech.dqAvg != null ? `${tech.dqAvg.toFixed(0)}%` : "—";
@@ -616,7 +618,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           `QA tiếp tục theo dõi ${donViLbl} tới; ghi nhận nếu xu hướng đảo chiều.`,
         ];
     const secTho = [
-      `• Đối tượng: ${activeScope.name} · ${showMulti ? `đủ cảm biến (${sensorsPresent.join("/")})` : SENSORS.find((s) => s.k === sensor).label} · khoảng ${RANGES.find((r) => r.k === range).label}${win} · ${tech.n} điểm theo ${donViLbl}.`,
+      `• Đối tượng: ${activeScope.name} · ${showMulti ? `đủ cảm biến (${sensorsPresent.join("/")})` : SENSORS.find((s) => s.k === sensor).label} · khoảng ${nhanKhoangHt}${win} · ${tech.n} điểm theo ${donViLbl}.`,
       `• Tỉ lệ đạt: TB ${avg.toFixed(1)}% (min–max ${tech.vmin.toFixed(0)}–${tech.vmax.toFixed(0)}%, SD ${tech.std.toFixed(1)}%). ${rateTxt}.`,
       `• OOS & dữ liệu: tổng ${tech.totOos} điểm OOS; độ đầy đủ dữ liệu ${dqTxt}.`,
       `• Xu hướng: ${slopeTxt}; Δ7 ${donViLbl} ${fmtDelta(delta7)}.`,
@@ -629,7 +631,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
     ].join("\n");
     const secBaoCao = [
       `• Mức kết luận: ${levelLbl}.`,
-      `• ${activeScope.name} ${avg >= 80 ? "đang trong tầm kiểm soát" : "chưa đạt kiểm soát"} ở khoảng ${RANGES.find((r) => r.k === range).label}; ${tech.slope < -0.5 ? "xu hướng suy giảm cần theo dõi sát." : "xu hướng ổn định/cải thiện."}`,
+      `• ${activeScope.name} ${avg >= 80 ? "đang trong tầm kiểm soát" : "chưa đạt kiểm soát"} ở khoảng ${nhanKhoangHt}; ${tech.slope < -0.5 ? "xu hướng suy giảm cần theo dõi sát." : "xu hướng ổn định/cải thiện."}`,
     ].join("\n");
     const secCapa = capaLines.map((x) => `• ${x}`).concat("• Nhận định hỗ trợ chỉ dùng để rà soát xu hướng; quyết định GMP do IPC/QA phê duyệt.").join("\n");
     const text = [
@@ -642,9 +644,9 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   };
 
   const finishAI = (text, level, nguon) => {
-    const payload = { scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor).label, range: RANGES.find((r) => r.k === range).label, text, time: fmtVN(new Date(), "dayDu"), level, nguon };
+    const payload = { scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor).label, range: nhanKhoangHt, text, time: fmtVN(new Date(), "dayDu"), level, nguon };
     onAI(payload); setAiResult(payload);
-    if (isLive && onSaveAI) onSaveAI({ scopeType: activeScope.type, scopeId: activeScope.id, scopeName: activeScope.name, sensor, days: RANGE_DAYS[range] || 30, text, level });
+    if (isLive && onSaveAI) onSaveAI({ scopeType: activeScope.type, scopeId: activeScope.id, scopeName: activeScope.name, sensor, days: soNgayKhoang, text, level });
   };
 
   const runAI = async (sau = false) => {
@@ -680,8 +682,8 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       const roomRec = (liveRooms || []).find((r) => r.id === activeScope.id) || {};
       // ===== Dữ liệu PHÂN TÍCH SÂU (Supabase tính) =====
       const _donVi = donVi === "NGAY" ? "NGAY" : "GIO";   // phân tích sâu chỉ có GIO/NGAY (PHUT→GIO)
-      const _soDiem = range === "1n" ? 24 : range === "7n" ? 168 : (RANGE_DAYS[range] || 30);
-      const _soGio = range === "1n" ? 24 : range === "7n" ? 168 : ((RANGE_DAYS[range] || 30) * 24);
+      const _soDiem = soDiem;
+      const _soGio = soNgayKhoang * 24;
       const _canDrill = activeScope.type === "TOTAL" || activeScope.type === "AREA" || activeScope.type === "AHU";
       let phanTichSau = null, quetBatThuong = null;
       try {
@@ -694,7 +696,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       const payload = {
         scope: { name: activeScope.name, type: activeScope.type, id: activeScope.id, area: activeScope.area, ahu: activeScope.ahu, dat1n: activeScope.dat1n, dat3n: activeScope.dat3n, dat7n: activeScope.dat7n,
           cap_sach: roomRec.cap_phong_sach || roomRec.capPhong || null, uu_tien: roomRec.priority || roomRec.muc_uu_tien || null },
-        rangeLabel: RANGES.find((r) => r.k === range).label, isHourly,
+        rangeLabel: nhanKhoangHt, isHourly,
         metrics: { mean: tech.mean, std: tech.std, slope: tech.slope, r2: tech.r2, totOos: tech.totOos, dq: tech.dqAvg, vmin: tech.vmin, vmax: tech.vmax, n: tech.n },
         series: view.map((r) => ({ label: r.label, ts: r.ts, comp: r.comp, oos: r.oos, dq: r.dq })),
         perSensor: showMulti ? sensorsPresent.map((k) => ({ k, label: SENSOR_META[k]?.label, series: viewMulti.map((r) => ({ label: r.label, comp: r[`comp_${k}`], oos: r[`oos_${k}`] })) })) : [],
@@ -764,7 +766,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const inBaoCaoA4 = async () => {
     const LVL = { TOTAL: "Toàn hệ thống", AREA: "Khu vực", AHU: "AHU", ROOM: "Phòng" };
     const phamVi = activeScope.type === "TOTAL" ? "Toàn hệ thống" : `${LVL[activeScope.type] || ""}: ${activeScope.name}`;
-    const meta = { phamVi, scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor)?.label, range: RANGES.find((r) => r.k === range)?.label, res: resLbl, window: (dtFrom || dtTo) ? `${view[0]?.label}→${view[view.length - 1]?.label}` : `${RANGES.find((r) => r.k === range)?.label} gần nhất` };
+    const meta = { phamVi, scope: activeScope.name, sensor: SENSORS.find((s) => s.k === sensor)?.label, range: nhanKhoangHt, res: resLbl, window: nhanKhoangHt };
     if (!aiResult) {
       setDangInBaoCao(true);
       try { await runAI(); await new Promise((r) => setTimeout(r, 650)); } catch { /* vẫn in phần còn lại */ }
@@ -782,7 +784,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const bandHi = [...bandSeries].reverse().find((p) => p.hi != null)?.hi ?? null;
   const bandMean = bandSeries.length ? +(bandSeries.reduce((a, p) => a + (p.avg ?? 0), 0) / bandSeries.filter((p) => p.avg != null).length).toFixed(2) : null;
   const sUnit = SENSOR_META[sensor]?.unit || "";
-  const perTxt = (range === "1n" || range === "7n") ? "%/giờ" : "%/ngày"; // đơn vị độ dốc theo khoảng xem
+  const perTxt = isHourly ? "%/giờ" : "%/ngày"; // đơn vị độ dốc theo khoảng xem
 
   return (
     <div className="space-y-5">
@@ -790,72 +792,70 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <h2 className="text-lg font-semibold flex items-center gap-2 text-strong"><LineIcon className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /> Xu hướng — biểu đồ theo thời gian</h2>
       </div>
 
-      <Card className="relative z-30 p-5">
+      <Card className="relative z-30 p-5 space-y-4">
+        {/* HÀNG 1 — XEM GÌ: cấp xem · đối tượng · khu/AHU · chỉ tiêu */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Khoảng</span>{RANGES.map((r) => <Chip key={r.k} active={range === r.k} onClick={() => { setRange(r.k); setResOverride(null); setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }}>{r.label}</Chip>)}</div>
           <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Cấp xem</span>{SCOPE_LEVELS.map((s) => <Chip key={s.k} active={level === s.k} onClick={() => { setLevel(s.k); setSelId(""); setOptArea("ALL"); setOptAhu("ALL"); }}>{s.label}</Chip>)}</div>
-          <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Chỉ tiêu</span>{SENSORS.map((s) => <Chip key={s.k} active={sensor === s.k} onClick={() => setSensor(s.k)}>{s.label}</Chip>)}</div>
-          {!isSubDay && (
-            <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">So sánh</span>
-              <Chip active={soKyTruoc} onClick={() => setSoKyTruoc((v) => !v)}>Kỳ trước</Chip>
-            </div>
-          )}
-          {isSubDay && (
-            <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Độ phân giải</span>
-              <span className="text-tk-xs text-muted">Theo giờ (dữ liệu thu thập 1 giờ/lần)</span>
-            </div>
-          )}
-        </div>
-        {/* Chọn khoảng thời gian thủ công (Từ → đến, có nút Áp dụng) — ô tự điền mốc dữ liệu thật */}
-        <div className="mt-3 rounded-2xl bg-info-soft/50 ring-1 ring-info-line px-3 py-2.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Từ → đến</span>
-            <label htmlFor="trend-date-from" className="text-tk-xs font-medium text-muted">Từ</label>
-            <input id="trend-date-from" type="datetime-local" value={dtFromDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtFromDraft(e.target.value)} className={sel} />
-            <label htmlFor="trend-date-to" className="text-tk-xs font-medium text-muted">Đến</label>
-            <input id="trend-date-to" type="datetime-local" value={dtToDraft} min={minTs ? toLocalInput(minTs) : undefined} max={maxTs ? toLocalInput(maxTs) : undefined} onChange={(e) => setDtToDraft(e.target.value)} className={sel} />
-            <button onClick={() => { setDtFrom(dtFromDraft); setDtTo(dtToDraft); setDateStatus("Đã áp dụng khoảng thời gian."); }} className="min-h-[44px] text-tk-xs font-medium text-white rounded-xl px-3.5 py-2 flex items-center gap-1.5" style={{ backgroundColor: "var(--primary-solid)" }}><Search className="w-3.5 h-3.5" strokeWidth={1.8} /> Áp dụng</button>
-            {(dtFrom || dtTo || dtFromDraft || dtToDraft) && <button onClick={() => { setDtFrom(""); setDtTo(""); setDtFromDraft(""); setDtToDraft(""); }} className="text-tk-xs text-muted underline min-h-[24px] px-1">Đặt lại</button>}
-            <span role="status" aria-live="polite" className="text-tk-xs text-muted ml-1">{dateStatus ? `${dateStatus} ` : ""}Đang xem {view.length}/{full.length} điểm ({resLbl})</span>
-          </div>
-          {/* Khoảng đã chọn THIẾU dữ liệu → nói rõ (thay vì biểu đồ ngắn khó hiểu) */}
-          {(() => {
-            const days = RANGE_DAYS[range] || 30;
-            if (isLive && Array.isArray(mainSeries[trendKey]) && mainSeries[trendKey].length === 0) return <p className="mt-2 text-tk-xs text-warning bg-warning-soft ring-1 ring-warning-line rounded-lg px-2.5 py-1.5">⚠ Chưa có dữ liệu trong khoảng đã chọn cho phạm vi này.</p>;
-            if (!minTs) return null;
-            const thieuNgay = Math.floor((minTs - (Date.now() - days * 86400000)) / 86400000);
-            if (thieuNgay < 2) return null;   // đủ (chênh ≤1 ngày là biên bình thường)
-            return <p className="mt-2 text-tk-xs text-info bg-info-soft ring-1 ring-info-line rounded-lg px-2.5 py-1.5">ℹ️ Khoảng {RANGES.find((r) => r.k === range)?.label} nhưng dữ liệu hệ thống mới có từ <b>{fmtVN(minTs, "ngay")}</b> — biểu đồ hiển thị {full.length} điểm hiện có (thiếu ~{thieuNgay} ngày đầu khoảng).</p>;
-          })()}
-        </div>
-        {level !== "TOTAL" && (
-          <div className="mt-3 rounded-2xl bg-info-soft/60 ring-1 ring-info-line p-3.5 space-y-3">
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Khu vực</span>{["ALL", ...areaList].map((a) => <Chip key={a} active={areaLoc === a} onClick={() => { setOptArea(a); setOptAhu("ALL"); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
-              {(level === "ROOM" || level === "AHU") && ahuList.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Lọc AHU</span>{["ALL", ...ahuList].map((a) => <Chip key={a} active={ahuLoc === a} onClick={() => { setOptAhu(a); setSelId(""); }}>{a === "ALL" ? "Tất cả" : a}</Chip>)}</div>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Chọn {level === "ROOM" ? "phòng" : level === "AHU" ? "AHU" : "khu"}</span>
+          {level !== "TOTAL" && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <label htmlFor="trend-khu" className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Khu</label>
+              <select id="trend-khu" value={areaLoc} onChange={(e) => { setOptArea(e.target.value); setOptAhu("ALL"); setSelId(""); }} className={sel}>
+                {["ALL", ...areaList].map((a) => <option key={a} value={a}>{a === "ALL" ? "Tất cả" : a}</option>)}
+              </select>
+              {(level === "ROOM" || level === "AHU") && ahuList.length > 0 && (<>
+                <label htmlFor="trend-ahu" className="text-tk-xs uppercase tracking-wider text-muted font-semibold">AHU</label>
+                <select id="trend-ahu" value={ahuLoc} onChange={(e) => { setOptAhu(e.target.value); setSelId(""); }} className={sel}>
+                  {["ALL", ...ahuList].map((a) => <option key={a} value={a}>{a === "ALL" ? "Tất cả" : a}</option>)}
+                </select>
+              </>)}
               <ScopeCombobox items={options} value={activeId} onPick={(id) => setSelId(id)}
                 placeholder={`Gõ mã hoặc tên ${level === "ROOM" ? "phòng" : level === "AHU" ? "AHU" : "khu"} để tìm…`}
                 levelLabel={`${SCOPE_LEVELS.find((x) => x.k === level)?.label || ""} (${options.length})`} />
-              {(areaLoc !== "ALL" || ahuLoc !== "ALL") && (
-                <button type="button" onClick={() => { setOptArea("ALL"); setOptAhu("ALL"); setSelId(""); }} className="min-h-[44px] text-tk-xs font-medium text-body rounded-xl px-3 ring-1 ring-line bg-surface hover:bg-subtle">Xóa bộ lọc</button>
-              )}
             </div>
-            <p className="text-tk-xs text-muted" role="status" aria-live="polite">
-              Đang xem: <b className="text-strong">{activeScope.id} — {activeScope.name}</b>
-              {areaLoc !== "ALL" ? ` · Khu ${areaLoc}` : ""}{ahuLoc !== "ALL" ? ` · ${ahuLoc}` : ""}
-              {` · ${options.length} lựa chọn`}{options.some((o) => o.noData) ? ` (${options.filter((o) => o.noData).length} chưa có số liệu giờ gần nhất)` : ""}
-            </p>
+          )}
+          <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Chỉ tiêu</span>{SENSORS.map((s) => <Chip key={s.k} active={sensor === s.k} onClick={() => setSensor(s.k)}>{s.label}</Chip>)}</div>
+        </div>
+
+        {/* HÀNG 2 — KHI NÀO: nút nhanh · ‹ Từ ngày – Đến ngày › · kỳ trước. Chọn là tải ngay. */}
+        <div className="rounded-2xl bg-info-soft/50 ring-1 ring-info-line px-3 py-2.5 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Khi nào</span>
+            {NUT_NHANH.map((n) => <Chip key={n.k} active={chonKhoang.nut === n.k} onClick={() => datKhoang({ nut: n.k, ...khoangTuNutNhanh(n.k, homNay) })}>{n.label}</Chip>)}
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" aria-label="Lùi một kỳ" title="Lùi một kỳ" onClick={() => datKhoang({ nut: null, ...dichKy(chonKhoang, -1, homNay) })} className="min-h-[44px] min-w-[44px] rounded-xl ring-1 ring-line bg-surface text-body hover:bg-subtle">‹</button>
+            <label htmlFor="trend-date-from" className="text-tk-xs font-medium text-muted">Từ ngày</label>
+            <input id="trend-date-from" type="date" value={nhapKhoang.tu} max={homNay} onChange={(e) => doiONgay("tu", e.target.value)} aria-invalid={!!loiKhoang} aria-describedby="trend-date-note" className={sel} />
+            <label htmlFor="trend-date-to" className="text-tk-xs font-medium text-muted">Đến ngày</label>
+            <input id="trend-date-to" type="date" value={nhapKhoang.den} max={homNay} onChange={(e) => doiONgay("den", e.target.value)} aria-invalid={!!loiKhoang} aria-describedby="trend-date-note" className={sel} />
+            <button type="button" aria-label="Tiến một kỳ" title="Tiến một kỳ" disabled={chonKhoang.den >= homNay} onClick={() => datKhoang({ nut: null, ...dichKy(chonKhoang, 1, homNay) })} className="min-h-[44px] min-w-[44px] rounded-xl ring-1 ring-line bg-surface text-body hover:bg-subtle disabled:opacity-40 disabled:cursor-not-allowed">›</button>
+            {!isSubDay && <Chip active={soKyTruoc} onClick={() => setSoKyTruoc((v) => !v)} title="Vẽ thêm đường của kỳ liền trước cùng độ dài">So kỳ trước</Chip>}
+          </div>
+          <p id="trend-date-note" role="status" aria-live="polite" className={`text-tk-xs ${loiKhoang ? "text-danger font-medium" : "text-muted"}`}>
+            {loiKhoang
+              ? `⚠ ${loiKhoang} Đang giữ khoảng trước: ${nhanKhoangHt}.`
+              : `Đang xem ${nhanKhoangHt} (${soNgayKhoang} ngày) · ${resLbl}${isSubDay ? "" : " — chọn từ 7 ngày trở xuống để xem theo giờ"} · ${full.length} điểm`}
+          </p>
+          {(() => {
+            if (isLive && Array.isArray(mainSeries[trendKey]) && mainSeries[trendKey].length === 0) return <p className="text-tk-xs text-warning bg-warning-soft ring-1 ring-warning-line rounded-lg px-2.5 py-1.5">⚠ Chưa có dữ liệu trong khoảng đã chọn cho phạm vi này.</p>;
+            if (!minTs) return null;
+            const ngayDau = new Date(minTs).toISOString().slice(0, 10);   // ts = giờ VN quy về mốc UTC (quy ước RPC)
+            const thieuNgay = ngayDau > chonKhoang.tu ? soNgay({ tu: chonKhoang.tu, den: ngayDau }) - 1 : 0;
+            if (thieuNgay < 2) return null;
+            return <p className="text-tk-xs text-info bg-info-soft ring-1 ring-info-line rounded-lg px-2.5 py-1.5">ℹ️ Dữ liệu hệ thống của phạm vi này bắt đầu từ <b>{fmtVN(minTs, "ngay")}</b> — thiếu {thieuNgay} ngày đầu khoảng đã chọn.</p>;
+          })()}
+        </div>
+        {level !== "TOTAL" && (
+          <p className="text-tk-xs text-muted" role="status" aria-live="polite">
+            Đang xem: <b className="text-strong">{activeScope.id} — {activeScope.name}</b>
+            {areaLoc !== "ALL" ? ` · Khu ${areaLoc}` : ""}{ahuLoc !== "ALL" ? ` · ${ahuLoc}` : ""}
+            {` · ${options.length} lựa chọn`}{options.some((o) => o.noData) ? ` (${options.filter((o) => o.noData).length} chưa có số liệu giờ gần nhất)` : ""}
+          </p>
         )}
       </Card>
 
       <Card className="p-4 flex items-center justify-between flex-wrap gap-3">
-        <span className="text-tk-xs text-body">Đang chọn: <b style={{ color: "var(--text-strong)" }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {RANGES.find((r) => r.k === range).label}{(dtFrom || dtTo) ? ` · ${view[0]?.label}→${view[view.length - 1]?.label}` : ""}</span>
+        <span className="text-tk-xs text-body">Đang chọn: <b style={{ color: "var(--text-strong)" }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {nhanKhoangHt}</span>
         <div className="flex gap-2">
           <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo…" : "In báo cáo A4 (kèm nhận định)"}</button>
           <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><ClipboardCheck className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "Đang lập nhận định…" : "Lập nhận định"}</button>
@@ -1030,7 +1030,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
       </Card>
       )}
       <Card className="p-6"><SectionTitle icon={CircleDot} hint="% điểm đạt mỗi cấp · theo dõi nhanh">Xu hướng theo cấp</SectionTitle>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-(RANGE_DAYS[range] || 30)) : getSeries(sc, sensor, range); const lt = d[d.length - 1] || {}; const p = lt.comp; const pc = p == null ? "var(--text-muted)" : p < 70 ? "var(--danger)" : p < 88 ? "var(--warning)" : "var(--success)"; /* đợt B: token CHỮ đạt tương phản 2 theme */ return <div key={lvl} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold text-strong">{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-tk-xs px-2 py-0.5 rounded-full text-body bg-surface ring-1 ring-line">{sc.id}</span></div><div className="flex items-baseline gap-1.5 mb-1"><span className="text-2xl font-light tabular-nums leading-none" style={{ color: pc }}>{p == null ? "—" : fmtPct(p)}</span><span className="text-tk-xs text-muted">% đạt mới nhất</span></div><p className="text-tk-xs text-muted mb-1 truncate">{sc.name}</p><Chart type="miniArea" data={d} h={84} /></div>; })}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-soNgayKhoang) : getSeries(sc, sensor, rangeMoPhong); const lt = d[d.length - 1] || {}; const p = lt.comp; const pc = p == null ? "var(--text-muted)" : p < 70 ? "var(--danger)" : p < 88 ? "var(--warning)" : "var(--success)"; /* đợt B: token CHỮ đạt tương phản 2 theme */ return <div key={lvl} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold text-strong">{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-tk-xs px-2 py-0.5 rounded-full text-body bg-surface ring-1 ring-line">{sc.id}</span></div><div className="flex items-baseline gap-1.5 mb-1"><span className="text-2xl font-light tabular-nums leading-none" style={{ color: pc }}>{p == null ? "—" : fmtPct(p)}</span><span className="text-tk-xs text-muted">% đạt mới nhất</span></div><p className="text-tk-xs text-muted mb-1 truncate">{sc.name}</p><Chart type="miniArea" data={d} h={84} /></div>; })}</div>
       </Card>
 
       <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="Tổng → Khu → AHU → Phòng · tỉ lệ đạt 1/3/7 ngày">Xếp hạng rủi ro</SectionTitle>
