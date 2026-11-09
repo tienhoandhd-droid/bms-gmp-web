@@ -2965,7 +2965,9 @@ function khoiLichSuBanIn(d, khuBC) {
 
 /* ===== KHỐI NHẬN ĐỊNH — nhận JSON có cấu trúc ========================== */
 
-const TRUONG_BAT_BUOC = ['quan_sat', 'lien_he', 'gia_thuyet', 'can_xac_minh', 'ai_lam'];
+// 09/11/2026: bản in chỉ nêu cảnh báo từ số liệu (người dùng yêu cầu) — không in liên hệ, giả thuyết
+// nguyên nhân, việc cần xác minh, ai làm, hạn. Vì vậy chỉ bắt buộc phần quan sát.
+const TRUONG_BAT_BUOC = ['quan_sat'];
 
 function locPhatHien(ds) {
   const dat = [], loai = [];
@@ -2979,7 +2981,7 @@ function locPhatHien(ds) {
 function renderNhanDinh(khoi) {
   const kq = locPhatHien(khoi && khoi.phat_hien);
   if (!kq.dat.length) {
-    return '<p class="canh-bao-nhe">Không có phát hiện nào đủ năm phần bắt buộc nên phần nhận định để trống. '
+    return '<p class="canh-bao-nhe">Kỳ này AI không nêu cảnh báo nào. '
          + 'Số liệu trong báo cáo không phụ thuộc phần này.</p>';
   }
   const dong = kq.dat.map((f, i) => ''
@@ -2988,11 +2990,6 @@ function renderNhanDinh(khoi) {
     +   esc(L.vietLai(f.tieu_de || f.doi_tuong || 'Phát hiện')) + '</h4>'
     + '<dl>'
     + '<dt>Quan sát được</dt><dd>' + esc(L.vietLai(f.quan_sat)) + '</dd>'
-    + '<dt>Liên hệ</dt><dd>' + esc(L.vietLai(f.lien_he)) + '</dd>'
-    + '<dt>AI đề xuất <span class="the the-gt">giả thuyết · chưa xác nhận</span></dt><dd>'
-    +   esc(L.vietLai(f.gia_thuyet)) + '</dd>'
-    + '<dt>Cần xác minh</dt><dd>' + esc(L.vietLai(f.can_xac_minh)) + '</dd>'
-    + '<dt>Ai làm</dt><dd>' + esc(L.vietLai(f.ai_lam)) + (f.han ? ' · hạn ' + esc(f.han) : '') + '</dd>'
     + '</dl></article>').join('');
   const ghi = kq.loai.length
     ? '<p class="canh-bao-nhe">Đã loại ' + kq.loai.length + ' phát hiện vì thiếu phần bắt buộc: '
@@ -3278,7 +3275,7 @@ const MUC_LUC = [
   { ten: 'Độ ẩm tương đối trong phòng' },
   { ten: function () { return tenMucCay(); } },
   { ten: 'Theo dõi trước kỳ sau' },
-  { ten: 'Nhận định' },
+  { ten: 'Cảnh báo (AI tổng hợp)' },
   { ten: 'Dự báo kỳ sau' }
 ];
 
@@ -3548,10 +3545,9 @@ function rapBaoCao(d, duBao, cfg) {
     + '</section>'
 
     /* 7 · Nhận định */
-    + '<section id="muc-8"><h2><span class="so-muc">8</span>Nhận định</h2>'
-    + '<p class="mota">Mỗi phát hiện phải nêu đủ năm phần. Giả thuyết chỉ là giả thuyết: hệ thống không có '
-    + 'dữ liệu lệnh công việc hay hành động khắc phục, nên không kết luận nguyên nhân và không xác nhận '
-    + 'việc gì đã được làm.</p>'
+    + '<section id="muc-8"><h2><span class="so-muc">8</span>Cảnh báo (AI tổng hợp)</h2>'
+    + '<p class="mota">AI chỉ nêu điều thấy được trong số liệu, chưa kiểm chứng. Không đoán nguyên nhân, '
+    + 'không giao việc: việc của từng bộ phận nằm ở mục 2 theo luật cố định.</p>'
     + renderNhanDinh(c.nhan_dinh)
     + dan(9, 'Xu hướng dài và dự báo kỳ sau: kỳ này nằm ở đâu trong mạch ba mươi ngày gần nhất.')
     + VE_ML + '</section>'
@@ -4948,15 +4944,17 @@ function rapEmail(d, duBao, cfg) {
       + dsNgoaiKy.map(function (x) { return esc(x.phong) + ' (' + soVN(x.keo_dai_gio, 0) + '&nbsp;giờ)'; }).join(', ') + '.')
     : '';
   const pht = ((c.nhan_dinh || {}).phat_hien || []).filter(function (f) {
-    return f && f.quan_sat && f.can_xac_minh && f.ai_lam
+    return f && f.quan_sat
       // Nhận định chỉ nhắc lại tỷ lệ chung thì đã có ở Kết luận, bỏ để khỏi lặp.
       && String(chuAI(f.quan_sat)).indexOf(phanTram(k.ty_le_tuan_thu)) < 0;
   }).slice(0, 2);
+  // 09/11/2026: chỉ nêu cảnh báo (tiêu đề + quan sát từ số liệu). Không in phần "Xác minh"
+  // (can_xac_minh, ai_lam, hạn) vì AI tự đoán nguyên nhân và giao việc — người dùng yêu cầu bỏ.
   const khoiNhanDinh = pht.length
-    ? '<div style="margin-top:' + K[5] + 'px;">' + tieuDeNho('Cần xác minh thêm (AI gợi ý, chưa kiểm chứng)')
+    ? '<div style="margin-top:' + K[5] + 'px;">' + tieuDeNho('Cảnh báo thêm (AI tổng hợp từ số liệu, chưa kiểm chứng)')
       + pht.map(function (f) {
-          return '<div style="font-size:' + CO.nho + 'px;color:' + M.muc2 + ';line-height:1.6;margin-top:' + K[2] + 'px;"><b style="color:' + M.muc + ';">' + esc(chuAI(f.tieu_de || 'Phát hiện')) + '.</b> '
-            + esc(chuAI(f.quan_sat)) + '. <b>Xác minh:</b> ' + esc(chuAI(f.can_xac_minh)) + ' (' + esc(chuAI(f.ai_lam)) + (f.han ? ', hạn ' + esc(f.han) : '') + ').</div>';
+          return '<div style="font-size:' + CO.nho + 'px;color:' + M.muc2 + ';line-height:1.6;margin-top:' + K[2] + 'px;"><b style="color:' + M.muc + ';">' + esc(chuAI(f.tieu_de || 'Cảnh báo')) + '.</b> '
+            + esc(chuAI(f.quan_sat)).replace(/\.$/, '') + '.</div>';
         }).join('') + '</div>'
     : '';
 

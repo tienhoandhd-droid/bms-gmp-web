@@ -309,15 +309,17 @@ function rapEmail(d, duBao, cfg) {
       + dsNgoaiKy.map(function (x) { return esc(x.phong) + ' (' + soVN(x.keo_dai_gio, 0) + '&nbsp;giờ)'; }).join(', ') + '.')
     : '';
   const pht = ((c.nhan_dinh || {}).phat_hien || []).filter(function (f) {
-    return f && f.quan_sat && f.can_xac_minh && f.ai_lam
+    return f && f.quan_sat
       // Nhận định chỉ nhắc lại tỷ lệ chung thì đã có ở Kết luận, bỏ để khỏi lặp.
       && String(chuAI(f.quan_sat)).indexOf(phanTram(k.ty_le_tuan_thu)) < 0;
   }).slice(0, 2);
+  // 09/11/2026: chỉ nêu cảnh báo (tiêu đề + quan sát từ số liệu). Không in phần "Xác minh"
+  // (can_xac_minh, ai_lam, hạn) vì AI tự đoán nguyên nhân và giao việc — người dùng yêu cầu bỏ.
   const khoiNhanDinh = pht.length
-    ? '<div style="margin-top:' + K[5] + 'px;">' + tieuDeNho('Cần xác minh thêm (AI gợi ý, chưa kiểm chứng)')
+    ? '<div style="margin-top:' + K[5] + 'px;">' + tieuDeNho('Cảnh báo thêm (AI tổng hợp từ số liệu, chưa kiểm chứng)')
       + pht.map(function (f) {
-          return '<div style="font-size:' + CO.nho + 'px;color:' + M.muc2 + ';line-height:1.6;margin-top:' + K[2] + 'px;"><b style="color:' + M.muc + ';">' + esc(chuAI(f.tieu_de || 'Phát hiện')) + '.</b> '
-            + esc(chuAI(f.quan_sat)) + '. <b>Xác minh:</b> ' + esc(chuAI(f.can_xac_minh)) + ' (' + esc(chuAI(f.ai_lam)) + (f.han ? ', hạn ' + esc(f.han) : '') + ').</div>';
+          return '<div style="font-size:' + CO.nho + 'px;color:' + M.muc2 + ';line-height:1.6;margin-top:' + K[2] + 'px;"><b style="color:' + M.muc + ';">' + esc(chuAI(f.tieu_de || 'Cảnh báo')) + '.</b> '
+            + esc(chuAI(f.quan_sat)).replace(/\.$/, '') + '.</div>';
         }).join('') + '</div>'
     : '';
 
