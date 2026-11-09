@@ -241,7 +241,7 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
 // Báo cáo điều kiện phòng: tải lười — chỉ cần khi xem cấp Phòng (giữ ngân sách bundle TrendPage)
 const BaoCaoDieuKienPhong = React.lazy(() => import("./BaoCaoDieuKienPhong"));
 
-function TrendPage({ onAI, yeuCauMoPhong = null, isLive = false, liveRisk = null, liveRooms = null, liveIncidents = null, khuChoPhep = null, onSaveAI = null }) {
+function TrendPage({ onAI, choPhepNhanDinh = true, yeuCauMoPhong = null, isLive = false, liveRisk = null, liveRooms = null, liveIncidents = null, khuChoPhep = null, onSaveAI = null }) {
   // Ghi nhớ lựa chọn giữa các lần vào (localStorage) — chỉ lưu tuỳ chọn nhẹ, không lưu dữ liệu.
   const LS_KEY = "bms_trend_prefs";
   const prefs = (() => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } })();
@@ -910,11 +910,13 @@ function TrendPage({ onAI, yeuCauMoPhong = null, isLive = false, liveRisk = null
 
       <Card className="p-4 flex items-center justify-between flex-wrap gap-3">
         <span className="text-tk-xs text-body">Đang chọn: <b style={{ color: "var(--text-strong)" }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {nhanKhoangHt}</span>
-        <div className="flex gap-2">
+        {!choPhepNhanDinh ? (
+          <span className="text-tk-xs text-muted">Chế độ xem · lập nhận định dành cho QA, Trực hồ sơ lô và Quản trị. In trang bằng nút máy in ở đầu trang.</span>
+        ) : <div className="flex gap-2">
           <button onClick={inBaoCaoA4} disabled={dangInBaoCao || aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-body ring-1 ring-line bg-surface hover:bg-subtle flex items-center gap-1.5 ${dangInBaoCao ? "opacity-60 cursor-wait" : ""}`}><Printer className="w-3.5 h-3.5" strokeWidth={1.8} /> {dangInBaoCao ? "Đang soạn báo cáo…" : "In báo cáo A4 (kèm nhận định)"}</button>
           <button onClick={() => runAI(false)} disabled={aiBusy} className={`text-xs font-medium rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ backgroundColor: "var(--primary-solid)" }}><ClipboardCheck className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={1.8} /> {aiBusy ? "Đang lập nhận định…" : "Lập nhận định"}</button>
           {isLive && aiWebhookSau && <button onClick={() => runAI(true)} disabled={aiBusy} title="Rà soát chi tiết: nguyên nhân khả dĩ, CAPA theo bộ phận và đề nghị phòng ngừa; thường mất 1-3 phút" className={`text-xs font-semibold rounded-xl px-4 py-2 text-white flex items-center gap-1.5 ${aiBusy ? "opacity-60 cursor-wait" : ""}`} style={{ background: "var(--info-solid)" }}><ClipboardCheck className={`w-3.5 h-3.5 ${aiBusy ? "animate-pulse" : ""}`} strokeWidth={2} /> {aiBusy ? "Đang rà soát chi tiết…" : "Rà soát CAPA"}</button>}
-        </div>
+        </div>}
       </Card>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 12/08: KHÔNG gọi là "hiện tại". Đây là điểm CUỐI CÙNG CÓ DỮ LIỆU của chuỗi —

@@ -27,12 +27,16 @@ export const TAB_ROLES = {
   recent:   ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   tasks:    ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],
   sensors:  ["MEP", "LOT", "QA", "ADMIN", "IT"],   // theo dõi cảm biến đứng hình — Cơ điện xử lý
-  trend:    ["LOT", "QA", "ADMIN", "IT"],
+  trend:    ["IPC", "MEP", "LOT", "QA", "ADMIN", "IT"],   // 09/11/2026: mọi tài khoản đăng nhập đều XEM được (vẫn giới hạn theo khu)
   reports:  FULL_ACCESS,
   audit:    FULL_ACCESS,
   settings: FULL_ACCESS,
 };
 // role rỗng = chế độ xem trước cục bộ (demo, chưa Supabase) → hiện mọi tab cho tiện thử.
+// 09/11/2026: nút "Lập nhận định" / "Rà soát CAPA" / "In báo cáo A4 (kèm nhận định)" gọi AI và LƯU hồ sơ nhận định
+// → giữ cho đúng các vai trò trước đây được vào trang Xu hướng. IPC/MEP chỉ xem. Vai trò rỗng (demo) giữ như cũ.
+export const VAI_LAP_NHAN_DINH = ["LOT", "QA", "ADMIN", "IT"];
+export const coTheLapNhanDinh = (role) => !role || VAI_LAP_NHAN_DINH.includes(role);
 export const roleCanSeeTab = (role, key) => (!role ? true : (TAB_ROLES[key] || FULL_ACCESS).includes(role));
 
 // Danh mục khu / vai trò dùng chung (chuyển từ App.jsx 17/08/2026):

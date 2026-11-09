@@ -35,7 +35,7 @@ import logoCpc1hn from "../assets/logo-cpc1hn.png";
 
 // ===== Đã tách move-only 17/08/2026 → lib/uiConst, lib/phanQuyen, lib/dinhDang, lib/moPhong, lib/nutThaoTac, components/ui/CpcLogo =====
 import { PAGE_BG, cardShadow, CARD, STATUS, PRIORITY, MUC, LEVELS, LEVEL_PRIORITY, LEVEL_GLYPH, levelGlyph, SENSOR_META, ICON_CANH_BAO } from "../lib/uiConst";
-import { ROLE_VI, TEN_VAI_KHU, khuCua, tenVaiTro, FULL_ACCESS, canManageRooms, TAB_ROLES, roleCanSeeTab } from "../lib/phanQuyen";
+import { ROLE_VI, TEN_VAI_KHU, khuCua, tenVaiTro, FULL_ACCESS, canManageRooms, TAB_ROLES, roleCanSeeTab, coTheLapNhanDinh } from "../lib/phanQuyen";
 import { mulberry32, hashStr, fmtH, fmtDelta, deltaTone, pad, toLocalInput, vnNow, fmtVN } from "../lib/dinhDang";
 import { RAW, ROOM_BIAS, rawSeries, sensorStats, sensorLevel, roomLevel, roomCompliance, roomHourlyOOS, genDaily, genHourly, SCOPES, MASTER, byType, findScope, RANGES, SENSORS, SCOPE_LEVELS, applySensor, getSeries, AREAS, AHUS, defSensors, ROOM_SEED, INITIAL_ROOMS, INCIDENTS0, SYSTEM_ALERTS, SOP } from "../lib/moPhong";
 import { A_TEAL, A_AMBER, A_INFO, A_ROSE, A_SLATE, A_IPC, A_MEP_NHAN, A_MEP_XONG, A_MEP_KHONG, STATUS_ACTIONS, rolesOfStatus, firstActionFor, nutKhopTrangThai, nutChoVaiTro, STATUS_DOT } from "../lib/nutThaoTac";
@@ -1235,7 +1235,7 @@ export default function AppShell() {
             </div>
           )}
           {tab === "sensors" && <CamBienPage isLive={isLive} />}
-          {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><TrendPage onAI={setAi} yeuCauMoPhong={moPhongXuHuong} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /></React.Suspense><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
+          {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><TrendPage onAI={setAi} choPhepNhanDinh={coTheLapNhanDinh(role)} yeuCauMoPhong={moPhongXuHuong} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /></React.Suspense><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
           {tab === "reports" && <div className="space-y-5"><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} isLive={isLive} responseScopeKey={JSON.stringify([user?.email, user?.role, user?.khuVuc])} /></React.Suspense><DanhGiaHieuQuaCanhBao isLive={isLive} hideResponse /></div>}
 
           {tab === "audit" && (() => {
