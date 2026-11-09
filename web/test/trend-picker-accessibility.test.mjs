@@ -26,6 +26,8 @@ test("trend scope picker exposes combobox semantics and supports keyboard select
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
   await page.goto(`${baseUrl}/?tab=trend`, { waitUntil: "networkidle2" });
+  // TrendPage tải lười (React.lazy): máy CI chậm có thể "networkidle2" xong trước khi bộ lọc hiện → chờ ô ngày.
+  await page.waitForSelector("#trend-date-from", { timeout: 30000 });
 
   const dateControls = await page.evaluate(() => ({
     fromLabel: document.querySelector('label[for="trend-date-from"]')?.textContent,
