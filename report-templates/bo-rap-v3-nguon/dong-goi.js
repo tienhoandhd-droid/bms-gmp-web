@@ -70,6 +70,7 @@ const ra = dau
   + boc('bieu-do-thu', 'bieu-do-thu.js')
   + boc('chenh-ap-phong-theo-doi', 'chenh-ap-phong-theo-doi.js')
   + boc('phan-hoi-bo-phan', 'phan-hoi-bo-phan.js')
+  + boc('bien-dong-phong-theo-doi', 'bien-dong-phong-theo-doi.js')
   + boc('rap-bao-cao.node', 'rap-bao-cao.node.js')
   + boc('dashboard.node', 'dashboard.node.js')
   + boc('email.node', 'email.node.js')

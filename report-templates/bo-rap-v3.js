@@ -404,8 +404,9 @@ function phanCap(d) {
         can_cu: 'Sự cố số ' + s.ma_su_co + ' mức ' + dich(TEN_MUC_CANH_BAO, s.muc_canh_bao)
               + ' — ' + dich(TEN_TRANG_THAI, s.trang_thai).toLowerCase() + ', đã '
               + gioDoc(s.keo_dai_gio) + ' kể từ ' + gioVietNam(s.bat_dau, true) + '.',   // ngày VN (rà soát 04/09/2026)
-        viec: 'Cơ điện xác minh tại chỗ và đóng sự cố. Quá 24 giờ nữa chưa xong thì '
-            + 'Bảo đảm chất lượng mở phiếu sai lệch.',
+        // Phân vai người dùng chốt 09/11/2026: IPC xác minh thực tế phòng, Cơ điện điều chỉnh chênh áp, Trực điều phối.
+        viec: 'IPC xác minh tình trạng thực tế của phòng (cửa đóng mở). Cơ điện điều chỉnh chênh áp phòng nếu cần. '
+            + 'Trực hồ sơ lô điều phối đóng sự cố.',
         nguon: 'su_co.danh_sach_dang_mo'
       });
     });
@@ -423,8 +424,8 @@ function phanCap(d) {
                   ? 'Chênh áp tụt dưới giới hạn ' + phanTram(lechDuoiDP[p.ma_phong])
                     + ' thời gian, đây là hướng gây nhiễm chéo. ' : '')
               + gioDoc(p.so_gio_critical) + ' vượt giới hạn hành động.',
-        viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
-            + ': lọc, van gió, cài đặt chênh áp. IPC khoanh vùng khung giờ ngoài giới hạn.',
+        viec: 'IPC xác minh tình trạng thực tế của phòng (cửa đóng mở) trong khung giờ ngoài giới hạn. '
+            + 'Cơ điện điều chỉnh chênh áp phòng, kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan') + ': lọc, van gió, cài đặt chênh áp.',
         nguon: 'tat_ca_phong (mức ưu tiên 1)'
       });
     });
@@ -445,8 +446,8 @@ function phanCap(d) {
               + 'Từ ' + TI_LE_GIO_VUOT_A + '% số giờ có số đo trở lên vượt giới hạn hành động ('
               + gioDoc(p.so_gio_critical) + ' / ' + gioDoc(gd) + ', tức '
               + phanTram(100 * (p.so_gio_critical || 0) / gd) + ').',
-        viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
-            + '. IPC đối chiếu lịch sản xuất xem có trùng ca không.',
+        viec: 'IPC xác minh tình trạng thực tế của phòng (cửa đóng mở), đối chiếu lịch sản xuất xem có trùng ca không. '
+            + 'Cơ điện điều chỉnh chênh áp phòng, kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan') + '.',
         nguon: 'tat_ca_phong (tỷ lệ giờ vượt giới hạn hành động trên giờ có số đo)'
       });
     });
@@ -2303,6 +2304,252 @@ function html(t) {
 module.exports = { tongHop: tongHop, html: html, htmlThu: htmlThu, ghiChuThu: ghiChuThu };
 
 });
+__dinh_nghia("bien-dong-phong-theo-doi", function (module, require) {
+'use strict';
+/* ===========================================================================
+ * PHÒNG THEO DÕI: BIẾN ĐỘNG SO VỚI KỲ LIỀN TRƯỚC + CẢNH BÁO VÀ TÁC ĐỘNG
+ *
+ * Yêu cầu người dùng 09/11/2026 (người xử lý hệ thống BMS): đọc thư tuần là biết
+ *   · tuần qua phòng theo dõi nào tốt nhất, tỷ lệ đạt tăng;
+ *   · phòng nào kém, tỷ lệ đạt giảm, giảm ở phòng nào, khu nào;
+ *   · phòng đó có cảnh báo không, có bộ phận nào tác động không.
+ *
+ * Chỉ tiêu: tỷ lệ điểm đo chênh áp đạt (cùng chỉ tiêu người dùng chốt 29/10/2026,
+ * cùng cách tính với chenh-ap-phong-theo-doi.js): tổng điểm đạt / tổng điểm ghi.
+ * Mức thay đổi = kỳ này − kỳ liền trước, đơn vị điểm phần trăm. Chênh dưới
+ * NGUONG_BIEN_DONG điểm ghi "không đổi" để dao động nhỏ không thành tin tăng/giảm.
+ *
+ * Dữ liệu vào (node Supabase của WF5):
+ *   · d.dp_phong_theo_doi            — phạm vi phòng theo dõi + ky[0].diem của kỳ này
+ *   · d.dp_ky_truoc = { tu, den, diem: { 'C1.R11': [điểm ghi, điểm đạt] } } — kỳ liền trước
+ *   · d.phan_hoi_khac_phuc.ky[0].theo_phong — mỗi phòng: so_su_co (sự cố được gửi thư
+ *     cảnh báo trong giờ làm việc), co_tac_dong (có IPC/Cơ điện/QA thao tác), bo_phan,
+ *     khac_phuc / tu_ve_dat / dong_khac / con_mo (migration 20261109a).
+ * Thiếu dp_ky_truoc (dữ liệu cũ) thì tongHop trả null, thư bỏ mục này, không vỡ.
+ * Thiếu theo_phong thì vẫn có phần biến động, cột cảnh báo ghi "—".
+ *
+ * Mô-đun chỉ gom số liệu và dựng bản in; thư (email.node.js) tự vẽ bằng mảnh
+ * dựng sẵn của nó để cùng kiểu dáng với các mục khác.
+ * ========================================================================= */
+
+const PTD = require('./chenh-ap-phong-theo-doi.js');
+const NGUONG_BIEN_DONG = 2;     // điểm %, người dùng chốt 09/11/2026
+const TEN_BO_PHAN = { IPC: 'IPC', MEP: 'Cơ điện', QA: 'QA', LOT: 'Trực hồ sơ lô' };
+const TEN_KY_TRUOC = { TUAN: 'tuần trước', THANG: 'tháng trước', QUY: 'quý trước' };
+const TEN_KY_NAY = { TUAN: 'tuần này', THANG: 'tháng này', QUY: 'quý này' };
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function so1(v) { return (Math.round(Number(v) * 10) / 10).toFixed(1).replace('.', ','); }
+function phanTram(v) { return v == null ? '—' : so1(v) + '%'; }
+function hoaDau(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function tyLe(x) { return x && x.ghi > 0 ? 100 * x.dat / x.ghi : null; }
+
+/* Xếp loại mức thay đổi. null = không so được (kỳ trước không có số đo). */
+function xuHuong(chenh) {
+  if (chenh == null) return null;
+  if (chenh >= NGUONG_BIEN_DONG) return 'tang';
+  if (chenh <= -NGUONG_BIEN_DONG) return 'giam';
+  return 'giu';
+}
+/* "+3,2 điểm", "−3,2 điểm", "không đổi", "chưa có số kỳ trước". Dấu trừ là U+2212 cho dễ đọc. */
+function chuChenh(chenh) {
+  const h = xuHuong(chenh);
+  if (h == null) return 'chưa có số kỳ trước';
+  if (h === 'giu') return 'không đổi';
+  return (chenh > 0 ? '+' : '−') + so1(Math.abs(chenh)) + ' điểm';
+}
+
+function docDiem(dm, ma, nhan) {
+  if (dm == null) return null;
+  if (!Array.isArray(dm) || !(Number(dm[0]) > 0) || !(Number(dm[1]) >= 0) || Number(dm[1]) > Number(dm[0])) {
+    throw new Error('BIEN_DONG_PHONG_THEO_DOI: sai số điểm đo của ' + ma + ' (' + nhan + ')');
+  }
+  return { ghi: Number(dm[0]), dat: Number(dm[1]) };
+}
+
+/* Một câu tóm tắt cảnh báo của phòng: "4 cảnh báo · IPC thao tác 1/4". */
+function chuCanhBao(cb) {
+  if (!cb) return 'Không có cảnh báo';
+  const bp = (cb.bo_phan || []).map(function (r) { return TEN_BO_PHAN[r] || r; });
+  return cb.so_su_co + ' cảnh báo · ' + (cb.co_tac_dong
+    ? (bp.length ? bp.join(', ') : 'Có bộ phận') + ' thao tác ' + cb.co_tac_dong + '/' + cb.so_su_co
+    : 'không bộ phận nào thao tác');
+}
+function chuKetQua(cb) {
+  if (!cb) return '—';
+  const ds = [];
+  if (cb.khac_phuc) ds.push(cb.khac_phuc + ' bộ phận khắc phục');
+  if (cb.tu_ve_dat) ds.push(cb.tu_ve_dat + ' tự về đạt');
+  if (cb.dong_khac) ds.push(cb.dong_khac + ' đóng cách khác');
+  if (cb.con_mo) ds.push(cb.con_mo + ' còn mở');
+  return ds.join(' · ') || '—';
+}
+
+/* ===== Gom số liệu ======================================================== */
+function tongHop(d, khuBaoCao) {
+  if (!d || !d.dp_ky_truoc || !d.dp_ky_truoc.diem || !d.dp_phong_theo_doi) return null;
+  const td = PTD.tongHop(d, khuBaoCao);
+  if (!td || !td.co_diem) return null;
+  const maKy = String(d.ky || '').toUpperCase();
+  const diemNay = td.ky[0].diem || {};
+  const diemTruoc = d.dp_ky_truoc.diem;
+  const kyPH = d.phan_hoi_khac_phuc && Array.isArray(d.phan_hoi_khac_phuc.ky) ? d.phan_hoi_khac_phuc.ky[0] : null;
+  const coCanhBao = !!(kyPH && Array.isArray(kyPH.theo_phong));
+  const cbTheoMa = {};
+  (coCanhBao ? kyPH.theo_phong : []).forEach(function (r) {
+    cbTheoMa[r.ma_phong] = {
+      so_su_co: Number(r.so_su_co) || 0, co_tac_dong: Number(r.co_tac_dong) || 0,
+      bo_phan: Array.isArray(r.bo_phan) ? r.bo_phan : [],
+      khac_phuc: Number(r.khac_phuc) || 0, tu_ve_dat: Number(r.tu_ve_dat) || 0,
+      dong_khac: Number(r.dong_khac) || 0, con_mo: Number(r.con_mo) || 0
+    };
+  });
+
+  const phong = td.phong.map(function (p) {
+    const nay = docDiem(diemNay[p.ma], p.ma, 'kỳ này');
+    const truoc = docDiem(diemTruoc[p.ma], p.ma, 'kỳ trước');
+    const vNay = tyLe(nay), vTruoc = tyLe(truoc);
+    const chenh = vNay != null && vTruoc != null ? vNay - vTruoc : null;
+    return { ma: p.ma, ten: p.ten, khu: p.khu, muc: p.muc, nay: nay, truoc: truoc,
+      v: vNay, v_truoc: vTruoc, chenh: chenh, xu_huong: xuHuong(chenh),
+      canh_bao: cbTheoMa[p.ma] || null };
+  }).filter(function (p) { return p.nay; });
+  if (!phong.length) return null;
+
+  // Nhóm (khu và tất cả): kỳ trước chỉ cộng phòng có số ở cả hai kỳ, để hai con số so cùng một nhóm phòng.
+  const gom = function (ds) {
+    const n = { ghi: 0, dat: 0 }, t = { ghi: 0, dat: 0 }, nc = { ghi: 0, dat: 0 };
+    ds.forEach(function (p) {
+      n.ghi += p.nay.ghi; n.dat += p.nay.dat;
+      if (p.truoc) { t.ghi += p.truoc.ghi; t.dat += p.truoc.dat; nc.ghi += p.nay.ghi; nc.dat += p.nay.dat; }
+    });
+    const v = tyLe(n), vt = tyLe(t), vnc = tyLe(nc);
+    const chenh = vnc != null && vt != null ? vnc - vt : null;
+    return { so_phong: ds.length, v: v, v_truoc: vt, chenh: chenh, xu_huong: xuHuong(chenh),
+      so_tang: ds.filter(function (p) { return p.xu_huong === 'tang'; }).length,
+      so_giam: ds.filter(function (p) { return p.xu_huong === 'giam'; }).length };
+  };
+  const khu = td.khu.map(function (k) {
+    return Object.assign({ khu: k }, gom(phong.filter(function (p) { return p.khu === k; })));
+  }).filter(function (x) { return x.so_phong; });
+  const tatCa = gom(phong);
+
+  const soSanh = phong.filter(function (p) { return p.chenh != null; });
+  const tang = soSanh.filter(function (p) { return p.xu_huong === 'tang'; })
+    .sort(function (a, b) { return b.chenh - a.chenh; });
+  const giam = soSanh.filter(function (p) { return p.xu_huong === 'giam'; })
+    .sort(function (a, b) { return a.chenh - b.chenh; });
+  const theoTyLe = phong.slice().sort(function (a, b) { return b.v - a.v || String(a.ma).localeCompare(String(b.ma), 'vi', { numeric: true }); });
+  // Phòng có cảnh báo: phòng không bộ phận nào thao tác xếp trước, rồi theo số cảnh báo.
+  const canhBao = phong.filter(function (p) { return p.canh_bao && p.canh_bao.so_su_co > 0; })
+    .sort(function (a, b) {
+      return (a.canh_bao.co_tac_dong > 0) - (b.canh_bao.co_tac_dong > 0)
+        || b.canh_bao.so_su_co - a.canh_bao.so_su_co
+        || String(a.ma).localeCompare(String(b.ma), 'vi', { numeric: true });
+    });
+  const tongCB = canhBao.reduce(function (s, p) { return s + p.canh_bao.so_su_co; }, 0);
+  const tongTD = canhBao.reduce(function (s, p) { return s + p.canh_bao.co_tac_dong; }, 0);
+
+  return {
+    ma_ky: maKy,
+    ten_ky_nay: TEN_KY_NAY[maKy] || 'kỳ này',
+    ten_ky_truoc: TEN_KY_TRUOC[maKy] || 'kỳ trước',
+    ky_truoc: { tu: d.dp_ky_truoc.tu, den: d.dp_ky_truoc.den },
+    nguong: NGUONG_BIEN_DONG,
+    phong: phong, khu: khu, tat_ca: tatCa,
+    tang: tang, giam: giam,
+    so_giu: soSanh.filter(function (p) { return p.xu_huong === 'giu'; }).length,
+    so_chua_so: phong.length - soSanh.length,
+    cao_nhat: theoTyLe.slice(0, 3),
+    thap_nhat: theoTyLe.slice().reverse().slice(0, 3),
+    co_canh_bao: coCanhBao,
+    canh_bao: canhBao,
+    tong_canh_bao: tongCB, tong_tac_dong: tongTD,
+    so_phong_khong_tac_dong: canhBao.filter(function (p) { return !p.canh_bao.co_tac_dong; }).length,
+    // Phòng giảm mà không ai thao tác: điều người xử lý hệ thống cần nhìn thấy đầu tiên.
+    giam_khong_tac_dong: giam.filter(function (p) { return p.canh_bao && p.canh_bao.so_su_co > 0 && !p.canh_bao.co_tac_dong; })
+  };
+}
+
+/* Câu dẫn chung cho thư và bản in, rút thẳng từ số liệu. */
+function cauDan(t) {
+  const a = t.tat_ca;
+  const khuGiam = t.khu.filter(function (k) { return k.xu_huong === 'giam'; }).map(function (k) { return 'khu ' + k.khu; });
+  const khuTang = t.khu.filter(function (k) { return k.xu_huong === 'tang'; }).map(function (k) { return 'khu ' + k.khu; });
+  return '<b>' + a.so_phong + ' phòng theo dõi: ' + phanTram(a.v) + '</b>, ' + t.ten_ky_truoc + ' ' + phanTram(a.v_truoc)
+    + ' (' + chuChenh(a.chenh) + '). '
+    + t.tang.length + ' phòng tăng, ' + t.giam.length + ' phòng giảm, ' + t.so_giu + ' phòng không đổi'
+    + (t.so_chua_so ? ', ' + t.so_chua_so + ' phòng chưa có số ' + t.ten_ky_truoc : '') + '.'
+    + (khuGiam.length ? ' Giảm ở ' + khuGiam.join(', ') + '.' : '')
+    + (khuTang.length ? ' Tăng ở ' + khuTang.join(', ') + '.' : '');
+}
+
+function cauCanhBao(t) {
+  if (!t.co_canh_bao) return '';
+  if (!t.canh_bao.length) return 'Không phòng theo dõi nào có cảnh báo được gửi thư trong kỳ.';
+  return '<b>' + t.canh_bao.length + ' phòng theo dõi có cảnh báo</b>, tổng ' + t.tong_canh_bao + ' sự cố được gửi thư; '
+    + t.tong_tac_dong + ' sự cố có IPC, Cơ điện hoặc QA thao tác. '
+    + (t.so_phong_khong_tac_dong
+      ? '<b>' + t.so_phong_khong_tac_dong + ' phòng không có bộ phận nào thao tác.</b>'
+      : 'Phòng nào có cảnh báo cũng có bộ phận thao tác.');
+}
+
+const GHI_CHU = [
+  ['Tỷ lệ đạt', 'tỷ lệ điểm đo chênh áp đạt = tổng điểm đo trong giới hạn / tổng điểm đo ghi được, tính cả hai phía giới hạn.'],
+  ['Thay đổi', 'kỳ này trừ kỳ liền trước, đơn vị điểm phần trăm; chênh dưới ' + NGUONG_BIEN_DONG + ' điểm ghi "không đổi". Số của khu và của cả nhóm chỉ so các phòng có số ở cả hai kỳ.'],
+  ['Cảnh báo', 'sự cố của phòng (mọi chỉ tiêu) được gửi thư cảnh báo trong giờ làm việc của kỳ; cùng tập sự cố với tỷ lệ phản hồi.'],
+  ['Thao tác', 'IPC, Cơ điện hoặc QA bấm một thao tác trong thư hoặc trên web sau thư đầu tiên. Trực hồ sơ lô chỉ nhắc và điều phối nên không tính. "Tự về đạt" không có nghĩa bộ phận đã xử lý.']
+];
+
+/* ===== Bản in: đủ mọi phòng theo dõi ===================================== */
+function htmlBanIn(t) {
+  if (!t) return '';
+  const lop = function (v) { return v == null ? 'mo' : (v >= PTD.NGUONG_DAT ? 'ls-tot' : 'ls-xau'); };
+  const oChenh = function (x) {
+    const h = x.xu_huong;
+    return '<td class="so"><span class="' + (h === 'tang' ? 'ls-tot' : h === 'giam' ? 'ls-xau' : 'mo') + '">' + chuChenh(x.chenh) + '</span></td>';
+  };
+  const dongKhu = t.khu.concat([Object.assign({ khu: null }, t.tat_ca)]);
+  const dsPhong = t.phong.slice().sort(function (a, b) {
+    return (a.chenh == null ? 999 : a.chenh) - (b.chenh == null ? 999 : b.chenh)
+      || String(a.ma).localeCompare(String(b.ma), 'vi', { numeric: true });
+  });
+  return '<p class="mota">' + cauDan(t) + '</p>'
+    + '<div class="cuon-ngang"><table><thead><tr><th>Khu</th><th class="so">' + esc(hoaDau(t.ten_ky_nay)) + '</th><th class="so">'
+    + esc(hoaDau(t.ten_ky_truoc)) + '</th><th class="so">Thay đổi</th><th class="so">Phòng tăng / giảm</th></tr></thead><tbody>'
+    + dongKhu.map(function (k) {
+        return '<tr' + (k.khu ? '' : ' class="dong-nhan"') + '><td>' + (k.khu ? 'Khu ' + esc(k.khu) : 'Tất cả phòng theo dõi') + ' <span class="mo">(' + k.so_phong + ' phòng)</span></td>'
+          + '<td class="so dam"><span class="' + lop(k.v) + '">' + phanTram(k.v) + '</span></td>'
+          + '<td class="so">' + phanTram(k.v_truoc) + '</td>' + oChenh(k)
+          + '<td class="so">' + k.so_tang + ' / ' + k.so_giam + '</td></tr>';
+      }).join('')
+    + '</tbody></table></div>'
+    + '<h4>Từng phòng theo dõi, giảm nhiều nhất trước</h4>'
+    + '<div class="cuon-ngang"><table><thead><tr><th>Phòng</th><th>Khu</th><th class="so">' + esc(hoaDau(t.ten_ky_nay)) + '</th><th class="so">'
+    + esc(hoaDau(t.ten_ky_truoc)) + '</th><th class="so">Thay đổi</th><th>Cảnh báo trong kỳ</th><th>Kết quả</th></tr></thead><tbody>'
+    + dsPhong.map(function (p) {
+        const khongTD = p.canh_bao && p.canh_bao.so_su_co > 0 && !p.canh_bao.co_tac_dong;
+        return '<tr><td><b>' + esc(p.ma) + '</b> ' + esc(p.ten || '') + '</td><td>' + esc(p.khu) + '</td>'
+          + '<td class="so dam"><span class="' + lop(p.v) + '">' + phanTram(p.v) + '</span></td>'
+          + '<td class="so">' + phanTram(p.v_truoc) + '</td>' + oChenh(p)
+          + '<td' + (khongTD ? ' class="ls-xau"' : '') + '>' + (t.co_canh_bao ? esc(chuCanhBao(p.canh_bao)) : '—') + '</td>'
+          + '<td>' + esc(chuKetQua(p.canh_bao)) + '</td></tr>';
+      }).join('')
+    + '</tbody></table></div>'
+    + (t.co_canh_bao ? '<p class="mota">' + cauCanhBao(t) + '</p>' : '')
+    + '<p class="mota">' + GHI_CHU.map(function (x) { return '<b>' + x[0] + ':</b> ' + x[1]; }).join('<br>') + '</p>';
+}
+
+module.exports = {
+  tongHop: tongHop, htmlBanIn: htmlBanIn, cauDan: cauDan, cauCanhBao: cauCanhBao,
+  chuChenh: chuChenh, chuCanhBao: chuCanhBao, chuKetQua: chuKetQua, xuHuong: xuHuong,
+  GHI_CHU: GHI_CHU, NGUONG_BIEN_DONG: NGUONG_BIEN_DONG
+};
+
+});
 __dinh_nghia("rap-bao-cao.node", function (module, require) {
 'use strict';
 /* ===========================================================================
@@ -2322,6 +2569,7 @@ __dinh_nghia("rap-bao-cao.node", function (module, require) {
 const L = require('./bao-cao-loi.js');
 const PTD = require('./chenh-ap-phong-theo-doi.js');
 const PH = require('./phan-hoi-bo-phan.js');
+const BDP = require('./bien-dong-phong-theo-doi.js');
 const { esc, so, soVN, phanTram, ngayDai, ngayNgan, gioDoc, gioPhut, delta, dich, NGUONG_HANH_DONG, TOI_DA_CAP_A } = L;
 
 /* ===== CSS ============================================================== */
@@ -3061,6 +3309,11 @@ function rapBaoCao(d, duBao, cfg) {
   const khoiPhanHoiIn = khoiPhanHoi
     ? '<h3><span class="so-muc-phu">3.8</span>Phản hồi và kết quả khắc phục của các bộ phận</h3>' + khoiPhanHoi
     : '';
+  // 09/11/2026: từng phòng theo dõi so với kỳ liền trước + cảnh báo và tác động (thư chỉ có phần đầu).
+  const tdBienDong = BDP.tongHop(d, KHU_BAO_CAO);
+  const khoiBienDongIn = tdBienDong
+    ? '<h3><span class="so-muc-phu">3.9</span>Phòng theo dõi so với ' + esc(tdBienDong.ten_ky_truoc) + ' · cảnh báo và tác động</h3>' + BDP.htmlBanIn(tdBienDong)
+    : '';
   const khoiPhongTheoDoiIn = khoiPhongTheoDoi
     ? '<h3><span class="so-muc-phu">3.7</span>Phòng theo dõi trọng điểm · ba kỳ</h3>' + khoiPhongTheoDoi
     : '';
@@ -3273,7 +3526,7 @@ function rapBaoCao(d, duBao, cfg) {
 
     /* 3 · Chênh áp — mục trọng tâm */
     // Cuối mục 3: chênh áp tại các phòng theo dõi trọng điểm, ba kỳ, đủ bảng từng phòng (yêu cầu 21/10/2026)
-    + mucChiTieu(ctDP, true, 3, khoiPhongTheoDoiIn + khoiPhanHoiIn + dan(4,'Nhiệt độ: ' + ctT.so_phong_do + ' phòng có đo, đây là điều kiện thao tác và độ ổn định của sản phẩm.'))   // số thật, không hardcode (rà soát 04/09/2026)
+    + mucChiTieu(ctDP, true, 3, khoiPhongTheoDoiIn + khoiPhanHoiIn + khoiBienDongIn + dan(4,'Nhiệt độ: ' + ctT.so_phong_do + ' phòng có đo, đây là điều kiện thao tác và độ ổn định của sản phẩm.'))   // số thật, không hardcode (rà soát 04/09/2026)
 
     /* 4 · Nhiệt độ và độ ẩm */
     + mucChiTieu(ctT, false, 4, dan(5, 'Độ ẩm: hướng nguy hiểm là vượt trên — nguy cơ phát triển vi sinh vật.'))
@@ -4388,8 +4641,9 @@ __dinh_nghia("email.node", function (module, require) {
 /* ===========================================================================
  * THÂN EMAIL BÁO CÁO
  *
- * Năm khối theo câu hỏi của người quản lý: kết luận · ở đâu kém · ai làm gì ·
- * bộ phận có phản hồi không · xem thêm. Mỗi con số chỉ nêu một lần; phân tích
+ * Các khối theo câu hỏi của người xử lý hệ thống (09/11/2026): kết luận · phòng theo dõi
+ * so với kỳ trước (tăng/giảm, khu nào) · cảnh báo và tác động · ai làm gì · bộ phận có
+ * phản hồi không · xem thêm. Số mục đánh tự động, khối thiếu dữ liệu thì bỏ. Mỗi con số chỉ nêu một lần; phân tích
  * đầy đủ nằm trong bản in đính kèm.
  *
  * RÀNG BUỘC CỦA HÒM THƯ (khác hẳn trang web):
@@ -4408,7 +4662,7 @@ __dinh_nghia("email.node", function (module, require) {
 const L = require('./bao-cao-loi.js');
 const PTD = require('./chenh-ap-phong-theo-doi.js');
 const PH = require('./phan-hoi-bo-phan.js');
-const BD = require('./bieu-do-thu.js');
+const BDP = require('./bien-dong-phong-theo-doi.js');
 const { esc, soVN, phanTram, ngayDai, dich, NGUONG_HANH_DONG } = L;
 
 /* ===== Bảng màu: một màu chính, đỏ và lục cho kết quả, còn lại là mực và nền =====
@@ -4495,10 +4749,6 @@ function rapEmail(d, duBao, cfg) {
   const tenTong = khuBC ? 'Cả khu ' + khuBC : 'Toàn nhà máy';
   const k = d.kpi_ky_nay || {}, kt = d.kpi_ky_truoc || {};
   const cap = L.phanCap(d);
-  const ctDP = L.tongHopChiTieu(d, 'DP');
-  const ctT = L.tongHopChiTieu(d, 'T');
-  const ctRH = L.tongHopChiTieu(d, 'RH');
-  const cay = L.dungCay(d);
   const ht = cap.heThong;
   const maKy = String(d.ky).toUpperCase();
   const nhanKy = (maKy === 'TUAN' || maKy === 'THANG' || maKy === 'QUY') && d.tu_ngay
@@ -4510,6 +4760,8 @@ function rapEmail(d, duBao, cfg) {
   const pNghiem = gioDoDuoc ? 100 * (k.so_gio_critical || 0) / gioDoDuoc : null;
   const dat = (k.ty_le_tuan_thu || 0) >= NGUONG_HANH_DONG && !cap.capA_tong;
   const tdTD = PTD.tongHop(d, khuBC);
+  const tdBD = BDP.tongHop(d, khuBC);   // phòng theo dõi so với kỳ liền trước (09/11/2026)
+  const hoaDau = function (s) { return s.charAt(0).toUpperCase() + s.slice(1); };
   const ttTD = PTD.tomTat(tdTD);
 
   function oB(n, canPhai, dam, mau, dau, cuoi) {
@@ -4521,11 +4773,7 @@ function rapEmail(d, duBao, cfg) {
   }
   const mauTyLe = function (v) { return v != null && v < NGUONG_HANH_DONG ? M.doChu : M.muc; };
   const nhoMo = function (chu) { return '<div style="font-size:' + CO.nho + 'px;font-weight:400;color:' + M.mo + ';line-height:1.4;">' + chu + '</div>'; };
-  // Mũi tên so với kỳ trước; màu chỉ nằm ở mũi tên.
-  const muiTen = function (v, truoc) {
-    if (v == null || truoc == null || v === truoc) return '';
-    return '<span style="color:' + (v > truoc ? M.luc : M.doChu) + ';">&nbsp;' + (v > truoc ? '▲' : '▼') + '</span>';
-  };
+
 
   /* ===== 1. Kết luận: mọi câu rút thẳng từ số liệu, không do mô hình ngôn ngữ sinh ra ===== */
   const soSanhKyTruoc = kt.ty_le_tuan_thu != null
@@ -4553,141 +4801,145 @@ function rapEmail(d, duBao, cfg) {
         + ((tcE.gio_rong || 0) > 0 ? ', thiếu ' + soVN(tcE.gio_rong, 0) + ' giờ.' : '.')) : '')
     + (db.du_bao_dang_tin ? ghiChu('Ngoại suy 7 ngày tới: khoảng ' + phanTram(cuoiDB.gia_tri) + ' (từ ' + phanTram(cuoiDB.canh_duoi) + ' đến ' + phanTram(cuoiDB.canh_tren) + '), không phải cam kết.') : ''),
     (ttTD ? chiSo('Chênh áp tại ' + ttTD.so_phong + ' phòng theo dõi', phanTram(ttTD.ty_le),
-        ttTD.phong_dat + '/' + ttTD.so_phong + ' phòng đạt · ' + ttTD.so_uu_tien + ' phòng dưới ' + ttTD.nguong_uu_tien + '%',
+        (tdBD && tdBD.tat_ca.v_truoc != null ? hoaDau(tdBD.ten_ky_truoc) + ' ' + phanTram(tdBD.tat_ca.v_truoc) + ' (' + BDP.chuChenh(tdBD.tat_ca.chenh) + ') · ' : '')
+        + ttTD.phong_dat + '/' + ttTD.so_phong + ' phòng đạt · ' + ttTD.so_uu_tien + ' phòng dưới ' + ttTD.nguong_uu_tien + '%',
         ttTD.ty_le < ttTD.nguong_dat ? M.doChu : null) : '')
     + chiSo('Phòng phải xử lý', soVN(cap.capA_tong, 0) + '/' + soVN(k.tong_phong_co_du_lieu || 0, 0),
         'Có ' + (k.so_phong_khong_dat || 0) + ' phòng chưa đạt', cap.capA_tong ? M.doChu : null)
-    + chiSo('Giờ vượt giới hạn hành động', soVN(k.so_gio_critical || 0, 0),
-        (pNghiem != null ? phanTram(pNghiem) + ' số giờ có số đo' : '')
-        + (kt.so_gio_critical != null ? ' · kỳ trước ' + soVN(kt.so_gio_critical, 0) : ''))
+    // 09/11/2026: chỉ ghi %, không ghi số giờ (người dùng yêu cầu). Không so kỳ trước vì kỳ trước
+    // không có tổng số giờ có số đo để tính cùng mẫu số; suy từ oos_rate_pct ra mẫu số khác hẳn.
+    + chiSo('Giờ vượt giới hạn hành động', pNghiem != null ? phanTram(pNghiem) : '—',
+        'trên tổng số giờ có số đo')
   );
 
-  /* ===== 2. Ở đâu kém ================================================== */
-  const lichSu = L.chuanHoaLichSu(d);
-  const kyTruocLS = lichSu && lichSu.length >= 2 ? lichSu[lichSu.length - 2] : null;
-  const oTyLeKhu = function (v, truoc) {
-    return phanTram(v) + muiTen(v, truoc)
-      + '<div style="margin-top:' + K[1] + 'px;">' + BD.thanh(v, { nguong: NGUONG_HANH_DONG, cao: 5 }) + '</div>'
-      + (truoc != null ? nhoMo('kỳ trước ' + phanTram(truoc)) : '');
+  /* ===== 2. Phòng theo dõi so với kỳ liền trước (yêu cầu 09/11/2026) =====
+   * Người xử lý hệ thống cần biết: ở đâu tốt / tăng, ở đâu kém / giảm (phòng nào, khu nào).
+   * Mục "Ở đâu kém" cũ (toàn bộ chỉ tiêu theo khu, cụm xử lý không khí, thời gian ra ngoài
+   * giới hạn) chuyển hẳn sang bản in theo duyệt của người dùng, để thư ngắn. */
+  const mauChenh = function (x) { return x.xu_huong === 'tang' ? M.luc : x.xu_huong === 'giam' ? M.doChu : M.muc2; };
+  const tenPhong = function (p, coKhu) {
+    return '<b>' + esc(p.ma) + '</b>' + (p.ten ? '&nbsp;<span style="color:' + M.muc2 + ';">' + esc(p.ten) + '</span>' : '')
+      + (coKhu && !khuBC ? nhoMo('Khu ' + esc(p.khu)) : '');
   };
-  const oGioVuot = function (gio, pct) {
-    return soVN(gio || 0, 0) + '&nbsp;giờ' + (pct == null ? '' : nhoMo(phanTram(pct)));
+  const chenhGon = function (c) { return '<span style="white-space:nowrap;">' + BDP.chuChenh(c) + '</span>'; };
+  const dsTen = function (ds) {
+    return ds.map(function (p) { return esc(p.ma) + ' ' + phanTram(p.v); }).join(' · ');
   };
-  // Khu không có số liệu (null) không phải khu 0%; bản riêng khu đã có số ở Kết luận nên không cần bảng này.
-  const khoiBangKhu = khuBC ? '' : tieuDeNho('Toàn bộ chỉ tiêu theo khu') + BANG + '<thead><tr>'
-    + thB('Khu', false, true) + thB('Tỷ lệ đạt', true) + thB('Phòng đạt', true) + thB('Phải xử lý', true) + thB('Giờ vượt', true, false, true)
-    + '</tr></thead><tbody>'
-    + cay.map(function (x) {
-        const soXL = cap.capA_tat_ca.filter(function (v) { return v.khu === x.khu; }).length;
-        const truoc = kyTruocLS && kyTruocLS.khu && kyTruocLS.khu[x.khu] != null ? Number(kyTruocLS.khu[x.khu]) : null;
-        return '<tr>' + oB('Khu ' + esc(x.khu), false, true, null, true)
-          + oB(oTyLeKhu(x.ty_le_tb, truoc), true, true, mauTyLe(x.ty_le_tb))
-          + oB(x.so_phong_dat + '/' + x.so_phong, true)
-          + oB(soXL + '/' + x.so_phong, true)
-          + oB(oGioVuot(x.gio_nghiem_trong, x.gio_do ? 100 * (x.gio_nghiem_trong || 0) / x.gio_do : null), true, false, null, false, true) + '</tr>';
-      }).join('')
-    + '<tr style="background:' + M.nen + ';">' + oB(tenTong, false, true, null, true)
-    + oB(oTyLeKhu(k.ty_le_tuan_thu, kt.ty_le_tuan_thu), true, true, mauTyLe(k.ty_le_tuan_thu))
-    + oB((k.tong_phong_co_du_lieu - k.so_phong_khong_dat) + '/' + k.tong_phong_co_du_lieu, true, true)
-    + oB(cap.capA_tong + '/' + k.tong_phong_co_du_lieu, true, true)
-    + oB(oGioVuot(k.so_gio_critical, pNghiem), true, true, null, false, true) + '</tr></tbody></table>';
+  let khoiBienDong = '';
+  if (tdBD) {
+    const kn = hoaDau(tdBD.ten_ky_nay), kt2 = hoaDau(tdBD.ten_ky_truoc);
+    const bangKhu = khuBC ? '' : tieuDeNho('Theo khu') + BANG + '<thead><tr>' + thB('Khu', false, true) + thB(kn, true)
+      + thB(kt2, true) + thB('Thay đổi', true, false, true) + '</tr></thead><tbody>'
+      + tdBD.khu.concat([Object.assign({ khu: null }, tdBD.tat_ca)]).map(function (x) {
+          const tong = x.khu == null;
+          return '<tr' + (tong ? ' style="background:' + M.nen + ';"' : '') + '>'
+            + oB((tong ? 'Tất cả' : 'Khu ' + esc(x.khu)) + nhoMo(x.so_phong + '&nbsp;phòng · ' + x.so_tang + ' tăng, ' + x.so_giam + ' giảm'), false, true, null, true)
+            + oB(phanTram(x.v), true, true, mauTyLe(x.v)) + oB(x.v_truoc == null ? '—' : phanTram(x.v_truoc), true, false, M.muc2)
+            + oB(chenhGon(x.chenh), true, true, mauChenh(x), false, true) + '</tr>';
+        }).join('') + '</tbody></table>';
+    const bangTang = tieuDeNho('Tốt lên nhiều nhất')
+      + (tdBD.tang.length
+        ? BANG + '<thead><tr>' + thB('Phòng', false, true) + thB(kn, true) + thB('Thay đổi', true, false, true) + '</tr></thead><tbody>'
+          + tdBD.tang.slice(0, 3).map(function (p) {
+              return '<tr>' + oB(tenPhong(p, true), false, false, null, true) + oB(phanTram(p.v), true, true, mauTyLe(p.v))
+                + oB(chenhGon(p.chenh), true, true, M.luc, false, true) + '</tr>';
+            }).join('') + '</tbody></table>'
+        : ghiChu('Không phòng nào tăng từ ' + tdBD.nguong + ' điểm trở lên.'))
+      + ghiChu('<b>Cao nhất ' + tdBD.ten_ky_nay + ':</b> ' + dsTen(tdBD.cao_nhat) + '.');
+    const SO_GIAM = 5;
+    const bangGiam = tieuDeNho('Kém đi nhiều nhất')
+      + (tdBD.giam.length
+        ? BANG + '<thead><tr>' + thB('Phòng · cảnh báo ' + tdBD.ten_ky_nay, false, true) + thB(kn, true) + thB(kt2, true) + thB('Thay đổi', true, false, true)
+          + '</tr></thead><tbody>'
+          + tdBD.giam.slice(0, SO_GIAM).map(function (p) {
+              const khongTD = !!(p.canh_bao && !p.canh_bao.co_tac_dong);
+              // Cảnh báo nằm ngay dưới tên phòng: bảng bốn cột vẫn đọc được trên điện thoại.
+              const dongCB = tdBD.co_canh_bao
+                ? '<div style="margin-top:' + K[1] + 'px;font-size:' + CO.nho + 'px;line-height:1.4;color:' + (khongTD ? M.doChu : M.muc2) + ';' + (khongTD ? 'font-weight:700;' : '') + '">'
+                  + esc(BDP.chuCanhBao(p.canh_bao)) + '</div>' : '';
+              return '<tr>' + oB(tenPhong(p, true) + dongCB, false, false, null, true) + oB(phanTram(p.v), true, true, mauTyLe(p.v))
+                + oB(phanTram(p.v_truoc), true, false, M.muc2) + oB(chenhGon(p.chenh), true, true, M.doChu, false, true) + '</tr>';
+            }).join('') + '</tbody></table>'
+          + (tdBD.giam.length > SO_GIAM ? ghiChu('Còn ' + (tdBD.giam.length - SO_GIAM) + ' phòng giảm khác trong bản in.') : '')
+        : ghiChu('Không phòng nào giảm từ ' + tdBD.nguong + ' điểm trở lên.'))
+      + ghiChu('<b>Thấp nhất ' + tdBD.ten_ky_nay + ':</b> ' + dsTen(tdBD.thap_nhat) + '.')
+      + (tdBD.giam_khong_tac_dong.length
+        ? ghiChu('<b style="color:' + M.doChu + ';">' + tdBD.giam_khong_tac_dong.length + ' phòng giảm có cảnh báo nhưng không bộ phận nào thao tác:</b> '
+          + tdBD.giam_khong_tac_dong.map(function (p) { return esc(p.ma); }).join(', ') + '.')
+        : '');
+    khoiBienDong = '<div style="font-size:' + CO.than + 'px;line-height:1.6;color:' + M.muc + ';margin-bottom:' + K[4] + 'px;">' + BDP.cauDan(tdBD) + '</div>'
+      + haiCot(bangKhu, bangTang) + '<div style="margin-top:' + K[5] + 'px;">' + bangGiam + '</div>'
+      + ghiChu('<span style="color:' + M.mo + ';">Tỷ lệ điểm đo chênh áp đạt của các phòng theo dõi. Thay đổi tính bằng điểm phần trăm; chênh dưới '
+        + tdBD.nguong + ' điểm ghi "không đổi". Theo khu, cụm xử lý không khí và từng chỉ tiêu xem trong bản in.</span>');
+  }
 
-  // Phần trăm thời gian ra ngoài giới hạn của một dòng, tách hai phía.
-  const haiPhia = function (r) {
-    if (!r || !r.tong_gio_do) return null;
-    return { duoi: 100 * (r.tong_gio_duoi || 0) / r.tong_gio_do, tren: 100 * (r.tong_gio_tren || 0) / r.tong_gio_do };
-  };
-  const oHaiPhia = function (p, canPhai, cuoi) {
-    if (!p) return oB('—', canPhai, false, M.mo, false, cuoi);
-    const kem = p.duoi + p.tren > 100 - NGUONG_HANH_DONG;
-    const dong = [];
-    if (p.duoi >= 0.05) dong.push('Thấp&nbsp;' + phanTram(p.duoi));
-    if (p.tren >= 0.05) dong.push('Cao&nbsp;' + phanTram(p.tren));
-    return oB(dong.length ? dong.join('<br>') : '0%', canPhai, kem, kem ? M.doChu : M.muc2, false, cuoi);
-  };
-  const dsChiTieu = [[ctDP, 'Chênh áp'], [ctT, 'Nhiệt độ'], [ctRH, 'Độ ẩm']].filter(function (x) { return x[0].so_phong_do; })
-    .map(function (x) { return { ten: x[1], g: L.gomChiTieuTheoCap(x[0]) }; });
-  // Chỉ tính phòng theo dõi: toàn khu vực đã có ở bảng chênh áp ngay bên cạnh (yêu cầu 02/11/2026).
-  const maTheoDoi = {};
-  (tdTD ? tdTD.phong : []).forEach(function (p) { maTheoDoi[p.ma] = true; });
-  const chiTieuTD = [[ctDP, 'Chênh áp'], [ctT, 'Nhiệt độ'], [ctRH, 'Độ ẩm']].map(function (x) {
-    const g = L.gomChiTieuTheoCap({ xep_hang: (x[0].xep_hang || []).filter(function (r) { return maTheoDoi[r.ma_phong]; }) });
-    return { ten: x[1], g: g };
-  }).filter(function (x) { return x.g.khu.length; });
-  const dsKhuMT = tdTD ? tdTD.khu.slice().sort() : [];
-  const khoiMaTran = chiTieuTD.length && dsKhuMT.length
-    ? tieuDeNho('Phòng theo dõi: thời gian ra ngoài giới hạn') + BANG + '<thead><tr>' + thB('Khu', false, true)
-      + chiTieuTD.map(function (x, i) { return thB(x.ten, true, false, i === chiTieuTD.length - 1); }).join('') + '</tr></thead><tbody>'
-      + dsKhuMT.map(function (khu) {
-          return '<tr>' + oB(esc(khu), false, true, null, true)
-            + chiTieuTD.map(function (x, i) {
-                const r = x.g.khu.find(function (y) { return y.khu === khu; });
-                const cuoi = i === chiTieuTD.length - 1;
-                if (!r) return oB('—', true, false, M.mo, false, cuoi);
-                // Mỗi chỉ tiêu đo ở số phòng khác nhau nên ghi số phòng ngay trong ô.
-                return oHaiPhia(haiPhia(r), true, cuoi).replace('</td>', nhoMo(r.so_phong + '&nbsp;phòng') + '</td>');
-              }).join('') + '</tr>';
-        }).join('') + '</tbody></table>'
-      + '<div style="font-size:' + CO.nho + 'px;color:' + M.mo + ';line-height:1.5;margin-top:' + K[2] + 'px;">Số % là phần thời gian đo. Thấp: dưới giới hạn dưới. Cao: trên giới hạn trên. Chữ đỏ: tổng ngoài giới hạn quá ' + (100 - NGUONG_HANH_DONG) + '%.</div>'
+  /* ===== 3. Cảnh báo và tác động tại phòng theo dõi ===================== */
+  const SO_CANH_BAO = 8;
+  const khoiCanhBao = tdBD && tdBD.co_canh_bao
+    ? '<div style="font-size:' + CO.than + 'px;line-height:1.6;color:' + M.muc + ';margin-bottom:' + K[3] + 'px;">' + BDP.cauCanhBao(tdBD) + '</div>'
+      + (tdBD.canh_bao.length
+        ? BANG + '<thead><tr>' + thB('Phòng', false, true) + thB('Cảnh báo', true) + thB('Thao tác · kết quả')
+          + thB('Tỷ lệ đạt', true, false, true) + '</tr></thead><tbody>'
+          + tdBD.canh_bao.slice(0, SO_CANH_BAO).map(function (p) {
+              const cb = p.canh_bao, khongTD = !cb.co_tac_dong;
+              const bp = cb.bo_phan.map(function (r) { return ({ IPC: 'IPC', MEP: 'Cơ điện', QA: 'QA' })[r] || r; }).join(', ');
+              return '<tr>' + oB(tenPhong(p, true), false, false, null, true) + oB(soVN(cb.so_su_co, 0), true, true)
+                + oB((khongTD ? 'Không bộ phận nào' : esc(bp || 'Có') + ' ' + cb.co_tac_dong + '/' + cb.so_su_co) + nhoMo(esc(BDP.chuKetQua(cb))),
+                    false, khongTD, khongTD ? M.doChu : M.muc)
+                + oB(phanTram(p.v) + nhoMo(BDP.chuChenh(p.chenh)), true, true, mauTyLe(p.v), false, true) + '</tr>';
+            }).join('') + '</tbody></table>'
+          + (tdBD.canh_bao.length > SO_CANH_BAO ? ghiChu('Còn ' + (tdBD.canh_bao.length - SO_CANH_BAO) + ' phòng có cảnh báo khác trong bản in.') : '')
+        : '')
+      + ghiChu('<span style="color:' + M.mo + ';">Cảnh báo: sự cố của phòng được gửi thư trong giờ làm việc. Thao tác: IPC, Cơ điện hoặc QA bấm xử lý sau thư đầu; Trực hồ sơ lô chỉ điều phối nên không tính. "Tự về đạt" không có nghĩa bộ phận đã xử lý.</span>')
     : '';
 
-  const SO_CUM = 5;
-  const dsCum = dsChiTieu.length && dsChiTieu[0].ten === 'Chênh áp'
-    ? (dsChiTieu[0].g.cum || []).filter(function (r) { return !khuBC || r.khu === khuBC; })
-        .map(function (r) { return { r: r, p: haiPhia(r) }; }).filter(function (x) { return x.p; })
-        .sort(function (a, b) { return (b.p.duoi + b.p.tren) - (a.p.duoi + a.p.tren); })
-    : [];
-  const khoiCum = dsCum.length
-    ? tieuDeNho('Chênh áp: ' + Math.min(SO_CUM, dsCum.length) + ' cụm xử lý không khí kém nhất') + BANG + '<thead><tr>'
-      + thB('Cụm', false, true) + thB('Ngoài giới hạn', true) + thB('Phòng đạt', true, false, true) + '</tr></thead><tbody>'
-      + dsCum.slice(0, SO_CUM).map(function (x) {
-          return '<tr>' + oB('<span style="white-space:nowrap;">' + esc(x.r.ahu) + '</span>', false, true, null, true)
-            + oHaiPhia(x.p, true) + oB(x.r.so_phong_dat + '/' + x.r.so_phong, true, false, null, false, true) + '</tr>';
-        }).join('') + '</tbody></table>'
-    : '';
-
-  /* ===== 3. Ai làm gì: mỗi phòng một dòng, hai tỷ lệ đặt cạnh nhau =====
-   * Gom phòng ưu tiên nhất và phòng theo dõi có chênh áp dưới ngưỡng vào một bảng,
-   * vì trước đây hai danh sách nằm ở hai mục, nhiều phòng xuất hiện hai lần. */
+  /* ===== Ai làm gì: mỗi bộ phận một dòng (yêu cầu 09/11/2026: ngắn gọn, đúng vai) =====
+   * Phân vai người dùng chốt: IPC kiểm tra, xác minh tình trạng thực tế của phòng (cửa đóng mở);
+   * Cơ điện điều chỉnh chênh áp phòng; Trực hồ sơ lô điều phối chung. Thư chỉ nêu ai làm gì
+   * ở phòng nào; câu việc đầy đủ từng phòng (luật phân cấp) nằm trong bản in.
+   * Phòng lấy từ: các phòng phải xử lý ưu tiên nhất + phòng theo dõi có chênh áp dưới ngưỡng. */
   const SO_DONG_THU = 5;
   const dsA = cap.capA_tat_ca.slice(0, SO_DONG_THU);
   const conLai = cap.capA_tong - dsA.length;
-  const k0TD = tdTD ? tdTD.ky[0].khoa : null;
-  const phongTD = {};
-  (tdTD ? tdTD.phong : []).forEach(function (p) { phongTD[p.ma] = p; });
   const dsUuTien = (tdTD ? tdTD.uu_tien : []).filter(function (p) {
     return !dsA.some(function (v) { return v.ma_phong === p.ma; });
   });
   const dsPhongGoc = d.tat_ca_phong || [];
-  // Câu "Cơ điện kiểm cụm AHU02: lọc..." thành "Cơ điện: kiểm lọc..."; câu không theo mẫu giữ nguyên chữ.
-  const chuViec = function (viec) {
-    return String(viec).split(/\.\s+/).map(function (x) { return x.replace(/\.$/, '').trim(); }).filter(Boolean).map(function (x) {
-      const m = x.match(/^(Cơ điện|IPC|QA|Trực hồ sơ lô|Trực)\s+(.+)$/);
-      return m ? '<b style="color:' + M.dam + ';">' + esc(m[1]) + ':</b> ' + esc(m[2].replace(/^kiểm cụm [^:]+:\s*/, 'kiểm ')) : esc(x);
-    }).join(' · ');
-  };
   const dongViec = dsA.concat(dsUuTien.map(function (p) {
     const v = cap.capA_tat_ca.find(function (x) { return x.ma_phong === p.ma; });
     if (v) return v;
     const g = dsPhongGoc.find(function (x) { return x.ma_phong === p.ma; }) || {};
-    return { ma_phong: p.ma, ten: p.ten, ahu: g.ahu, tuan_thu: g.ty_le_tuan_thu, gio_nghiem_trong: g.so_gio_critical, viec: [] };
+    return { ma_phong: p.ma, ahu: g.ahu, su_co_qua_han: 0 };
   }));
-  const daNeu = {};   // việc giống nhau chỉ ghi một lần, dòng sau trỏ về phòng đầu tiên
-  const NGAN_HUONG = { '↓': '↓ thấp', '↑': '↑ cao', '↕': '↕ hai phía' };
+  const maPhong = function (ma, nhan) {
+    return '<span style="white-space:nowrap;"><b>' + esc(ma) + '</b>' + (nhan ? '&nbsp;<span style="color:' + M.doChu + ';">(' + nhan + ')</span>' : '') + '</span>';
+  };
+  // Cơ điện: gom phòng theo cụm xử lý không khí, vì điều chỉnh chênh áp thường làm ở cụm.
+  const theoCum = {}, thuTuCum = [];
+  dongViec.forEach(function (v) {
+    const cum = v.ahu && v.ahu !== '—' ? v.ahu : 'Chưa rõ cụm';
+    if (!theoCum[cum]) { theoCum[cum] = []; thuTuCum.push(cum); }
+    theoCum[cum].push(v.ma_phong);
+  });
+  thuTuCum.sort(function (x, y) { return theoCum[y].length - theoCum[x].length || x.localeCompare(y, 'vi', { numeric: true }); });
+  const quaHan = dongViec.filter(function (v) { return v.su_co_qua_han > 0; });
+  const BP = function (ten) { return '<b style="color:' + M.dam + ';">' + ten + '</b>'; };
+  const hangViec = [
+    [BP('IPC') + nhoMo('Xác minh tình trạng thực tế của phòng: cửa đóng mở, thao tác trong khung giờ ngoài giới hạn.'),
+      dongViec.map(function (v) { return maPhong(v.ma_phong); }).join(', ')],
+    [BP('Cơ điện') + nhoMo('Điều chỉnh chênh áp phòng; kiểm cụm xử lý không khí: lọc, van gió, cài đặt chênh áp.'),
+      thuTuCum.map(function (c) {
+        return '<span style="white-space:nowrap;color:' + M.muc2 + ';">' + esc(c) + ':</span>&nbsp;' + theoCum[c].map(function (m) { return maPhong(m); }).join(', ');
+      }).join('<br>')],
+    [BP('Trực hồ sơ lô') + nhoMo(quaHan.length
+        ? 'Điều phối chung; đôn đốc đóng sự cố đang mở.'
+        : 'Điều phối chung các việc trên.'),
+      quaHan.length ? quaHan.map(function (v) { return maPhong(v.ma_phong, soVN(v.su_co_qua_han, 0) + '&nbsp;giờ mở'); }).join(', ') : '—']
+  ];
   const khoiViec = dongViec.length
-    ? BANG + '<thead><tr>' + thB('Phòng và việc cần làm', false, true) + thB('Toàn bộ chỉ tiêu', true) + thB('Chênh áp', true, false, true) + '</tr></thead><tbody>'
-      + dongViec.map(function (v) {
-          const chu = v.viec && v.viec[0] ? chuViec(v.viec[0]) : 'Cần ưu tiên kiểm tra.';
-          const viecRa = daNeu[chu] ? 'Như ' + esc(daNeu[chu]) + '.' : chu;
-          if (!daNeu[chu]) daNeu[chu] = v.ma_phong;
-          const ptd = phongTD[v.ma_phong], cTD = ptd ? ptd.ky[k0TD] : null, h = cTD ? PTD.huong(cTD) : null;
-          return '<tr>'
-            + oB('<b>' + esc(v.ma_phong) + '</b> ' + esc(v.ten || '') + (v.ahu && v.ahu !== '—' ? ' · <span style="white-space:nowrap;">' + esc(v.ahu) + '</span>' : '')
-              + (v.su_co_qua_han ? ' · <span style="color:' + M.doChu + ';white-space:nowrap;">sự cố mở ' + soVN(v.su_co_qua_han, 0) + ' giờ</span>' : '')
-              + '<div style="color:' + M.muc2 + ';margin-top:' + K[1] + 'px;line-height:1.5;">' + viecRa + '</div>', false, false, null, true)
-            + oB(v.tuan_thu == null ? '—' : phanTram(v.tuan_thu) + nhoMo(soVN(v.gio_nghiem_trong || 0, 0) + '&nbsp;giờ vượt'), true, true, mauTyLe(v.tuan_thu))
-            + oB(cTD ? phanTram(cTD.v) + (h ? nhoMo(NGAN_HUONG[h.ky_hieu] || '') : '') : '—', true, !!cTD, cTD ? mauTyLe(cTD.v) : M.mo, false, true)
-            + '</tr>';
+    ? BANG + '<thead><tr>' + thB('Bộ phận · việc', false, true) + thB('Phòng', false, false, true) + '</tr></thead><tbody>'
+      + hangViec.map(function (h) {
+          return '<tr>' + oB(h[0], false, false, M.muc, true).replace('class="d', 'width="45%" class="d') + oB(h[1], false, false, M.muc, false, true) + '</tr>';
         }).join('') + '</tbody></table>'
     : '';
   const dsNgoaiKy = cap.suCoNgoaiKy || [];
@@ -4736,6 +4988,8 @@ function rapEmail(d, duBao, cfg) {
   const lienKet = function (url, chu) {
     return '<a href="' + esc(url) + '" style="color:' + M.dam + ';font-weight:700;">' + chu + '</a>';
   };
+  let soMuc = 0;
+  const muc = function (ten) { soMuc += 1; return tieuDeMuc(soMuc + '. ' + ten); };
   const dsLienKet = ['<b>' + (c.co_pdf ? 'Bản in PDF' : 'Bản in') + ' đính kèm thư</b>: đủ phân tích từng chỉ tiêu, từng phòng và ô ký duyệt']
     .concat(c.link_dashboard ? [lienKet(c.link_dashboard, 'Bảng tra cứu') + ': lọc theo khu, cụm, xem từng ngày'] : [])
     .concat(c.link_drive ? [lienKet(c.link_drive, 'Thư mục lưu báo cáo')] : []);
@@ -4772,24 +5026,24 @@ function rapEmail(d, duBao, cfg) {
     + '<div style="font-size:' + CO.nho + 'px;color:#DCE4EE;margin-top:' + K[2] + 'px;line-height:1.5;">' + esc(nhanKy) + ' · '
     + ngayDai(d.tu_ngay) + ' – ' + ngayDai(d.den_ngay) + ' · ' + esc(khuBC ? 'Khu ' + khuBC : 'Toàn nhà máy') + '</div></td></tr>'
 
-    + hang(tieuDeMuc('1. Kết luận') + khoiKetLuan)
+    + hang(muc('Kết luận') + khoiKetLuan)
 
-    + hang(tieuDeMuc('2. Ở đâu kém')
-        + haiCot(khoiBangKhu, khoiCum)
-        + '<div style="margin-top:' + K[5] + 'px;">' + haiCot(PTD.htmlThuGon(tdTD), khoiMaTran) + '</div>')
+    + (khoiBienDong ? hang(muc('Phòng theo dõi so với ' + tdBD.ten_ky_truoc) + khoiBienDong) : '')
 
-    + hang(tieuDeMuc('3. Ai làm gì')
+    + (khoiCanhBao ? hang(muc('Cảnh báo và tác động tại phòng theo dõi') + khoiCanhBao) : '')
+
+    + hang(muc('Ai làm gì')
         + (dongViec.length
-            ? '<div style="font-size:' + CO.than + 'px;line-height:1.6;color:' + M.muc + ';margin-bottom:' + K[3] + 'px;"><b>' + cap.capA_tong + ' phòng phải xử lý.</b> Bảng dưới có '
-              + dsA.length + ' phòng ưu tiên nhất' + (dsUuTien.length ? ' và ' + dsUuTien.length + ' phòng theo dõi khác có chênh áp dưới ' + ttTD.nguong_uu_tien + '%' : '')
-              + (conLai > 0 ? '; các phòng còn lại trong bản in.' : '.') + '</div>' + khoiViec
+            ? '<div style="font-size:' + CO.than + 'px;line-height:1.6;color:' + M.muc + ';margin-bottom:' + K[3] + 'px;"><b>' + cap.capA_tong + ' phòng phải xử lý.</b> Việc cho '
+              + dsA.length + ' phòng ưu tiên nhất' + (dsUuTien.length ? ' và ' + dsUuTien.length + ' phòng theo dõi dưới ' + ttTD.nguong_uu_tien + '%' : '')
+              + (conLai > 0 ? '; còn lại trong bản in.' : '.') + '</div>' + khoiViec
             : '<div style="font-size:' + CO.than + 'px;line-height:1.6;color:' + M.muc + ';">Kỳ này không có phòng nào phải xử lý ngay.</div>')
         + khoiNgoaiKy + khoiNhanDinh)
 
-    + ((khoiPhanHoi || khoiSuCo) ? hang(tieuDeMuc('4. Bộ phận có phản hồi không') + haiCot(khoiPhanHoi, khoiSuCo)) : '')
+    + ((khoiPhanHoi || khoiSuCo) ? hang(muc('Bộ phận có phản hồi không') + haiCot(khoiPhanHoi, khoiSuCo)) : '')
 
     + '<tr><td class="pad" style="background:' + M.nen + ';border:1px solid ' + M.vien + ';padding:' + LE_DOC + 'px ' + LE_NGANG + 'px;">'
-    + tieuDeMuc('5. Xem thêm')
+    + muc('Xem thêm')
     + dsLienKet.map(function (x) { return '<div style="font-size:' + CO.nho + 'px;color:' + M.muc2 + ';line-height:1.6;">' + x + '</div>'; }).join('')
     + cachDoc.map(function (x) { return ghiChu('<b>' + x[0] + ':</b> ' + x[1]); }).join('')
     + '<div style="font-size:' + CO.nho + 'px;color:' + M.mo + ';line-height:1.6;margin-top:' + K[4] + 'px;">Lập ngày ' + esc(c.tao_luc || ngayDai(d.tao_luc))

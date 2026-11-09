@@ -383,8 +383,9 @@ function phanCap(d) {
         can_cu: 'Sự cố số ' + s.ma_su_co + ' mức ' + dich(TEN_MUC_CANH_BAO, s.muc_canh_bao)
               + ' — ' + dich(TEN_TRANG_THAI, s.trang_thai).toLowerCase() + ', đã '
               + gioDoc(s.keo_dai_gio) + ' kể từ ' + gioVietNam(s.bat_dau, true) + '.',   // ngày VN (rà soát 04/09/2026)
-        viec: 'Cơ điện xác minh tại chỗ và đóng sự cố. Quá 24 giờ nữa chưa xong thì '
-            + 'Bảo đảm chất lượng mở phiếu sai lệch.',
+        // Phân vai người dùng chốt 09/11/2026: IPC xác minh thực tế phòng, Cơ điện điều chỉnh chênh áp, Trực điều phối.
+        viec: 'IPC xác minh tình trạng thực tế của phòng (cửa đóng mở). Cơ điện điều chỉnh chênh áp phòng nếu cần. '
+            + 'Trực hồ sơ lô điều phối đóng sự cố.',
         nguon: 'su_co.danh_sach_dang_mo'
       });
     });
@@ -402,8 +403,8 @@ function phanCap(d) {
                   ? 'Chênh áp tụt dưới giới hạn ' + phanTram(lechDuoiDP[p.ma_phong])
                     + ' thời gian, đây là hướng gây nhiễm chéo. ' : '')
               + gioDoc(p.so_gio_critical) + ' vượt giới hạn hành động.',
-        viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
-            + ': lọc, van gió, cài đặt chênh áp. IPC khoanh vùng khung giờ ngoài giới hạn.',
+        viec: 'IPC xác minh tình trạng thực tế của phòng (cửa đóng mở) trong khung giờ ngoài giới hạn. '
+            + 'Cơ điện điều chỉnh chênh áp phòng, kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan') + ': lọc, van gió, cài đặt chênh áp.',
         nguon: 'tat_ca_phong (mức ưu tiên 1)'
       });
     });
@@ -424,8 +425,8 @@ function phanCap(d) {
               + 'Từ ' + TI_LE_GIO_VUOT_A + '% số giờ có số đo trở lên vượt giới hạn hành động ('
               + gioDoc(p.so_gio_critical) + ' / ' + gioDoc(gd) + ', tức '
               + phanTram(100 * (p.so_gio_critical || 0) / gd) + ').',
-        viec: 'Cơ điện kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan')
-            + '. IPC đối chiếu lịch sản xuất xem có trùng ca không.',
+        viec: 'IPC xác minh tình trạng thực tế của phòng (cửa đóng mở), đối chiếu lịch sản xuất xem có trùng ca không. '
+            + 'Cơ điện điều chỉnh chênh áp phòng, kiểm cụm ' + (p.ahu || 'xử lý không khí liên quan') + '.',
         nguon: 'tat_ca_phong (tỷ lệ giờ vượt giới hạn hành động trên giờ có số đo)'
       });
     });
