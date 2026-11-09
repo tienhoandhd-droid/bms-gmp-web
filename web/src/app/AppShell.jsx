@@ -28,7 +28,7 @@ import {
   Wind, FileBarChart, LayoutDashboard, AlertOctagon, Building2, LineChart as LineIcon,
   ScrollText, Settings as Cog, Wifi, Printer, Plus, Trash2, Search, LogIn, LogOut,
   User, Eye, SlidersHorizontal, History, Pencil, KeyRound, Layers, Minus, Save, GitBranch, Power,
-  Radio, RefreshCw, ClipboardList, Sun, Moon
+  Radio, RefreshCw, ClipboardList, Sun, Moon, ArrowLeft
 } from "lucide-react";
 import logoCpc1hn from "../assets/logo-cpc1hn.png";
 
@@ -87,6 +87,8 @@ import MoreNavigationSheet from "../components/navigation/MoreNavigationSheet";
 import SystemHealthStrip from "../components/status/SystemHealthStrip";
 import IncidentProcessOverview from "../components/process/IncidentProcessOverview";
 import InspectorDrawer from "../components/layout/InspectorDrawer";
+import TimKiemChung from "../components/navigation/TimKiemChung";
+import LenDauTrang from "../components/navigation/LenDauTrang";
 import { fmtPhut } from "../lib/dinhDang";
 
 
@@ -139,12 +141,16 @@ export default function AppShell() {
   // Đợt C 04/09/2026: ĐỒNG BỘ URL khi chuyển tab. Trước đây ?tab= chỉ đọc lúc mount nên nút
   // Back của trình duyệt không đổi tab và không chia sẻ được link đang xem. pushState giữ
   // nguyên các tham số khác (tv, token…); popstate đọc lại ?tab= khi bấm Back/Forward.
+  // 09/11/2026: nút "← Quay lại" chỉ hiện khi đã chuyển trang trong web (có trang trước để về).
+  const [daChuyenTrang, setDaChuyenTrang] = useState(false);
+  // Ô tìm chung chọn 1 phòng → báo trang Xu hướng mở phòng đó (lan tăng để chọn lại cùng phòng vẫn chạy).
+  const [moPhongXuHuong, setMoPhongXuHuong] = useState(null);
   const docTabTuUrl = () => { try { const t = new URLSearchParams(window.location.search).get("tab"); return NAV_ITEMS.some((x) => x.k === t) || t === "tasks" ? t : "home"; } catch (e) { return "home"; } };
   const setTab = useCallback((k) => {
     setTabState(k);
     try {
       const u = new URL(window.location.href);
-      if (u.searchParams.get("tab") !== k) { u.searchParams.set("tab", k); window.history.pushState({ tab: k }, "", u); }
+      if (u.searchParams.get("tab") !== k) { u.searchParams.set("tab", k); window.history.pushState({ tab: k }, "", u); setDaChuyenTrang(true); }
     } catch (e) { /* trình duyệt cũ không có URL/History API → chỉ đổi tab trong bộ nhớ */ }
   }, []);
   useEffect(() => {
@@ -796,6 +802,19 @@ export default function AppShell() {
     );
   }
 
+  // 09/11/2026 — ô tìm chung: chọn phòng → Xu hướng của phòng; chọn sự cố → ngăn chi tiết phiếu; chọn trang → chuyển trang.
+  const chonKetQuaTim = (x) => {
+    if (x.nhom === "phong") { setMoPhongXuHuong((p) => ({ ma: x.giaTri, lan: (p?.lan || 0) + 1 })); setTab("trend"); return; }
+    if (x.nhom === "suCo") { const inc = incidentsXem.find((i) => i.id === x.giaTri); setTab("events"); if (inc) setIncChiTiet(inc); return; }
+    setTab(x.giaTri);
+  };
+  // Nút In ở đầu trang: đang xem báo cáo của 1 phòng (trang Xu hướng) → in đúng báo cáo đó; còn lại in trang đang xem.
+  const inTrangDangXem = () => {
+    const khung = tab === "trend" ? document.querySelector("iframe[data-bao-cao-phong]") : null;
+    if (khung && khung.contentWindow) khung.contentWindow.print();
+    else window.print();
+  };
+
   return (
     <div className="bms-app min-h-screen lg:flex" style={{ background: PAGE_BG, color: "var(--text-default)" }}>
       {/* Đợt B: skip-link WCAG 2.4.1 — chỉ hiện khi nhận focus bàn phím */}
@@ -805,12 +824,15 @@ export default function AppShell() {
       <div className="bms-workspace relative flex-1 min-w-0 mx-auto">
         <header className="bms-header flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
+            {daChuyenTrang && <button type="button" onClick={() => window.history.back()} className="bms-icon-button" aria-label="Quay lại trang trước" title="Quay lại trang trước"><ArrowLeft className="h-4 w-4" strokeWidth={1.9} /></button>}
             <div className="lg:hidden rounded-2xl bg-surface px-2 ring-1 ring-line flex items-center justify-center h-[44px] w-[44px] shrink-0" style={cardShadow}><CpcLogo className="h-9 w-9" /></div>
             <div className="flex flex-col justify-center min-w-0"><p className="bms-page-context"><span>{NAV_GROUPS.find(g => g.items.some(t => t.k === tab))?.label || "BMS"}</span><span aria-hidden="true">/</span><span>Phòng sạch</span></p><h1 id="bms-page-heading" tabIndex={-1} className="bms-page-title text-strong">{(NAV_ITEMS.find((t) => t.k === tab) || {}).label || "Giám sát HVAC phòng sạch"}</h1></div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap justify-end ml-auto">
             <div className="hidden md:block"><SystemHealthStrip inline isLive={isLive} matNguon={matNguon} dangTai={live.dangTai} capNhatLuc={live.capNhatLuc} thieuDL={kpis.thieuDL || 0} suCoCanXuLy={p12Open} loi={live.loi} sucKhoe={live.sucKhoe} /></div>
             {isLive && <SucKhoeWidget sk={live.sucKhoe} dangTai={live.dangTai} />}
+            <TimKiemChung trang={visibleTabs} phong={roomsXem} suCo={incidentsXem} onChon={chonKetQuaTim} />
+            <button type="button" onClick={inTrangDangXem} className="bms-icon-button" aria-label="In trang đang xem" title={tab === "trend" ? "In (đang xem 1 phòng → in báo cáo phòng)" : "In trang đang xem"}><Printer className="h-4 w-4" strokeWidth={1.9} /></button>
             <button onClick={toggleTheme}
               className="bms-icon-button"
               title={resolvedTheme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
@@ -830,6 +852,7 @@ export default function AppShell() {
           </div>
         )}
 
+        <LenDauTrang />
         <MobileBottomNav tab={tab} setTab={setTab} role={role} badges={{ events: p12Open }} onMoThem={() => setSheetThem(true)} />
         <MoreNavigationSheet open={sheetThem} onClose={() => setSheetThem(false)} tab={tab} setTab={setTab} role={role} />
 
@@ -1212,7 +1235,7 @@ export default function AppShell() {
             </div>
           )}
           {tab === "sensors" && <CamBienPage isLive={isLive} />}
-          {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><TrendPage onAI={setAi} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /></React.Suspense><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
+          {(daMo.trend || tab === "trend") && <div className="space-y-6" style={{ display: tab === "trend" ? "" : "none" }}><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><TrendPage onAI={setAi} yeuCauMoPhong={moPhongXuHuong} isLive={isLive} liveRisk={isLive ? live.riskRows : null} liveRooms={isLive ? roomsXem : null} liveIncidents={isLive ? incidentsXem : null} khuChoPhep={khuChoPhep} onSaveAI={handleSaveAI} /></React.Suspense><PhanTichGmpCard mkt={isLive ? live.gmpMkt : null} spc={isLive ? live.gmpSpc : null} isLive={isLive} /></div>}
           {tab === "reports" && <div className="space-y-5"><React.Suspense fallback={<div className="rounded-2xl bg-subtle animate-pulse" style={{ height: 360 }} />}><ReportsPage ai={ai} aiRows={isLive ? live.aiRows : null} isLive={isLive} responseScopeKey={JSON.stringify([user?.email, user?.role, user?.khuVuc])} /></React.Suspense><DanhGiaHieuQuaCanhBao isLive={isLive} hideResponse /></div>}
 
           {tab === "audit" && (() => {

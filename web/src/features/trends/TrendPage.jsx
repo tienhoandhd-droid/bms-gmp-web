@@ -241,7 +241,7 @@ function ScopeCombobox({ items, value, onPick, placeholder, levelLabel }) {
 // Báo cáo điều kiện phòng: tải lười — chỉ cần khi xem cấp Phòng (giữ ngân sách bundle TrendPage)
 const BaoCaoDieuKienPhong = React.lazy(() => import("./BaoCaoDieuKienPhong"));
 
-function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, liveIncidents = null, khuChoPhep = null, onSaveAI = null }) {
+function TrendPage({ onAI, yeuCauMoPhong = null, isLive = false, liveRisk = null, liveRooms = null, liveIncidents = null, khuChoPhep = null, onSaveAI = null }) {
   // Ghi nhớ lựa chọn giữa các lần vào (localStorage) — chỉ lưu tuỳ chọn nhẹ, không lưu dữ liệu.
   const LS_KEY = "bms_trend_prefs";
   const prefs = (() => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } })();
@@ -273,6 +273,20 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
   const [resOverride, setResOverride] = useState(["GIO"].includes(prefs.res) ? prefs.res : null); // độ phân giải khung dưới-ngày (chỉ còn GIO sau khi bỏ 30 phút)
   const [optArea, setOptArea] = useState(strPref(prefs.optArea) || "ALL");
   const [optAhu, setOptAhu] = useState(strPref(prefs.optAhu) || "ALL");
+  // 09/11/2026: ô tìm chung ở đầu trang chọn 1 phòng → mở cấp Phòng của phòng đó rồi cuộn tới báo cáo phòng.
+  // Đây là "sự kiện từ bên ngoài" (mỗi lần chọn tăng `lan`), không phải state suy ra được → dùng effect.
+  useEffect(() => {
+    if (!yeuCauMoPhong?.ma) return;
+    setLevel("ROOM"); setOptArea("ALL"); setOptAhu("ALL"); setSelId(yeuCauMoPhong.ma);
+    let lanDoi = 0, khung = 0;
+    const cho = () => {   // khối báo cáo tải lười (lazy) → đợi nó xuất hiện, tối đa ~5 giây
+      const el = document.getElementById("trend-bao-cao-phong");
+      if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+      if (++lanDoi < 300) khung = requestAnimationFrame(cho);
+    };
+    khung = requestAnimationFrame(cho);
+    return () => cancelAnimationFrame(khung);
+  }, [yeuCauMoPhong?.lan]); // eslint-disable-line react-hooks/exhaustive-deps
   const [aiResult, setAiResult] = useState(null);
   const [diemChon, setDiemChon] = useState(null);   // G3: điểm được click trên biểu đồ chính → inspector
   const [aiBusy, setAiBusy] = useState(false);        // đang gọi AI qua workflow
@@ -780,6 +794,20 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
 
   const Chip = ({ active, onClick, children, disabled, title }) => <button type="button" aria-pressed={!!active} onClick={onClick} disabled={disabled} title={title} className={`px-3.5 py-1.5 rounded-full text-tk-xs font-medium transition ring-1 ${disabled ? "text-muted bg-subtle ring-line cursor-not-allowed" : active ? "text-white ring-transparent" : "text-body bg-surface ring-line hover:ring-success-line"}`} style={active && !disabled ? { backgroundColor: "var(--primary-solid)" } : {}}>{children}</button>;
   const sel = "min-h-[44px] rounded-xl bg-surface ring-1 ring-line px-3 py-2 text-tk-xs text-body outline-none";
+  // 09/11/2026 — thanh lối tắt
+  const coBaoCaoPhong = isLive && level === "ROOM" && activeScope?.type === "ROOM" && !!activeId;
+  const MUC_LUC = [
+    { id: "trend-bo-loc", nhan: "Bộ lọc" },
+    { id: "trend-bao-cao-phong", nhan: "Báo cáo phòng" },
+    { id: "trendPrintArea", nhan: "Biểu đồ" },
+    { id: "trend-xep-hang", nhan: "Xếp hạng rủi ro" },
+  ];
+  const toiMuc = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const xemMotPhong = () => {
+    if (level !== "ROOM") { setLevel("ROOM"); setSelId(""); setOptArea("ALL"); setOptAhu("ALL"); }
+    toiMuc("trend-bo-loc");
+    requestAnimationFrame(() => document.querySelector("#trend-bo-loc [role=combobox]")?.focus({ preventScroll: true }));
+  };
 
   // #4 — chuỗi giá trị TB + dải giới hạn của phòng (chỉ khi đang chọn 1 phòng + 1 chỉ tiêu DP/RH/T trong LIVE)
   const bandSeries = (wantRoomBand && roomBand[roomBandKey]) || [];
@@ -795,7 +823,19 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <h2 className="text-lg font-semibold flex items-center gap-2 text-strong"><LineIcon className="w-5 h-5" style={{ color: "var(--primary)" }} strokeWidth={1.8} /> Xu hướng — biểu đồ theo thời gian</h2>
       </div>
 
-      <Card className="relative z-30 p-5 space-y-4">
+      {/* 09/11/2026 — THANH LỐI TẮT (dính ở đầu khi cuộn): việc hay làm + mục lục nhảy trong trang */}
+      <nav aria-label="Lối tắt trang Xu hướng" className="bms-khong-in sticky top-2 z-40 rounded-xl bg-surface ring-1 ring-line px-3 py-2 shadow-sm flex flex-nowrap md:flex-wrap items-center gap-2 overflow-x-auto whitespace-nowrap">
+        <Chip active={level === "ROOM"} onClick={xemMotPhong}>Xem 1 phòng</Chip>
+        <Chip active={chonKhoang.nut === "homnay"} onClick={() => datKhoang({ nut: "homnay", ...khoangTuNutNhanh("homnay", homNay) })}>Hôm nay</Chip>
+        <Chip active={chonKhoang.nut === "homqua"} onClick={() => datKhoang({ nut: "homqua", ...khoangTuNutNhanh("homqua", homNay) })}>Hôm qua</Chip>
+        <span aria-hidden="true" className="mx-1 h-5 w-px bg-line" />
+        <span className="text-tk-xs text-muted">Tới:</span>
+        {MUC_LUC.filter((m) => m.id !== "trend-bao-cao-phong" || coBaoCaoPhong).map((m) => (
+          <button key={m.id} type="button" onClick={() => toiMuc(m.id)} className="min-h-[36px] rounded-lg px-2.5 text-tk-xs font-medium text-info hover:underline">{m.nhan}</button>
+        ))}
+      </nav>
+
+      <Card id="trend-bo-loc" className="relative z-30 p-5 space-y-4 scroll-mt-20">
         {/* HÀNG 1 — XEM GÌ: cấp xem · đối tượng · khu/AHU · chỉ tiêu */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-2 flex-wrap"><span className="text-tk-xs uppercase tracking-wider text-muted font-semibold">Cấp xem</span>{SCOPE_LEVELS.map((s) => <Chip key={s.k} active={level === s.k} onClick={() => { setLevel(s.k); setSelId(""); setOptArea("ALL"); setOptAhu("ALL"); }}>{s.label}</Chip>)}</div>
@@ -860,10 +900,12 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         )}
       </Card>
 
-      {isLive && level === "ROOM" && activeScope?.type === "ROOM" && activeId && (
-        <React.Suspense fallback={<Card className="p-6"><p role="status" className="text-tk-xs text-muted">Đang tải khối báo cáo phòng…</p></Card>}>
-          <BaoCaoDieuKienPhong maPhong={activeId} khoang={chonKhoang} homNay={homNay} />
-        </React.Suspense>
+      {coBaoCaoPhong && (
+        <div id="trend-bao-cao-phong" className="scroll-mt-20">
+          <React.Suspense fallback={<Card className="p-6"><p role="status" className="text-tk-xs text-muted">Đang tải khối báo cáo phòng…</p></Card>}>
+            <BaoCaoDieuKienPhong maPhong={activeId} khoang={chonKhoang} homNay={homNay} />
+          </React.Suspense>
+        </div>
       )}
 
       <Card className="p-4 flex items-center justify-between flex-wrap gap-3">
@@ -888,7 +930,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">{periodCards.map((p) => <div key={p.d} className={`rounded-2xl p-4 ring-1 ${p.status === "FULL" ? "ring-success-line bg-success-soft/50" : "ring-warning-line bg-warning-soft/50"}`}><div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-strong">{p.d} ngày</h3><span className={`text-tk-xs px-2 py-0.5 rounded-full font-medium ${p.status === "FULL" ? "text-success bg-success-soft" : "text-warning bg-warning-soft"}`}>{p.status === "FULL" ? "ĐỦ" : "THIẾU"}</span></div><p className="text-2xl font-light mt-1.5 tabular-nums text-strong">{fmtH(p.alert)}</p><p className="text-tk-xs text-muted mt-1">W {fmtH(p.warn)} · C {fmtH(p.crit)}</p><p className="text-tk-xs text-muted">Đạt TB {fmtPct(p.avg)} · {p.avail}/{p.d} ngày</p></div>)}</div>
       </Card>
 
-      <div id="trendPrintArea" className="space-y-5">
+      <div id="trendPrintArea" className="space-y-5 scroll-mt-20">
         {aiBusy && (
           <Card className="p-5 ring-1 ring-success-line">
             <div className="flex items-center gap-3"><ClipboardCheck className="w-5 h-5 animate-pulse" style={{ color: "var(--primary)" }} strokeWidth={1.9} /><div><p className="text-tk-sm font-semibold text-strong">Đang lập nhận định…</p><p className="text-tk-xs text-muted">Hệ thống đang rà soát số liệu biểu đồ. Thường mất 10-30 giây.</p></div></div>
@@ -1045,7 +1087,7 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">{miniScopes.map(([lvl, sc]) => { const d = sc._series ? sc._series.slice(-soNgayKhoang) : getSeries(sc, sensor, rangeMoPhong); const lt = d[d.length - 1] || {}; const p = lt.comp; const pc = p == null ? "var(--text-muted)" : p < 70 ? "var(--danger)" : p < 88 ? "var(--warning)" : "var(--success)"; /* đợt B: token CHỮ đạt tương phản 2 theme */ return <div key={lvl} className="rounded-2xl bg-subtle ring-1 ring-line/70 p-3"><div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold text-strong">{SCOPE_LEVELS.find((x) => x.k === lvl).label}</p><span className="text-tk-xs px-2 py-0.5 rounded-full text-body bg-surface ring-1 ring-line">{sc.id}</span></div><div className="flex items-baseline gap-1.5 mb-1"><span className="text-2xl font-light tabular-nums leading-none" style={{ color: pc }}>{p == null ? "—" : fmtPct(p)}</span><span className="text-tk-xs text-muted">% đạt mới nhất</span></div><p className="text-tk-xs text-muted mb-1 truncate">{sc.name}</p><Chart type="miniArea" data={d} h={84} /></div>; })}</div>
       </Card>
 
-      <Card className="p-6"><SectionTitle icon={AlertOctagon} hint="Tổng → Khu → AHU → Phòng · tỉ lệ đạt 1/3/7 ngày">Xếp hạng rủi ro</SectionTitle>
+      <Card id="trend-xep-hang" className="p-6 scroll-mt-20"><SectionTitle icon={AlertOctagon} hint="Tổng → Khu → AHU → Phòng · tỉ lệ đạt 1/3/7 ngày">Xếp hạng rủi ro</SectionTitle>
         <div tabIndex={0} role="region" aria-label="Bảng xếp hạng rủi ro, cuộn ngang để xem thêm" className="overflow-x-auto mt-3"><table className="w-full text-tk-sm"><caption className="sr-only">Xếp hạng rủi ro theo cấp Tổng, Khu, AHU, Phòng — tỉ lệ đạt 1, 3, 7 ngày</caption><thead><tr className="text-muted text-left text-tk-xs uppercase tracking-wider">{["Cấp", "Đối tượng", "Khu/AHU", ...(coCotNgay ? ["Đạt 1n", "Đạt 3n", "Đạt 7n", "Δ 7 ngày"] : []), ...(coCotChuoi ? ["Xu hướng 14n"] : []), "Risk", "Đánh giá"].map((h) => <th key={h} scope="col" className="py-2.5 pr-4 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{riskRows.map((r) => { const comp = r.dat1n != null ? r.dat1n : r.latest.compliance; // a = [nhãn, màu chữ đánh giá, màu badge Risk] — badge theo CÙNG mức; "Tốt" để trung tính (ISA-101: bình thường không tô màu)
                 const a = comp == null ? ["Chờ dữ liệu", "text-muted", "bg-subtle text-muted"] : comp < 70 ? ["Cần điều tra ưu tiên", "text-danger", "bg-danger-soft text-danger ring-1 ring-danger-line"] : comp < 88 ? ["Cần chú ý", "text-warning", "bg-warning-soft text-warning ring-1 ring-warning-line"] : ["Tốt", "text-success", "bg-subtle text-body"]; const canPick = isLive && (r.type === level || level === "TOTAL"); return <tr key={`${r.type}:${r.id}`} className={`border-t border-line hover:bg-info-soft/40 ${r.type === "TOTAL" ? "bg-success-soft/30" : ""}`}><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{SCOPE_LEVELS.find((x) => x.k === r.type)?.label}</td><td className="py-2.5 pr-4 min-w-[11rem]"><button disabled={!canPick} onClick={() => { setOptArea("ALL"); setOptAhu("ALL"); if (r.type !== "TOTAL") { setLevel(r.type); setSelId(r.id); } else { setLevel("TOTAL"); } }} className={`text-left min-h-[24px] ${canPick ? "hover:underline" : ""}`}><span className="font-semibold text-strong">{r.id}</span> <span className="text-muted">{r.name}</span></button></td><td className="py-2.5 pr-4 text-muted whitespace-nowrap">{[r.area, r.ahu].filter(Boolean).join(" / ") || "—"}</td>{coCotNgay && <><td className="py-2.5 pr-4 tabular-nums font-medium">{fmtPct(r.dat1n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat3n)}</td><td className="py-2.5 pr-4 tabular-nums text-body">{fmtPct(r.dat7n)}</td><td className={`py-2.5 pr-4 tabular-nums font-medium ${deltaTone(r.delta7)}`}>{fmtDelta(r.delta7)}</td></>}{coCotChuoi && <td className="py-2.5 pr-4"><Chart type="sparkline" chuoi={r.chuoi} h={30} /></td>}<td className="py-2.5 pr-4"><span className={`inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-tk-xs font-semibold tabular-nums ${a[2]}`}>{r.risk >= 999 ? "—" : r.risk}</span></td><td className={`py-2.5 pr-4 font-semibold whitespace-nowrap ${a[1]}`}>{a[0]}</td></tr>; })}</tbody></table></div>
         <p className="text-tk-xs text-muted mt-2">Bấm vào tên đối tượng để xem nhanh xu hướng của cấp đó.{coCotNgay ? " Tỉ lệ đạt = trung bình tỷ lệ đạt trong 1 / 3 / 7 ngày gần nhất." : " Cột tỉ lệ đạt 1 / 3 / 7 ngày và xu hướng 14 ngày chỉ có khi dùng dữ liệu thật."}</p>

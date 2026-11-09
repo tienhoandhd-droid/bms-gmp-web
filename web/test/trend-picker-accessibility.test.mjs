@@ -48,9 +48,9 @@ test("trend scope picker exposes combobox semantics and supports keyboard select
 
   await page.evaluate(() => [...document.querySelectorAll("button")]
     .find((button) => button.textContent.trim() === "Khu vực")?.click());
-  await page.waitForFunction(() => document.querySelector('[role="combobox"]'));
+  await page.waitForFunction(() => document.querySelector('#trend-bo-loc [role="combobox"]'));
 
-  const combobox = await page.$('[role="combobox"]');
+  const combobox = await page.$('#trend-bo-loc [role="combobox"]');
   const before = await combobox.evaluate((input) => ({
     expanded: input.getAttribute("aria-expanded"),
     controls: input.getAttribute("aria-controls"),
@@ -74,7 +74,7 @@ test("trend scope picker exposes combobox semantics and supports keyboard select
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
   await page.waitForFunction((value) => {
-    const input = document.querySelector('[role="combobox"]');
+    const input = document.querySelector('#trend-bo-loc [role="combobox"]');
     return input?.getAttribute("aria-expanded") === "false" && input.value !== value;
   }, {}, prior);
   assert.equal(await combobox.evaluate((input) => input.getAttribute("aria-expanded")), "false");
@@ -86,19 +86,19 @@ test("trend scope picker exposes combobox semantics and supports keyboard select
 
   await combobox.focus();
   await page.keyboard.press("ArrowDown");
-  await page.waitForFunction(() => document.querySelector('[role="combobox"]')?.getAttribute("aria-expanded") === "true");
+  await page.waitForFunction(() => document.querySelector('#trend-bo-loc [role="combobox"]')?.getAttribute("aria-expanded") === "true");
   await page.keyboard.press("Tab");
   assert.match(await page.evaluate(() => document.activeElement?.getAttribute("aria-label") || ""), /Đóng danh sách phạm vi/);
   await page.keyboard.press("Enter");
-  await page.waitForFunction(() => document.querySelector('[role="combobox"]')?.getAttribute("aria-expanded") === "false");
+  await page.waitForFunction(() => document.querySelector('#trend-bo-loc [role="combobox"]')?.getAttribute("aria-expanded") === "false");
 
   await combobox.focus();
   await page.keyboard.press("ArrowDown");
-  await page.waitForFunction(() => document.querySelector('[role="combobox"]')?.getAttribute("aria-expanded") === "true");
+  await page.waitForFunction(() => document.querySelector('#trend-bo-loc [role="combobox"]')?.getAttribute("aria-expanded") === "true");
   await page.keyboard.press("Tab");
   assert.equal(await combobox.evaluate((input) => input.getAttribute("aria-expanded")), "true");
   await page.keyboard.press("Tab");
-  await page.waitForFunction(() => document.querySelector('[role="combobox"]')?.getAttribute("aria-expanded") === "false");
+  await page.waitForFunction(() => document.querySelector('#trend-bo-loc [role="combobox"]')?.getAttribute("aria-expanded") === "false");
 
   await combobox.focus();
   await page.keyboard.type("không-có-kết-quả-98273");
@@ -114,5 +114,5 @@ test("trend scope picker exposes combobox semantics and supports keyboard select
   await combobox.focus();
   await page.keyboard.press("ArrowDown");
   await page.mouse.click(8, 700);
-  await page.waitForFunction(() => document.querySelector('[role="combobox"]')?.getAttribute("aria-expanded") === "false");
+  await page.waitForFunction(() => document.querySelector('#trend-bo-loc [role="combobox"]')?.getAttribute("aria-expanded") === "false");
 });

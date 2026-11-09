@@ -67,7 +67,7 @@ export default function BaoCaoDieuKienPhong({ maPhong, khoang, homNay }) {
   } else if (!html) {
     noiDung = <p className="text-tk-xs text-warning bg-warning-soft ring-1 ring-warning-line rounded-lg px-3 py-2">⚠ Phòng {maPhong} không có số liệu trong {nhanKhoang(khoang)}.</p>;
   } else {
-    noiDung = <iframe ref={khungRef} title={`Báo cáo điều kiện phòng ${maPhong} ${nhanKhoang(khoang)}`} srcDoc={html} sandbox="allow-same-origin allow-modals" onLoad={doCao} style={{ height: cao }} className="w-full rounded-xl ring-1 ring-line bg-surface" />;
+    noiDung = <iframe ref={khungRef} data-bao-cao-phong="" title={`Báo cáo điều kiện phòng ${maPhong} ${nhanKhoang(khoang)}`} srcDoc={html} sandbox="allow-same-origin allow-modals" onLoad={doCao} style={{ height: cao }} className="w-full rounded-xl ring-1 ring-line bg-surface" />;
   }
 
   return (

@@ -124,7 +124,7 @@ tbody tr { transition: background-color var(--motion-fast); }
 @media (prefers-reduced-motion:reduce) {
   *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
 }
-@media print { .bms-sidebar, .bms-bottom-nav, .bms-header, .bms-footer { display:none !important; } .bms-workspace { padding:0; max-width:none; } }
+@media print { .bms-sidebar, .bms-bottom-nav, .bms-header, .bms-footer, .bms-khong-in { display:none !important; } .bms-workspace { padding:0; max-width:none; } }
 
 /* Hourly overview: evidence beside the room verdict, with the same chart grammar. */
 .bms-chart-section-heading { display:flex; align-items:start; justify-content:space-between; gap:var(--space-4); margin-bottom:var(--space-4); }

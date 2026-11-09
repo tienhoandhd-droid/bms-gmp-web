@@ -262,6 +262,33 @@ try {
   const focusMain = await page.evaluate(() => document.activeElement.id);
   kiem(skip.startsWith("Bỏ qua điều hướng") && focusMain === "noi-dung-chinh", "Skip-link là Tab đầu tiên, Enter vào <main>", `${skip} → #${focusMain}`);
 
+  // 8b. Ô tìm chung + nút điều hướng ở đầu trang (09/11/2026)
+  console.log("8b. Tìm chung & điều hướng");
+  await goto("/?tab=home");
+  await page.keyboard.down("Control"); await page.keyboard.press("k"); await page.keyboard.up("Control"); await cho(200);
+  const oTim = await page.evaluate(() => document.activeElement?.getAttribute("placeholder") || "");
+  kiem(oTim.startsWith("Tìm phòng"), "Ctrl+K đưa con trỏ vào ô tìm chung", `focus đang ở "${oTim}"`);
+  await page.keyboard.type("R"); await cho(300);
+  const phongDau = await page.evaluate(() => {
+    const ds = [...document.querySelectorAll('[role="listbox"][aria-label="Kết quả tìm kiếm"] [role="option"]')];
+    return ds.length ? ds[0].querySelector("span")?.textContent.trim() : "";
+  });
+  kiem(!!phongDau, "Gõ 'R' → có danh sách phòng", "không có kết quả");
+  await page.keyboard.press("Enter"); await cho(1200);
+  const sauTim = await page.evaluate(() => ({ tab: new URLSearchParams(location.search).get("tab"), dangXem: [...document.querySelectorAll('[role="status"]')].map((x) => x.textContent).find((t) => t.includes("Đang xem:")) || "" }));
+  kiem(sauTim.tab === "trend" && sauTim.dangXem.includes(phongDau), `Enter → mở Xu hướng của phòng ${phongDau}`, JSON.stringify(sauTim).slice(0, 160));
+  const coLoiTat = await page.evaluate(() => !!document.querySelector('nav[aria-label="Lối tắt trang Xu hướng"]'));
+  kiem(coLoiTat, "Trang Xu hướng có thanh lối tắt");
+  const coQuayLai = await page.evaluate(() => { const b = document.querySelector('button[aria-label="Quay lại trang trước"]'); if (!b) return false; b.click(); return true; });
+  await cho(600);
+  const sauQuayLai = await page.evaluate(() => new URLSearchParams(location.search).get("tab"));
+  kiem(coQuayLai && sauQuayLai === "home", "Nút ← Quay lại về trang trước (home)", `nút=${coQuayLai} tab=${sauQuayLai}`);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await cho(400);
+  const nutLen = await page.evaluate(() => { const b = document.querySelector('button[aria-label="Lên đầu trang"]'); if (!b) return false; b.click(); return true; });
+  await cho(900);
+  const yLen = await page.evaluate(() => window.scrollY);
+  kiem(nutLen && yLen < 50, "Nút 'Lên đầu trang' hiện khi cuộn và đưa về đầu", `nút=${nutLen} scrollY=${yLen}`);
+
   // 9. Trang phụ
   console.log("9. Trang phụ");
   for (const [u, mongDoi] of [["/?tv=1", "CPC1"], ["/action.html?token=abc&sc=SC-1&act=x", "máy chủ"], ["/datlai.html", "máy chủ"], ["/404.html", "Không tìm thấy trang"]]) {
