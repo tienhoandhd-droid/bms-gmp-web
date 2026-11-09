@@ -67,6 +67,16 @@ Những phần chép nguyên từ WF5 v2 (cùng credential, cùng bảng):
   Kỳ tuần = thứ Hai → hết Chủ nhật tuần trước (đúng tuần ISO).
 - **Bảng "So với bốn kỳ trước"**: cột `lich_su_ky` trong truy vấn Supabase (từ `kpi_ngay_scope`),
   bộ ráp đọc `d.lich_su_ky`; thiếu thì ẩn bảng.
+- **Xu hướng tuần / tháng** (chỉ thư THÁNG, QUÝ — 09/11/2026): khóa `xu_huong_chi_tiet` trong truy vấn
+  Supabase (null với TUAN). `tuan[]`: từng tuần thứ Hai–CN giao với kỳ, cắt theo ngày đầu/cuối kỳ;
+  `thang[]`: tháng này + 2 tháng trước (THÁNG) hoặc 3 tháng của quý (QUÝ). Mỗi đoạn có tỷ lệ đạt toàn bộ
+  chỉ tiêu (cùng cách `lich_su_ky`), theo khu, và điểm đo chênh áp [ghi, đạt] từng phòng theo dõi.
+  Bộ ráp `xu-huong-ky.js`: biểu đồ cột, bảng đánh giá (trung bình, thấp–cao, xu hướng = độ dốc hồi quy
+  tuyến tính, dưới 2 điểm cả kỳ là "đi ngang"), bảng từng tuần tô theo độ lệch so với TB các tuần.
+  Thư: mục "Xu hướng tuần", "Xu hướng tháng" ngay sau Kết luận; bản in: mục 9.1 (có thêm phòng × tuần).
+  Truy vấn RIÊNG ở node "Supabase — xu hướng tuần/tháng" (sau node chính), node Code "Gộp xu hướng vào
+  số liệu" ghép vào `bao_cao`. Lý do: n8n cắt mỗi câu SQL ở 120 giây; gộp chung thì quý vượt (09/11/2026,
+  exec 12817583). Đo 09/11: câu chính quý 80 giây, câu xu hướng 8 giây, thư tuần 0,1 giây (trả null).
 - **Fan-out theo khu + Gắn khu vào kỳ**: bản TỔNG gửi người có ≥ 2 khu trong
   `nguoi_nhan_bao_cao`; mỗi khu C1/C4/Q2 có người nhận riêng thì thêm một bản khu.
   Bản TỔNG không có ai thì rơi về `cau_hinh.email_bao_cao_thang/tuan`; bản khu không có
