@@ -24,6 +24,8 @@ const L = require('./bao-cao-loi.js');
 const PTD = require('./chenh-ap-phong-theo-doi.js');
 const PH = require('./phan-hoi-bo-phan.js');
 const BDP = require('./bien-dong-phong-theo-doi.js');
+const XH = require('./xu-huong-ky.js');
+const BDT = require('./bieu-do-thu.js');
 const { esc, soVN, phanTram, ngayDai, dich, NGUONG_HANH_DONG } = L;
 
 /* ===== Bảng màu: một màu chính, đỏ và lục cho kết quả, còn lại là mực và nền =====
@@ -234,6 +236,83 @@ function rapEmail(d, duBao, cfg) {
         + tdBD.nguong + ' điểm ghi "không đổi". Theo khu, cụm xử lý không khí và từng chỉ tiêu xem trong bản in.</span>');
   }
 
+  /* ===== Xu hướng tuần / xu hướng tháng — chỉ thư THÁNG, QUÝ (yêu cầu 09/11/2026) =====
+   * Lần 2 (người dùng: bảng dọc khó nhìn tổng quát, chưa đánh giá khách quan tương quan giữa
+   * các tuần/tháng): tổng quát trước, chi tiết sau.
+   *   1. Câu tổng quát + biểu đồ cột của chỉ tiêu dẫn đầu: thấy hình dạng cả kỳ.
+   *   2. Bảng đánh giá: trung bình, thấp – cao, xu hướng bằng độ dốc hồi quy (xu-huong-ky.js).
+   *   3. Bảng từng tuần: ô tô theo độ lệch so với trung bình kỳ của chính chỉ tiêu, có ghi số lệch.
+   * Từng phòng × từng tuần nằm trong bản in. */
+  const tdXH = XH.tongHop(d, khuBC);
+  const bangDanhGiaXH = function (loai) {
+    const dsDG = loai === 'thang' ? tdXH.danh_gia_thang : tdXH.danh_gia_tuan;
+    const donVi = loai === 'thang' ? 'tháng' : 'tuần';
+    return BANG + '<thead><tr>' + thB('Chỉ tiêu', false, true) + thB('TB các ' + donVi, true) + thB('Thấp – cao', true)
+      + thB('Xu hướng cả kỳ', false, false, true) + '</tr></thead><tbody>'
+      + dsDG.map(function (g) {
+          const mau = g.huong === 'giam' ? M.doChu : g.huong === 'tang' ? M.luc : M.muc;
+          return '<tr>' + oB('<b>' + esc(g.ten) + '</b>', false, false, null, true)
+            + oB(phanTram(g.tb), true, true)
+            + oB('<span style="white-space:nowrap;">' + phanTram(g.thap.v).replace('%', '') + '–' + phanTram(g.cao.v) + '</span>', true, false, M.muc2)
+            + oB(XH.chuXuHuong(g, donVi).split(' · ')[0]
+                + (g.doc != null && g.huong !== 'ngang' ? nhoMo((g.doc > 0 ? '+' : '−') + soVN(Math.abs(g.doc), 1) + '&nbsp;điểm/' + donVi) : ''),
+                false, g.huong === 'giam' || g.huong === 'tang', mau, false, true) + '</tr>';
+        }).join('') + '</tbody></table>';
+  };
+  const bangLechXH = function (loai) {
+    const ds = loai === 'thang' ? tdXH.thang : tdXH.tuan;
+    const dsDG = loai === 'thang' ? tdXH.danh_gia_thang : tdXH.danh_gia_tuan;
+    const ten = function (g) { return (tdXH.chi_tieu.find(function (c) { return c.ma === g.ma; }) || {}).ten_ngan || g.ten; };
+    const oLech = function (v, l, cuoi) {
+      const m = XH.mucLech(l);
+      // Khe trắng 2px giữa các ô màu để mỗi ô đọc riêng.
+      return '<td class="d dp" style="border:2px solid #ffffff;color:' + XH.MAU_LECH.chu + ';' + (m ? 'background:' + XH.MAU_LECH[m] + ';' : '') + '">'
+        + '<span style="white-space:nowrap;">' + phanTram(v) + '</span>'
+        + (m ? '<div style="font-size:11px;line-height:1.3;color:' + XH.MAU_LECH.phu + ';white-space:nowrap;">' + XH.chuLech(l) + '</div>' : '') + '</td>';
+    };
+    return BANG + '<thead><tr>' + thB(loai === 'thang' ? 'Tháng' : 'Tuần', false, true)
+      + dsDG.map(function (g, i) { return thB(esc(ten(g)), true, false, i === dsDG.length - 1); }).join('') + '</tr></thead><tbody>'
+      + ds.map(function (x) {
+          const ngan = loai === 'tuan' && x.so_ngay_ky < 7 ? nhoMo(x.so_ngay_ky + '&nbsp;ngày') : '';
+          return '<tr>' + oB('<span style="white-space:nowrap;">' + esc(x.nhan) + '</span>' + ngan, false, false, null, true)
+            + dsDG.map(function (g, i) { return oLech(XH.giaTri(x, g.ma), x.lech[g.ma], i === dsDG.length - 1); }).join('') + '</tr>';
+        }).join('')
+      + '<tr style="background:' + M.nen + ';">' + oB('TB các ' + (loai === 'thang' ? 'tháng' : 'tuần'), false, true, null, true)
+      + dsDG.map(function (g, i) { return oB(phanTram(g.tb), true, true, null, false, i === dsDG.length - 1); }).join('') + '</tr>'
+      + '</tbody></table>';
+  };
+  const chuThichLech = function () {
+    const o = function (m, chu) {
+      return '<span style="white-space:nowrap;"><span style="display:inline-block;width:12px;height:12px;vertical-align:-1px;background:'
+        + XH.MAU_LECH[m] + ';border:1px solid ' + M.vien + ';"></span>&nbsp;' + chu + '</span>';
+    };
+    return '<div style="font-size:' + CO.nho + 'px;color:' + M.muc2 + ';line-height:1.6;margin:' + K[4] + 'px 0 ' + K[2] + 'px;">'
+      + '<b>Từng ' + '%DON_VI%' + ' so với TB các %DON_VI%:</b> ' + o('tren', 'cao hơn') + ' &nbsp; ' + o('giua', 'quanh trung bình (±'
+      + tdXH.nguong_chenh + ' điểm)') + ' &nbsp; ' + o('duoi', 'thấp hơn') + '</div>';
+  };
+  const khoiXH = function (loai) {
+    const ds = loai === 'thang' ? tdXH.thang : tdXH.tuan;
+    const donVi = loai === 'thang' ? 'tháng' : 'tuần';
+    return '<div style="font-size:' + CO.than + 'px;line-height:1.6;color:' + M.muc + ';margin-bottom:' + K[4] + 'px;">' + XH.cauTongQuat(tdXH, loai) + '</div>'
+      + tieuDeNho(esc(tdXH.ten_tong) + ' theo ' + donVi)
+      // Nhãn biểu đồ chỉ là ngày đầu đoạn (14 cột của thư quý vẫn không đè chữ); nhãn đủ nằm ở bảng dưới.
+      + BDT.cot(ds.map(function (x) { return { nhan: XH.nhanCot(loai, x), v: x.tl }; }), tdXH.nguong_tl, { cao: 110 })
+      + '<div style="margin-top:' + K[5] + 'px;">' + tieuDeNho('Đánh giá cả kỳ') + bangDanhGiaXH(loai) + '</div>'
+      + chuThichLech().split('%DON_VI%').join(donVi) + bangLechXH(loai);
+  };
+  const khoiXHTuan = tdXH && tdXH.tuan.length
+    ? khoiXH('tuan')
+      + (tdXH.phong_td.length ? '<div style="font-size:' + CO.than + 'px;line-height:1.6;color:' + M.muc + ';margin-top:' + K[4] + 'px;">' + XH.cauPhong(tdXH, 3) + '</div>' : '')
+      + ghiChu('<span style="color:' + M.mo + ';">Xu hướng: độ dốc đường thẳng khớp nhất qua mọi tuần (hồi quy tuyến tính); thay đổi cả kỳ dưới '
+        + tdXH.nguong_chenh + ' điểm là đi ngang. TB các tuần: mỗi tuần nặng như nhau nên có thể khác số dẫn đầu thư (trung bình theo ngày). Tuần thứ Hai – Chủ nhật, tuần đầu và cuối cắt theo ngày của kỳ. Chênh áp: tỷ lệ điểm đo đạt của '
+        + tdXH.phong_td.length + ' phòng theo dõi; từng phòng theo từng tuần xem trong bản in.</span>')
+    : '';
+  const khoiXHThang = tdXH && tdXH.thang.length
+    ? khoiXH('thang')
+      + ghiChu('<span style="color:' + M.mo + ';">' + (maKy === 'QUY' ? 'Ba tháng của quý.' : 'Tháng này và hai tháng liền trước.')
+        + ' Xu hướng tính như ở mục xu hướng tuần, đơn vị điểm/tháng.</span>')
+    : '';
+
   /* ===== 3. Cảnh báo và tác động tại phòng theo dõi ===================== */
   const SO_CANH_BAO = 8;
   const khoiCanhBao = tdBD && tdBD.co_canh_bao
@@ -390,6 +469,10 @@ function rapEmail(d, duBao, cfg) {
     + ngayDai(d.tu_ngay) + ' – ' + ngayDai(d.den_ngay) + ' · ' + esc(khuBC ? 'Khu ' + khuBC : 'Toàn nhà máy') + '</div></td></tr>'
 
     + hang(muc('Kết luận') + khoiKetLuan)
+
+    + (khoiXHTuan ? hang(muc('Xu hướng tuần') + khoiXHTuan) : '')
+
+    + (khoiXHThang ? hang(muc('Xu hướng tháng') + khoiXHThang) : '')
 
     + (khoiBienDong ? hang(muc('Phòng theo dõi so với ' + tdBD.ten_ky_truoc) + khoiBienDong) : '')
 

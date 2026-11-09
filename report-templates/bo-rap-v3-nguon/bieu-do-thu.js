@@ -103,9 +103,6 @@ function cot(ds, nguong, opt) {
   const trong = function (h, noi) { return h <= 0 ? '' : '<tr><td colspan="3"' + cao(h) + '></td></tr>'; };
   const ke = '<tr><td colspan="3"' + cao(2, MAU.vach) + '></td></tr>';
   const giua = function (h, mau, noi) { return h <= 0 ? '' : '<tr>' + le + '<td width="72%"' + cao(h, mau, noi) + '>' + (noi || '') + '</td>' + le + '</tr>'; };
-  const vs = ds.map(function (x) { return x.v; }).filter(function (v) { return v != null; });
-  const min = vs.length ? Math.min.apply(null, vs) : null;
-  let daGhiMin = false;
   const buoc = Math.max(1, Math.ceil(ds.length / 8));
   const cotTd = ds.map(function (x) {
     const h = x.v == null ? 0 : kep(Math.round(CAO * x.v / 100), 2, CAO);
@@ -124,10 +121,10 @@ function cot(ds, nguong, opt) {
   }).join('');
   const nhan = ds.map(function (x, i) {
     const cuoi = i === ds.length - 1;
-    const laMin = x.v != null && x.v === min && !daGhiMin;
-    if (laMin) daGhiMin = true;
-    const ghiSo = x.v != null && !x.daGhi && (it || i === 0 || cuoi || laMin);
-    const ghiNgay = it || i % buoc === 0 || cuoi;
+    // Nhiều cột (thư quý 14 tuần, 09/11/2026): mỗi cột chỉ ~22 px nên số chỉ ghi ở cột đầu, cột cuối
+    // (có nhãn ngày ngay dưới), và bỏ nhãn của cột sát cột cuối để hai nhãn không dính nhau.
+    const ghiSo = x.v != null && !x.daGhi && (it || i === 0 || cuoi);
+    const ghiNgay = it || cuoi || (i % buoc === 0 && i !== ds.length - 2);
     return '<td style="padding:4px 0 0;text-align:center;font-size:11px;line-height:1.35;color:' + MAU.mo + ';vertical-align:top;">'
       + (ghiSo ? '<b style="color:#0F172A;font-size:12px;">' + so1(x.v) + '</b><br>' : '')
       + (ghiNgay ? x.nhan : '') + '</td>';

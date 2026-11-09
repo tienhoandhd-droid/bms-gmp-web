@@ -17,6 +17,7 @@ const L = require('./bao-cao-loi.js');
 const PTD = require('./chenh-ap-phong-theo-doi.js');
 const PH = require('./phan-hoi-bo-phan.js');
 const BDP = require('./bien-dong-phong-theo-doi.js');
+const XH = require('./xu-huong-ky.js');
 const { esc, so, soVN, phanTram, ngayDai, ngayNgan, gioDoc, gioPhut, delta, dich, NGUONG_HANH_DONG, TOI_DA_CAP_A } = L;
 
 /* ===== CSS ============================================================== */
@@ -144,6 +145,8 @@ td{padding:var(--k-2);border-bottom:1px solid var(--vien2);vertical-align:top;li
 tbody tr:nth-child(even){background:#FCFCFD}
 tbody tr:hover{background:var(--nhan-nhat)}
 tbody tr:last-child td{border-bottom:none}
+/* Biểu đồ cột vẽ bằng ô bảng (bieu-do-thu.js, mục 9.1): bỏ đệm, viền, nền sọc của bảng số liệu */
+.bd-o td{padding:0;border:0;line-height:1.35}.bd-o tr,.bd-o tbody tr:nth-child(even),.bd-o tbody tr:hover{background:none}
 td.so,th.so{text-align:right;font-variant-numeric:tabular-nums}
 .ma{font-family:var(--mono);font-size:var(--co-2)}
 
@@ -758,6 +761,8 @@ function rapBaoCao(d, duBao, cfg) {
   const khoiBienDongIn = tdBienDong
     ? '<h3><span class="so-muc-phu">3.9</span>Phòng theo dõi so với ' + esc(tdBienDong.ten_ky_truoc) + ' · cảnh báo và tác động</h3>' + BDP.htmlBanIn(tdBienDong)
     : '';
+  // 09/11/2026: thư tháng / quý có xu hướng từng tuần, từng tháng (thư tuần không có, khối tự ẩn).
+  const khoiXuHuongIn = XH.htmlBanIn(XH.tongHop(d, KHU_BAO_CAO));
   const khoiPhongTheoDoiIn = khoiPhongTheoDoi
     ? '<h3><span class="so-muc-phu">3.7</span>Phòng theo dõi trọng điểm · ba kỳ</h3>' + khoiPhongTheoDoi
     : '';
@@ -1004,6 +1009,8 @@ function rapBaoCao(d, duBao, cfg) {
     + '<p class="mota">Biểu đồ gộp ' + ((duBao || {}).chuoi || []).length + ' ngày đã đo gần nhất '
     + 'với phần ngoại suy 7 ngày tới, để thấy kỳ này nằm ở đâu trong mạch dài chứ không chỉ so với '
     + 'một kỳ liền trước.</p>'
+    + (khoiXuHuongIn ? '<h3><span class="so-muc-phu">9.1</span>Xu hướng tuần và tháng trong kỳ</h3>' + khoiXuHuongIn
+        + '<h3><span class="so-muc-phu">9.2</span>Xu hướng dài và ngoại suy</h3>' : '')
     + '<div class="khung-bd">' + L.svgXuHuongDai((duBao || {}).chuoi, (duBao || {}).du_bao) + '</div>'
     + duBaoHtml + '</section>'
 
