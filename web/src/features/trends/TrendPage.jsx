@@ -1,5 +1,6 @@
 // TrendPage.jsx — trang Xu hướng (tách move-only từ App.jsx 17/08/2026).
 import { AiSections } from "./AiSections";
+import BaoCaoDieuKienPhong from "./BaoCaoDieuKienPhong";
 import InspectorDrawer from "../../components/layout/InspectorDrawer";
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -853,6 +854,10 @@ function TrendPage({ onAI, isLive = false, liveRisk = null, liveRooms = null, li
           </p>
         )}
       </Card>
+
+      {isLive && level === "ROOM" && activeScope?.type === "ROOM" && activeId && (
+        <BaoCaoDieuKienPhong maPhong={activeId} khoang={chonKhoang} homNay={homNay} />
+      )}
 
       <Card className="p-4 flex items-center justify-between flex-wrap gap-3">
         <span className="text-tk-xs text-body">Đang chọn: <b style={{ color: "var(--text-strong)" }}>{activeScope.name}</b> · {SENSORS.find((s) => s.k === sensor).label} · {nhanKhoangHt}</span>
